@@ -218,10 +218,12 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 |---|---|---|
 | `PORT`, `HOST` | `8078`, `127.0.0.1` (`0.0.0.0` in Docker) | where it listens |
 | `TOKEN` | none | require `Authorization: Bearer <token>`; in Compose, set `TROUPE_RENDERER_TOKEN` in `.env` |
-| `KOKORO_DTYPE` | `q8` | `fp32` (about 330 MB) sounds slightly cleaner; `q4` is smaller |
+| `KOKORO_DTYPE` | `q8` | weights to run: `q8` (about 90 MB), `fp16` (165 MB), `q4f16` (155 MB), `q4` (305 MB) or `fp32` (330 MB, slightly cleaner) |
+| `KOKORO_VOICES` | the built-in casting | the Kokoro voices actors are cast from, e.g. `female=af_heart,af_bella;male=am_michael`; both pools are required |
 | `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
 | `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
 | `TROUPE_RENDERER_PORT` | `8078` | Compose only: the port published on `127.0.0.1` |
+| `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
 
 ### Add it to Troupe
 

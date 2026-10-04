@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SUPPORTED_EMOTIONS } from "~/modules/script";
-import { KOKORO_VOICES, voiceFor } from "./voice";
+import { KOKORO_VOICES, parseVoicePools, voiceFor } from "./voice";
 
 const ids = Array.from({ length: 40 }, (_, i) => `actor-${i}`);
 
@@ -48,5 +48,26 @@ describe("voiceFor", () => {
     expect(voiceFor({ id: "a", gender: "female", voiceProfile: "bright and fast, upbeat" }, "neutral").speed).toBeGreaterThan(base);
     expect(voiceFor({ id: "a", gender: "female", voiceProfile: "soft-spoken and intimate" }, "neutral").speed).toBeLessThan(base);
     expect(voiceFor({ id: "a", gender: "female", voiceProfile: "warm and enthusiastic, mid-tempo" }, "neutral").speed).toBe(base);
+  });
+});
+
+describe("custom voice pools", () => {
+  const pools = parseVoicePools("female=af_bella, af_sky; male=bm_lewis");
+
+  it("reads a voice map written as female=…;male=…", () => {
+    expect(pools).toEqual({ female: ["af_bella", "af_sky"], male: ["bm_lewis"] });
+  });
+
+  it("casts from the pools it is given", () => {
+    expect(voiceFor({ id: "a", gender: "male" }, "neutral", pools).voice).toBe("bm_lewis");
+    expect(["af_bella", "af_sky"]).toContain(voiceFor({ id: "a", gender: "female" }, "neutral", pools).voice);
+    expect(["af_bella", "af_sky", "bm_lewis"]).toContain(voiceFor({ id: "a" }, "neutral", pools).voice);
+  });
+
+  it("refuses a map missing a pool or a voice name", () => {
+    expect(() => parseVoicePools("female=af_bella")).toThrow(/male/);
+    expect(() => parseVoicePools("female=;male=am_adam")).toThrow(/female/);
+    expect(() => parseVoicePools("female=af bella;male=am_adam")).toThrow(/af bella/);
+    expect(() => parseVoicePools("robot=x;female=af_bella;male=am_adam")).toThrow(/robot/);
   });
 });

@@ -3,12 +3,13 @@ import { once } from "node:events";
 import { rm, writeFile } from "node:fs/promises";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { buildScene, drawFrame, voiceFor, type SceneContext } from "../../src/modules/scene";
-import { assembleTrack, wavBytes, type Speak, type Speech } from "./audio";
+import { assembleTrack, buildScene, drawFrame, voiceFor, type SceneContext, type Speak, type Speech, type VoicePools } from "../../src/modules/scene";
+import { wavBytes } from "./audio";
 import type { RenderRequest } from "./request";
 
 export interface RenderDeps {
   speak: Speak;
+  voices?: VoicePools;
   // Progress in [0, 1].
   onProgress?: (progress: number) => void;
 }
@@ -24,7 +25,7 @@ export async function renderVideo(request: RenderRequest, outFile: string, deps:
   const speeches: Speech[] = [];
   if (request.audio) {
     for (const line of request.lines) {
-      speeches.push(await deps.speak(line.text, voiceFor(request.actor, line.emotion)));
+      speeches.push(await deps.speak(line.text, voiceFor(request.actor, line.emotion, deps.voices)));
       progress((VOICE_SHARE * speeches.length) / request.lines.length);
     }
   }

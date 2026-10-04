@@ -3,7 +3,7 @@ import { createReadStream, mkdirSync, statSync } from "node:fs";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 
-import type { Speak } from "./audio";
+import type { Speak, VoicePools } from "../../src/modules/scene";
 import { renderVideo } from "./render";
 import { BadRequest, parseJobBody, type RenderRequest } from "./request";
 
@@ -13,6 +13,8 @@ import { BadRequest, parseJobBody, type RenderRequest } from "./request";
 
 export interface RendererOptions {
   speak: Speak;
+  // Kokoro voices to cast actors from (default: the scene module's).
+  voices?: VoicePools;
   // Where finished MP4s are kept.
   outDir: string;
   token?: string;
@@ -44,7 +46,7 @@ export function createRendererServer(options: RendererOptions): Server {
       job.status = "running";
       const started = Date.now();
       try {
-        const durationS = await renderVideo(request, join(options.outDir, `${id}.mp4`), { speak: options.speak, onProgress: (p) => (job.progress = Math.min(0.99, p)) });
+        const durationS = await renderVideo(request, join(options.outDir, `${id}.mp4`), { speak: options.speak, voices: options.voices, onProgress: (p) => (job.progress = Math.min(0.99, p)) });
         Object.assign(job, { status: "succeeded", progress: 1 });
         log(`Rendered ${id}: ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
       } catch (error) {

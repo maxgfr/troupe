@@ -77,6 +77,8 @@ services:
     restart: unless-stopped
     environment:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
+      KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
+      KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
     ports:
       # For Troupe under `pnpm dev`: http://127.0.0.1:8078.
       - "127.0.0.1:${TROUPE_RENDERER_PORT:-8078}:8078"

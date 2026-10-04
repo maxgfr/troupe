@@ -11,7 +11,7 @@ import { compilePrompt, type CreateJobRequest } from "~/modules/generation/serve
 import { createHttpEndpointAdapter, type HttpEndpointModel } from "~/modules/generation/server/adapters/http-endpoint";
 import { sizeFor } from "~/modules/models/geometry";
 import { buildScene, paletteFor, voiceFor } from "../../src/modules/scene";
-import type { Speak } from "./audio";
+import type { Speak } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
 import { createRendererServer } from "./server";
 

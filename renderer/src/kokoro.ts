@@ -1,4 +1,4 @@
-import type { Speak } from "./audio";
+import type { Speak } from "../../src/modules/scene";
 
 // Kokoro-82M through kokoro-js, on the CPU. The weights (about 90 MB at q8,
 // plus 0.5 MB per voice) download from Hugging Face on first use into

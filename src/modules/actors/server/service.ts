@@ -93,13 +93,21 @@ export async function getActorSeedAssets(db: Db, actorId: string) {
   return { actorId, assetVersion: actor.assetVersion, voiceProfile: actor.voiceProfile, assets };
 }
 
+// The actor guard's refusal: a missing or unavailable actor.
+export class ActorUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ActorUnavailableError";
+  }
+}
+
 // Unavailable actors cannot be attached to a project.
 export async function attachActorToProject(db: Db, input: { projectId: string; actorId: string }): Promise<void> {
   const listed = await listActors(db, {});
   const actor = listed.find((a) => a.id === input.actorId);
-  if (!actor) throw new Error(`actor ${input.actorId} not found`);
+  if (!actor) throw new ActorUnavailableError(`actor ${input.actorId} not found`);
   if (actor.status === "unavailable") {
-    throw new Error(`${actor.name} is unavailable: their portraits are missing. Choose another actor.`);
+    throw new ActorUnavailableError(`${actor.name} is unavailable: their portraits are missing. Choose another actor.`);
   }
   await db.update(projects).set({ actorId: input.actorId }).where(eq(projects.id, input.projectId));
 }

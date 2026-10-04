@@ -6,6 +6,7 @@ import { changeProjectActor, createProjectFromWizard, formatOptionsFor, getProje
 import type { ModelCatalog } from "~/modules/models";
 import { MODEL_KEY } from "./generation";
 import { deleteProjectData } from "~/server/projects";
+import { ActorUnavailableError } from "~/modules/actors";
 
 const PLATFORM = z.enum(["instagram", "youtube", "tiktok", "linkedin"]);
 const FORMAT = z.enum(["9:16", "1:1", "16:9"]);
@@ -63,7 +64,8 @@ export const studioRouter = createTRPCRouter({
       try {
         return await changeProjectActor(ctx.db, input);
       } catch (error) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: (error as Error).message });
+        if (error instanceof ActorUnavailableError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+        throw error;
       }
     }),
 });

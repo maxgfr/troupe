@@ -81,7 +81,7 @@ describe("examples/http-model/server.mjs (contract v1)", () => {
   });
 
   it("passes Troupe's connection check with its token and refuses requests without it", async () => {
-    expect(await createHttpEndpointAdapter({ model: model() }).testConnection!()).toEqual({ ok: true, message: "Example is reachable and speaks contract 1." });
+    expect(await createHttpEndpointAdapter({ model: model() }).testConnection!()).toMatchObject({ ok: true, message: "Example is reachable and speaks contract 1.", pollEveryS: 1 });
     const anonymous = await createHttpEndpointAdapter({ model: model({ token: undefined }) }).testConnection!();
     expect(anonymous).toMatchObject({ ok: false, message: expect.stringMatching(/HTTP 401/) });
   });

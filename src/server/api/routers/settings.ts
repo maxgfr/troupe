@@ -3,11 +3,14 @@ import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import type { ConnectionReport } from "~/modules/generation";
+import type { Db } from "~/server/db/types";
 import {
   BUILTIN_MODELS,
   archiveLocalModel,
   canLaunch,
   getDefaultModelKey,
+  getModelConfig,
+  updateLocalModel,
   sanitizeDefaults,
   setDefaultModelKey,
   updateModelPreferences,
@@ -19,6 +22,17 @@ import { MODEL_KEY } from "./generation";
 import { localModelProcedures } from "./local-models";
 
 const CREDENTIAL = z.enum(["google", "fal"]);
+
+// A successful test of an HTTP model saves the polling pace its server asks
+// for now (or forgets it when the server stopped asking).
+async function rememberPollPace(db: Db, modelKey: string, report: ConnectionReport) {
+  if (report.ok !== true) return;
+  const row = await getModelConfig(db, modelKey);
+  if (row?.family !== "http") return;
+  const { pollEveryS: previous, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
+  if (previous === report.pollEveryS) return;
+  await updateLocalModel(db, modelKey, { connection: { ...rest, ...(report.pollEveryS ? { pollEveryS: report.pollEveryS } : {}) } });
+}
 
 function modelOf(catalog: ModelCatalog, modelKey: string) {
   const model = catalog.models.find((m) => m.key === modelKey);
@@ -124,11 +138,14 @@ export const settingsRouter = createTRPCRouter({
         const adapter = ctx.catalog.adapters.get(model.key);
         if (!adapter) return { ok: false, message: model.statusDetail ?? "This model is not configured." };
         if (!adapter.testConnection) return { ok: null, message: "This model has no connection check." };
+        let report: ConnectionReport;
         try {
-          return await adapter.testConnection();
+          report = await adapter.testConnection();
         } catch {
           return { ok: false, message: "The model could not be reached." };
         }
+        await rememberPollPace(ctx.db, model.key, report);
+        return report;
       }),
   }),
 });

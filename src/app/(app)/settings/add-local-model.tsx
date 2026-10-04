@@ -214,6 +214,8 @@ export function AddLocalModel() {
   const utils = api.useUtils();
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<Report | undefined>();
+  // The draft the report is about: its polling pace is only kept for it.
+  const [tested, setTested] = useState<string | null>(null);
   const templates = api.settings.models.templates.useQuery(undefined, { enabled: open });
   const suggested = api.settings.models.suggestedAddress.useQuery(undefined, { enabled: open });
   const test = api.settings.models.testDraft.useMutation({ onSuccess: setReport, onMutate: () => setReport({ ok: null, message: "Testing…" }) });
@@ -221,6 +223,7 @@ export function AddLocalModel() {
     onSuccess: async () => {
       setOpen(false);
       setReport(undefined);
+      setTested(null);
       await Promise.all([utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate()]);
     },
   });
@@ -240,8 +243,14 @@ export function AddLocalModel() {
       busy={test.isPending || create.isPending}
       report={report}
       error={(templates.error ?? create.error ?? test.error)?.message ?? null}
-      onTest={(draft) => test.mutate(draft as Parameters<typeof test.mutate>[0])}
-      onSave={(draft) => create.mutate(draft as Parameters<typeof create.mutate>[0])}
+      onTest={(draft) => {
+        setTested(JSON.stringify(draft));
+        test.mutate(draft as Parameters<typeof test.mutate>[0]);
+      }}
+      onSave={(draft) => {
+        const pollEveryS = draft.family === "http" && report?.ok && tested === JSON.stringify(draft) ? report.pollEveryS : undefined;
+        create.mutate({ ...draft, ...(pollEveryS ? { pollEveryS } : {}) } as Parameters<typeof create.mutate>[0]);
+      }}
     />
   );
 }

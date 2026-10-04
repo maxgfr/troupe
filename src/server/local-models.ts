@@ -19,6 +19,8 @@ export const HttpConnection = z.object({
   fps: z.number().int().min(1).max(120).optional(),
   sizeMultiple: z.number().int().min(1).max(128).optional(),
   maxDownloadMb: z.number().int().min(1).max(4096).optional(),
+  // Learned from the server's /health (poll_every_s); clamped when used.
+  pollEveryS: z.number().optional(),
 });
 
 export const ComfyConnection = z.object({
@@ -72,7 +74,7 @@ export function buildHttpAdapter(draft: LocalDraft): VideoProviderAdapter | Veto
   return createHttpEndpointAdapter({
     model: {
       modelKey: draft.modelKey, label: draft.label, baseUrl: url.base, token: draft.token, capabilities: draft.capabilities,
-      fps: connection.data.fps, sizeMultiple: connection.data.sizeMultiple,
+      fps: connection.data.fps, sizeMultiple: connection.data.sizeMultiple, pollEveryS: connection.data.pollEveryS,
       maxDownloadBytes: connection.data.maxDownloadMb ? connection.data.maxDownloadMb * 1024 * 1024 : undefined,
     },
   });

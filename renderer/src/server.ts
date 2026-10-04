@@ -57,7 +57,8 @@ export function createRendererServer(options: RendererOptions): Server {
   return createServer((req, res) => {
     if (options.token && req.headers.authorization !== `Bearer ${options.token}`) return send(res, 401, { error: "unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
-    if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1 });
+    // A render takes seconds: ask Troupe to check every second.
+    if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
     if (req.method === "POST" && url.pathname === "/jobs") {
       const chunks: Buffer[] = [];
       let received = 0;

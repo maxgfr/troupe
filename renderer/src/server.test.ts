@@ -101,7 +101,10 @@ describe("renderer (contract v1)", () => {
   });
 
   it("passes Troupe's connection check with its token and refuses requests without it", async () => {
-    expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toEqual({ ok: true, message: "Renderer is reachable and speaks contract 1." });
+    // It renders in seconds, so it asks to be polled every second.
+    expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toEqual({
+      ok: true, message: "Renderer is reachable and speaks contract 1.", details: ["It asks Troupe to check on renders every 1 s."], pollEveryS: 1,
+    });
     const anonymous = await createHttpEndpointAdapter({ model: model(baseUrl, { token: undefined }) }).testConnection!();
     expect(anonymous).toMatchObject({ ok: false, message: expect.stringMatching(/HTTP 401/) });
   });

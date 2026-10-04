@@ -2,6 +2,7 @@ export interface Report {
   ok: boolean | null;
   message: string;
   details?: string[];
+  pollEveryS?: number;
 }
 
 // The outcome of a "Test" click: green, red, or "can't tell without spending".

@@ -46,7 +46,9 @@ function send(res, status, body) {
 const server = createServer((req, res) => {
   if (TOKEN && req.headers.authorization !== `Bearer ${TOKEN}`) return send(res, 401, { error: "unauthorized" });
   const url = new URL(req.url ?? "/", "http://localhost");
-  if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1 });
+  // poll_every_s (optional): this server renders in about a second, so it asks
+  // Troupe to check on jobs every second instead of backing off from 20 s.
+  if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
   if (req.method === "POST" && url.pathname === "/jobs") {
     let body = "";
     req.on("data", (c) => (body += c));

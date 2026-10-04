@@ -82,6 +82,47 @@ describe("local models end to end", () => {
     expect(done!.outputAssetId).not.toBeNull();
   });
 
+  it("polls an HTTP model at the pace its server advertised when tested, and relearns it on the next test", async () => {
+    let pace = 1;
+    const server = await startServer((r, res) => {
+      if (r.path === "/health") return json(res, 200, { ok: true, contract: 1, poll_every_s: pace });
+      if (r.method === "POST" && r.path === "/jobs") return json(res, 200, { id: "job-9" });
+      if (r.path === "/jobs/job-9") return json(res, 200, { status: "running" });
+      json(res, 404, {});
+    });
+    servers.push(server);
+
+    const draft = { family: "http" as const, label: "Renderer", baseUrl: server.url, capabilities: caps };
+    const report = await (await caller()).settings.models.testDraft(draft);
+    expect(report).toMatchObject({ ok: true, pollEveryS: 1 });
+    // The form sends what the test learned; the server keeps it in range.
+    const { modelKey } = await (await caller()).settings.models.createLocal({ ...draft, pollEveryS: report.pollEveryS });
+    expect((await getModelConfig(t.db, modelKey))?.connection).toMatchObject({ pollEveryS: 1 });
+    expect((await loadModelCatalog(t.db)).adapters.get(modelKey)?.pollEveryS).toBe(1);
+
+    // The orchestrator polls the launched job at that pace, from the first poll on.
+    const before = Date.now();
+    const gen = await (await caller()).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey, tier: "draft", durationS: 8, resolution: "720p" });
+    const [watch] = await t.db.select().from(generationWatches).where(eq(generationWatches.generationId, gen.id));
+    expect(watch!.nextPollAt.getTime() - before).toBeLessThan(5_000);
+    await t.db.update(generationWatches).set({ nextPollAt: new Date(0) }).where(eq(generationWatches.generationId, gen.id));
+    const now = new Date();
+    await reconcileDueJobs(t.db, { adapters: (await loadModelCatalog(t.db)).adapters, now });
+    const [again] = await t.db.select().from(generationWatches).where(eq(generationWatches.generationId, gen.id));
+    expect(again!.nextPollAt.getTime() - now.getTime()).toBe(1_000);
+
+    // Testing the saved model again stores the pace the server asks for now.
+    pace = 3;
+    expect(await (await caller()).settings.models.test({ modelKey })).toMatchObject({ ok: true, pollEveryS: 3 });
+    expect((await loadModelCatalog(t.db)).adapters.get(modelKey)?.pollEveryS).toBe(3);
+    // An out-of-range value from a client is clamped, and moving the model to
+    // another server forgets the old server's pace.
+    const { modelKey: eager } = await (await caller()).settings.models.createLocal({ ...draft, label: "Eager", pollEveryS: 0.01 });
+    expect((await loadModelCatalog(t.db)).adapters.get(eager)?.pollEveryS).toBe(1);
+    await (await caller()).settings.models.updateLocal({ modelKey: eager, baseUrl: "http://10.0.0.8:8000" });
+    expect((await loadModelCatalog(t.db)).adapters.get(eager)?.pollEveryS).toBeUndefined();
+  });
+
   it("refuses a cloud metadata address and a broken custom workflow", async () => {
     const api = await caller();
     await expect(api.settings.models.createLocal({ family: "http", label: "Nope", baseUrl: "http://169.254.169.254", capabilities: caps })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/metadata/i) });

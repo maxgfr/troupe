@@ -4,6 +4,7 @@ export type { LaunchInput } from "./server/service";
 export { compilePrompt, validateRequest, AdapterError } from "./server/adapter";
 export type { HttpLike, VideoProviderAdapter, ModelCapabilities, ModelFamily, AudioSupport, ConnectionReport, CreateJobRequest, JobActor, JobOutcome, JobScript, PromptLine, ProviderJobStatus } from "./server/adapter";
 export { watchGeneration, reconcileDueJobs, createPgOrchestrator, FIRST_POLL_DELAY_S, pollBackoffS } from "./server/orchestrator";
+export { clampPollEveryS } from "./server/adapter";
 export type { JobOrchestrator, ReconcileResult, RenderIngestor, WatchInput } from "./server/orchestrator";
 export { generations, generationWatches } from "./server/schema";
 export { mediaAssets } from "./server/media";

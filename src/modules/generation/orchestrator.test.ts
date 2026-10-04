@@ -10,6 +10,7 @@ import { TEST_CAPS, finishGeneration } from "~/test/adapters";
 import {
   FIRST_POLL_DELAY_S,
   pollBackoffS,
+  clampPollEveryS,
   generations,
   generationWatches,
   launchGeneration,
@@ -193,6 +194,20 @@ describe("job orchestration — Postgres reconciliation queue", () => {
 
   it("keeps the default pace for a model that sets none: 20 s first, doubling up to 5 minutes", () => {
     expect([0, 1, 2, 3, 4, 5, 12].map((attempts) => pollBackoffS(attempts))).toEqual([20, 40, 80, 160, 300, 300, 300]);
+  });
+
+  it("keeps a model's own pace between 1 and 60 whole seconds", () => {
+    expect(clampPollEveryS(1)).toBe(1);
+    expect(clampPollEveryS(2.4)).toBe(2);
+    expect(clampPollEveryS(0.001)).toBe(1);
+    expect(clampPollEveryS(0)).toBe(1);
+    expect(clampPollEveryS(-5)).toBe(1);
+    expect(clampPollEveryS(600)).toBe(60);
+    for (const nonsense of [undefined, null, Number.NaN, Number.POSITIVE_INFINITY, "1", {}]) expect(clampPollEveryS(nonsense)).toBeUndefined();
+    // A pace below a second would re-poll on every reconcile pass.
+    expect([0, 3].map((attempts) => pollBackoffS(attempts, 0.001))).toEqual([1, 1]);
+    expect(pollBackoffS(0, 3600)).toBe(60);
+    expect(pollBackoffS(1, Number.NaN)).toBe(40);
   });
 
   it("polls a model at its own pace when it sets pollEveryS, from the first poll on", async () => {

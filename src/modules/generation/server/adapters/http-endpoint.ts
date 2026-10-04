@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { sizeFor } from "~/modules/models/geometry";
-import { AdapterError, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
+import { AdapterError, clampPollEveryS, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
 import { videoBytes } from "./download";
 
 // Contract v1 for a self-hosted video model behind plain HTTP
 // (docs/LOCAL-MODELS.md):
-//   GET  /health      → { ok, contract: 1 }
+//   GET  /health      → { ok, contract: 1, poll_every_s? }
 //   POST /jobs        → { id }   (the body may carry an optional `script`)
 //   GET  /jobs/{id}   → { status: queued|running|succeeded|failed, progress?, error?, video_url? }
 export const HTTP_CONTRACT_VERSION = 1;
@@ -22,6 +22,8 @@ export interface HttpEndpointModel {
   fps?: number;
   sizeMultiple?: number;
   maxDownloadBytes?: number;
+  // Polling pace learned from /health when the model was tested.
+  pollEveryS?: number;
 }
 
 const Created = z.object({ id: z.union([z.string(), z.number()]).transform(String) });
@@ -31,7 +33,7 @@ const Status = z.object({
   error: z.unknown().optional(),
   video_url: z.string().optional(),
 });
-const Health = z.object({ ok: z.boolean(), contract: z.number().optional() });
+const Health = z.object({ ok: z.boolean(), contract: z.number().optional(), poll_every_s: z.unknown().optional() });
 
 // The script as the contract spells it: snake_case, like the rest of the body.
 function scriptBody(script: JobScript) {
@@ -77,10 +79,12 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
     return new AdapterError("LOCAL_HTTP", `${model.label} returned HTTP ${status}.`);
   }
 
+  const pollEveryS = clampPollEveryS(model.pollEveryS);
   return {
     modelKey: model.modelKey,
     family: "http",
     modelId: model.label,
+    ...(pollEveryS ? { pollEveryS } : {}),
     capabilities: () => model.capabilities,
     async createJob(req) {
       validateRequest(model.capabilities, req);
@@ -138,7 +142,10 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
       if (health.data.contract !== undefined && health.data.contract !== HTTP_CONTRACT_VERSION) {
         return { ok: false, message: `The server speaks contract ${health.data.contract}; Troupe expects contract ${HTTP_CONTRACT_VERSION}.` };
       }
-      return { ok: true, message: `${model.label} is reachable and speaks contract ${HTTP_CONTRACT_VERSION}.` };
+      const message = `${model.label} is reachable and speaks contract ${HTTP_CONTRACT_VERSION}.`;
+      const pace = clampPollEveryS(health.data.poll_every_s);
+      if (!pace) return { ok: true, message };
+      return { ok: true, message, details: [`It asks Troupe to check on renders every ${pace} s.`], pollEveryS: pace };
     },
   };
 }

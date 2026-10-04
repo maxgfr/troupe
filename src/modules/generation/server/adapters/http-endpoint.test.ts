@@ -107,4 +107,31 @@ describe("generic HTTP endpoint adapter", () => {
     contract = 2;
     expect(await adapter.testConnection!()).toMatchObject({ ok: false, message: expect.stringMatching(/contract 2/) });
   });
+
+  it("takes the polling pace a server advertises on /health, within 1 to 60 s", async () => {
+    let pace: unknown = 1;
+    const server = await startServer((_r, res) => json(res, 200, { ok: true, contract: 1, poll_every_s: pace }));
+    close = server.close;
+    const adapter = createHttpEndpointAdapter({ model: model(server.url) });
+    expect(await adapter.testConnection!()).toEqual({
+      ok: true,
+      message: "Box is reachable and speaks contract 1.",
+      details: ["It asks Troupe to check on renders every 1 s."],
+      pollEveryS: 1,
+    });
+    pace = 0.2;
+    expect(await adapter.testConnection!()).toMatchObject({ ok: true, pollEveryS: 1 });
+    pace = 600;
+    expect(await adapter.testConnection!()).toMatchObject({ ok: true, pollEveryS: 60 });
+    pace = "fast";
+    const ignored = await adapter.testConnection!();
+    expect(ignored).toEqual({ ok: true, message: "Box is reachable and speaks contract 1." });
+  });
+
+  it("polls at the model's stored pace, clamped", () => {
+    expect(createHttpEndpointAdapter({ model: model("http://127.0.0.1:9", { pollEveryS: 1 }) }).pollEveryS).toBe(1);
+    expect(createHttpEndpointAdapter({ model: model("http://127.0.0.1:9", { pollEveryS: 0.01 }) }).pollEveryS).toBe(1);
+    expect(createHttpEndpointAdapter({ model: model("http://127.0.0.1:9", { pollEveryS: 90 }) }).pollEveryS).toBe(60);
+    expect(createHttpEndpointAdapter({ model: model("http://127.0.0.1:9") }).pollEveryS).toBeUndefined();
+  });
 });

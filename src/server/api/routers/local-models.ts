@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { protectedProcedure } from "~/server/api/trpc";
-import type { ConnectionReport, ModelCapabilities } from "~/modules/generation";
+import { clampPollEveryS, type ConnectionReport, type ModelCapabilities } from "~/modules/generation";
 import { NodeBindingSchema, parseWorkflow, workflowProblems, type ApiWorkflow } from "~/modules/generation/server/adapters/comfyui/bindings";
 import { COMFY_TEMPLATES, findComfyTemplate } from "~/modules/generation/server/adapters/comfyui/templates";
 import { createLocalModel, getModelConfig, listModelConfigs, LOCAL_TIMEOUT_S, newLocalModelKey, updateLocalModel } from "~/modules/models";
@@ -31,6 +31,8 @@ const HttpInput = z.object({
   token: Token.optional(),
   capabilities: Capabilities,
   fps: z.number().int().min(1).max(120).optional(),
+  // The pace the server advertised when the form was tested.
+  pollEveryS: z.number().optional(),
   timeoutS: Timeout.optional(),
 });
 
@@ -63,7 +65,8 @@ function normalize(input: LocalInput): { capabilities: ModelCapabilities; connec
   const url = checkLocalUrl(input.baseUrl);
   if (!url.ok) return bad(url.reason);
   if (input.family === "http") {
-    return { capabilities: input.capabilities, connection: HttpConnection.parse({ baseUrl: url.base, fps: input.fps }), timeoutS: input.timeoutS ?? LOCAL_TIMEOUT_S };
+    const connection = HttpConnection.parse({ baseUrl: url.base, fps: input.fps, pollEveryS: clampPollEveryS(input.pollEveryS) });
+    return { capabilities: input.capabilities, connection, timeoutS: input.timeoutS ?? LOCAL_TIMEOUT_S };
   }
   if (input.templateId) {
     const template = findComfyTemplate(input.templateId) ?? bad(`Unknown template "${input.templateId}".`);
@@ -151,7 +154,9 @@ export const localModelProcedures = {
         if (!url.ok) return bad(url.reason);
         const previous = (row.connection as { baseUrl?: unknown } | null)?.baseUrl;
         movedOrigin = typeof previous !== "string" || !sameOrigin(url.base, previous);
-        connection = { ...(row.connection ?? {}), baseUrl: url.base };
+        const { pollEveryS, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
+        // Another server has its own pace: forget the old one until a test.
+        connection = { ...rest, ...(movedOrigin ? {} : pollEveryS === undefined ? {} : { pollEveryS }), baseUrl: url.base };
       }
       await updateLocalModel(ctx.db, input.modelKey, {
         ...(input.label ? { label: input.label } : {}),

@@ -205,7 +205,7 @@ timeline download → export → download) and Kokoro q8 for the voices.
 
 | Run | Address | Result |
 |---|---|---|
-| `pnpm renderer` + `pnpm dev` | `http://127.0.0.1:8078` | completed one worker cycle (21 s) after launch; the render itself took 3.6 s. Timeline and export MP4s: h264 720×1280 + AAC, 8.250 s, the length the renderer logged for the voiced script ("3 lines, 8.25 s of video"). No console errors or 5xx. |
+| `pnpm renderer` + `pnpm dev` | `http://127.0.0.1:8078` | before `poll_every_s`: completed one worker cycle (21 s) after launch; the render itself took 3.6 s. Timeline and export MP4s: h264 720×1280 + AAC, 8.250 s, the length the renderer logged for the voiced script ("3 lines, 8.25 s of video"). No console errors or 5xx. |
 | `docker compose --profile renderer up -d --build` | `http://renderer:8078` | Same walk against the image on port 3100 with the access code: completed in 20 s, h264 720×1280 + AAC, 7.667 s (the script voiced as 7.65 s, rounded to whole frames at 24 fps). No console errors or 5xx. |
 | Regression, `pnpm dev` with the example model server | `http://127.0.0.1:8077` | Unchanged: completed in 21 s, h264 720×1280 + AAC, 8.000 s. |
 
@@ -222,3 +222,16 @@ timeline download → export → download) and Kokoro q8 for the voices.
   the actor card now hugs its content, the word being said sits on a pill,
   caption lines are balanced, and vertical captions keep clear of the
   platforms' right-hand button rail.
+
+### Polling pace (`poll_every_s`)
+
+The renderer and the example server now advertise `poll_every_s: 1` on
+`/health`. Measured through the UI under `pnpm dev`, from the **Launch draft**
+click to the completed row in the timeline, with a 3-line script (8.55 s of
+video, rendered in 3.7–4.0 s):
+
+| Model | Launch → clip |
+|---|---|
+| Added after **Test** (pace saved) | 6.2 s |
+| Added without **Test** (no pace: first poll at 20 s) | 22.8 s |
+| The same model after **Test** on its Settings row | 6.2 s |

@@ -1,12 +1,13 @@
 import { and, asc, eq, lt, lte } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
-import type { JobOutcome, ProviderJobStatus, VideoProviderAdapter } from "./adapter";
+import { clampPollEveryS, type JobOutcome, type ProviderJobStatus, type VideoProviderAdapter } from "./adapter";
 import { applyJobOutcome } from "./outcome";
 import { generations, generationWatches } from "./schema";
 
 // Poll every 20 s with backoff, until the job ends or its deadline passes. A
-// model that sets pollEveryS is polled at that steady pace instead.
+// model that sets pollEveryS is polled at that steady pace instead, with no
+// backoff, kept between 1 and 60 s.
 export const FIRST_POLL_DELAY_S = 20;
 const MAX_BACKOFF_S = 300;
 export const DEFAULT_TIMEOUT_S = 30 * 60;
@@ -15,7 +16,8 @@ const SUBMISSION_TIMEOUT_MS = DEFAULT_TIMEOUT_S * 1000;
 const DOWNLOAD_GRACE_MS = 24 * 60 * 60 * 1000;
 
 export function pollBackoffS(attempts: number, pollEveryS?: number): number {
-  if (pollEveryS) return pollEveryS;
+  const steady = clampPollEveryS(pollEveryS);
+  if (steady) return steady;
   return Math.min(FIRST_POLL_DELAY_S * 2 ** attempts, MAX_BACKOFF_S);
 }
 

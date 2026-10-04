@@ -93,6 +93,18 @@ export interface ConnectionReport {
   ok: boolean | null;
   message: string;
   details?: string[];
+  // The polling pace the model asked for (HTTP contract: poll_every_s),
+  // already clamped. Saved on the model so its renders are polled at it.
+  pollEveryS?: number;
+}
+
+// A model's own polling pace, in whole seconds from 1 to 60; anything that
+// is not a finite number means "no pace". Below a second, every reconcile
+// pass would poll the job again.
+export const POLL_EVERY_S_RANGE = { min: 1, max: 60 } as const;
+export function clampPollEveryS(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.min(POLL_EVERY_S_RANGE.max, Math.max(POLL_EVERY_S_RANGE.min, Math.round(value)));
 }
 
 // The interface every video model implements.
@@ -104,7 +116,8 @@ export interface VideoProviderAdapter {
   modelId: string;
   capabilities(): ModelCapabilities;
   // Seconds between status polls, from the first one on, for models that
-  // finish in seconds. Unset: 20 s, then doubling up to 5 minutes.
+  // finish in seconds (clamped to 1–60). Unset: 20 s, then doubling up to
+  // 5 minutes.
   pollEveryS?: number;
   createJob(req: CreateJobRequest): Promise<{ providerJobId: string }>;
   // Optional: a provider without it still gets the reconciler's timeout guard.

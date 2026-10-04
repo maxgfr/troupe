@@ -99,8 +99,17 @@ All requests carry `Authorization: Bearer <token>` when a token is set.
 ### `GET /health`
 
 ```json
-{ "ok": true, "contract": 1 }
+{ "ok": true, "contract": 1, "poll_every_s": 1 }
 ```
+
+`poll_every_s` is optional: how often, in seconds, Troupe should ask about a
+job. **Test** reads it, shows it, and **Add model** saves it with the model;
+testing a saved model again picks up a new value, and changing a model's
+server forgets it until the next test. Troupe rounds it to whole seconds
+between 1 and 60 and then polls at that steady pace from the first check on,
+with no backoff. Without it, Troupe waits 20 seconds, then twice as long each
+time, up to 5 minutes. Set it when your server finishes in seconds or
+minutes; leave it out for jobs that take an hour.
 
 ### `POST /jobs`
 
@@ -169,8 +178,9 @@ Answer with an id:
 Troupe refuses to follow it anywhere else and does not follow redirects. The
 file must be an MP4 of at most 200 MB.
 
-Troupe polls every 20 seconds at first, then less often, for up to two hours by
-default (change it in the model's settings).
+Troupe polls every 20 seconds at first, then less often (or at the server's
+`poll_every_s`), for up to two hours by default (change it in the model's
+settings). The project page also checks while it is open, every 4 seconds.
 
 ## Local renderer
 
@@ -226,10 +236,11 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | Audio | Always with audio (Audio on request also works: silent jobs skip the voice and time lines from the word count) |
 | Frames per second | 24 (up to 60) |
 
-Then **Test** and **Add model**. Troupe polls a local model every 20 seconds
-at first and the in-process worker runs every 30 seconds, so a render shows up
-about 20–30 s after launch even though it takes a few seconds; the HTTP
-endpoint form has no setting to poll faster.
+Then **Test** and **Add model**. The renderer's `/health` asks for
+`poll_every_s: 1`, which **Test** reports ("It asks Troupe to check on renders
+every 1 s.") and **Add model** saves, so a clip shows up on the project page a
+few seconds after the render ends. A renderer model added before this was
+supported picks the pace up when you press **Test** on it in Settings.
 
 ### Limits
 

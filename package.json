@@ -23,12 +23,14 @@
     "site:preview": "vite preview --config site/vite.config.ts",
     "site:test": "playwright test --config site/playwright.config.ts --project chromium",
     "site:test:render": "playwright test --config site/playwright.config.ts --project render",
+    "site:test:chat": "playwright test --config site/playwright.config.ts --project chat",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
     "@heroui/react": "^3.2.2",
     "@supabase/supabase-js": "^2.116.0",
     "@t3-oss/env-nextjs": "^0.12.0",
@@ -55,6 +57,7 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@huggingface/transformers": "3.8.1",
+    "@mlc-ai/web-llm": "0.2.85",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.0.15",
     "@testing-library/react": "^16.3.2",

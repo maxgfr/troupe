@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, projectProcedure, protectedProcedure, workspaceProcedure } from "~/server/api/trpc";
-import { createProjectFromWizard, formatOptionsFor, getProject, modelOptionsFor, updateProjectChoices } from "~/modules/studio";
+import { changeProjectActor, createProjectFromWizard, formatOptionsFor, getProject, modelOptionsFor, updateProjectChoices } from "~/modules/studio";
 import type { ModelCatalog } from "~/modules/models";
 import { MODEL_KEY } from "./generation";
 import { deleteProjectData } from "~/server/projects";
@@ -54,5 +54,16 @@ export const studioRouter = createTRPCRouter({
     .mutation(({ ctx, input }) => {
       assertKnownModel(ctx.catalog, input.modelKey);
       return updateProjectChoices(ctx.db, input);
+    }),
+
+  // Recast the project; renders already made keep the actor they were made with.
+  changeActor: projectProcedure
+    .input(z.object({ actorId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await changeProjectActor(ctx.db, input);
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: (error as Error).message });
+      }
     }),
 });

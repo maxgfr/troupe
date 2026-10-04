@@ -118,6 +118,14 @@ export async function completeWizard(db: Db, input: { projectId: string; actorId
   return done!;
 }
 
+// Recast a project: the actor must be available (actors module guard).
+// The wizard's other choices go through updateProjectChoices.
+export async function changeProjectActor(db: Db, input: { projectId: string; actorId: string }) {
+  await getProject(db, input.projectId);
+  await attachActorToProject(db, input);
+  return getProject(db, input.projectId);
+}
+
 // One commit for the wizard: invalid choices never leave an orphan project.
 export async function createProjectFromWizard(db: Db, input: {
   workspaceId: string; title: string; platform: Platform; format: Format;

@@ -4,10 +4,11 @@ import type { Db } from "~/server/db/types";
 import { providerSettings } from "./schema";
 import { SecretUnavailableError, loadSecretBox, type SecretBox } from "./secrets";
 
-export const CREDENTIAL_IDS = ["google", "fal"] as const;
+// "anthropic" is the script chat's key (src/server/chat/anthropic.ts).
+export const CREDENTIAL_IDS = ["google", "fal", "anthropic"] as const;
 export type CredentialId = (typeof CREDENTIAL_IDS)[number];
 
-const ENV_KEYS: Record<CredentialId, string> = { google: "GOOGLE_GENAI_API_KEY", fal: "FAL_KEY" };
+const ENV_KEYS: Record<CredentialId, string> = { google: "GOOGLE_GENAI_API_KEY", fal: "FAL_KEY", anthropic: "ANTHROPIC_API_KEY" };
 
 export type CredentialState =
   | { source: "saved"; key: string }

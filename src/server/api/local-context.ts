@@ -8,6 +8,7 @@ import { persistProviderRender, serverMedia } from "~/server/media/storage";
 import { db as runtimeDb } from "~/server/db";
 import type { Db } from "~/server/db/types";
 import type { Machine } from "~/server/settings/urls";
+import { createServerChat } from "~/server/chat";
 import { createTRPCContext } from "./trpc";
 
 export { assertStudioRequest as assertLocalRequest } from "./access";
@@ -30,5 +31,5 @@ export async function createLocalContext(headers: Headers) {
     throw error;
   });
   await initialization;
-  return createTRPCContext({ headers, db, media: serverMedia, userId: LOCAL_USER_ID, catalog: await loadModelCatalog(db), ingest: persistProviderRender, machine });
+  return createTRPCContext({ headers, db, media: serverMedia, userId: LOCAL_USER_ID, catalog: await loadModelCatalog(db), ingest: persistProviderRender, machine, chat: createServerChat(db) });
 }

@@ -18,10 +18,11 @@ import {
 } from "~/modules/models";
 import { ApiKey, clearProviderKey, credentialStatus, saveProviderKey, type CredentialId } from "~/server/settings/providers";
 import { SecretUnavailableError } from "~/server/settings/secrets";
+import { ChatSettingsPatch, saveChatSettings, type ChatBackend } from "~/modules/chat";
 import { MODEL_KEY } from "./generation";
 import { localModelProcedures } from "./local-models";
 
-const CREDENTIAL = z.enum(["google", "fal"]);
+const CREDENTIAL = z.enum(["google", "fal", "anthropic"]);
 
 // A successful test of an HTTP model saves the polling pace its server asks
 // for now (or forgets it when the server stopped asking).
@@ -40,7 +41,9 @@ function modelOf(catalog: ModelCatalog, modelKey: string) {
   return model;
 }
 
-async function testCredential(catalog: ModelCatalog, credential: CredentialId): Promise<ConnectionReport> {
+async function testCredential(catalog: ModelCatalog, credential: CredentialId, chat: ChatBackend | null): Promise<ConnectionReport> {
+  // The chat's key: no video model uses it.
+  if (credential === "anthropic") return chat ? chat.test("anthropic") : { ok: false, message: "The script chat is not available in this studio." };
   const model = BUILTIN_MODELS.find((m) => m.credential === credential)!;
   const adapter = catalog.adapters.get(model.key);
   if (!adapter) return { ok: false, message: "No key is configured for this account." };
@@ -55,8 +58,31 @@ async function testCredential(catalog: ModelCatalog, credential: CredentialId): 
   }
 }
 
-// Personal studio settings: provider accounts and the model catalog.
+function chatBackend(chat: ChatBackend | null): ChatBackend {
+  if (!chat) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The script chat is not available in this studio." });
+  return chat;
+}
+
+// Personal studio settings: provider accounts, the model catalog and the
+// script chat.
 export const settingsRouter = createTRPCRouter({
+  chat: createTRPCRouter({
+    get: protectedProcedure.query(({ ctx }) => chatBackend(ctx.chat).settings()),
+
+    save: protectedProcedure.input(ChatSettingsPatch).mutation(async ({ ctx, input }) => {
+      const chat = chatBackend(ctx.chat);
+      if (input.provider && input.provider !== "auto" && !chat.offers.includes(input.provider)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This studio cannot use that chat provider." });
+      }
+      await saveChatSettings(ctx.db, input);
+      return chat.settings();
+    }),
+
+    test: protectedProcedure
+      .input(z.object({ provider: z.enum(["ollama", "anthropic", "webllm"]) }))
+      .mutation(({ ctx, input }) => chatBackend(ctx.chat).test(input.provider)),
+  }),
+
   credentials: createTRPCRouter({
     status: protectedProcedure.query(({ ctx }) => credentialStatus(ctx.db)),
 
@@ -81,7 +107,7 @@ export const settingsRouter = createTRPCRouter({
 
     test: protectedProcedure
       .input(z.object({ provider: CREDENTIAL }))
-      .mutation(({ ctx, input }) => testCredential(ctx.catalog, input.provider)),
+      .mutation(({ ctx, input }) => testCredential(ctx.catalog, input.provider, ctx.chat)),
   }),
 
   models: createTRPCRouter({
@@ -136,7 +162,7 @@ export const settingsRouter = createTRPCRouter({
         const model = modelOf(ctx.catalog, input.modelKey);
         // Nothing to reach from here (the browser demo, a refused address).
         if (model.status === "unsupported-host") return { ok: false, message: model.statusDetail ?? "This model cannot run here." };
-        if (model.credential) return testCredential(ctx.catalog, model.credential);
+        if (model.credential) return testCredential(ctx.catalog, model.credential, ctx.chat);
         const adapter = ctx.catalog.adapters.get(model.key);
         if (!adapter) return { ok: false, message: model.statusDetail ?? "This model is not configured." };
         if (!adapter.testConnection) return { ok: null, message: "This model has no connection check." };

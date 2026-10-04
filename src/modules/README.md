@@ -11,6 +11,7 @@ One folder per domain. `PRODUCT.md` describes what the studio is for.
 | `benchmark` | Side-by-side model comparisons and votes |
 | `studio` | Projects and the creation wizard (platform → format → language → actor) |
 | `export` | Platform presets, AI-disclosure guidance, downloads |
+| `chat` | The script iteration chat: prompt, proposals (JSON schema + checks), applying them as script versions, chat settings |
 | `scene` | What the local renderers draw and say: timed captions, the actor card, Kokoro voices (pure TS, no DOM or Node) |
 
 Each module exposes its services and types through its barrel (`index.ts`);

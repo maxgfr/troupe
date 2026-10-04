@@ -29,5 +29,8 @@ export const modelConfigs = createTable("model_config", (d) => ({
 export const studioSettings = createTable("studio_settings", (d) => ({
   id: d.integer().primaryKey().default(1),
   defaultModelKey: d.text(),
+  // The script chat's provider, model and tone (src/modules/chat). Checked
+  // when read, so a value from an older version cannot break the chat.
+  chat: d.jsonb().$type<Record<string, unknown>>(),
   updatedAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
 })).enableRLS();

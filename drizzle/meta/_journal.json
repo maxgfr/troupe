@@ -127,6 +127,13 @@
       "when": 1791108285038,
       "tag": "0017_drop-legacy-provider",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791152163540,
+      "tag": "0018_chat",
+      "breakpoints": true
     }
   ]
 }

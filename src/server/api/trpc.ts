@@ -19,6 +19,7 @@ import { projects } from "~/modules/studio";
 import type { RenderIngestor } from "~/modules/generation";
 import type { ModelCatalog } from "~/modules/models";
 import type { Machine } from "~/server/settings/urls";
+import type { ChatBackend } from "~/modules/chat";
 
 /**
  * 1. CONTEXT
@@ -46,6 +47,9 @@ export const createTRPCContext = async (opts: {
   // The machine the server runs on, for suggestions such as ComfyUI's
   // address. Null where there is none to inspect (the browser demo).
   machine?: Machine | null;
+  // The script chat's model: Ollama or Claude here (src/server/chat), WebLLM
+  // in the browser demo. Null where none is wired (most tests).
+  chat?: ChatBackend | null;
 }) => {
   return {
     db: opts.db,
@@ -57,6 +61,7 @@ export const createTRPCContext = async (opts: {
     catalog: opts.catalog ?? EMPTY_CATALOG,
     ingest: opts.ingest,
     machine: opts.machine ?? null,
+    chat: opts.chat ?? null,
   };
 };
 

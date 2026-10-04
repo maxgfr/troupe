@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // One folder per domain module, each behind a barrel.
-const MODULES = ["identity", "actors", "script", "generation", "models", "benchmark", "studio", "export", "scene"] as const;
+const MODULES = ["identity", "actors", "script", "generation", "models", "benchmark", "studio", "export", "scene", "chat"] as const;
 
 describe("module skeleton", () => {
   it("exposes every module behind an importable barrel", async () => {

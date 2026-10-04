@@ -19,6 +19,7 @@ describe("private provider settings", () => {
     const t = await createTestDb();
     try {
       vi.stubEnv("GOOGLE_GENAI_API_KEY", "environment-fixture");
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
       await saveProviderKey({ provider: "fal", key: "fal-fixture" }, t.db);
       const raw = (await t.pg.query<{ apiKey: string | null; apiKeyCiphertext: string }>("select * from troupe_provider_settings")).rows[0]!;
       expect(raw.apiKey).toBeNull();
@@ -26,6 +27,7 @@ describe("private provider settings", () => {
       expect(await credentialStatus(t.db)).toEqual({
         google: { configured: true, source: "environment" },
         fal: { configured: true, source: "saved" },
+        anthropic: { configured: false, source: "none" },
       });
       await clearProviderKey({ provider: "google", mode: "disable" }, t.db);
       expect(await effectiveProviderKeys(t.db)).toEqual({ fal: "fal-fixture" });

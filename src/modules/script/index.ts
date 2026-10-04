@@ -5,6 +5,7 @@ export {
   estimateDurationS,
   assertScriptFitsClip,
   pasteScript,
+  saveScriptLines,
   restoreScriptVersion,
   setLineEmotion,
   getScriptHistory,

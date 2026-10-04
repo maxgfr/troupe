@@ -109,6 +109,13 @@ export async function pasteScript(db: Db, input: { projectId: string; text: stri
   return insertScript(db, { projectId: input.projectId, origin: "pasted", lines });
 }
 
+// A whole script written elsewhere (the chat's proposals): every line keeps
+// the role and emotion it was given.
+export async function saveScriptLines(db: Db, input: { projectId: string; origin: "chat" | "pasted"; lines: DraftLine[] }): Promise<ScriptWithLines> {
+  if (input.lines.length === 0) throw new Error("The script is empty. Write at least one line.");
+  return insertScript(db, input);
+}
+
 // Bring an older version back as the newest one; history stays intact.
 export async function restoreScriptVersion(db: Db, scriptId: string): Promise<ScriptWithLines> {
   const old = await loadScript(db, scriptId);

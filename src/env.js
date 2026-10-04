@@ -17,6 +17,16 @@ export const env = createEnv({
     // Optional provider keys; a key saved in Settings takes precedence.
     GOOGLE_GENAI_API_KEY: z.string().optional(),
     FAL_KEY: z.string().optional(),
+    // The script chat (src/server/chat): Ollama by default, Claude when an
+    // Anthropic key is set. Values saved in Settings take precedence.
+    ANTHROPIC_API_KEY: z.string().optional(),
+    ANTHROPIC_MODEL: z.string().optional(),
+    OLLAMA_URL: z.string().url().optional(),
+    OLLAMA_MODEL: z.string().optional(),
+    TROUPE_CHAT_PROVIDER: z.enum(["auto", "ollama", "anthropic"]).optional(),
+    TROUPE_CHAT_INSTRUCTIONS: z.string().max(2000).optional(),
+    TROUPE_CHAT_WORDS_PER_SECOND: z.coerce.number().min(1).max(5).optional(),
+    TROUPE_CHAT_TIMEOUT_S: z.coerce.number().int().min(10).max(1800).optional(),
     // Guards POST /api/jobs/reconcile — unset = 503.
     RECONCILE_SECRET: z.string().optional(),
     // Read directly by src/server (access-code.ts, settings/secrets.ts,
@@ -50,6 +60,14 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
     RECONCILE_SECRET: process.env.RECONCILE_SECRET,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+    OLLAMA_URL: process.env.OLLAMA_URL,
+    OLLAMA_MODEL: process.env.OLLAMA_MODEL,
+    TROUPE_CHAT_PROVIDER: process.env.TROUPE_CHAT_PROVIDER,
+    TROUPE_CHAT_INSTRUCTIONS: process.env.TROUPE_CHAT_INSTRUCTIONS,
+    TROUPE_CHAT_WORDS_PER_SECOND: process.env.TROUPE_CHAT_WORDS_PER_SECOND,
+    TROUPE_CHAT_TIMEOUT_S: process.env.TROUPE_CHAT_TIMEOUT_S,
     TROUPE_ACCESS_CODE: process.env.TROUPE_ACCESS_CODE,
     TROUPE_SECRET: process.env.TROUPE_SECRET,
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,

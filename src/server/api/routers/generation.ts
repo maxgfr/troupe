@@ -7,9 +7,10 @@ import { generations, launchGeneration, listGenerationsForProject, reconcileDueJ
 import { estimateCostUsd } from "~/modules/models";
 import { pickLaunchAdapter } from "./_adapters";
 import { assertGenerationInProject, assertScriptInProject } from "./_scope";
+import { launchText } from "./_launch";
 
 export const MODEL_KEY = z.string().min(1).max(80);
-const TIER = z.enum(["draft", "final"]);
+export const TIER = z.enum(["draft", "final"]);
 
 export const generationRouter = createTRPCRouter({
   // The project's launch timeline, newest first.
@@ -62,18 +63,6 @@ export const generationRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertScriptInProject(ctx.db, input.scriptId, input.projectId);
-      const { adapter, model } = pickLaunchAdapter(ctx.catalog, input.modelKey);
-      return launchGeneration(ctx.db, {
-        projectId: input.projectId,
-        scriptId: input.scriptId,
-        adapter,
-        tier: input.tier,
-        durationS: input.durationS,
-        resolution: input.resolution,
-        audio: input.audio,
-        language: input.language,
-        timeoutS: model.timeoutS,
-        estimatedCostUsd: estimateCostUsd(model, input.durationS),
-      });
+      return launchText(ctx, input);
     }),
 });

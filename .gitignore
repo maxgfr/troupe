@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# production
+/build
+
+# local data: videos, generated access code and encryption key
+/data/
+
+# env files (only the example is committed)
+.env
+.env.*
+!.env.example
+
+# platforms
+.vercel
+/supabase/.temp/
+
+# editors and OS
+.DS_Store
+.idea
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# agent tooling
+.superpowers/
+.claude/
+.impeccable/

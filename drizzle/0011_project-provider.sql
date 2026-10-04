@@ -1,0 +1,1 @@
+ALTER TABLE "troupe_project" ADD COLUMN "providerId" text;

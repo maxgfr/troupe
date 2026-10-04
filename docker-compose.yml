@@ -1,0 +1,70 @@
+# Troupe — self-hosted in one command:
+#
+#   cp .env.example .env    # then set POSTGRES_PASSWORD
+#   docker compose up -d
+#   docker compose logs app # prints the access code on first start
+#
+# Open http://localhost:3100. See docs/SELF-HOSTING.md for HTTPS, backups and
+# upgrades, and docs/LOCAL-MODELS.md for the optional ComfyUI service.
+name: troupe
+
+services:
+  app:
+    image: ghcr.io/maxgfr/troupe:${TROUPE_VERSION:-latest}
+    # `docker compose up --build` builds from this checkout instead.
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${TROUPE_BIND:-127.0.0.1}:${TROUPE_PORT:-3100}:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/troupe
+      TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
+      TROUPE_SECRET: ${TROUPE_SECRET:-}
+      GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
+      FAL_KEY: ${FAL_KEY:-}
+    volumes:
+      - troupe-media:/app/data
+    extra_hosts:
+      # Reach a ComfyUI or model server running on this computer.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: troupe
+    volumes:
+      - troupe-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d troupe"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Optional local video models on an NVIDIA GPU:
+  #   docker compose --profile comfyui up -d
+  # then add a ComfyUI model in Settings with the address http://comfyui:8188.
+  # Model files go in the comfyui volume under ComfyUI/models/.
+  comfyui:
+    profiles: ["comfyui"]
+    # https://github.com/YanWenKun/ComfyUI-Docker (CUDA 12.8, ComfyUI on port 8188)
+    image: ${COMFYUI_IMAGE:-yanwk/comfyui-boot:cu128-slim}
+    restart: unless-stopped
+    volumes:
+      - comfyui:/root
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  troupe-media:
+  troupe-pgdata:
+  comfyui:

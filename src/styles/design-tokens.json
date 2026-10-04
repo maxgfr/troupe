@@ -1,0 +1,58 @@
+{
+  "color": {
+    "background": "oklch(0.15 0.02 255)",
+    "surface": "oklch(0.19 0.025 255)",
+    "foreground": "oklch(0.93 0.01 250)",
+    "muted": "oklch(0.66 0.02 250)",
+    "primary": "oklch(0.7 0.14 250)",
+    "on-primary": "oklch(0.15 0.02 255)",
+    "secondary": "oklch(0.9 0.06 90)",
+    "on-secondary": "oklch(0.28 0.05 85)",
+    "success": "oklch(0.72 0.15 155)",
+    "warning": "oklch(0.75 0.15 70)",
+    "danger": "oklch(0.62 0.21 15)",
+    "focus": "oklch(0.7 0.14 250)"
+  },
+  "color-light": {
+    "background": "oklch(1 0 0)",
+    "surface": "oklch(0.96 0.008 255)",
+    "foreground": "oklch(0.22 0.02 255)",
+    "muted": "oklch(0.45 0.02 255)",
+    "primary": "oklch(0.5 0.15 250)",
+    "on-primary": "oklch(1 0 0)",
+    "secondary": "oklch(0.8 0.1 88)",
+    "on-secondary": "oklch(0.28 0.05 85)",
+    "success": "oklch(0.52 0.14 155)",
+    "warning": "oklch(0.6 0.14 70)",
+    "danger": "oklch(0.52 0.2 15)",
+    "focus": "oklch(0.5 0.15 250)"
+  },
+  "typography": {
+    "font-sans": "Geist, system-ui, sans-serif",
+    "font-display": "Bricolage Grotesque, Geist, sans-serif",
+    "font-mono": "JetBrains Mono, ui-monospace, monospace",
+    "scale": "12 / 14 / 16 / 20 / 24 / 32 px",
+    "line-height": "1.5 body · 1.2 headings"
+  },
+  "spacing": {
+    "unit": "4px",
+    "xs": "4px",
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px",
+    "xl": "40px"
+  },
+  "radius": {
+    "small": "8px",
+    "medium": "12px",
+    "large": "14px"
+  },
+  "elevation": {
+    "card": "0 1px 3px rgba(0,0,0,.08)",
+    "overlay": "0 8px 30px rgba(0,0,0,.16)"
+  },
+  "motion": {
+    "fast": "150ms ease-out",
+    "normal": "250ms ease-in-out"
+  }
+}

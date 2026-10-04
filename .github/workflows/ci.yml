@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      SKIP_ENV_VALIDATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - run: pnpm test
+      - run: pnpm build
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the stack from this checkout
+        run: |
+          printf 'POSTGRES_PASSWORD=%s\nTROUPE_VERSION=ci\n' "$(openssl rand -hex 16)" > .env
+          docker compose up -d --build --wait --wait-timeout 300
+      - name: Health check answers
+        run: curl --fail --silent http://127.0.0.1:3100/api/health | grep -q '"ok":true'
+      - name: An access code was generated and printed
+        run: docker compose logs app | grep -q "protected by an access code"
+      - name: A spoofed localhost Host header gets nothing
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: localhost:3100' 'http://127.0.0.1:3100/api/trpc/identity.myWorkspaces')
+          echo "status=$status"
+          test "$status" = "401"
+      - name: Data survives a restart
+        run: |
+          code=$(docker compose exec -T app cat /app/data/access-code)
+          docker compose restart app
+          docker compose up -d --wait --wait-timeout 120
+          test "$(docker compose exec -T app cat /app/data/access-code)" = "$code"
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v

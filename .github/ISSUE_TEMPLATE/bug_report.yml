@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Troupe version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: How you run it
+      options: [Docker, Vercel + Supabase, pnpm dev / pnpm start]
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model involved (if any)
+      placeholder: Veo 3.1 Fast, Kling 3.0, ComfyUI LTX-2, HTTP endpoint…
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "docker compose logs app" output. Remove API keys and tokens first.
+      render: text

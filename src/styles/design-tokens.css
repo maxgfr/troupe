@@ -1,0 +1,70 @@
+/*
+ * Design tokens — mirrored from src/styles/design-tokens.json. Cobalt night
+ * stage, instrument glow, gold spotlight. Dark is the primary theme (:root);
+ * light is the daytime studio. Change both files together (guarded by
+ * src/styles/tokens.test.ts).
+ */
+:root,
+:root[data-theme="dark"] {
+  --troupe-color-background: oklch(0.15 0.02 255);
+  --troupe-color-surface: oklch(0.19 0.025 255);
+  --troupe-color-foreground: oklch(0.93 0.01 250);
+  --troupe-color-muted: oklch(0.66 0.02 250);
+  --troupe-color-primary: oklch(0.7 0.14 250);
+  --troupe-color-on-primary: oklch(0.15 0.02 255);
+  --troupe-color-secondary: oklch(0.9 0.06 90);
+  --troupe-color-on-secondary: oklch(0.28 0.05 85);
+  --troupe-color-success: oklch(0.72 0.15 155);
+  --troupe-color-warning: oklch(0.75 0.15 70);
+  --troupe-color-danger: oklch(0.62 0.21 15);
+  --troupe-color-focus: oklch(0.7 0.14 250);
+  --troupe-spacing-xs: 4px;
+  --troupe-spacing-sm: 8px;
+  --troupe-spacing-md: 16px;
+  --troupe-spacing-lg: 24px;
+  --troupe-spacing-xl: 40px;
+  --troupe-radius-small: 8px;
+  --troupe-radius-medium: 12px;
+  --troupe-radius-large: 14px;
+  --troupe-motion-fast: 150ms ease-out;
+  --troupe-motion-normal: 250ms ease-in-out;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --troupe-color-background: oklch(1 0 0);
+    --troupe-color-surface: oklch(0.96 0.008 255);
+    --troupe-color-foreground: oklch(0.22 0.02 255);
+    --troupe-color-muted: oklch(0.45 0.02 255);
+    --troupe-color-primary: oklch(0.5 0.15 250);
+    --troupe-color-on-primary: oklch(1 0 0);
+    --troupe-color-secondary: oklch(0.8 0.1 88);
+    --troupe-color-on-secondary: oklch(0.28 0.05 85);
+    --troupe-color-success: oklch(0.52 0.14 155);
+    --troupe-color-warning: oklch(0.6 0.14 70);
+    --troupe-color-danger: oklch(0.52 0.2 15);
+    --troupe-color-focus: oklch(0.5 0.15 250);
+  }
+}
+
+:root[data-theme="light"] {
+  --troupe-color-background: oklch(1 0 0);
+  --troupe-color-surface: oklch(0.96 0.008 255);
+  --troupe-color-foreground: oklch(0.22 0.02 255);
+  --troupe-color-muted: oklch(0.45 0.02 255);
+  --troupe-color-primary: oklch(0.5 0.15 250);
+  --troupe-color-on-primary: oklch(1 0 0);
+  --troupe-color-secondary: oklch(0.8 0.1 88);
+  --troupe-color-on-secondary: oklch(0.28 0.05 85);
+  --troupe-color-success: oklch(0.52 0.14 155);
+  --troupe-color-warning: oklch(0.6 0.14 70);
+  --troupe-color-danger: oklch(0.52 0.2 15);
+  --troupe-color-focus: oklch(0.5 0.15 250);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --troupe-motion-fast: 0ms;
+    --troupe-motion-normal: 0ms;
+  }
+}

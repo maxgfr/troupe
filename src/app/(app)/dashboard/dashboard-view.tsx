@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { useEdition } from "~/app/_components/edition";
 import { EmptyState, StatusChip } from "~/app/_components/ui";
 
 export interface DashboardProject {
@@ -13,11 +14,16 @@ export interface DashboardProject {
 
 // Pure view — testable without tRPC (screens.test.tsx).
 export function DashboardView({ projects }: { projects: DashboardProject[] }) {
+  const demo = useEdition().kind === "demo";
   if (projects.length === 0) {
     return (
       <EmptyState
         title="Create your first project"
-        body="Pick a platform, format, language and actor, then write a short script. Add an API key or a local model in Settings when you are ready to render."
+        body={
+          demo
+            ? "Pick a platform, format, language and actor, then write a short script. Everything you make here is saved in this browser."
+            : "Pick a platform, format, language and actor, then write a short script. Add an API key or a local model in Settings when you are ready to render."
+        }
         cta={{ label: "New project", href: "/projects/new" }}
       />
     );

@@ -42,3 +42,8 @@ yarn-error.log*
 .superpowers/
 .claude/
 .impeccable/
+
+# static demo (site/)
+/site/dist
+/site/test-results
+/site/playwright-report

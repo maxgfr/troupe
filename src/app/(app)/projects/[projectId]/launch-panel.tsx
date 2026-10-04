@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { SELF_HOSTING_URL, useEdition } from "~/app/_components/edition";
 import { ProviderWarning } from "~/app/_components/ui";
 import { comparisonPlan, formatCost, launchSettings, type ModelOptionView } from "../model-choice";
 
@@ -33,7 +34,16 @@ export function LaunchPanel({
   onCompare: (plan: { modelKeys: string[]; durationS: number; resolution: string }) => void;
 }) {
   const [choice, setChoice] = useState<{ durationS?: number; resolution?: string; audio?: boolean }>({});
+  const demo = useEdition().kind === "demo";
   const usable = options.filter((o) => o.available && o.compatible);
+  if (usable.length === 0 && demo) {
+    return (
+      <ProviderWarning>
+        The browser demo cannot render video yet. Your project and script are saved in this browser;{" "}
+        <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">run Troupe on your machine ↗</a> to render them now.
+      </ProviderWarning>
+    );
+  }
   if (usable.length === 0) {
     return (
       <ProviderWarning>

@@ -1,0 +1,9 @@
+/* The studio's stylesheet. next/font provides the fonts in the Next app;
+   here site/src/fonts.ts self-hosts them and these variables point at them. */
+@import "../../src/styles/globals.css";
+
+:root {
+  --font-geist-sans: "Geist Variable";
+  --font-bricolage: "Bricolage Grotesque Variable";
+  --font-jbmono: "JetBrains Mono Variable";
+}

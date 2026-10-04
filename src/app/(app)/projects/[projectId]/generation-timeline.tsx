@@ -1,3 +1,4 @@
+import { useEdition } from "~/app/_components/edition";
 import { EmptyState, StatusChip } from "~/app/_components/ui";
 import { spokenLinesFromPrompt, vttFromLines } from "~/app/_components/captions";
 import { formatCost } from "../model-choice";
@@ -34,11 +35,12 @@ function failureMessage(g: GenerationRow): string | null {
 // Pure view — the launch timeline. The newest completed render is the star:
 // video on bare bg, no card around it; the rest is a quiet filmstrip.
 export function GenerationTimeline({ generations, onRelaunch }: { generations: GenerationRow[]; onRelaunch?: (generationId: string) => void }) {
+  const demo = useEdition().kind === "demo";
   if (generations.length === 0) {
     return (
       <EmptyState
         title="No render yet — the stage is lit"
-        body="Launch a draft below and follow its progress here."
+        body={demo ? "Renders will show here once a model can run in this browser." : "Launch a draft below and follow its progress here."}
       />
     );
   }

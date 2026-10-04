@@ -1,0 +1,66 @@
+import { resolve } from "node:path";
+import tailwindcss from "@tailwindcss/postcss";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+import { THEME_SCRIPT } from "../src/app/theme-script";
+import { headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
+
+// The static demo: the studio's own pages and tRPC router, running in the
+// browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
+// page at /troupe/, the app at /troupe/app/*.
+const REPO = resolve(import.meta.dirname, "..");
+const SITE = import.meta.dirname;
+const BASE = "/troupe/";
+const OUT = resolve(SITE, "dist");
+
+export default defineConfig({
+  root: SITE,
+  base: BASE,
+  appType: "mpa",
+  publicDir: resolve(SITE, "public"),
+  resolve: {
+    alias: [
+      { find: /^~\//, replacement: `${resolve(REPO, "src")}/` },
+      { find: /^next\/link$/, replacement: resolve(SITE, "src/shims/next-link.tsx") },
+      { find: /^next\/navigation$/, replacement: resolve(SITE, "src/shims/next-navigation.ts") },
+    ],
+  },
+  plugins: [
+    // Saving secrets needs a key kept on a server: the demo has none.
+    shimModules({ "src/server/settings/secrets.ts": "site/src/shims/secrets.ts" }),
+    serverGuard(),
+    react(),
+    headScript(THEME_SCRIPT),
+    pagesFallback({ base: BASE, outDir: OUT }),
+  ],
+  css: {
+    postcss: { plugins: [tailwindcss({ base: REPO })] },
+  },
+  worker: { format: "es" },
+  optimizeDeps: {
+    // PGlite loads its WebAssembly relative to its own files.
+    exclude: ["@electric-sql/pglite"],
+  },
+  build: {
+    outDir: OUT,
+    emptyOutDir: true,
+    target: "es2022",
+    // The app chunk carries the whole studio, its router and the PGlite
+    // client (≈ 370 kB gzipped); Postgres itself loads in the worker.
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // PGlite's Emscripten glue uses eval on purpose.
+        if (warning.code === "EVAL" && warning.id?.includes("@electric-sql/pglite")) return;
+        warn(warning);
+      },
+      input: {
+        landing: resolve(SITE, "index.html"),
+        app: resolve(SITE, "app/index.html"),
+      },
+    },
+  },
+  server: { port: 5173, strictPort: true },
+  preview: { port: 4173, strictPort: true },
+});

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
+import { useEdition } from "~/app/_components/edition";
 import { ErrorNote, SkeletonRows } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
@@ -31,11 +32,13 @@ export interface ModelPreferencesInput {
 const launchable = (m: CatalogModelView) => m.status === "ready" && m.enabled && !m.archived;
 
 // Pure view — the studio-wide default model.
-export function DefaultModelPicker({ models, savedKey, effectiveKey, busy, onChange }: {
+export function DefaultModelPicker({ models, savedKey, effectiveKey, busy, noModelHint = "No model can launch yet. Add an API key or a local model below.", onChange }: {
   models: CatalogModelView[];
   savedKey: string | null;
   effectiveKey: string | null;
   busy?: boolean;
+  // What to say when nothing can launch.
+  noModelHint?: string;
   onChange: (modelKey: string | null) => void;
 }) {
   const effective = models.find((m) => m.key === effectiveKey);
@@ -49,7 +52,7 @@ export function DefaultModelPicker({ models, savedKey, effectiveKey, busy, onCha
         </select>
       </label>
       <p className="text-xs text-muted">
-        {effective ? `New projects launch on ${effective.label} unless you pick another model.` : "No model can launch yet. Add an API key or a local model below."}
+        {effective ? `New projects launch on ${effective.label} unless you pick another model.` : noModelHint}
         {savedKey && savedKey !== effectiveKey ? " Your saved default is unavailable, so the first available model is used." : ""}
       </p>
     </div>
@@ -83,7 +86,10 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" disabled={busy} onClick={() => onTest(m.key)} className="rounded-lg border border-muted/30 px-3 py-1.5 text-sm disabled:opacity-40">Test</button>
+              {/* Nothing to test where the model cannot run: its status already says why. */}
+              {m.status !== "unsupported-host" ? (
+                <button type="button" disabled={busy} onClick={() => onTest(m.key)} className="rounded-lg border border-muted/30 px-3 py-1.5 text-sm disabled:opacity-40">Test</button>
+              ) : null}
               {!m.archived ? (
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" role="switch" aria-checked={m.enabled} aria-label={`Use ${m.label}`} checked={m.enabled} disabled={busy} onChange={(e) => onToggle(m.key, e.target.checked)} />
@@ -231,6 +237,7 @@ export function ModelCatalogSettings({ kind }: { kind: "cloud" | "local" }) {
 }
 
 export function DefaultModelSettings() {
+  const demo = useEdition().kind === "demo";
   const utils = api.useUtils();
   const list = api.settings.models.list.useQuery();
   const setDefault = api.settings.models.setDefault.useMutation({
@@ -245,6 +252,7 @@ export function DefaultModelSettings() {
         savedKey={list.data.savedDefaultModelKey}
         effectiveKey={list.data.defaultModelKey}
         busy={setDefault.isPending}
+        noModelHint={demo ? "No model can render in the browser demo yet. Projects and scripts work; rendering needs the self-hosted studio for now." : undefined}
         onChange={(modelKey) => setDefault.mutate({ modelKey })}
       />
       {setDefault.error ? <ErrorNote>{setDefault.error.message}</ErrorNote> : null}

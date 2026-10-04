@@ -1,0 +1,73 @@
+// Serves the demo's renders from IndexedDB at <scope>media/<asset id>, the
+// URLs the in-browser media store hands out (site/src/media.ts), with byte
+// ranges so a <video> can seek. Mirrors src/server/media/serve.ts.
+
+const DB_NAME = "troupe-media";
+const STORE = "files";
+
+// Service worker globals are not in the DOM typings the repo checks against.
+/** @type {any} */
+const worker = self;
+
+worker.addEventListener("install", () => worker.skipWaiting());
+worker.addEventListener("activate", (/** @type {any} */ event) => event.waitUntil(worker.clients.claim()));
+
+worker.addEventListener("fetch", (/** @type {any} */ event) => {
+  const url = new URL(event.request.url);
+  const prefix = new URL("media/", worker.registration.scope).pathname;
+  if (event.request.method !== "GET" || url.origin !== worker.location.origin || !url.pathname.startsWith(prefix)) return;
+  const id = decodeURIComponent(url.pathname.slice(prefix.length));
+  event.respondWith(serve(id, event.request.headers.get("range"), url.searchParams.has("download")));
+});
+
+/** @param {string} id @returns {Promise<{ id: string, storagePath: string, blob: Blob } | undefined>} */
+function readFile(id) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open(DB_NAME, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore(STORE, { keyPath: "id" }).createIndex("storagePath", "storagePath");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const get = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+      get.onsuccess = () => { db.close(); resolve(get.result); };
+      get.onerror = () => { db.close(); reject(get.error); };
+    };
+  });
+}
+
+/**
+ * @param {string} id
+ * @param {string | null} range
+ * @param {boolean} download
+ */
+async function serve(id, range, download) {
+  const file = await readFile(id).catch(() => undefined);
+  if (!file) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
+  const blob = file.blob;
+  const size = blob.size;
+  const type = blob.type || "video/mp4";
+  const headers = new Headers({
+    "content-type": type,
+    "accept-ranges": "bytes",
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+    "content-disposition": `${download ? "attachment" : "inline"}; filename="troupe-video.${type.includes("webm") ? "webm" : "mp4"}"`,
+  });
+  let start = 0;
+  let end = size - 1;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const unsatisfiable = () => new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
+    if (!match || (!match[1] && !match[2])) return unsatisfiable();
+    if (match[1]) {
+      start = Number(match[1]);
+      end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+    } else {
+      start = Math.max(0, size - Number(match[2]));
+    }
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) return unsatisfiable();
+    headers.set("content-range", `bytes ${start}-${end}/${size}`);
+  }
+  headers.set("content-length", String(end - start + 1));
+  return new Response(blob.slice(start, end + 1, type), { status: range ? 206 : 200, headers });
+}

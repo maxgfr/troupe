@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, JetBrains_Mono } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
+import { THEME_SCRIPT } from "./theme-script";
 
 export const metadata: Metadata = {
   title: "Troupe — open-source video studio",
@@ -25,10 +26,6 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jbmono",
 });
-
-// Dark is the primary theme (« régie avant le direct »); the stored choice
-// wins, then prefers-color-scheme, then dark. Runs before paint — no flash.
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("troupe-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="dark";}})();`;
 
 export default function RootLayout({
   children,

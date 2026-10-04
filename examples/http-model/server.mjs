@@ -43,7 +43,7 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   if (TOKEN && req.headers.authorization !== `Bearer ${TOKEN}`) return send(res, 401, { error: "unauthorized" });
   const url = new URL(req.url ?? "/", "http://localhost");
   if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1 });
@@ -82,4 +82,6 @@ createServer((req, res) => {
     }
   }
   send(res, 404, { error: "not found" });
-}).listen(PORT, HOST, () => console.log(`Example model server on http://${HOST}:${PORT} (contract v1)`));
+});
+// PORT=0 picks a free port: print the one actually bound.
+server.listen(PORT, HOST, () => console.log(`Example model server on http://${HOST}:${server.address().port} (contract v1)`));

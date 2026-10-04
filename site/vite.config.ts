@@ -14,6 +14,18 @@ const SITE = import.meta.dirname;
 const BASE = "/troupe/";
 const OUT = resolve(SITE, "dist");
 
+// The browser bundle may not pull in Node built-ins, server code or Next
+// internals (site/vite-plugins.ts).
+const guard = () =>
+  serverGuard({
+    nodeBuiltinsAllowedIn: {
+      // PGlite ships one build for Node and browsers: these imports sit on
+      // its Node-only paths (file:// data directories, Emscripten's Node
+      // loader, dump compression) and never run with idb:// in a browser.
+      "@electric-sql/pglite": { builtins: ["fs", "fs/promises", "path", "module", "stream", "stream/promises", "util", "zlib"], reason: "Node-only code paths" },
+    },
+  });
+
 export default defineConfig({
   root: SITE,
   base: BASE,
@@ -29,7 +41,7 @@ export default defineConfig({
   plugins: [
     // Saving secrets needs a key kept on a server: the demo has none.
     shimModules({ "src/server/settings/secrets.ts": "site/src/shims/secrets.ts" }),
-    serverGuard(),
+    guard(),
     react(),
     headScript(THEME_SCRIPT),
     pagesFallback({ base: BASE, outDir: OUT }),
@@ -37,7 +49,8 @@ export default defineConfig({
   css: {
     postcss: { plugins: [tailwindcss({ base: REPO })] },
   },
-  worker: { format: "es" },
+  // Workers are bundled with their own plugin list: guard them too.
+  worker: { format: "es", plugins: () => [guard()] },
   optimizeDeps: {
     // PGlite loads its WebAssembly relative to its own files.
     exclude: ["@electric-sql/pglite"],

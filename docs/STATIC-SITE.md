@@ -26,10 +26,12 @@ starts in a few seconds.
 ## How it is put together
 
 - `site/vite.config.ts`: Vite with `base: "/troupe/"`, `~` mapped to `src/`, and
-  `troupe:server-guard`, a plugin that fails the build when code from `src/` or
-  `site/` imports a Node built-in, a server package (`postgres`, Supabase,
-  `server-only`…) or a Next module other than `next/link` and
-  `next/navigation`.
+  `troupe:server-guard`, a plugin (also applied to the worker bundle) that
+  fails the build when anything bundled imports a Node built-in (`node:fs` or
+  `fs`), dependencies included, and when code from `src/` or `site/` imports a
+  server package (`postgres`, Supabase, `server-only`…) or a Next module other
+  than `next/link` and `next/navigation`. The one exception is PGlite, allowed
+  the built-ins on its Node-only code paths, listed in `vite.config.ts`.
 - `site/src/shims/`: `next/link` and `next/navigation` on top of react-router,
   and a stand-in for `src/server/settings/secrets.ts` that refuses to store
   secrets. The shims check their signatures against Next's and the real

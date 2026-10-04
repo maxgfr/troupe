@@ -15,16 +15,36 @@ const show = (file: string) => relative(REPO, file);
 // that must never reach a browser, so importing it is an error here too.
 const SERVER_PACKAGES = new Set(["postgres", "@supabase/supabase-js", "@t3-oss/env-nextjs", "server-only"]);
 
-// Fails the build when code from src/ or site/ pulls in Node built-ins,
-// server packages, Next internals other than the shimmed link/navigation, or
-// a module marked `import "server-only"`. Dependencies in node_modules are
-// left to Vite, which already refuses Node built-ins in a browser build.
-export function serverGuard(): Plugin {
+// The package a file in node_modules belongs to ("@scope/name" or "name").
+function packageOf(file: string): string {
+  const parts = file.slice(file.lastIndexOf("/node_modules/") + "/node_modules/".length).split("/");
+  return parts[0]!.startsWith("@") ? `${parts[0]}/${parts[1]}` : parts[0]!;
+}
+
+export interface ServerGuardOptions {
+  // Dependencies allowed to import some Node built-ins, each with the reason.
+  nodeBuiltinsAllowedIn?: Record<string, { builtins: string[]; reason: string }>;
+}
+
+// Fails the build when anything bundled for the browser imports a Node
+// built-in (`node:fs` or bare `fs`), unless that dependency is allowed that
+// built-in. Vite would otherwise swap it for an empty `__vite-browser-external`
+// stub that throws only when used, and say nothing. Code from src/ or site/
+// is also refused server packages, Next modules other than the shimmed
+// link/navigation, and modules marked `import "server-only"`.
+export function serverGuard({ nodeBuiltinsAllowedIn = {} }: ServerGuardOptions = {}): Plugin {
   return {
     name: "troupe:server-guard",
     enforce: "pre",
     resolveId(source, importer) {
-      if (!importer || !ours(importer)) return null;
+      if (!importer) return null;
+      if (!ours(importer)) {
+        if (!isBuiltin(source)) return null;
+        const owner = packageOf(importer);
+        const allowed = nodeBuiltinsAllowedIn[owner]?.builtins.includes(source.replace(/^node:/, ""));
+        if (!allowed) this.error(`${source} is a Node built-in (imported by ${owner}). Allow it in site/vite.config.ts with a reason, or keep the dependency out of the browser bundle.`);
+        return null;
+      }
       const name = source.startsWith("@") ? source.split("/").slice(0, 2).join("/") : source.split("/")[0]!;
       const reason = isBuiltin(source)
         ? "is a Node built-in"

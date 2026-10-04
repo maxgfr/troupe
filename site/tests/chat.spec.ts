@@ -46,7 +46,7 @@ test.afterAll(async () => {
 });
 
 const chat = () => page.getByRole("complementary", { name: "Script chat" });
-const proposals = () => chat().getByText(/^(Proposed against version|Applied as version) \d+$/);
+const proposals = () => chat().getByText(/^(Compared with version \d+|Applied as version \d+|First script)$/);
 
 // `answered`: how many proposals the chat shows once this one arrives.
 async function ask(request: string, answered: number) {

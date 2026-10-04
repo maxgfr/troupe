@@ -19,6 +19,9 @@ describe("parseChatConfig", () => {
       downloadMb: 1100,
       instructions: "No slang.",
       wordsPerSecond: 2.2,
+      temperature: 0.4,
+      maxTokens: 1024,
+      historyTurns: 6,
     });
     // A size measured for the default model is not shown for another one.
     expect(parseChatConfig({ VITE_WEBLLM_MODEL: "Llama-3.2-1B-Instruct-q4f32_1-MLC" }, KNOWN).downloadMb).toBe(0);
@@ -36,5 +39,13 @@ describe("WebLLM's progress", () => {
     expect(readProgress({ progress: 0.25, timeElapsed: 3, text: "Fetching param cache[3/27]: 220MB fetched. 25% completed, 3 secs elapsed." })).toEqual({ stage: "download", fraction: 0.25, loadedMb: 220 });
     expect(readProgress({ progress: 0.5, timeElapsed: 3, text: "Loading model from cache[12/27]: 440MB loaded. 50% completed, 3 secs elapsed." })).toEqual({ stage: "load", fraction: 0.5 });
     expect(readProgress({ progress: 1, timeElapsed: 9, text: "Finish loading on WebGPU - apple" })).toEqual({ stage: "ready" });
+  });
+});
+
+describe("generation settings", () => {
+  it("reads the temperature, the answer's length and the history kept, with defaults", () => {
+    expect(parseChatConfig({}, KNOWN)).toMatchObject({ temperature: 0.4, maxTokens: 1024, historyTurns: 6 });
+    expect(parseChatConfig({ VITE_WEBLLM_TEMPERATURE: "0.2", VITE_WEBLLM_MAX_TOKENS: "600", VITE_CHAT_HISTORY_TURNS: "4" }, KNOWN)).toMatchObject({ temperature: 0.2, maxTokens: 600, historyTurns: 4 });
+    expect(() => parseChatConfig({ VITE_WEBLLM_TEMPERATURE: "3", VITE_WEBLLM_MAX_TOKENS: "10" }, KNOWN)).toThrow(/VITE_WEBLLM_TEMPERATURE[\s\S]*VITE_WEBLLM_MAX_TOKENS/);
   });
 });

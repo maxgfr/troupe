@@ -12,6 +12,11 @@ export interface DemoChatConfig {
   // The chat's house style and speaking rate when Settings leaves them unset.
   instructions: string;
   wordsPerSecond: number;
+  // Sampling temperature, the longest answer in tokens, and how many earlier
+  // turns go with each request.
+  temperature: number;
+  maxTokens: number;
+  historyTurns: number;
 }
 
 // Qwen2.5 1.5B Instruct, 4-bit weights with 16-bit activations: small enough
@@ -23,6 +28,11 @@ export const DEFAULT_CHAT_CONFIG: DemoChatConfig = {
   downloadMb: 880,
   instructions: "",
   wordsPerSecond: 2.5,
+  temperature: 0.4,
+  // A 20-line script and its summary fit with room to spare; the model's
+  // context is 4,096 tokens in all.
+  maxTokens: 1024,
+  historyTurns: 6,
 };
 
 type Env = Record<string, string | boolean | undefined>;
@@ -64,6 +74,18 @@ export function parseChatConfig(env: Env, knownModels?: readonly string[]): Demo
     else problems.push(`VITE_CHAT_WORDS_PER_SECOND must be a number from 1 to 5 (got "${rawRate}").`);
   }
 
+  function number(name: string, fallback: number, min: number, max: number, integer: boolean): number {
+    const raw = read(name);
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= min && n <= max && (!integer || Number.isInteger(n))) return n;
+    problems.push(`${name} must be ${integer ? "a whole number" : "a number"} from ${min} to ${max} (got "${raw}").`);
+    return fallback;
+  }
+  const temperature = number("VITE_WEBLLM_TEMPERATURE", defaults.temperature, 0, 2, false);
+  const maxTokens = number("VITE_WEBLLM_MAX_TOKENS", defaults.maxTokens, 256, 3072, true);
+  const historyTurns = number("VITE_CHAT_HISTORY_TURNS", defaults.historyTurns, 0, 20, true);
+
   if (problems.length > 0) throw new Error(`Invalid chat settings:\n- ${problems.join("\n- ")}`);
-  return { model: chosen, f32Model, downloadMb, instructions, wordsPerSecond };
+  return { model: chosen, f32Model, downloadMb, instructions, wordsPerSecond, temperature, maxTokens, historyTurns };
 }

@@ -118,8 +118,8 @@ export function webllmChat(model: string): ChatModel {
           const reply = await loaded.chat.completions.create({
             messages,
             response_format: { type: "json_object", schema: JSON.stringify(schema) },
-            temperature: 0.4,
-            max_tokens: 1024,
+            temperature: CHAT_CONFIG.temperature,
+            max_tokens: CHAT_CONFIG.maxTokens,
           });
           const text = reply.choices[0]?.message.content ?? "";
           return { text, proposal: parseJsonAnswer(text) };

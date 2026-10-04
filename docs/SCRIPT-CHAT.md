@@ -3,8 +3,9 @@
 The project page has a chat beside the timeline (a sheet opened with **Chat**
 on a phone). Ask for a change in plain words ("a punchier hook", "calmer",
 "use Marcus instead"); the model answers with a whole new version of the
-script, shown line by line against the current one. Nothing changes until you
-choose:
+script, shown line by line against the current one. A follow-up such as "now
+make that warmer" builds on the newest proposal you have not applied yet, as
+long as the script has not changed since. Nothing changes until you choose:
 
 - **Apply only** adds it as the project's newest script version, with origin
   `chat`, keeping the roles and emotions the model gave each line. When the
@@ -15,9 +16,10 @@ choose:
   too long for that model's longest clip cannot be relaunched; the button
   says why.
 
-A proposal asked on an older version says so ("Written for version 3; the
-script is now version 5") before you apply it. Applying the same proposal
-twice returns the version it already made.
+A proposal asked on an older version says so ("Asked on version 3; the script
+has since changed to version 5. Applying adds these lines as version 6,
+without version 5's changes.") before you apply it. Applying always adds a
+version; the same proposal applied twice returns the version it already made.
 
 ## How an answer is made
 
@@ -61,6 +63,10 @@ it as it is. On Linux, Ollama listens on 127.0.0.1 only: start it with
 container can reach it, and keep the port closed to your network otherwise.
 Under `pnpm dev` the default `http://127.0.0.1:11434` works.
 
+Troupe never follows a redirect from the Ollama address: it could lead past
+the address checks to a cloud metadata service. Point it at the address Ollama
+itself listens on.
+
 Any Ollama model that can follow a JSON schema works; small ones (1–4 B
 parameters) answer in a few seconds on a laptop. Settings → Script chat →
 **Test** checks that Ollama answers and has the model.
@@ -80,12 +86,15 @@ use the defaults below.
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
+| `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2; current Claude models take none, so it applies to older ids only |
+| `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
 
 | Static demo (`site/.env`, at build time) | Default | |
 |---|---|---|
 | `VITE_WEBLLM_MODEL` | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | a WebLLM prebuilt model id; the build stops on one WebLLM does not know. GPUs without `shader-f16` get the `q4f32` build of the same model when there is one |
 | `VITE_WEBLLM_DOWNLOAD_MB` | `880` for the default model | the size shown before the first request (0 hides it) |
 | `VITE_CHAT_INSTRUCTIONS`, `VITE_CHAT_WORDS_PER_SECOND` | —, `2.5` | defaults for the demo's Settings |
+| `VITE_WEBLLM_TEMPERATURE`, `VITE_WEBLLM_MAX_TOKENS`, `VITE_CHAT_HISTORY_TURNS` | `0.4`, `1024`, `6` | sampling temperature (0 to 2), the longest answer in tokens (256 to 3072; the default model's context is 4,096 in all), earlier turns sent |
 
 ## Testing
 

@@ -72,9 +72,11 @@ function CapabilitiesFields({ value, onChange }: { value: CapabilitiesDraft; onC
 }
 
 // Pure view — the "add a local model" form: ComfyUI (template or imported
-// workflow) or a generic HTTP endpoint. Test before saving.
-export function AddLocalModelForm({ templates, busy, report, error, onTest, onSave }: {
+// workflow) or a generic HTTP endpoint. Test before saving. comfyUrl is where
+// the server expects ComfyUI to answer from where Troupe runs.
+export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, onTest, onSave }: {
   templates: TemplateView[];
+  comfyUrl: string;
   busy?: boolean;
   report?: Report;
   error?: string | null;
@@ -83,7 +85,7 @@ export function AddLocalModelForm({ templates, busy, report, error, onTest, onSa
 }) {
   const [family, setFamily] = useState<"comfyui" | "http">("comfyui");
   const [label, setLabel] = useState("");
-  const [baseUrl, setBaseUrl] = useState(family === "comfyui" ? "http://host.docker.internal:8188" : "");
+  const [baseUrl, setBaseUrl] = useState(comfyUrl);
   const [token, setToken] = useState("");
   const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? "custom");
   const [workflow, setWorkflow] = useState<unknown>(undefined);
@@ -119,7 +121,7 @@ export function AddLocalModelForm({ templates, busy, report, error, onTest, onSa
         <legend className="mb-2 text-sm font-medium">Kind</legend>
         {(["comfyui", "http"] as const).map((f) => (
           <label key={f} className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm ${family === f ? "border-primary bg-primary/15" : "border-muted/40"}`}>
-            <input type="radio" name="family" className="sr-only" checked={family === f} onChange={() => { setFamily(f); setBaseUrl(f === "comfyui" ? "http://host.docker.internal:8188" : ""); }} />
+            <input type="radio" name="family" className="sr-only" checked={family === f} onChange={() => { setFamily(f); setBaseUrl(f === "comfyui" ? comfyUrl : ""); }} />
             {f === "comfyui" ? "ComfyUI" : "HTTP endpoint"}
           </label>
         ))}
@@ -172,7 +174,7 @@ export function AddLocalModelForm({ templates, busy, report, error, onTest, onSa
         </label>
       </div>
       {family === "comfyui" ? (
-        <p className="text-xs text-muted">From Docker, ComfyUI on this computer is at http://host.docker.internal:8188; with the compose <code>comfyui</code> profile it is http://comfyui:8188.</p>
+        <p className="text-xs text-muted">ComfyUI Desktop listens on port 8000, ComfyUI started from the command line on 8188. When Troupe runs in Docker, write host.docker.internal instead of 127.0.0.1; with the compose <code>comfyui</code> profile the address is http://comfyui:8188.</p>
       ) : null}
 
       {family === "http" || custom ? (
@@ -213,6 +215,7 @@ export function AddLocalModel() {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<Report | undefined>();
   const templates = api.settings.models.templates.useQuery(undefined, { enabled: open });
+  const suggested = api.settings.models.suggestedAddress.useQuery(undefined, { enabled: open });
   const test = api.settings.models.testDraft.useMutation({ onSuccess: setReport, onMutate: () => setReport({ ok: null, message: "Testing…" }) });
   const create = api.settings.models.createLocal.useMutation({
     onSuccess: async () => {
@@ -229,10 +232,11 @@ export function AddLocalModel() {
       </div>
     );
   }
-  if (templates.isPending) return <p className="text-sm text-muted">Loading templates…</p>;
+  if (templates.isPending || suggested.isPending) return <p className="text-sm text-muted">Loading templates…</p>;
   return (
     <AddLocalModelForm
       templates={(templates.data ?? []) as TemplateView[]}
+      comfyUrl={suggested.data?.comfyui ?? "http://127.0.0.1:8188"}
       busy={test.isPending || create.isPending}
       report={report}
       error={(templates.error ?? create.error ?? test.error)?.message ?? null}

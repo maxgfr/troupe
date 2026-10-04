@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -7,7 +8,7 @@ import { NodeBindingSchema, parseWorkflow, workflowProblems, type ApiWorkflow } 
 import { COMFY_TEMPLATES, findComfyTemplate } from "~/modules/generation/server/adapters/comfyui/templates";
 import { createLocalModel, getModelConfig, listModelConfigs, LOCAL_TIMEOUT_S, newLocalModelKey, updateLocalModel } from "~/modules/models";
 import { buildComfyAdapter, buildHttpAdapter, ComfyConnection, HttpConnection, MAX_WORKFLOW_BYTES, sealModelToken, type LocalDraft } from "~/server/local-models";
-import { checkLocalUrl, sameOrigin } from "~/server/settings/urls";
+import { checkLocalUrl, sameOrigin, suggestedComfyUrl } from "~/server/settings/urls";
 import { SecretUnavailableError } from "~/server/settings/secrets";
 import { MODEL_KEY } from "./generation";
 
@@ -120,6 +121,11 @@ export const localModelProcedures = {
       requiredFiles: requiredFiles.map(({ folder, filename, url }) => ({ folder, filename, url })),
     })),
   ),
+
+  // Prefills the form's ComfyUI address for the machine Troupe runs on.
+  suggestedAddress: protectedProcedure.query(() => ({
+    comfyui: suggestedComfyUrl({ inContainer: existsSync("/.dockerenv") || existsSync("/run/.containerenv"), platform: process.platform }),
+  })),
 
   createLocal: protectedProcedure.input(LocalInput).mutation(async ({ ctx, input }) => {
     const { capabilities, connection, timeoutS } = normalize(input);

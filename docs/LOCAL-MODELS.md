@@ -15,11 +15,17 @@ token, if you set one, is encrypted at rest and only ever sent to that address.
 
 ### Where ComfyUI runs
 
+ComfyUI Desktop listens on port 8000; ComfyUI started from the command line
+(`python main.py`) listens on 8188. The form prefills the most likely address
+for where Troupe runs: `host.docker.internal:8188` in Docker, port 8000 under
+`pnpm dev` on a Mac, port 8188 elsewhere.
+
 | Setup | Address to enter |
 |---|---|
-| ComfyUI on the computer running Troupe's Docker stack | `http://host.docker.internal:8188` |
+| ComfyUI on the computer running Troupe's Docker stack | `http://host.docker.internal:8188` (ComfyUI Desktop: `http://host.docker.internal:8000`) |
 | `docker compose --profile comfyui up -d` (NVIDIA GPU) | `http://comfyui:8188` |
-| `pnpm dev` and ComfyUI on the same machine | `http://127.0.0.1:8188` |
+| `pnpm dev` and ComfyUI Desktop on the same machine | `http://127.0.0.1:8000` |
+| `pnpm dev` and command-line ComfyUI on the same machine | `http://127.0.0.1:8188` |
 | Another machine on your network | `http://<its address>:8188` (start ComfyUI with `--listen 0.0.0.0`) |
 
 ### Bundled workflows

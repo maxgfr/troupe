@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { checkLocalUrl, sameOrigin } from "./urls";
+import { checkLocalUrl, sameOrigin, suggestedComfyUrl } from "./urls";
 
 describe("checkLocalUrl", () => {
   it.each([
@@ -49,5 +49,28 @@ describe("sameOrigin", () => {
     expect(sameOrigin("http://gpu:9000/out/a.mp4", "http://gpu:8000")).toBe(false);
     expect(sameOrigin("https://gpu:8000/a.mp4", "http://gpu:8000")).toBe(false);
     expect(sameOrigin("not a url", "http://gpu:8000")).toBe(false);
+  });
+});
+
+describe("suggestedComfyUrl", () => {
+  it("points a containerised Troupe at ComfyUI on the host", () => {
+    expect(suggestedComfyUrl({ inContainer: true, platform: "linux" })).toBe("http://host.docker.internal:8188");
+  });
+
+  it("points pnpm dev on a Mac at ComfyUI Desktop's port", () => {
+    expect(suggestedComfyUrl({ inContainer: false, platform: "darwin" })).toBe("http://127.0.0.1:8000");
+  });
+
+  it("points pnpm dev elsewhere at ComfyUI's command-line port", () => {
+    expect(suggestedComfyUrl({ inContainer: false, platform: "linux" })).toBe("http://127.0.0.1:8188");
+    expect(suggestedComfyUrl({ inContainer: false, platform: "win32" })).toBe("http://127.0.0.1:8188");
+  });
+
+  it("only suggests addresses the form accepts", () => {
+    for (const inContainer of [true, false]) {
+      for (const platform of ["darwin", "linux", "win32"] as const) {
+        expect(checkLocalUrl(suggestedComfyUrl({ inContainer, platform }))).toMatchObject({ ok: true });
+      }
+    }
   });
 });

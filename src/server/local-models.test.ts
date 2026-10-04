@@ -15,6 +15,7 @@ import { generations, generationWatches, reconcileDueJobs } from "~/modules/gene
 import { getModelConfig } from "~/modules/models";
 import { persistProviderRender } from "~/server/media/storage";
 import { resetSecretBoxCache } from "~/server/settings/secrets";
+import { checkLocalUrl } from "~/server/settings/urls";
 import { loadModelCatalog } from "./adapters";
 
 const USER = "d1111111-1111-4111-8111-111111111111";
@@ -113,5 +114,11 @@ describe("local models end to end", () => {
     expect(model).toMatchObject({ family: "comfyui", status: "ready", timeoutS: 7200, capabilities: { audio: "none" } });
     const options = await (await caller()).studio.modelOptions({ format: "9:16", language: "en" });
     expect(options.models.find((o) => o.key === modelKey)?.warnings.join(" ")).toMatch(/silent/);
+  });
+
+  it("suggests where ComfyUI is for the machine Troupe runs on", async () => {
+    const { comfyui } = await (await caller()).settings.models.suggestedAddress();
+    expect(["http://host.docker.internal:8188", "http://127.0.0.1:8000", "http://127.0.0.1:8188"]).toContain(comfyui);
+    expect(checkLocalUrl(comfyui)).toMatchObject({ ok: true });
   });
 });

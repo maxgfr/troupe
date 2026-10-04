@@ -49,6 +49,7 @@ vi.mock("~/trpc/react", () => ({
         connections: { useQuery: () => ({ isPending: true }) },
         updateLocal: { useMutation: () => ({}) },
         templates: { useQuery: () => ({ isPending: true }) },
+        suggestedAddress: { useQuery: () => ({ isPending: true }) },
         testDraft: { useMutation: () => ({}) },
         createLocal: { useMutation: () => ({}) },
       },

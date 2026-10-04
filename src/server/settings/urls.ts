@@ -61,6 +61,16 @@ export function checkLocalUrl(raw: string): UrlCheck {
   return { ok: true, base: `${url.origin}${url.pathname.replace(/\/+$/, "")}` };
 }
 
+// Where ComfyUI most likely answers, to prefill the "add a local model" form.
+// Inside a container 127.0.0.1 is the container itself, so ComfyUI on the
+// host is host.docker.internal (docker-compose.yml maps it). Outside one,
+// ComfyUI Desktop, the usual install on a Mac, listens on port 8000, and
+// ComfyUI started from the command line on 8188.
+export function suggestedComfyUrl({ inContainer, platform }: { inContainer: boolean; platform: NodeJS.Platform }): string {
+  if (inContainer) return "http://host.docker.internal:8188";
+  return platform === "darwin" ? "http://127.0.0.1:8000" : "http://127.0.0.1:8188";
+}
+
 export function sameOrigin(candidate: string, base: string): boolean {
   try {
     return new URL(candidate).origin === new URL(base).origin;

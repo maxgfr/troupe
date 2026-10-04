@@ -14,9 +14,9 @@ const TEMPLATES: TemplateView[] = [
 ];
 
 describe("add a local model", () => {
-  it("adds a bundled ComfyUI template with the Docker host address by default", () => {
+  it("adds a bundled ComfyUI template at the address the server suggests", () => {
     const onSave = vi.fn();
-    render(<AddLocalModelForm templates={TEMPLATES} onTest={vi.fn()} onSave={onSave} />);
+    render(<AddLocalModelForm templates={TEMPLATES} comfyUrl="http://host.docker.internal:8188" onTest={vi.fn()} onSave={onSave} />);
     expect(screen.getByText(/about 24 GB/)).toBeDefined();
     expect(screen.getByText(/not yet rendered end to end/)).toBeDefined();
     fireEvent.change(screen.getByLabelText("Workflow"), { target: { value: "wan22-ti2v-5b" } });
@@ -24,9 +24,21 @@ describe("add a local model", () => {
     expect(onSave).toHaveBeenCalledWith({ family: "comfyui", label: "Wan 2.2 TI2V 5B (silent)", baseUrl: "http://host.docker.internal:8188", templateId: "wan22-ti2v-5b" });
   });
 
+  it("prefills ComfyUI Desktop's address outside Docker and restores it after switching kinds", () => {
+    const onSave = vi.fn();
+    render(<AddLocalModelForm templates={TEMPLATES} comfyUrl="http://127.0.0.1:8000" onTest={vi.fn()} onSave={onSave} />);
+    expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("http://127.0.0.1:8000");
+    expect(screen.getByText(/ComfyUI Desktop listens on port 8000/)).toBeDefined();
+    fireEvent.click(screen.getByText("HTTP endpoint"));
+    expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByText("ComfyUI"));
+    fireEvent.click(screen.getByRole("button", { name: "Add model" }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ family: "comfyui", baseUrl: "http://127.0.0.1:8000" }));
+  });
+
   it("describes an HTTP endpoint's capabilities and tests it before saving", () => {
     const onTest = vi.fn();
-    render(<AddLocalModelForm templates={TEMPLATES} onTest={onTest} onSave={vi.fn()} />);
+    render(<AddLocalModelForm templates={TEMPLATES} comfyUrl="http://127.0.0.1:8188" onTest={onTest} onSave={vi.fn()} />);
     fireEvent.click(screen.getByText("HTTP endpoint"));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GPU box" } });
     fireEvent.change(screen.getByLabelText("Address"), { target: { value: "http://192.168.1.20:8000" } });
@@ -42,7 +54,7 @@ describe("add a local model", () => {
 
   it("imports a custom workflow and refuses files over 2 MB", async () => {
     const onSave = vi.fn();
-    render(<AddLocalModelForm templates={TEMPLATES} onTest={vi.fn()} onSave={onSave} />);
+    render(<AddLocalModelForm templates={TEMPLATES} comfyUrl="http://127.0.0.1:8188" onTest={vi.fn()} onSave={onSave} />);
     fireEvent.change(screen.getByLabelText("Workflow"), { target: { value: "custom" } });
     const input = screen.getByLabelText("API workflow file") as HTMLInputElement;
     const big = new File(["x".repeat(2 * 1024 * 1024 + 1)], "big.json", { type: "application/json" });

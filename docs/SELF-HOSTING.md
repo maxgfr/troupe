@@ -102,8 +102,8 @@ a fixed database password and ran the container as root.
 
 Add ComfyUI or your own model server in **Settings → Local models**. From the
 container, a ComfyUI running on the same computer is at
-`http://host.docker.internal:8188`. With an NVIDIA GPU you can run ComfyUI in
-the same stack:
+`http://host.docker.internal:8188` (`:8000` for ComfyUI Desktop). With an
+NVIDIA GPU you can run ComfyUI in the same stack:
 
 ```bash
 docker compose --profile comfyui up -d

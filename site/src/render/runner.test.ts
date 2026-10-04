@@ -20,6 +20,22 @@ vi.mock("./probe", () => ({
   },
 }));
 
+// The outcomes whose write to IndexedDB has finished, in order: the release
+// hook reads it synchronously, so a lock let go before the write is caught.
+const written = vi.hoisted(() => new Set<string>());
+vi.mock("./jobs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./jobs")>();
+  return {
+    ...actual,
+    updateJob: async (...args: Parameters<typeof actual.updateJob>) => {
+      const result = await actual.updateJob(...args);
+      const status = args[1].status;
+      if (status === "succeeded" || status === "failed") written.add(args[0]);
+      return result;
+    },
+  };
+});
+
 class FakeWorker {
   static last: FakeWorker | undefined;
   sent: ToWorker[] = [];
@@ -40,7 +56,9 @@ class FakeWorker {
 const job: BrowserRenderJob = { width: 720, height: 1280, fps: 24, script: { lines: [], actor: { id: "a", name: "A", gender: "female", ageRange: "25-34", voiceProfile: "warm" }, language: "en" } };
 
 let locks: FakeLockManager;
-// The job as IndexedDB held it when its lock went.
+// When its lock went: whether the job's outcome was already written, and the
+// job as IndexedDB then held it.
+let outcomeWrittenAtRelease: boolean | undefined;
 let atRelease: Promise<JobRecord | undefined> | undefined;
 let runner: typeof import("./runner");
 
@@ -52,8 +70,12 @@ beforeAll(async () => {
 beforeEach(async () => {
   locks = installFakeLocks();
   atRelease = undefined;
+  outcomeWrittenAtRelease = undefined;
+  written.clear();
   locks.onRelease = (name) => {
-    atRelease = readJob(name.replace("troupe-render:", ""));
+    const id = name.replace("troupe-render:", "");
+    outcomeWrittenAtRelease = written.has(id);
+    atRelease = readJob(id);
   };
   probe.fail = false;
   await clearJobs();
@@ -77,6 +99,7 @@ describe("browser renderer (page side)", () => {
     FakeWorker.last!.emit({ type: "progress", jobId: id, stage: { stage: "frames", frame: 0, frames: 24 } });
     FakeWorker.last!.emit({ type: "done", jobId: id, video: new Blob(["mp4"]) });
     await settled();
+    expect(outcomeWrittenAtRelease).toBe(true);
     expect(await atRelease).toMatchObject({ status: "succeeded", probe: { durationS: 5, width: 720, height: 1280 }, checksum: "sha-of-3" });
     expect(await held()).toEqual([]);
     expect(await runner.browserRenderer.state(id)).toEqual({ status: "succeeded" });
@@ -86,6 +109,7 @@ describe("browser renderer (page side)", () => {
     const id = await runner.browserRenderer.start(job);
     FakeWorker.last!.emit({ type: "failed", jobId: id, message: "The voice model could not load." });
     await settled();
+    expect(outcomeWrittenAtRelease).toBe(true);
     expect(await atRelease).toMatchObject({ status: "failed", detail: "The voice model could not load." });
     expect(await runner.browserRenderer.state(id)).toEqual({ status: "failed", detail: "The voice model could not load." });
   });

@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Smoke test of the built static demo, served the way GitHub Pages serves it
-// (`pnpm site:build` first). Run with `pnpm site:test`.
+// (`pnpm site:build` first). Run with `pnpm site:test`. SITE_PORT picks
+// another port, so a second checkout can run it while one preview is up.
+const PORT = Number(process.env.SITE_PORT ?? 4173);
+
 export default defineConfig({
   testDir: "./tests",
   outputDir: "./test-results",
@@ -12,13 +15,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never", outputFolder: "./playwright-report" }]] : "list",
   use: {
-    baseURL: "http://localhost:4173",
+    baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm site:preview",
-    url: "http://localhost:4173/troupe/",
+    command: `pnpm site:preview --port ${PORT}`,
+    url: `http://localhost:${PORT}/troupe/`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },

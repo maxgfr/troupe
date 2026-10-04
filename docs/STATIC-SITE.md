@@ -12,6 +12,10 @@ pnpm site:preview   # serves site/dist at http://localhost:4173/troupe/, deep li
 pnpm site:test      # Playwright smoke test against the preview (run site:build first)
 ```
 
+`SITE_PORT=4273 pnpm site:test` runs it on another port (for a second
+checkout), and `SITE_CPU_THROTTLE=6` slows the browser's CPU six times to get
+closer to a CI runner.
+
 The first visit downloads about 20 MB (Postgres and its data files), then
 starts in a few seconds.
 

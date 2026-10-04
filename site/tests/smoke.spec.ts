@@ -5,6 +5,17 @@ import { expect, test, type Page } from "@playwright/test";
 
 const APP = "/troupe/app";
 
+// Creating the database from scratch replays every migration: a first visit
+// and a reset take seconds on a laptop and far longer on a CI runner.
+const MIGRATING = { timeout: 60_000 };
+
+// SITE_CPU_THROTTLE=6 replays the suite on a CPU six times slower, closer to
+// a CI runner than a laptop.
+test.beforeEach(async ({ page }) => {
+  const rate = Number(process.env.SITE_CPU_THROTTLE ?? 1);
+  if (rate > 1) await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate });
+});
+
 // GitHub Pages answers a deep link with 404.html (the app) and a 404 status;
 // the browser logs that status. Anything else in the console is a bug.
 function watchConsole(page: Page) {
@@ -23,7 +34,7 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.getByRole("link", { name: "Open the app" }).click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
   await expect(page.getByText("Browser demo.")).toBeVisible();
-  await expect(page.getByText("Create your first project")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Project title").fill("Smoke project");
@@ -100,9 +111,11 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
 });
 
 test("settings says what the demo cannot do, and reset empties the studio", async ({ page }) => {
+  // The database is created twice here (first visit, then the reset).
+  test.slow();
   const errors = watchConsole(page);
   await page.goto(`${APP}/settings`);
-  await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible(MIGRATING);
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
 
@@ -113,11 +126,27 @@ test("settings says what the demo cannot do, and reset empties the studio", asyn
   await page.getByRole("button", { name: /Create project/ }).click();
   await expect(page).toHaveURL(/\/script$/);
 
+  // Reset while Postgres is still starting on the freshly loaded page (slowed
+  // down here so it always is, as on a slow machine). Pages querying the
+  // studio meanwhile must wait for the reset, never see it half-rebuilt.
+  await page.route(/pglite-.*\.data$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    await route.continue();
+  });
+  const glimpses: string[] = [];
+  await page.exposeBinding("reportGlimpse", (_source, text: string) => glimpses.push(text));
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      const text = document.querySelector("main")?.textContent ?? "";
+      if (/could not (load|be initialized)/.test(text)) (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  });
   await page.goto(`${APP}/settings`);
   await page.getByRole("button", { name: "Reset demo data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();
-  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
+  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, MIGRATING);
   await expect(page.getByText("Create your first project")).toBeVisible();
+  expect(glimpses).toEqual([]);
   expect(errors).toEqual([]);
 });
 

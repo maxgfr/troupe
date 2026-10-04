@@ -67,7 +67,7 @@ async function open(): Promise<DemoDatabase> {
   }
 }
 
-export function demoDatabase(): Promise<DemoDatabase> {
+function openOnce(): Promise<DemoDatabase> {
   opening ??= open().catch((error: unknown) => {
     opening = undefined;
     throw error;
@@ -75,20 +75,42 @@ export function demoDatabase(): Promise<DemoDatabase> {
   return opening;
 }
 
+// A reset in this tab. Between dropping the tables and seeding the studio
+// again the database holds no workspace, so everyone else waits it out.
+let resetting: Promise<void> | undefined;
+
+export async function demoDatabase(): Promise<DemoDatabase> {
+  const database = await openOnce();
+  // Checked after the open too: a page that asked during a slow start must
+  // not slip in between the rebuild and the seed.
+  while (resetting) await resetting.catch(() => {});
+  return database;
+}
+
 // Empties the studio: every table is dropped and the migrations run again,
-// in one transaction, so queries from open pages wait instead of failing.
-// When the database cannot even open, its IndexedDB copy is deleted instead.
-export async function resetDatabase(): Promise<void> {
-  let database: DemoDatabase | undefined;
-  try {
-    database = await demoDatabase();
-  } catch {
-    await deleteIndexedDb(IDB_NAME);
-    return;
-  }
-  const { pg, db } = database;
-  await navigator.locks.request(SETUP_LOCK, () => rebuildPglite(pg, MIGRATIONS));
-  await ensureLocalStudio(db);
+// in one transaction, then the studio is seeded; queries from this tab wait
+// for all of it. When the database cannot even open, its IndexedDB copy is
+// deleted instead.
+export function resetDatabase(): Promise<void> {
+  const run = (async () => {
+    let database: DemoDatabase;
+    try {
+      database = await openOnce();
+    } catch {
+      await deleteIndexedDb(IDB_NAME);
+      return;
+    }
+    const { pg, db } = database;
+    await navigator.locks.request(SETUP_LOCK, () => rebuildPglite(pg, MIGRATIONS));
+    await ensureLocalStudio(db);
+  })();
+  const pending: Promise<void> = run.finally(() => {
+    if (resetting === pending) resetting = undefined;
+  });
+  // The caller sees a failure through `run`; waiting pages only need the end.
+  pending.catch(() => {});
+  resetting = pending;
+  return run;
 }
 
 function deleteIndexedDb(name: string): Promise<void> {

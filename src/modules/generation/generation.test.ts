@@ -55,6 +55,22 @@ describe("text-to-video generation", () => {
     expect(row!.status).toBe("completed");
   });
 
+  it("hands the model the structured script next to the prompt: lines, actor and language", async () => {
+    const adapter = fakeAdapter({ jobId: "script-1" });
+    await launchGeneration(t.db, { projectId, scriptId, adapter, tier: "draft", durationS: 8, resolution: "720p" });
+    const actor = (await listActors(t.db, { gender: "female" }))[0]!;
+    expect(adapter.calls[0]!.script).toEqual({
+      lines: [
+        { role: "hook", text: "This ended my search for good coffee.", emotion: "neutral" },
+        { role: "cta", text: "Grab yours today.", emotion: "neutral" },
+      ],
+      actor: { id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile },
+      language: "fr",
+    });
+    await launchGeneration(t.db, { projectId, scriptId, adapter, tier: "draft", durationS: 8, resolution: "720p", language: "en" });
+    expect(adapter.calls[1]!.script!.language).toBe("en");
+  });
+
   it("switching provider reuses the same adapter interface and leaves project fields untouched", async () => {
     const before = (await t.db.select().from(projects).where(eq(projects.id, projectId)))[0]!;
     const gen = await launchGeneration(t.db, { projectId, scriptId, adapter: fakeAdapter({ modelKey: "kling", jobId: "kling-1" }), tier: "final", durationS: 8, resolution: "720p" });

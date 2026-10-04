@@ -9,6 +9,7 @@ import { pasteScript } from "~/modules/script";
 import { TEST_CAPS, finishGeneration } from "~/test/adapters";
 import {
   FIRST_POLL_DELAY_S,
+  pollBackoffS,
   generations,
   generationWatches,
   launchGeneration,
@@ -188,6 +189,26 @@ describe("job orchestration — Postgres reconciliation queue", () => {
     const muchLater = new Date(Date.now() + 25 * 60 * 60_000);
     await reconcileDueJobs(t.db, { adapters: [done], ingest, now: muchLater });
     expect(await genOf(gen.id)).toMatchObject({ status: "failed", errorCode: "DOWNLOAD_FAILED" });
+  });
+
+  it("keeps the default pace for a model that sets none: 20 s first, doubling up to 5 minutes", () => {
+    expect([0, 1, 2, 3, 4, 5, 12].map((attempts) => pollBackoffS(attempts))).toEqual([20, 40, 80, 160, 300, 300, 300]);
+  });
+
+  it("polls a model at its own pace when it sets pollEveryS, from the first poll on", async () => {
+    expect([0, 1, 4, 12].map((attempts) => pollBackoffS(attempts, 2))).toEqual([2, 2, 2, 2]);
+    const quick: VideoProviderAdapter = { ...testAdapter("orch-12", async () => ({ kind: "pending" })), pollEveryS: 2 };
+    const gen = await launchWatched(quick);
+    const armed = (await watchOf(gen.id))!;
+    const firstDelayS = (armed.nextPollAt.getTime() - armed.createdAt.getTime()) / 1000;
+    expect(firstDelayS).toBeGreaterThanOrEqual(1);
+    expect(firstDelayS).toBeLessThanOrEqual(3);
+    await makeDue(gen.id);
+    const now = new Date();
+    await reconcileDueJobs(t.db, { adapters: [quick], now });
+    const backedOff = (await watchOf(gen.id))!;
+    expect(backedOff.attempts).toBe(1);
+    expect(backedOff.nextPollAt.getTime() - now.getTime()).toBe(2000);
   });
 
   it("routes each poll to its own model even within one family", async () => {

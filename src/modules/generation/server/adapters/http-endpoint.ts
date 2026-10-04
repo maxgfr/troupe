@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { sizeFor } from "~/modules/models/geometry";
-import { AdapterError, validateRequest, type ConnectionReport, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
+import { AdapterError, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
 import { videoBytes } from "./download";
 
 // Contract v1 for a self-hosted video model behind plain HTTP
 // (docs/LOCAL-MODELS.md):
 //   GET  /health      → { ok, contract: 1 }
-//   POST /jobs        → { id }
+//   POST /jobs        → { id }   (the body may carry an optional `script`)
 //   GET  /jobs/{id}   → { status: queued|running|succeeded|failed, progress?, error?, video_url? }
 export const HTTP_CONTRACT_VERSION = 1;
 export const LOCAL_DOWNLOAD_LIMIT = 200 * 1024 * 1024;
@@ -32,6 +32,16 @@ const Status = z.object({
   video_url: z.string().optional(),
 });
 const Health = z.object({ ok: z.boolean(), contract: z.number().optional() });
+
+// The script as the contract spells it: snake_case, like the rest of the body.
+function scriptBody(script: JobScript) {
+  const { actor } = script;
+  return {
+    language: script.language,
+    actor: { id: actor.id, name: actor.name, gender: actor.gender, age_range: actor.ageRange, voice_profile: actor.voiceProfile },
+    lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
+  };
+}
 
 function sameOrigin(candidate: string, base: string) {
   try {
@@ -81,6 +91,7 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
         body: JSON.stringify({
           prompt: req.prompt, aspect_ratio: req.aspectRatio, resolution: req.resolution, width, height,
           duration_s: req.durationS, ...(model.fps ? { fps: model.fps } : {}), audio: req.audio,
+          ...(req.script ? { script: scriptBody(req.script) } : {}),
         }),
       });
       if (!response.ok) throw statusError(response.status);

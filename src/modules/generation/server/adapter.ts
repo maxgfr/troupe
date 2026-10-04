@@ -25,6 +25,27 @@ export interface CreateJobRequest {
   resolution: string;
   durationS: number;
   audio: boolean;
+  // The script behind the prompt, for models that voice and stage it
+  // themselves. Always set by launches; prompt-only models ignore it.
+  script?: JobScript;
+}
+
+export interface JobScript {
+  // In speaking order.
+  lines: PromptLine[];
+  actor: JobActor;
+  // The language the lines are spoken in, e.g. "en".
+  language: string;
+}
+
+// Enough to pick a voice and a portrait: the id is stable per actor.
+export interface JobActor {
+  id: string;
+  name: string;
+  gender: "female" | "male" | "nonbinary";
+  ageRange: string;
+  // Free-text delivery, e.g. "warm and enthusiastic, mid-tempo".
+  voiceProfile: string;
 }
 
 // A failure with a stable code for the UI and a readable sentence. Messages
@@ -82,6 +103,9 @@ export interface VideoProviderAdapter {
   // Upstream model identifier, kept on each generation for attribution.
   modelId: string;
   capabilities(): ModelCapabilities;
+  // Seconds between status polls, from the first one on, for models that
+  // finish in seconds. Unset: 20 s, then doubling up to 5 minutes.
+  pollEveryS?: number;
   createJob(req: CreateJobRequest): Promise<{ providerJobId: string }>;
   // Optional: a provider without it still gets the reconciler's timeout guard.
   getJob?(providerJobId: string): Promise<ProviderJobStatus>;

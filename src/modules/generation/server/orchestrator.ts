@@ -5,7 +5,8 @@ import type { JobOutcome, ProviderJobStatus, VideoProviderAdapter } from "./adap
 import { applyJobOutcome } from "./outcome";
 import { generations, generationWatches } from "./schema";
 
-// Poll every 20 s with backoff, until the job ends or its deadline passes.
+// Poll every 20 s with backoff, until the job ends or its deadline passes. A
+// model that sets pollEveryS is polled at that steady pace instead.
 export const FIRST_POLL_DELAY_S = 20;
 const MAX_BACKOFF_S = 300;
 export const DEFAULT_TIMEOUT_S = 30 * 60;
@@ -13,7 +14,8 @@ export const DEFAULT_TIMEOUT_S = 30 * 60;
 const SUBMISSION_TIMEOUT_MS = DEFAULT_TIMEOUT_S * 1000;
 const DOWNLOAD_GRACE_MS = 24 * 60 * 60 * 1000;
 
-export function pollBackoffS(attempts: number): number {
+export function pollBackoffS(attempts: number, pollEveryS?: number): number {
+  if (pollEveryS) return pollEveryS;
   return Math.min(FIRST_POLL_DELAY_S * 2 ** attempts, MAX_BACKOFF_S);
 }
 
@@ -30,6 +32,8 @@ export interface WatchInput {
   modelKey: string;
   providerJobId: string;
   timeoutS?: number;
+  // The adapter's own polling pace (VideoProviderAdapter.pollEveryS).
+  pollEveryS?: number;
   now?: Date;
 }
 
@@ -43,7 +47,7 @@ export async function watchGeneration(db: Db, input: WatchInput): Promise<void> 
       generationId: input.generationId,
       modelKey: input.modelKey,
       providerJobId: input.providerJobId,
-      nextPollAt: new Date(now.getTime() + FIRST_POLL_DELAY_S * 1000),
+      nextPollAt: new Date(now.getTime() + pollBackoffS(0, input.pollEveryS) * 1000),
       deadlineAt: new Date(now.getTime() + (input.timeoutS ?? DEFAULT_TIMEOUT_S) * 1000),
     })
     .onConflictDoNothing();
@@ -152,7 +156,7 @@ export async function reconcileDueJobs(
       const attempts = watch.attempts + 1;
       await tx
         .update(generationWatches)
-        .set({ attempts, nextPollAt: new Date(now.getTime() + pollBackoffS(attempts) * 1000) })
+        .set({ attempts, nextPollAt: new Date(now.getTime() + pollBackoffS(attempts, adapter?.pollEveryS) * 1000) })
         .where(eq(generationWatches.generationId, watch.generationId));
       results.push({ generationId: gen.id, outcome: "pending" });
     }

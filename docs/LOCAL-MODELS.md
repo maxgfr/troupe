@@ -112,11 +112,40 @@ All requests carry `Authorization: Bearer <token>` when a token is set.
   "height": 1280,
   "duration_s": 6,
   "fps": 24,
-  "audio": true
+  "audio": true,
+  "script": {
+    "language": "en",
+    "actor": {
+      "id": "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11",
+      "name": "Léa",
+      "gender": "female",
+      "age_range": "18-24",
+      "voice_profile": "warm and enthusiastic, mid-tempo"
+    },
+    "lines": [
+      { "role": "hook", "text": "This ended my search for good coffee.", "emotion": "excited" },
+      { "role": "cta", "text": "Grab yours today.", "emotion": "calm" }
+    ]
+  }
 }
 ```
 
-`fps` is sent when set on the model. Answer with an id:
+`fps` is sent when set on the model.
+
+`script` is the script behind `prompt`, for servers that voice and stage it
+themselves (text to speech, a portrait, captions) instead of reading the
+compiled prompt. It is still contract 1: Troupe sends it with every job, and a
+server that only reads `prompt` can ignore it.
+
+- `language`: the language the lines are spoken in, e.g. `en` or `fr`.
+- `actor`: who speaks. `id` is stable for a given actor, so it can key a
+  voice or a portrait. `gender` is `female`, `male` or `nonbinary`;
+  `age_range` is a range such as `25-34` or `55+`; `voice_profile` describes
+  the delivery in a few words.
+- `lines`: in speaking order. `role` is `hook`, `body` or `cta`; `emotion` is
+  `neutral`, `excited`, `calm`, `serious`, `happy` or `disappointed`.
+
+Answer with an id:
 
 ```json
 { "id": "job-123" }

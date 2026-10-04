@@ -4,7 +4,7 @@ import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
 import { actors } from "~/modules/actors/server/schema";
 import { assertScriptFitsClip, getScript } from "~/modules/script";
-import { AdapterError, compilePrompt, validateRequest, type VideoProviderAdapter } from "./adapter";
+import { AdapterError, compilePrompt, validateRequest, type JobScript, type VideoProviderAdapter } from "./adapter";
 import { generations } from "./schema";
 import { watchGeneration } from "./orchestrator";
 
@@ -41,11 +41,17 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
   const [actor] = await db.select().from(actors).where(eq(actors.id, project.actorId)).limit(1);
   if (!actor) throw new Error("The actor chosen for this project no longer exists. Choose another one.");
 
+  const language = input.language ?? project.language;
   const prompt = compilePrompt({
     lines: script.lines,
     voiceProfile: `${actor.voiceProfile}. Appearance: adult, ${actor.gender}, ${actor.ageRange}, ${actor.style} style`,
-    language: input.language ?? project.language,
+    language,
   });
+  const jobScript: JobScript = {
+    lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
+    actor: { id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile },
+    language,
+  };
 
   return {
     adapter: input.adapter,
@@ -58,7 +64,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
       language: input.language,
       ...(input.estimatedCostUsd != null ? { costUsd: String(input.estimatedCostUsd), costSource: "estimate" as const } : {}),
     },
-    request: { prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution, audio },
+    request: { prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution, audio, script: jobScript },
   };
 }
 
@@ -85,7 +91,7 @@ export async function submitGeneration(db: Db, gen: typeof generations.$inferSel
     try {
       return await db.transaction(async (tx) => {
         const [row] = await tx.update(generations).set({ providerJobId, status: "in_progress" }).where(eq(generations.id, gen.id)).returning();
-        await watchGeneration(tx as unknown as Db, { generationId: gen.id, modelKey: gen.modelKey, providerJobId, timeoutS: prepared.timeoutS });
+        await watchGeneration(tx as unknown as Db, { generationId: gen.id, modelKey: gen.modelKey, providerJobId, timeoutS: prepared.timeoutS, pollEveryS: prepared.adapter.pollEveryS });
         return row!;
       });
     } catch (error) {

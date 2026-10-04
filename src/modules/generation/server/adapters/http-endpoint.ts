@@ -136,7 +136,14 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
       } catch (error) {
         return { ok: false, message: (error as Error).message };
       }
-      if (!response.ok) return { ok: false, message: statusError(response.status).detail };
+      if (!response.ok) {
+        // A server may say why it is not ready (a mode turned off, weights
+        // missing). Bodies of auth refusals are never shown.
+        const refused = response.status === 401 || response.status === 403;
+        const said = refused ? null : excerpt(((await response.json().catch(() => null)) as { error?: unknown } | null)?.error);
+        const detail = statusError(response.status).detail;
+        return { ok: false, message: said ? `${detail.replace(/\.$/, "")}: ${said}` : detail };
+      }
       const health = Health.safeParse(await response.json().catch(() => null));
       if (!health.success || !health.data.ok) return { ok: false, message: `${origin}/health did not answer { ok: true }.` };
       if (health.data.contract !== undefined && health.data.contract !== HTTP_CONTRACT_VERSION) {

@@ -108,6 +108,16 @@ describe("generic HTTP endpoint adapter", () => {
     expect(await adapter.testConnection!()).toMatchObject({ ok: false, message: expect.stringMatching(/contract 2/) });
   });
 
+  it("shows why /health refused, from the server's own error, but never on an auth refusal", async () => {
+    let status = 503;
+    const server = await startServer((_r, res) => json(res, status, { ok: false, error: "The AI video mode is off on this renderer.\nStart it first." }));
+    close = server.close;
+    const adapter = createHttpEndpointAdapter({ model: model(server.url) });
+    expect(await adapter.testConnection!()).toEqual({ ok: false, message: "Box returned HTTP 503: The AI video mode is off on this renderer. Start it first." });
+    status = 401;
+    expect(await adapter.testConnection!()).toEqual({ ok: false, message: "Box refused the token (HTTP 401). Check it in Settings." });
+  });
+
   it("takes the polling pace a server advertises on /health, within 1 to 60 s", async () => {
     let pace: unknown = 1;
     const server = await startServer((_r, res) => json(res, 200, { ok: true, contract: 1, poll_every_s: pace }));

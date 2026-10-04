@@ -1,6 +1,7 @@
 import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
+import type { StoredFile } from "~/server/media/store";
 import { benchmarkEntries, benchmarkRuns } from "~/modules/benchmark";
 import { generations, mediaAssets } from "~/modules/generation";
 import { projects } from "~/modules/studio";
@@ -9,7 +10,7 @@ import { projects } from "~/modules/studio";
 // and watches cascade from the project row; render media rows and
 // comparisons left without entries are removed here. Returns the stored
 // files for the caller to delete once the transaction has committed.
-export async function deleteProjectData(db: Db, projectId: string) {
+export async function deleteProjectData(db: Db, projectId: string): Promise<{ files: StoredFile[] }> {
   return db.transaction(async (tx) => {
     const rows = await tx
       .select({ id: generations.id, outputAssetId: generations.outputAssetId })
@@ -31,7 +32,7 @@ export async function deleteProjectData(db: Db, projectId: string) {
       ));
     }
     return {
-      files: assets.map((a) => ({ storagePath: a.storagePath, storage: a.meta.storage === "supabase" ? ("supabase" as const) : ("local" as const) })),
+      files: assets.map((a): StoredFile => ({ storagePath: a.storagePath, storage: a.meta.storage === "supabase" ? "supabase" : "local" })),
     };
   });
 }

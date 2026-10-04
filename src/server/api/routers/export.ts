@@ -36,6 +36,6 @@ export const exportRouter = createTRPCRouter({
         hashtags: input.hashtags,
         qualityConfirmedBy: input.qualityConfirmed ? ctx.userId : undefined,
         acknowledgeSpecMismatch: input.acknowledgeSpecMismatch,
-      });
+      }, ctx.media);
     }),
 });

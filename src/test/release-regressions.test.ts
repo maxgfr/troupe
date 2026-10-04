@@ -8,6 +8,7 @@ import { createProjectFromWizard, projects } from "~/modules/studio";
 import { getScriptHistory, pasteScript } from "~/modules/script";
 import { startBenchmark, getBenchmarkRun } from "~/modules/benchmark";
 import { generations, generationWatches, launchGeneration, reconcileDueJobs, type VideoProviderAdapter } from "~/modules/generation";
+import { apiMediaLinks } from "~/server/media/store";
 
 let t: TestDb;
 let fixture: Fixture;
@@ -61,7 +62,7 @@ it("submits comparisons concurrently and retains refused renders", async () => {
   first.createJob = vi.fn(async () => { await started; return { providerJobId: "parallel-veo" }; });
   second.createJob = vi.fn(async () => { release(); throw new Error("Provider refused"); });
   const run = await startBenchmark(t.db, { ...fixture, models: asModels([first, second]), durationS: 8, resolution: "720p" });
-  const view = await getBenchmarkRun(t.db, run.id);
+  const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
   expect(view.entries.map((e) => e.status).sort()).toEqual(["failed", "in_progress"]);
   expect(first.createJob).toHaveBeenCalledTimes(1);
   expect(second.createJob).toHaveBeenCalledTimes(1);

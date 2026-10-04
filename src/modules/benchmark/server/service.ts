@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
+import type { MediaLinks } from "~/server/media/store";
 import { projects } from "~/modules/studio/server/schema";
 import { getScript } from "~/modules/script";
 import { generations, prepareGeneration, submitGeneration, type VideoProviderAdapter } from "~/modules/generation";
@@ -140,7 +141,7 @@ export async function listBenchmarkRuns(
 
 // Side-by-side view — cost, latency, votes, per-model means;
 // failed entries stay visible next to completed ones.
-export async function getBenchmarkRun(db: Db, runId: string) {
+export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) {
   const [run] = await db.select().from(benchmarkRuns).where(eq(benchmarkRuns.id, runId)).limit(1);
   if (!run) throw new Error(`benchmark run ${runId} not found`);
   const rows = await db.select().from(benchmarkEntries).where(eq(benchmarkEntries.benchmarkRunId, runId));
@@ -174,7 +175,7 @@ export async function getBenchmarkRun(db: Db, runId: string) {
       costSource: gen.costSource,
       latencyMs: gen.completedAt ? gen.completedAt.getTime() - gen.createdAt.getTime() : null,
       durationS: gen.durationS,
-      outputAssetUrl: gen.outputAssetId ? `/api/media/${gen.outputAssetId}` : null,
+      outputAssetUrl: gen.outputAssetId ? media.urlFor(gen.outputAssetId) : null,
       votes: e.qualityVotes,
       meanScore: votes.length ? votes.reduce((a, b) => a + b, 0) / votes.length : null,
     });

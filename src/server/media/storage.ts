@@ -6,6 +6,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { removeFromSupabase, uploadToSupabase } from "./supabase";
+import { apiMediaLinks, type MediaStore, type StoredFile } from "./store";
 
 import { ingestRender, type RenderIngestor } from "~/modules/generation";
 
@@ -57,7 +58,10 @@ export const persistProviderRender: RenderIngestor = async (db, gen, status, ada
 
 // Delete stored render files after their rows are gone. Best effort: a file
 // that is already missing is fine.
-export async function removeStoredMedia(files: { storagePath: string; storage: "local" | "supabase" }[]) {
+export async function removeStoredMedia(files: StoredFile[]) {
   await Promise.all(files.filter((f) => f.storage === "local").map((f) => rm(mediaFilePath(f.storagePath), { force: true })));
   await removeFromSupabase(files.filter((f) => f.storage === "supabase").map((f) => f.storagePath));
 }
+
+// The self-hosted media store: the data folder or Supabase, served by /api/media.
+export const serverMedia: MediaStore = { ...apiMediaLinks, remove: removeStoredMedia };

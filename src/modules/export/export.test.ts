@@ -8,6 +8,7 @@ import { pasteScript } from "~/modules/script";
 import { fakeAdapter, finishGeneration } from "~/test/adapters";
 import { ingestRender, launchGeneration } from "~/modules/generation";
 import { checkExportSpecs, createExport } from "~/modules/export";
+import { apiMediaLinks } from "~/server/media/store";
 
 const USER = "e1111111-1111-4111-8111-111111111111";
 
@@ -37,7 +38,7 @@ describe("platform export presets", () => {
       caption: "Morning routine upgrade",
       hashtags: ["#coffee", "#morning"],
       qualityConfirmedBy: USER,
-    });
+    }, apiMediaLinks);
     expect(exp.filePath).toMatch(/renders\//);
     expect(exp.caption).toBe("Morning routine upgrade");
     expect(exp.hashtags).toEqual(["#coffee", "#morning"]);
@@ -51,7 +52,7 @@ describe("platform export presets", () => {
     expect(check.ok).toBe(false);
     expect(check.mismatches.join(" ")).toMatch(/9:16.*linkedin|linkedin.*(1:1|16:9)/i);
     await expect(
-      createExport(t.db, { generationId: genId, platform: "linkedin", caption: "x", hashtags: [], qualityConfirmedBy: USER }),
+      createExport(t.db, { generationId: genId, platform: "linkedin", caption: "x", hashtags: [], qualityConfirmedBy: USER }, apiMediaLinks),
     ).rejects.toThrowError(/spec/i);
     const forced = await createExport(t.db, {
       generationId: genId,
@@ -60,11 +61,11 @@ describe("platform export presets", () => {
       hashtags: [],
       qualityConfirmedBy: USER,
       acknowledgeSpecMismatch: true,
-    });
+    }, apiMediaLinks);
     expect(forced.platform).toBe("linkedin");
   });
 
   it("the export is refused without an explicit quality confirmation", async () => {
-    await expect(createExport(t.db, { generationId: genId, platform: "tiktok", caption: "y", hashtags: [] })).rejects.toThrowError(/watched the video/i);
+    await expect(createExport(t.db, { generationId: genId, platform: "tiktok", caption: "y", hashtags: [] }, apiMediaLinks)).rejects.toThrowError(/watched the video/i);
   });
 });

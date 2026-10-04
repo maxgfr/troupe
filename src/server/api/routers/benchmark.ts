@@ -45,7 +45,7 @@ export const benchmarkRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       await assertRunInWorkspace(ctx.db, input.runId, input.workspaceId);
       if (ctx.ingest) await reconcileDueJobs(ctx.db, { adapters: ctx.catalog.adapters, ingest: ctx.ingest, limit: 1 });
-      const run = await getBenchmarkRun(ctx.db, input.runId);
+      const run = await getBenchmarkRun(ctx.db, input.runId, ctx.media);
       const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
       return { ...run, entries: run.entries.map((e) => ({ ...e, label: labels.get(e.modelKey) ?? e.modelKey })) };
     }),

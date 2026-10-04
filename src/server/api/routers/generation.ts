@@ -22,7 +22,7 @@ export const generationRouter = createTRPCRouter({
     return rows.map((row) => ({
       ...row,
       modelLabel: labels.get(row.modelKey) ?? row.modelId,
-      outputAssetUrl: row.outputAssetId ? `/api/media/${row.outputAssetId}` : null,
+      outputAssetUrl: row.outputAssetId ? ctx.media.urlFor(row.outputAssetId) : null,
     }));
   }),
 

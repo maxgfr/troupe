@@ -9,6 +9,7 @@ import { seedActorLibrary, listActors, attachActorToProject } from "~/modules/ac
 import { pasteScript } from "~/modules/script";
 import { generations } from "~/modules/generation";
 import { getBenchmarkRun, startBenchmark, voteOnEntry } from "~/modules/benchmark";
+import { apiMediaLinks } from "~/server/media/store";
 
 const USER = "91111111-1111-4111-8111-111111111111";
 
@@ -54,7 +55,7 @@ describe("model comparison harness", () => {
     await voteOnEntry(t.db, { entryId: veoEntry.id, userId: "a1111111-1111-4111-8111-111111111111", score: 5 });
     await expect(voteOnEntry(t.db, { entryId: veoEntry.id, userId: USER, score: 7 })).rejects.toThrowError(/1.*5/);
 
-    const view = await getBenchmarkRun(t.db, run.id);
+    const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
     const veoView = view.entries.find((e) => e.modelKey === "veo")!;
     expect(veoView.status).toBe("completed");
     expect(veoView.costUsd).toBe(2.4);
@@ -66,7 +67,7 @@ describe("model comparison harness", () => {
   it("one provider failing leaves the comparison available for the completed ones", async () => {
     const run = await startBenchmark(t.db, { projectId, scriptId, models: asModels(pair({ klingFails: true })), durationS: 8, resolution: "720p" });
     await finishGeneration(t.db, run.entries.find((e) => e.modelKey === "veo")!.generationId, { kind: "completed" });
-    const view = await getBenchmarkRun(t.db, run.id);
+    const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
     expect(view.entries).toHaveLength(2);
     expect(view.entries.find((e) => e.modelKey === "veo")!.status).toBe("completed");
     expect(view.entries.find((e) => e.modelKey === "kling")!.status).toBe("failed");

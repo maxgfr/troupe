@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
+import type { MediaLinks } from "~/server/media/store";
 import { generations, mediaAssets } from "~/modules/generation";
 import { exportRecords } from "./schema";
 
@@ -45,7 +46,7 @@ export interface CreateExportInput {
   acknowledgeSpecMismatch?: boolean;
 }
 
-export async function createExport(db: Db, input: CreateExportInput) {
+export async function createExport(db: Db, input: CreateExportInput, media: MediaLinks) {
   const gen = await loadCompletedGeneration(db, input.generationId);
   if (!input.qualityConfirmedBy) {
     throw new Error("Confirm that you watched the video and that it is ready to publish.");
@@ -68,5 +69,5 @@ export async function createExport(db: Db, input: CreateExportInput) {
       qualityConfirmedBy: input.qualityConfirmedBy,
     })
     .returning();
-  return { ...record!, downloadUrl: `/api/media/${gen.outputAssetId}?download=1` };
+  return { ...record!, downloadUrl: media.urlFor(gen.outputAssetId!, { download: true }) };
 }

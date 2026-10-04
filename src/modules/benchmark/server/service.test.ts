@@ -8,6 +8,7 @@ import { pasteScript } from "~/modules/script";
 import { fakeAdapter, asModels } from "~/test/adapters";
 import { generations } from "~/modules/generation";
 import { getBenchmarkRun, startBenchmark } from "~/modules/benchmark";
+import { apiMediaLinks } from "~/server/media/store";
 
 const USER = "94444444-4444-4444-8444-444444444444";
 
@@ -54,7 +55,7 @@ describe("getBenchmarkRun batches the generations fetch", () => {
     }) as never);
 
     try {
-      const view = await getBenchmarkRun(t.db, run.id);
+      const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
       expect(view.entries.length).toBe(2);
       expect(genSelects).toBe(1);
     } finally {

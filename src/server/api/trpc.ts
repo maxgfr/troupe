@@ -12,8 +12,8 @@ import { z, ZodError } from "zod";
 
 import { eq } from "drizzle-orm";
 
-import { db } from "~/server/db";
 import type { Db } from "~/server/db/types";
+import type { MediaStore } from "~/server/media/store";
 import { assertMembership } from "~/modules/identity/server/service";
 import { projects } from "~/modules/studio";
 import type { RenderIngestor } from "~/modules/generation";
@@ -33,13 +33,19 @@ import type { ModelCatalog } from "~/modules/models";
  */
 export const createTRPCContext = async (opts: {
   headers: Headers;
+  // Driver-agnostic handle: production is postgres-js, tests inject pglite.
+  // Passed in rather than imported so the router never opens a connection
+  // by itself.
+  db: Db;
+  // Links to stored renders and their deletion (src/server/media/store.ts).
+  media: MediaStore;
   userId?: string | null;
   catalog?: ModelCatalog;
   ingest?: RenderIngestor;
 }) => {
   return {
-    // Driver-agnostic handle: production is postgres-js, tests inject pglite.
-    db: db as Db,
+    db: opts.db,
+    media: opts.media,
     userId: opts.userId ?? null,
     headers: opts.headers,
     // The model catalog and its adapters (src/server/adapters.ts). Tests

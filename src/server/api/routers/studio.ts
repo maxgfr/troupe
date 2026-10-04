@@ -6,7 +6,6 @@ import { createProjectFromWizard, formatOptionsFor, getProject, modelOptionsFor,
 import type { ModelCatalog } from "~/modules/models";
 import { MODEL_KEY } from "./generation";
 import { deleteProjectData } from "~/server/projects";
-import { removeStoredMedia } from "~/server/media/storage";
 
 const PLATFORM = z.enum(["instagram", "youtube", "tiktok", "linkedin"]);
 const FORMAT = z.enum(["9:16", "1:1", "16:9"]);
@@ -43,7 +42,7 @@ export const studioRouter = createTRPCRouter({
   deleteProject: projectProcedure.mutation(async ({ ctx, input }) => {
     const { files } = await deleteProjectData(ctx.db, input.projectId);
     try {
-      await removeStoredMedia(files);
+      await ctx.media.remove(files);
     } catch (error) {
       console.error(JSON.stringify({ event: "media.remove.failed", projectId: input.projectId, message: (error as Error).message }));
     }

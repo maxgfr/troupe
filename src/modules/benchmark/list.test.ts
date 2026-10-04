@@ -10,6 +10,7 @@ import { seedActorLibrary, listActors, attachActorToProject } from "~/modules/ac
 import { pasteScript } from "~/modules/script";
 import { fakeAdapter, asModels } from "~/test/adapters";
 import { BENCHMARK_LIST_LIMIT, getBenchmarkRun, listBenchmarkRuns, startBenchmark, voteOnEntry } from "~/modules/benchmark";
+import { apiMediaLinks } from "~/server/media/store";
 
 const USER = "92222222-2222-4222-8222-222222222222";
 
@@ -101,7 +102,7 @@ describe("bounded listBenchmarkRuns", () => {
 describe("getBenchmarkRun briefLines", () => {
   it("returns the script lines the run was launched from", async () => {
     const run = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("bl")), durationS: 8, resolution: "720p" });
-    const view = await getBenchmarkRun(t.db, run.id);
+    const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
     expect(view.briefLines).toEqual(["List me."]);
   });
 });

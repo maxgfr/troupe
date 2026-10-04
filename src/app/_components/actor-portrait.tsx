@@ -1,6 +1,9 @@
+import { actorHue, actorInitials } from "~/modules/scene";
+
 // Self-hosted actor portrait — deterministic hue from the actor id, initials
-// centered. No external avatar host: the versioned portrait sets
-// (actors/<slug>/v1/*) plug in here once the storage adapter serves them.
+// centered, with the same colors as the rendered videos (src/modules/scene).
+// No external avatar host: the versioned portrait sets (actors/<slug>/v1/*)
+// plug in here once the storage adapter serves them.
 export function ActorPortrait({
   id,
   name,
@@ -12,13 +15,8 @@ export function ActorPortrait({
   label: string;
   className?: string;
 }) {
-  const hue = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-  const initials = name
-    .split(/\s+/)
-    .map((w) => w[0] ?? "")
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const hue = actorHue(id);
+  const initials = actorInitials(name);
   return (
     <svg viewBox="0 0 100 100" role="img" aria-label={label} className={className} preserveAspectRatio="xMidYMid slice">
       <rect width="100" height="100" fill={`oklch(0.3 0.05 ${hue})`} />

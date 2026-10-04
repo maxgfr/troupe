@@ -2,6 +2,7 @@ import { AppShell } from "~/app/_components/app-shell";
 import { EditionProvider, type Edition } from "~/app/_components/edition";
 import { EmptyState, PageHeader } from "~/app/_components/ui";
 import { WorkspaceProvider } from "~/app/_components/workspace-context";
+import { browserChat } from "./chat/ui";
 import { browserRendering } from "./render/ui";
 import { resetDemoData } from "./reset";
 import { DemoTRPCProvider } from "./trpc";
@@ -9,7 +10,7 @@ import { DemoTRPCProvider } from "./trpc";
 // src/app/(app)/layout.tsx for the demo: the same shell around the same
 // pages, with the router and database of this browser behind them.
 
-const DEMO: Edition = { kind: "demo", resetData: resetDemoData, rendering: browserRendering };
+const DEMO: Edition = { kind: "demo", resetData: resetDemoData, rendering: browserRendering, chat: browserChat };
 
 export function DemoLayout({ children }: { children: React.ReactNode }) {
   return (

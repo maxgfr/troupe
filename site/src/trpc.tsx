@@ -10,6 +10,7 @@ import { createTRPCContext } from "~/server/api/trpc";
 import { createQueryClient } from "~/trpc/query-client";
 import { api } from "~/trpc/react";
 import { forgetDemoCatalog, loadDemoCatalog } from "./catalog";
+import { createDemoChat } from "./chat/backend";
 import { demoDatabase } from "./db/client";
 import { demoMedia } from "./media";
 import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
@@ -18,7 +19,7 @@ import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 // procedure runs against the PGlite database in this browser.
 async function createContext() {
   const { db } = await demoDatabase();
-  return createTRPCContext({ headers: new Headers(), db, media: demoMedia, userId: LOCAL_USER_ID, catalog: await loadDemoCatalog(db), ingest: ingestBrowserRender });
+  return createTRPCContext({ headers: new Headers(), db, media: demoMedia, userId: LOCAL_USER_ID, catalog: await loadDemoCatalog(db), ingest: ingestBrowserRender, chat: createDemoChat(db) });
 }
 
 // The catalog is read once and kept (site/src/catalog.ts); a mutation may

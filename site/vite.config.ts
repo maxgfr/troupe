@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/postcss";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type UserConfig } from "vite";
 
 import { THEME_SCRIPT } from "../src/app/theme-script";
+import { parseChatConfig } from "./src/chat/config";
 import { parseRenderConfig } from "./src/render/config";
 import { headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
 
@@ -31,14 +32,20 @@ const guard = () =>
     },
   });
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // The renderer's VITE_* settings (site/.env.example): a bad value stops
   // the build here rather than a render in a visitor's browser.
-  parseRenderConfig(loadEnv(mode, SITE, "VITE_"));
+  const env = loadEnv(mode, SITE, "VITE_");
+  parseRenderConfig(env);
+  // WebLLM's model list, read here so the page never loads WebLLM just to
+  // check the build's model id.
+  const { prebuiltAppConfig } = await import("@mlc-ai/web-llm");
+  const chatConfig = parseChatConfig(env, prebuiltAppConfig.model_list.map((m) => m.model_id));
   return {
     root: SITE,
     base: BASE,
     appType: "mpa",
+    define: { __CHAT_CONFIG__: JSON.stringify(chatConfig) },
     publicDir: resolve(SITE, "public"),
     resolve: {
       alias: [

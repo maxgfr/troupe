@@ -19,9 +19,11 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /render\.spec\.ts/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /(render|chat)\.spec\.ts/ },
     // A real render (tests/render.spec.ts): `pnpm site:test:render`.
     { name: "render", testMatch: /render\.spec\.ts/ },
+    // The chat with WebLLM on the GPU (tests/chat.spec.ts), local only: `pnpm site:test:chat`.
+    { name: "chat", testMatch: /chat\.spec\.ts/ },
   ],
   webServer: {
     command: `pnpm site:preview --port ${PORT}`,

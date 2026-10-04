@@ -1,4 +1,3 @@
-import { randomBytes, randomInt } from "node:crypto";
 import { z } from "zod";
 
 import { framesFor, sizeFor, type FrameRule } from "~/modules/models/geometry";
@@ -52,6 +51,16 @@ function excerpt(text: unknown): string | null {
 }
 
 const OUTPUT_KEYS = ["videos", "gifs", "images"] as const;
+
+// Web Crypto, so the adapter also runs in a browser.
+function randomHex(bytes: number) {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// A uniform seed in [0, 2^31): the top 31 bits of a random 32-bit word.
+function randomSeed() {
+  return crypto.getRandomValues(new Uint32Array(1))[0]! >>> 1;
+}
 
 // Saved files, the preferred node first. Shapes differ between ComfyUI core
 // nodes and custom nodes, so look everywhere a file can be listed.
@@ -153,9 +162,9 @@ export function createComfyAdapter(deps: { model: ComfyModel; fetch?: typeof fet
         frames: framesFor(req.durationS, model.fps, model.frameRule),
         fps: model.fps,
         duration_s: req.durationS,
-        seed: randomInt(0, 2 ** 31),
+        seed: randomSeed(),
         audio: req.audio,
-        filename_prefix: `troupe/${randomBytes(6).toString("hex")}`,
+        filename_prefix: `troupe/${randomHex(6)}`,
       });
       const res = await call("/prompt", { method: "POST", headers: headers({ "content-type": "application/json" }), body: JSON.stringify({ prompt, client_id: "troupe" }) });
       const body = (await res.json().catch(() => null)) as { prompt_id?: unknown; error?: { message?: unknown } } | null;

@@ -22,6 +22,21 @@ function model(baseUrl: string, patch: Partial<ComfyModel> = {}): ComfyModel {
 const done = (outputs: unknown, status: unknown = { status_str: "success", completed: true, messages: [] }) => ({ "p-1": { prompt: [], outputs, status } });
 
 describe("ComfyUI adapter", () => {
+  it("draws a fresh 31-bit seed and output name for every render", async () => {
+    const server = await startServer((_r, res) => json(res, 200, { prompt_id: "p-seed" }));
+    close = server.close;
+    const seeded = { ...workflow, "3": { class_type: "KSampler", inputs: { seed: "{{seed}}" } } };
+    const adapter = createComfyAdapter({ model: model(server.url, { workflow: seeded }) });
+    for (let i = 0; i < 5; i++) await adapter.createJob(req);
+    const sent = server.requests.map((r) => (JSON.parse(r.body) as { prompt: typeof seeded }).prompt);
+    for (const prompt of sent) {
+      const seed = prompt["3"].inputs.seed as unknown as number;
+      expect(Number.isInteger(seed) && seed >= 0 && seed < 2 ** 31).toBe(true);
+      expect(prompt["58"].inputs.filename_prefix).toMatch(/^troupe\/[0-9a-f]{12}$/);
+    }
+    expect(new Set(sent.map((p) => p["58"].inputs.filename_prefix)).size).toBe(5);
+  });
+
   it("binds the workflow, follows the job through history and downloads the MP4 from /view", async () => {
     const clip = await readFile("src/test/fixtures/clip.mp4");
     let historyCalls = 0;

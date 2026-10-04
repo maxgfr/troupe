@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
@@ -66,8 +65,13 @@ function slug(label: string) {
   return label.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "model";
 }
 
+// Web Crypto, so this also runs in a browser.
+function randomHex(bytes: number) {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function newLocalModelKey(label: string) {
-  return `local-${slug(label)}-${randomBytes(3).toString("hex")}`;
+  return `local-${slug(label)}-${randomHex(3)}`;
 }
 
 // `id` lets the caller seal a secret bound to the row before inserting it.

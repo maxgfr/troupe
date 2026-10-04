@@ -79,11 +79,18 @@ function openOnce(): Promise<DemoDatabase> {
 // again the database holds no workspace, so everyone else waits it out.
 let resetting: Promise<void> | undefined;
 
-export async function demoDatabase(): Promise<DemoDatabase> {
-  const database = await openOnce();
-  // Checked after the open too: a page that asked during a slow start must
-  // not slip in between the rebuild and the seed.
+async function resetDone() {
   while (resetting) await resetting.catch(() => {});
+}
+
+export async function demoDatabase(): Promise<DemoDatabase> {
+  // Before the open: a reset that is deleting a database that would not open
+  // must not have a new worker reopen it underneath.
+  await resetDone();
+  const database = await openOnce();
+  // And after it: a page that asked during a slow start must not slip in
+  // between the rebuild and the seed.
+  await resetDone();
   return database;
 }
 

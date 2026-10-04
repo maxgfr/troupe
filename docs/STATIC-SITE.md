@@ -13,8 +13,8 @@ pnpm site:test      # Playwright smoke test against the preview (run site:build 
 ```
 
 `SITE_PORT=4273 pnpm site:test` runs it on another port (for a second
-checkout), and `SITE_CPU_THROTTLE=6` slows the browser's CPU six times to get
-closer to a CI runner.
+checkout), and `SITE_CPU_THROTTLE=6` slows the page's CPU six times. It does
+not slow the PGlite worker, so it does not reproduce a CI runner's slow start.
 
 The first visit downloads about 20 MB (Postgres and its data files), then
 starts in a few seconds.

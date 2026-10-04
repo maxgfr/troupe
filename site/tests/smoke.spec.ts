@@ -9,8 +9,8 @@ const APP = "/troupe/app";
 // and a reset take seconds on a laptop and far longer on a CI runner.
 const MIGRATING = { timeout: 60_000 };
 
-// SITE_CPU_THROTTLE=6 replays the suite on a CPU six times slower, closer to
-// a CI runner than a laptop.
+// SITE_CPU_THROTTLE=6 replays the suite with the page's CPU six times slower
+// (the PGlite worker keeps its speed).
 test.beforeEach(async ({ page }) => {
   const rate = Number(process.env.SITE_CPU_THROTTLE ?? 1);
   if (rate > 1) await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate });
@@ -144,8 +144,12 @@ test("settings says what the demo cannot do, and reset empties the studio", asyn
   await page.goto(`${APP}/settings`);
   await page.getByRole("button", { name: "Reset demo data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();
+  // The slow start has done its job; let the next page load at full speed and
+  // from the HTTP cache again (an active route bypasses it).
+  await page.unrouteAll({ behavior: "wait" });
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, MIGRATING);
-  await expect(page.getByText("Create your first project")).toBeVisible();
+  // The dashboard is a new page: Postgres starts there again.
+  await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
   expect(glimpses).toEqual([]);
   expect(errors).toEqual([]);
 });

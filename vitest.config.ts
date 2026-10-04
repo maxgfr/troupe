@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "renderer/src/**/*.test.ts"],
     environment: "node",
     // FIX-005 (c7): each pglite-backed `it` rebuilds a fresh in-memory Postgres
     // and replays every migration; under the full parallel run that contention

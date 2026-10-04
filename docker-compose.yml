@@ -64,7 +64,27 @@ services:
               count: all
               capabilities: [gpu]
 
+  # Optional local renderer, on the CPU: Kokoro voices, the actor card and
+  # captions, encoded with ffmpeg (docs/LOCAL-MODELS.md):
+  #   docker compose --profile renderer up -d --build
+  # then add an HTTP endpoint model in Settings with the address
+  # http://renderer:8078. Kokoro's weights (about 90 MB) download on first start.
+  renderer:
+    profiles: ["renderer"]
+    build:
+      context: .
+      dockerfile: renderer/Dockerfile
+    restart: unless-stopped
+    environment:
+      TOKEN: ${TROUPE_RENDERER_TOKEN:-}
+    ports:
+      # For Troupe under `pnpm dev`: http://127.0.0.1:8078.
+      - "127.0.0.1:${TROUPE_RENDERER_PORT:-8078}:8078"
+    volumes:
+      - renderer:/data
+
 volumes:
   troupe-media:
   troupe-pgdata:
   comfyui:
+  renderer:

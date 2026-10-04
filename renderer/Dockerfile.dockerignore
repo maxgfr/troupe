@@ -1,0 +1,10 @@
+# Build context for renderer/Dockerfile (the repository root): only what the
+# renderer needs. Replaces the root .dockerignore for this build.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!renderer/package.json
+!renderer/src
+!src/modules/scene
+**/*.test.ts

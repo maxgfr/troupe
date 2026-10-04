@@ -17,6 +17,7 @@
     "dev": "next dev --turbo --hostname 127.0.0.1",
     "lint": "biome lint .",
     "preview": "next build && next start",
+    "renderer": "pnpm --filter @troupe/renderer start",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",

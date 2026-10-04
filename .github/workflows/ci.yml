@@ -45,14 +45,21 @@ jobs:
         env:
           CI: "1"
       # A real render in headless Chromium: no GPU here, so the voices run in
-      # WebAssembly (92 MB from Hugging Face) and the audio is Opus, Linux
-      # Chromium having no AAC encoder. ffprobe checks the MP4.
+      # WebAssembly and the audio is Opus, Linux Chromium having no AAC
+      # encoder. ffprobe checks the MP4. The browser profile keeps the 92 MB
+      # of Kokoro weights in its Cache Storage: cached here, it downloads once
+      # per Playwright version and renderer settings.
       - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/troupe-render-profile
+          key: render-profile-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'site/src/render/config.ts') }}
       - run: pnpm site:test:render
         env:
           CI: "1"
           HEADLESS: "1"
           RENDER_CHANNEL: chromium
+          RENDER_PROFILE: ${{ runner.temp }}/troupe-render-profile
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

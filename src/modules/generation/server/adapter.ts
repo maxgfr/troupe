@@ -83,7 +83,7 @@ export function validateRequest(caps: ModelCapabilities, req: Omit<CreateJobRequ
   }
 }
 
-export type ModelFamily = "veo" | "fal" | "comfyui" | "http";
+export type ModelFamily = "veo" | "fal" | "comfyui" | "http" | "browser";
 
 // The provider job's current state, polled by the reconciler.
 export type ProviderJobStatus = { kind: "pending"; progress?: number } | JobOutcome;

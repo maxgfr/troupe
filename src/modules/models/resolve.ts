@@ -57,7 +57,7 @@ export interface ModelCatalog {
 // Local models wait on one GPU queue: hours, not minutes.
 export const LOCAL_TIMEOUT_S = 7200;
 
-const LOCAL_VENDOR: Record<string, string> = { comfyui: "ComfyUI", http: "HTTP endpoint" };
+const LOCAL_VENDOR: Record<string, string> = { comfyui: "ComfyUI", http: "HTTP endpoint", browser: "This browser" };
 
 export function sanitizeDefaults(caps: ModelCapabilities, wanted: Partial<ModelDefaults> | null, fallback?: ModelDefaults): ModelDefaults {
   const pick = <T,>(options: T[], ...candidates: (T | undefined)[]) => candidates.find((c) => c !== undefined && options.includes(c)) ?? options[0]!;

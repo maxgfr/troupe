@@ -11,4 +11,6 @@ export { mediaAssets } from "./server/media";
 export type { MediaProbe } from "./server/media";
 export { createVeoTextAdapter, type VeoModel } from "./server/adapters/veo-text";
 export { createFalAdapter, type FalModel } from "./server/adapters/fal";
+export { createBrowserAdapter, BROWSER_CAPABILITIES, BROWSER_MODEL_KEY, BROWSER_MODEL_LABEL } from "./server/adapters/browser";
+export type { BrowserJobState, BrowserRenderJob, BrowserRenderer } from "./server/adapters/browser";
 export { prepareGeneration, submitGeneration } from "./server/launch";

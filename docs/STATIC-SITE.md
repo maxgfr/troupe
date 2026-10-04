@@ -13,9 +13,10 @@ pnpm site:test      # Playwright smoke test against the preview (run site:build 
 pnpm site:test:render  # a real render in Chrome (see "Testing a render")
 ```
 
-`SITE_PORT=4273 pnpm site:test` runs it on another port (for a second
-checkout), and `SITE_CPU_THROTTLE=6` slows the page's CPU six times. It does
-not slow the PGlite worker, so it does not reproduce a CI runner's slow start.
+`SITE_PORT=4273 pnpm site:test` (or `pnpm site:test:render`) runs it on
+another port (for a second checkout), and `SITE_CPU_THROTTLE=6` slows the
+page's CPU six times. It does not slow the PGlite worker, so it does not
+reproduce a CI runner's slow start.
 
 The first visit downloads about 20 MB (Postgres and its data files), then
 starts in a few seconds. The first render downloads the voice model too (see
@@ -95,10 +96,13 @@ run downloads the voice model.
 
 CI runs it too, headless in Playwright's Chromium
 (`HEADLESS=1 RENDER_CHANNEL=chromium pnpm site:test:render`): GitHub's Linux
-runners have no GPU, so the voices take the WebAssembly path (a 92 MB download
-from Hugging Face on each run), and Linux Chromium has no AAC encoder, so the
-audio is Opus. Locally, `RENDER_ARGS="--disable-gpu --disable-features=WebGPU"`
-forces the CPU path on a machine with a GPU.
+runners have no GPU, so the voices take the WebAssembly path, and Linux
+Chromium has no AAC encoder, so the audio is Opus. The browser profile, whose
+Cache Storage holds the 92 MB of weights, is kept with `actions/cache`
+(`RENDER_PROFILE` points the test at it), so Hugging Face is only asked again
+when the lockfile or the renderer settings change. Locally,
+`RENDER_ARGS="--disable-gpu --disable-features=WebGPU"` forces the CPU path on
+a machine with a GPU.
 
 ## How it is put together
 

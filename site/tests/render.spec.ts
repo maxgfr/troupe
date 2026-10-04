@@ -11,12 +11,14 @@ import { chromium, expect, test, type BrowserContext, type Page } from "@playwri
 // Playwright's Chromium (HEADLESS=1 RENDER_CHANNEL=chromium), where it takes
 // the CPU path and Opus audio.
 //
-// The browser profile is kept between runs, so the voice model downloads
-// once. RENDER_ARGS passes Chrome flags, e.g. "--disable-gpu
+// The browser profile is kept between runs (RENDER_PROFILE, default in the
+// OS temp folder), so the voice model downloads once. RENDER_ARGS passes Chrome flags, e.g. "--disable-gpu
 // --disable-features=WebGPU" to try the CPU path on a machine with a GPU.
 
-const APP = "http://localhost:4173/troupe/app";
-const PROFILE = join(tmpdir(), "troupe-render-test-profile");
+// The preview's address comes from the Playwright config (SITE_PORT).
+const APP = "/troupe/app";
+// RENDER_PROFILE moves it, e.g. where CI caches it.
+const PROFILE = process.env.RENDER_PROFILE ?? join(tmpdir(), "troupe-render-test-profile");
 const SCRIPT = "Stop scrolling for a second.\nTry it tonight.";
 
 test.describe.configure({ mode: "serial" });
@@ -25,7 +27,8 @@ let context: BrowserContext;
 let page: Page;
 const errors: string[] = [];
 
-test.beforeAll(async () => {
+// biome-ignore lint/correctness/noEmptyPattern: Playwright wants the fixtures argument destructured, and this hook uses none.
+test.beforeAll(async ({}, testInfo) => {
   mkdirSync(PROFILE, { recursive: true });
   // Chrome closes a persistent profile after a download when its history
   // still lists one from an earlier run, whose folder Playwright deleted.
@@ -35,6 +38,7 @@ test.beforeAll(async () => {
     headless: process.env.HEADLESS === "1",
     viewport: { width: 1280, height: 900 },
     acceptDownloads: true,
+    baseURL: testInfo.project.use.baseURL,
     args: (process.env.RENDER_ARGS ?? "").split(" ").filter(Boolean),
   });
   page = context.pages()[0] ?? (await context.newPage());
@@ -142,6 +146,24 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
   expect(Math.abs(Number(info.format.duration) - meta.duration)).toBeLessThan(0.1);
   expect(Math.abs(Number(audioStream?.duration) - Number(videoStream?.duration))).toBeLessThan(0.1);
   test.info().annotations.push({ type: "render", description: JSON.stringify({ duration: meta.duration, audio: audioStream?.codec_name }) });
+
+  // Once the render is stored, its job (and its copy of the MP4) is forgotten.
+  const jobsLeft = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const open = indexedDB.open("troupe-render", 1);
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const count = open.result.transaction("jobs").objectStore("jobs").count();
+            count.onsuccess = () => {
+              resolve(count.result);
+              open.result.close();
+            };
+          };
+        }),
+    );
+  await expect.poll(jobsLeft).toBe(0);
 
   expect(errors).toEqual([]);
 });

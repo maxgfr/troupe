@@ -52,7 +52,7 @@ const proposal = {
 };
 
 function renderPanel(versions: ScriptVersion[] = [v1], base: { model: ModelOptionView; choice: { durationS?: number } } | null = { model, choice: { durationS: 8 } }) {
-  render(<ChatPanel projectId="p1" versions={versions} base={base} currentActorId="a1" open={false} onClose={() => {}} />);
+  render(<ChatPanel projectId="p1" versions={versions} base={base} currentActorId="a1" />);
 }
 
 beforeEach(() => {
@@ -98,8 +98,20 @@ describe("script chat", () => {
   it("warns when the script moved on since the request, and names a new actor", () => {
     messages = [{ id: "m2", role: "assistant", content: proposal.summary, proposal: { ...proposal, actorId: "a2" }, baseScriptId: "s1", appliedScriptId: null }];
     renderPanel([v1, v2]);
-    expect(screen.getByText(/Written for version 1; the script is now version 2/)).toBeTruthy();
+    expect(screen.getByText("Compared with version 2")).toBeTruthy();
+    expect(screen.getByText("Asked on version 1; the script has since changed to version 2. Applying adds these lines as version 3, without version 2's changes.")).toBeTruthy();
     expect(screen.getByText("Marcus")).toBeTruthy();
+  });
+
+  it("says when a request came before the first version, and never claims to replace one", () => {
+    messages = [{ id: "m2", role: "assistant", content: proposal.summary, proposal, baseScriptId: null, appliedScriptId: null }];
+    renderPanel([v1]);
+    expect(screen.getByText("Asked before the script had a version. Applying adds these lines as version 2.")).toBeTruthy();
+    expect(screen.queryByText(/none|replaces/)).toBeNull();
+    cleanup();
+    renderPanel([]);
+    expect(screen.getByText("First script")).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("marks an applied proposal and offers no second apply", () => {

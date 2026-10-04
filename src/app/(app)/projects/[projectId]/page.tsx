@@ -3,9 +3,10 @@
 import { GenerationTimeline, type GenerationRow } from "./generation-timeline";
 import { LaunchPanel } from "./launch-panel";
 import { ChatPanel } from "./chat-panel";
+import { ChatDrawer } from "./chat-drawer";
 import { chatLaunchBase } from "./chat-launch";
 import { ProjectActions } from "./project-actions";
-import { use, useCallback, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +20,7 @@ import {
   SkeletonRows,
 } from "~/app/_components/ui";
 import { pickModel, type ModelOptionView } from "../model-choice";
+import { useMediaQuery } from "~/app/_components/use-media-query";
 
 export default function ProjectMonitorPage({
   params,
@@ -31,8 +33,9 @@ export default function ProjectMonitorPage({
   const enabled = workspace.status === "ready";
   const utils = api.useUtils();
   const [launchError, setLaunchError] = useState<string | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
-  const closeChat = useCallback(() => setChatOpen(false), []);
+  // The chat sits beside the timeline from the large breakpoint (64rem) up,
+  // and opens in a drawer below it.
+  const wide = useMediaQuery("(min-width: 64rem)");
 
   const project = api.studio.getProject.useQuery(
     { projectId },
@@ -96,6 +99,7 @@ export default function ProjectMonitorPage({
   // The chat writes for, and relaunches with, the newest render's settings.
   const newest = generations.data?.[0];
   const chatBase = chatLaunchBase(options, model, newest ? { modelKey: newest.modelKey, durationS: newest.durationS, resolution: newest.resolution } : null);
+  const chatProps = { projectId, versions: history.data ?? [], base: chatBase, currentActorId: project.data?.actorId ?? null };
   const busy = updateModel.isPending || launch.isPending || compare.isPending;
   const loadError = project.error ?? generations.error ?? history.error ?? models.error;
 
@@ -120,9 +124,7 @@ export default function ProjectMonitorPage({
                 {pinned.label} · chosen
               </span>
             ) : null}
-            <button type="button" onClick={() => setChatOpen(true)} className="rounded-lg border border-muted/30 px-3 py-1 text-sm transition-colors duration-150 hover:border-muted/60 lg:hidden">
-              Chat
-            </button>
+            {wide ? null : <ChatDrawer {...chatProps} />}
             <Link href={`/projects/${projectId}/script`} className="text-primary hover:underline">
               Script
             </Link>
@@ -196,14 +198,11 @@ export default function ProjectMonitorPage({
             {launchError ? <div className="mt-3"><ErrorNote>{launchError}</ErrorNote></div> : null}
           </div>
         </div>
-        <ChatPanel
-          projectId={projectId}
-          versions={history.data ?? []}
-          base={chatBase}
-          currentActorId={project.data?.actorId ?? null}
-          open={chatOpen}
-          onClose={closeChat}
-        />
+        {wide ? (
+          <aside aria-label="Script chat" className="sticky top-24 h-[calc(100dvh-15rem)] min-h-[28rem] border-l border-muted/20 pl-6">
+            <ChatPanel {...chatProps} />
+          </aside>
+        ) : null}
         </div>
       )}
     </>

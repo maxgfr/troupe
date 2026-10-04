@@ -101,7 +101,7 @@ export function ProposalCard({
     <div className="rounded-xl border border-muted/25">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-muted/20 px-3 py-2">
         <p className="text-xs font-medium">
-          {applied ? `Applied as version ${state.appliedVersion}` : state.latestVersion ? `Proposed against version ${state.latestVersion}` : "Proposed first script"}
+          {applied ? `Applied as version ${state.appliedVersion}` : state.latestVersion ? `Compared with version ${state.latestVersion}` : "First script"}
         </p>
         <p className={`font-mono text-xs tabular-nums ${estimatedS > clipS ? "text-warning" : "text-muted"}`}>
           {words} words · ≈{estimatedS} s of {clipS} s
@@ -123,9 +123,11 @@ export function ProposalCard({
           </p>
         ) : (
           <>
-            {outdated ? (
+            {outdated && state.latestVersion !== null ? (
               <ProviderWarning>
-                Written for version {state.baseVersion ?? "none"}; the script is now version {state.latestVersion}. Applying replaces version {state.latestVersion} with these lines.
+                {state.baseVersion === null
+                  ? `Asked before the script had a version. Applying adds these lines as version ${state.latestVersion + 1}.`
+                  : `Asked on version ${state.baseVersion}; the script has since changed to version ${state.latestVersion}. Applying adds these lines as version ${state.latestVersion + 1}, without version ${state.latestVersion}'s changes.`}
               </ProviderWarning>
             ) : null}
             {estimatedS > clipS ? (

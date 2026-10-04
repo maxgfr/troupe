@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { useEdition } from "~/app/_components/edition";
 import { ErrorNote, ProviderWarning, Skeleton } from "~/app/_components/ui";
@@ -21,23 +21,28 @@ export interface ScriptVersion {
 const SUGGESTIONS = ["Make the hook punchier", "Cut it to fit the clip", "Warmer, calmer delivery"];
 const FIRST_SUGGESTIONS = ["Write a 3-line script for this project"];
 
-// The project's iteration chat. On wide screens it sits beside the timeline;
-// below that it is a sheet that slides up over the page.
+// The project's iteration chat: a column that fills its container. The
+// project page puts it beside the timeline on wide screens, and in a drawer
+// (a modal dialog) below that, which supplies the heading and a close button.
 export function ChatPanel({
   projectId,
   versions,
   base,
   currentActorId,
-  open,
-  onClose,
+  heading = (title) => <h2 className="text-base font-semibold">{title}</h2>,
+  closeButton,
+  onLaunched,
 }: {
   projectId: string;
   versions: ScriptVersion[];
   base: ChatLaunchBase | null;
   currentActorId: string | null;
-  open: boolean;
-  onClose: () => void;
+  heading?: (title: string) => ReactNode;
+  closeButton?: ReactNode;
+  // After Apply & relaunch, so a drawer can close onto the timeline.
+  onLaunched?: () => void;
 }) {
+  const fieldId = useId();
   const edition = useEdition();
   const demoChat = edition.kind === "demo" ? edition.chat : undefined;
   const utils = api.useUtils();
@@ -68,7 +73,7 @@ export function ChatPanel({
   const applyAndLaunch = api.chat.applyAndLaunch.useMutation({
     onSuccess: async () => {
       await Promise.all([refresh(), utils.generation.forProject.invalidate({ projectId })]);
-      onClose();
+      onLaunched?.();
     },
     onError: async (e) => {
       setError(e.message);
@@ -93,17 +98,7 @@ export function ChatPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, send.isPending]);
 
-  // As a sheet: focus goes to the request field, Escape closes it.
   const field = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    field.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   const pendingIndex = [...messages].reverse().findIndex((m) => m.proposal && !m.appliedScriptId);
   const newestPendingId = pendingIndex < 0 ? null : messages[messages.length - 1 - pendingIndex]!.id;
@@ -111,31 +106,20 @@ export function ChatPanel({
   const unavailable = provider === null ? "The script chat is not available in this studio." : provider.problem;
 
   return (
-    <>
-      {/* The sheet's backdrop, below the large breakpoint only. */}
-      <div
-        aria-hidden
-        onClick={onClose}
-        className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-250 ease-in-out lg:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
-      />
-      <aside
-        aria-label="Script chat"
-        className={`flex flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-[88dvh] max-lg:rounded-t-[14px] max-lg:border-t max-lg:border-muted/25 max-lg:bg-bg max-lg:shadow-[0_8px_30px_rgba(0,0,0,0.16)] max-lg:transition-[transform,visibility] max-lg:duration-250 max-lg:ease-in-out motion-reduce:max-lg:transition-none lg:sticky lg:top-24 lg:h-[calc(100dvh-15rem)] lg:min-h-[28rem] lg:border-l lg:border-muted/20 lg:pl-6 ${open ? "" : "max-lg:invisible max-lg:translate-y-full"}`}
-      >
-        <div className="flex items-start justify-between gap-3 px-4 pt-4 lg:px-0 lg:pt-0">
+    <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold">Script chat</h2>
+            {heading("Script chat")}
             <p className="mt-0.5 truncate font-mono text-xs text-muted" title={provider?.modelId}>
-              {provider ? `${provider.label} · ${provider.modelId}` : " "}
+              {provider ? `${provider.label} · ${provider.modelId}` : "\u00a0"}
               {budget ? ` · ${budget} words for ${clipS} s` : ""}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="-mr-2 min-h-11 rounded-lg px-3 text-sm text-muted hover:text-fg lg:hidden">
-            Close
-          </button>
+          {closeButton}
         </div>
 
-        <div ref={log} className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-2 lg:px-0 lg:pr-1">
+        {/* drawer-body: a drag here scrolls the log instead of closing the drawer. */}
+        <div ref={log} data-slot="drawer-body" className="mt-3 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
           {history.isPending ? (
             <div className="space-y-2" role="status" aria-label="Loading the chat">
               <Skeleton className="h-10 w-2/3" />
@@ -216,7 +200,7 @@ export function ChatPanel({
         </div>
 
         <form
-          className="border-t border-muted/20 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-0 lg:pb-0"
+          className="border-t border-muted/20 pt-3"
           onSubmit={(event) => {
             event.preventDefault();
             submit();
@@ -248,11 +232,11 @@ export function ChatPanel({
               ))}
             </div>
           ) : null}
-          <label htmlFor="chat-request" className="sr-only">
+          <label htmlFor={fieldId} className="sr-only">
             Ask for a change
           </label>
           <textarea
-            id="chat-request"
+            id={fieldId}
             ref={field}
             rows={2}
             value={draft}
@@ -279,7 +263,6 @@ export function ChatPanel({
             </button>
           </div>
         </form>
-      </aside>
-    </>
+    </div>
   );
 }

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 // The project page: the chosen model stays visible, and the launch panel only
 // offers what the chosen model can do.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Suspense } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ModelOptionView } from "./(app)/projects/model-choice";
 
@@ -124,3 +124,41 @@ describe("launch panel", () => {
     expect(screen.queryByLabelText("Generate audio")).toBeNull();
   });
 });
+
+describe("script chat on a phone", () => {
+  // Below the large breakpoint the chat lives in a drawer.
+  beforeEach(() => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("opens as a modal dialog that holds focus, closes with Escape and gives focus back to Chat", async () => {
+    models = [option("veo")];
+    project = { ...baseProject, modelKey: null };
+    history = [{ id: "s1", version: 1, estimatedDurationS: 4, lines: [] }];
+    renderPage();
+    expect(screen.queryByRole("complementary", { name: "Script chat" })).toBeNull();
+    const trigger = screen.getByRole("button", { name: "Chat" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Script chat" })).toBeTruthy();
+    expect(dialog.getAttribute("aria-labelledby")).toBeTruthy();
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    // Tab never leaves the dialog.
+    for (let i = 0; i < 8; i++) {
+      await userTab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Chat" })));
+  });
+});
+
+// One Tab press, as the browser moves focus (react-aria traps it on keydown).
+async function userTab() {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: "Tab" });
+  await new Promise((r) => setTimeout(r, 0));
+}

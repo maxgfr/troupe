@@ -15,7 +15,7 @@ import { generations, generationWatches, reconcileDueJobs } from "~/modules/gene
 import { getModelConfig } from "~/modules/models";
 import { persistProviderRender } from "~/server/media/storage";
 import { resetSecretBoxCache } from "~/server/settings/secrets";
-import { checkLocalUrl } from "~/server/settings/urls";
+import type { Machine } from "~/server/settings/urls";
 import { loadModelCatalog } from "./adapters";
 
 const USER = "d1111111-1111-4111-8111-111111111111";
@@ -157,9 +157,11 @@ describe("local models end to end", () => {
     expect(options.models.find((o) => o.key === modelKey)?.warnings.join(" ")).toMatch(/silent/);
   });
 
-  it("suggests where ComfyUI is for the machine Troupe runs on", async () => {
-    const { comfyui } = await (await caller()).settings.models.suggestedAddress();
-    expect(["http://host.docker.internal:8188", "http://127.0.0.1:8000", "http://127.0.0.1:8188"]).toContain(comfyui);
-    expect(checkLocalUrl(comfyui)).toMatchObject({ ok: true });
+  it("suggests where ComfyUI is for the machine in the request context", async () => {
+    const on = (machine: Machine | null) => testCaller({ db: t.db, userId: USER, machine }).settings.models.suggestedAddress();
+    expect((await on({ inContainer: true, platform: "linux" })).comfyui).toBe("http://host.docker.internal:8188");
+    expect((await on({ inContainer: false, platform: "darwin" })).comfyui).toBe("http://127.0.0.1:8000");
+    // Nothing to inspect, as in the browser demo: ComfyUI's command-line port.
+    expect((await on(null)).comfyui).toBe("http://127.0.0.1:8188");
   });
 });

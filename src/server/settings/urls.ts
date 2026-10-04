@@ -1,5 +1,3 @@
-import { isIP } from "node:net";
-
 // Where a local model may live. Loopback and private networks are fine — a
 // GPU box on the LAN or a ComfyUI container is the point — but link-local
 // ranges and cloud metadata endpoints are refused so a model URL can never
@@ -39,6 +37,15 @@ function canonicalHost(hostname: string) {
   return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
 }
 
+// The IP family of a host taken from a parsed URL (0 for a name). The URL
+// parser has already turned every IPv4 spelling into a dotted quad and
+// bracketed every IPv6 address, the only hosts with a colon. No node:net, so
+// the check also runs in the browser demo.
+function ipFamily(host: string): 0 | 4 | 6 {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return 4;
+  return host.includes(":") ? 6 : 0;
+}
+
 export function checkLocalUrl(raw: string): UrlCheck {
   let url: URL;
   try {
@@ -50,7 +57,7 @@ export function checkLocalUrl(raw: string): UrlCheck {
   if (url.username || url.password) return { ok: false, reason: "Remove the credentials from the URL; use the token field instead." };
   const host = canonicalHost(url.hostname);
   if (METADATA_HOSTS.has(host)) return { ok: false, reason: "Cloud metadata addresses are not allowed." };
-  const family = isIP(host);
+  const family = ipFamily(host);
   if (family === 4) {
     const [a, b] = ipv4Parts(host);
     if (a === 169 && b === 254) return { ok: false, reason: "Link-local addresses (169.254.x.x) are not allowed." };
@@ -61,12 +68,19 @@ export function checkLocalUrl(raw: string): UrlCheck {
   return { ok: true, base: `${url.origin}${url.pathname.replace(/\/+$/, "")}` };
 }
 
+// The machine Troupe's server runs on, as the request context describes it
+// (src/server/api/local-context.ts). The browser demo has none.
+export interface Machine {
+  inContainer: boolean;
+  platform: NodeJS.Platform;
+}
+
 // Where ComfyUI most likely answers, to prefill the "add a local model" form.
 // Inside a container 127.0.0.1 is the container itself, so ComfyUI on the
 // host is host.docker.internal (docker-compose.yml maps it). Outside one,
 // ComfyUI Desktop, the usual install on a Mac, listens on port 8000, and
 // ComfyUI started from the command line on 8188.
-export function suggestedComfyUrl({ inContainer, platform }: { inContainer: boolean; platform: NodeJS.Platform }): string {
+export function suggestedComfyUrl({ inContainer, platform }: Machine): string {
   if (inContainer) return "http://host.docker.internal:8188";
   return platform === "darwin" ? "http://127.0.0.1:8000" : "http://127.0.0.1:8188";
 }

@@ -47,6 +47,11 @@ describe("settings router", () => {
     await expect(caller.settings.models.update({ modelKey: "veo-3.1-fast", timeoutS: 5 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("does not test a model this host cannot run, and says why", async () => {
+    const caller = testCaller({ db: t.db, userId: USER, catalog: catalogOf([veo], { patch: { "veo-3.1-fast": { credential: "google", status: "unsupported-host", statusDetail: "Needs the self-hosted studio." } } }) });
+    expect(await caller.settings.models.test({ modelKey: "veo-3.1-fast" })).toEqual({ ok: false, message: "Needs the self-hosted studio." });
+  });
+
   it("only accepts a default model that can launch", async () => {
     const caller = testCaller({ db: t.db, userId: USER, catalog: catalogOf([veo, kling], { patch: { "veo-3.1-fast": { enabled: false, label: "Veo" } } }) });
     await expect(caller.settings.models.setDefault({ modelKey: "veo-3.1-fast" })).rejects.toMatchObject({ code: "BAD_REQUEST" });

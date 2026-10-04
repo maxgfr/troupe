@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -126,8 +125,8 @@ export const localModelProcedures = {
   ),
 
   // Prefills the form's ComfyUI address for the machine Troupe runs on.
-  suggestedAddress: protectedProcedure.query(() => ({
-    comfyui: suggestedComfyUrl({ inContainer: existsSync("/.dockerenv") || existsSync("/run/.containerenv"), platform: process.platform }),
+  suggestedAddress: protectedProcedure.query(({ ctx }) => ({
+    comfyui: suggestedComfyUrl(ctx.machine ?? { inContainer: false, platform: "linux" }),
   })),
 
   createLocal: protectedProcedure.input(LocalInput).mutation(async ({ ctx, input }) => {

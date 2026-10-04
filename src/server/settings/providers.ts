@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db as runtimeDb } from "~/server/db";
 import type { Db } from "~/server/db/types";
 import { providerSettings } from "./schema";
 import { SecretUnavailableError, loadSecretBox, type SecretBox } from "./secrets";
@@ -29,7 +28,7 @@ function tryBox(): SecretBox | null {
   }
 }
 
-export async function readCredentials(db: Db = runtimeDb): Promise<Record<CredentialId, CredentialState>> {
+export async function readCredentials(db: Db): Promise<Record<CredentialId, CredentialState>> {
   const rows = await db.select().from(providerSettings);
   const box = tryBox();
   const out = {} as Record<CredentialId, CredentialState>;
@@ -69,7 +68,7 @@ export async function readCredentials(db: Db = runtimeDb): Promise<Record<Creden
   return out;
 }
 
-export async function effectiveProviderKeys(db: Db = runtimeDb): Promise<Partial<Record<CredentialId, string>>> {
+export async function effectiveProviderKeys(db: Db): Promise<Partial<Record<CredentialId, string>>> {
   const credentials = await readCredentials(db);
   const keys: Partial<Record<CredentialId, string>> = {};
   for (const id of CREDENTIAL_IDS) {
@@ -81,7 +80,7 @@ export async function effectiveProviderKeys(db: Db = runtimeDb): Promise<Partial
 
 export const ApiKey = z.string().trim().min(1).max(500).regex(/^[^\r\n]*$/);
 
-export async function saveProviderKey(input: { provider: CredentialId; key: string }, db: Db = runtimeDb) {
+export async function saveProviderKey(input: { provider: CredentialId; key: string }, db: Db) {
   const key = ApiKey.parse(input.key);
   const box = loadSecretBox();
   const values = { apiKey: null, apiKeyCiphertext: box.seal(key, aad(input.provider)), keyFingerprint: box.fingerprint };
@@ -90,7 +89,7 @@ export async function saveProviderKey(input: { provider: CredentialId; key: stri
 
 // "remove" forgets the saved key (an environment key applies again);
 // "disable" turns the provider off even when the environment sets a key.
-export async function clearProviderKey(input: { provider: CredentialId; mode: "remove" | "disable" }, db: Db = runtimeDb) {
+export async function clearProviderKey(input: { provider: CredentialId; mode: "remove" | "disable" }, db: Db) {
   if (input.mode === "remove") {
     await db.delete(providerSettings).where(eq(providerSettings.provider, input.provider));
     return;
@@ -101,7 +100,7 @@ export async function clearProviderKey(input: { provider: CredentialId; mode: "r
 
 export type CredentialStatus = Record<CredentialId, { configured: boolean; source: CredentialState["source"] }>;
 
-export async function credentialStatus(db: Db = runtimeDb): Promise<CredentialStatus> {
+export async function credentialStatus(db: Db): Promise<CredentialStatus> {
   const credentials = await readCredentials(db);
   const out = {} as CredentialStatus;
   for (const id of CREDENTIAL_IDS) {

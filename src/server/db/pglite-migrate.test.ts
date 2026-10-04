@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 
 import { readMigrations } from "~/test/db";
-import { migratePglite } from "./pglite-migrate";
+import { migratePglite, rebuildPglite } from "./pglite-migrate";
 
 let pg: PGlite | undefined;
 afterEach(async () => { await pg?.close(); pg = undefined; });
@@ -48,5 +48,17 @@ describe("PGlite migrations", () => {
     const left = await pg.query<{ n: number }>("select count(*)::int as n from information_schema.tables where table_name = 'half_done'");
     expect(left.rows[0]!.n).toBe(0);
     expect(await recorded(pg)).toEqual([]);
+  });
+
+  it("rebuilds an empty database at the latest migration, as one transaction", async () => {
+    pg = new PGlite();
+    const all = readMigrations();
+    await migratePglite(pg, all);
+    await pg.exec("insert into troupe_user (id, email) values ('11111111-1111-4111-8111-111111111111', 'a@example.com')");
+    // A query sent while the rebuild runs waits for it, then finds the tables empty.
+    const [rebuilt, during] = await Promise.all([rebuildPglite(pg, all), pg.query<{ n: number }>("select count(*)::int as n from troupe_user")]);
+    expect(rebuilt).toEqual(all.map((m) => m.name));
+    expect(during.rows[0]!.n).toBe(0);
+    expect(await recorded(pg)).toEqual(all.map((m) => m.name));
   });
 });

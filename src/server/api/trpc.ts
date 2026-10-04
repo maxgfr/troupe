@@ -18,6 +18,7 @@ import { assertMembership } from "~/modules/identity/server/service";
 import { projects } from "~/modules/studio";
 import type { RenderIngestor } from "~/modules/generation";
 import type { ModelCatalog } from "~/modules/models";
+import type { Machine } from "~/server/settings/urls";
 
 /**
  * 1. CONTEXT
@@ -42,6 +43,9 @@ export const createTRPCContext = async (opts: {
   userId?: string | null;
   catalog?: ModelCatalog;
   ingest?: RenderIngestor;
+  // The machine the server runs on, for suggestions such as ComfyUI's
+  // address. Null where there is none to inspect (the browser demo).
+  machine?: Machine | null;
 }) => {
   return {
     db: opts.db,
@@ -52,6 +56,7 @@ export const createTRPCContext = async (opts: {
     // inject fakes; empty when nothing is configured.
     catalog: opts.catalog ?? EMPTY_CATALOG,
     ingest: opts.ingest,
+    machine: opts.machine ?? null,
   };
 };
 
@@ -66,6 +71,8 @@ const EMPTY_CATALOG: ModelCatalog = { models: [], adapters: new Map(), defaultMo
  */
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
+  // The static demo (site/) runs this router in the browser, behind a local link.
+  allowOutsideOfServer: true,
   errorFormatter({ shape, error }) {
     return {
       ...shape,

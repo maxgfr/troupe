@@ -1,6 +1,7 @@
 import { createCaller } from "~/server/api/root";
 import type { Db } from "~/server/db/types";
 import type { MediaStore } from "~/server/media/store";
+import type { Machine } from "~/server/settings/urls";
 import { serverMedia } from "~/server/media/storage";
 import type { VideoProviderAdapter } from "~/modules/generation";
 import type { ModelCatalog } from "~/modules/models";
@@ -15,6 +16,7 @@ export function testCaller(opts: {
   adapters?: VideoProviderAdapter[];
   catalog?: ModelCatalog;
   media?: MediaStore;
+  machine?: Machine | null;
 }) {
   return createCaller({
     db: opts.db,
@@ -23,5 +25,6 @@ export function testCaller(opts: {
     headers: new Headers(),
     catalog: opts.catalog ?? catalogOf(opts.adapters ?? []),
     ingest: undefined,
+    machine: opts.machine ?? null,
   });
 }

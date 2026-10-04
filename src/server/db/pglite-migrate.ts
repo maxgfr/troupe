@@ -37,21 +37,38 @@ const GRANTS = `
   grant select on all tables in schema public to authenticated;
 `;
 
+type Tx = Pick<PGliteInterface, "exec" | "query">;
+
+const byName = (migrations: readonly Migration[]) => [...migrations].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+async function apply(tx: Tx, migration: Migration) {
+  for (const statement of migration.sql.split("--> statement-breakpoint")) {
+    const sql = statement.trim();
+    if (sql) await tx.exec(sql);
+  }
+  await tx.query("insert into troupe_static_migrations (name) values ($1)", [migration.name]);
+}
+
 // Applies the migrations not recorded yet, each in its own transaction.
 // Returns the names it applied, in order.
 export async function migratePglite(pg: Pg, migrations: readonly Migration[]): Promise<string[]> {
   await pg.exec(AUTH_PREAMBLE);
   const done = new Set((await pg.query<{ name: string }>("select name from troupe_static_migrations")).rows.map((r) => r.name));
-  const pending = migrations.filter((m) => !done.has(m.name)).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  for (const migration of pending) {
-    await pg.transaction(async (tx) => {
-      for (const statement of migration.sql.split("--> statement-breakpoint")) {
-        const sql = statement.trim();
-        if (sql) await tx.exec(sql);
-      }
-      await tx.query("insert into troupe_static_migrations (name) values ($1)", [migration.name]);
-    });
-  }
+  const pending = byName(migrations.filter((m) => !done.has(m.name)));
+  for (const migration of pending) await pg.transaction((tx) => apply(tx, migration));
   await pg.exec(GRANTS);
   return pending.map((m) => m.name);
+}
+
+// Drops every table and applies all the migrations again, in one transaction:
+// queries sent meanwhile wait, then see an empty database ("Reset demo data").
+export async function rebuildPglite(pg: Pg, migrations: readonly Migration[]): Promise<string[]> {
+  const all = byName(migrations);
+  await pg.transaction(async (tx) => {
+    await tx.exec("drop schema public cascade; create schema public;");
+    await tx.exec(AUTH_PREAMBLE);
+    for (const migration of all) await apply(tx, migration);
+    await tx.exec(GRANTS);
+  });
+  return all.map((m) => m.name);
 }

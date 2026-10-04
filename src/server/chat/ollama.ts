@@ -9,8 +9,13 @@ export interface OllamaOptions {
   baseUrl: string;
   model: string;
   timeoutMs: number;
+  // TROUPE_CHAT_TEMPERATURE; 0.4 keeps small models on the schema while
+  // leaving some variety between requests.
+  temperature?: number | null;
   fetch?: typeof fetch;
 }
+
+export const DEFAULT_OLLAMA_TEMPERATURE = 0.4;
 
 const START = "Start it with `ollama serve` (or open the Ollama app)";
 
@@ -24,10 +29,15 @@ async function call(options: OllamaOptions, path: string, init: RequestInit & { 
   const doFetch = options.fetch ?? fetch;
   const signal = init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(options.timeoutMs)]) : AbortSignal.timeout(options.timeoutMs);
   try {
-    return await doFetch(`${base(options)}${path}`, { ...init, signal });
+    // Never followed: a redirect could lead past checkLocalUrl, to a cloud
+    // metadata address for one, and its answer would come back to the page.
+    return await doFetch(`${base(options)}${path}`, { ...init, signal, redirect: "error" });
   } catch (error) {
     if (error instanceof ChatProviderError) throw error;
     if (init.signal?.aborted) throw error;
+    if (/redirect/i.test(String((error as Error & { cause?: unknown }).cause ?? ""))) {
+      throw new ChatProviderError(`The server at ${options.baseUrl} answered with a redirect, which Troupe does not follow. Use the address Ollama itself listens on.`);
+    }
     if ((error as Error).name === "TimeoutError") throw new ChatProviderError(`Ollama took longer than ${Math.round(options.timeoutMs / 1000)} s to answer. Try a smaller model or raise TROUPE_CHAT_TIMEOUT_S.`);
     throw new ChatProviderError(`Ollama is not answering at ${options.baseUrl}. ${START}.`);
   }
@@ -57,7 +67,7 @@ export function createOllamaChat(options: OllamaOptions): ChatModel {
             // Thinking models (qwen3) answer far sooner without the reasoning
             // pass; the schema already shapes the answer.
             ...(think ? {} : { think: false }),
-            options: { temperature: 0.4 },
+            options: { temperature: options.temperature ?? DEFAULT_OLLAMA_TEMPERATURE },
           }),
           signal,
         });

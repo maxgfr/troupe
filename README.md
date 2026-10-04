@@ -55,6 +55,10 @@ the local renderer.
 
 - Projects with a platform, format, language and one of 30 actor presets.
 - Versioned scripts with an emotion per line; restore any earlier version.
+- A script chat beside each project: ask for a change, read the proposal
+  against the current version, apply it or apply and relaunch the render.
+  Ollama on your machine by default, Claude with an Anthropic key, WebLLM in
+  the browser demo ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
 - Launch on any configured model, follow progress, relaunch failures, compare
   two or three models on the same script and vote.
 - Videos are checked with ffprobe before they are kept. Downloads stream with

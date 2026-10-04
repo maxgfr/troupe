@@ -22,6 +22,15 @@ services:
       TROUPE_SECRET: ${TROUPE_SECRET:-}
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
       FAL_KEY: ${FAL_KEY:-}
+      # The script chat: Ollama on this computer by default, Claude with a key.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      TROUPE_CHAT_PROVIDER: ${TROUPE_CHAT_PROVIDER:-}
+      TROUPE_CHAT_INSTRUCTIONS: ${TROUPE_CHAT_INSTRUCTIONS:-}
+      TROUPE_CHAT_WORDS_PER_SECOND: ${TROUPE_CHAT_WORDS_PER_SECOND:-}
+      TROUPE_CHAT_TIMEOUT_S: ${TROUPE_CHAT_TIMEOUT_S:-}
     volumes:
       - troupe-media:/app/data
     extra_hosts:

@@ -11,6 +11,7 @@ pnpm site:build     # site/dist, ready for GitHub Pages
 pnpm site:preview   # serves site/dist at http://localhost:4173/troupe/, deep links as Pages does
 pnpm site:test      # Playwright smoke test against the preview (run site:build first)
 pnpm site:test:render  # a real render in Chrome (see "Testing a render")
+pnpm site:test:chat    # the script chat with WebLLM in Chrome, then a relaunch (local only)
 ```
 
 `SITE_PORT=4273 pnpm site:test` (or `pnpm site:test:render`) runs it on
@@ -30,6 +31,7 @@ below).
 | Rendering in the browser with **Kokoro voice + captions**: the same voices and picture as the local renderer, played, seeked and downloaded as MP4 | ComfyUI and other model servers: a web page cannot reach servers on your machine |
 | Data that survives reloads and new deploys (migrations already applied are recorded in `troupe_static_migrations`) | Provider accounts (Settings shows why instead of the form) |
 | **Reset demo data** in Settings, also offered when the studio cannot load | Background render checks: a render runs in the tab that launched it |
+| The **script chat**, with a small model run by [WebLLM](https://github.com/mlc-ai/web-llm) on the GPU (880 MB, once per browser; needs WebGPU), then Apply & relaunch in the tab ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)) | Ollama and Claude for the chat: no server to keep a key or reach your machine |
 
 ## Rendering in the browser
 

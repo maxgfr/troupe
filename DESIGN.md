@@ -54,12 +54,17 @@ set in mono and marked "est." when estimated.
   text, and earlier versions to restore.
 - **Project page**: the newest finished video is the star (no card around it);
   the timeline announces job states in a live region; the launch panel only
-  offers what the chosen model accepts.
+  offers what the chosen model accepts. The script chat sits beside them,
+  divided by a hairline (a bottom sheet below the large breakpoint): requests
+  on a surface tint, each proposal a card with its lines diffed against the
+  current version (added on a success tint, rewritten on a cobalt tint, the
+  old text struck through). The newest pending proposal's **Apply & relaunch**
+  is gold: a decision awaits.
 - **Actor library**: `auto-fit minmax(280px, 1fr)` grid of portraits.
 - **Benchmark lab**: one column per model, cost and latency in mono, the vote
   and "Adopt for project" in gold.
-- **Settings**: default model, cloud models, provider accounts, local models;
-  every connection has a Test button.
+- **Settings**: default model, cloud models, the script chat, provider
+  accounts, local models; every connection has a Test button.
 - Skeletons rather than spinners; empty states that teach the next step.
 
 ## Motion

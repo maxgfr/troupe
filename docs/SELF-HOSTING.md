@@ -27,6 +27,9 @@ Everything goes in `.env` next to `docker-compose.yml`.
 | `TROUPE_ACCESS_CODE` | generated | The code that opens the studio, at least 12 characters. If empty, one is generated, printed in the logs and saved as `access-code` in the data volume. Changing it signs every browser out. After five wrong codes an address waits 15 minutes. |
 | `TROUPE_SECRET` | generated | Encrypts saved API keys and local model tokens (AES-256-GCM). If empty, a random key is saved as `secret.key` in the data volume. **Back it up**: without it saved keys cannot be read and must be entered again. |
 | `GOOGLE_GENAI_API_KEY`, `FAL_KEY` | — | Optional provider keys. Keys saved in Settings take precedence. |
+| `OLLAMA_URL`, `OLLAMA_MODEL` | `http://host.docker.internal:11434`, `qwen3:4b` | The script chat's Ollama ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)). On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the container reaches it. |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | —, `claude-opus-5-5` | The script chat uses Claude when a key is set (or saved in Settings). |
+| `TROUPE_CHAT_PROVIDER`, `TROUPE_CHAT_INSTRUCTIONS`, `TROUPE_CHAT_WORDS_PER_SECOND`, `TROUPE_CHAT_TIMEOUT_S` | `auto`, —, `2.5`, `180` | The chat's provider choice, house style, word-budget rate and answer time limit. Settings → Script chat overrides them. |
 | `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.1.0`. |
 
 Inside the container: `TROUPE_DATA_DIR=/app/data` (videos, `access-code`,

@@ -15,6 +15,10 @@ First public release.
 - Settings to manage provider accounts, test keys and connections, and add,
   edit or archive local models.
 - Estimated cost per render, marked "est.".
+- Script chat on the project page: proposals shown against the current
+  version, Apply and Apply & relaunch, with Ollama, Claude or (in the static
+  demo) WebLLM. Settings → Script chat sets the provider, models, house style
+  and word budget.
 - Rename and delete projects, restore earlier script versions, relaunch failed
   renders; Compare opens the new comparison.
 - One-command Docker install: migrations and job checks run inside the app,

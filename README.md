@@ -42,6 +42,7 @@ from your checkout instead, run `docker compose up -d --build`.
 | LTX-2 | your GPU, via ComfyUI | always | 9:16, 16:9, 1:1 | 4–10 s |
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
 | Local renderer | your CPU ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
+| Kokoro voice + captions | the visitor's browser, static demo only ([`site/`](docs/STATIC-SITE.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
 
 Each model can be turned off, given default settings, a price per second (for
@@ -79,8 +80,8 @@ end to end.** Reports are welcome.
 - [Vercel + Supabase](docs/VERCEL-SUPABASE.md): serverless hosting with
   Supabase for the database, files and scheduled job checks.
 - [Static demo](docs/STATIC-SITE.md): the same studio built as a static site
-  that runs in the browser, with no server; projects stay in that browser.
-  It cannot render video yet.
+  that runs in the browser, with no server; projects stay in that browser,
+  and videos render in it with Kokoro voices and captions.
 - Development:
 
   ```bash

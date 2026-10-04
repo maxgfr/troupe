@@ -18,7 +18,11 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /render\.spec\.ts/ },
+    // A real render (tests/render.spec.ts): `pnpm site:test:render`.
+    { name: "render", testMatch: /render\.spec\.ts/ },
+  ],
   webServer: {
     command: `pnpm site:preview --port ${PORT}`,
     url: `http://localhost:${PORT}/troupe/`,

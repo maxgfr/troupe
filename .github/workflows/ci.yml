@@ -44,6 +44,15 @@ jobs:
       - run: pnpm site:test
         env:
           CI: "1"
+      # A real render in headless Chromium: no GPU here, so the voices run in
+      # WebAssembly (92 MB from Hugging Face) and the audio is Opus, Linux
+      # Chromium having no AAC encoder. ffprobe checks the MP4.
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - run: pnpm site:test:render
+        env:
+          CI: "1"
+          HEADLESS: "1"
+          RENDER_CHANNEL: chromium
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

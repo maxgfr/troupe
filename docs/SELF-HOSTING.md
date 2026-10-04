@@ -29,7 +29,7 @@ Everything goes in `.env` next to `docker-compose.yml`.
 | `GOOGLE_GENAI_API_KEY`, `FAL_KEY` | — | Optional provider keys. Keys saved in Settings take precedence. |
 | `OLLAMA_URL`, `OLLAMA_MODEL` | `http://host.docker.internal:11434`, `qwen3:4b` | The script chat's Ollama ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)). On Linux, start Ollama with `OLLAMA_HOST=0.0.0.0` so the container reaches it. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | —, `claude-opus-5-5` | The script chat uses Claude when a key is set (or saved in Settings). |
-| `TROUPE_CHAT_PROVIDER`, `TROUPE_CHAT_INSTRUCTIONS`, `TROUPE_CHAT_WORDS_PER_SECOND`, `TROUPE_CHAT_TIMEOUT_S`, `TROUPE_CHAT_TEMPERATURE`, `TROUPE_CHAT_HISTORY_TURNS` | `auto`, —, `2.5`, `180`, provider's own, `6` | The chat's provider choice, house style, word-budget rate, answer time limit, sampling temperature and history kept ([SCRIPT-CHAT.md](SCRIPT-CHAT.md#settings)). Settings → Script chat overrides the first three. |
+| `TROUPE_CHAT_PROVIDER`, `TROUPE_CHAT_INSTRUCTIONS`, `TROUPE_CHAT_WORDS_PER_SECOND`, `TROUPE_CHAT_TIMEOUT_S`, `TROUPE_CHAT_TEMPERATURE`, `TROUPE_CHAT_HISTORY_TURNS` | `auto`, —, `2.5`, `180`, provider's own, `6` | The chat's provider choice, house style, word-budget rate, answer time limit, sampling temperature (sent to Claude only for the models that accept one) and history kept ([SCRIPT-CHAT.md](SCRIPT-CHAT.md#settings)). Settings → Script chat overrides the first three. |
 | `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.1.0`. |
 
 Inside the container: `TROUPE_DATA_DIR=/app/data` (videos, `access-code`,

@@ -1,17 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { ChatProviderError, parseJsonAnswer, type ChatConnectionReport, type ChatModel } from "~/modules/chat";
+import { claudeCapabilities, claudeTemperature } from "./claude-models";
 
 // Claude through the Anthropic API, with the key saved in Settings or
 // ANTHROPIC_API_KEY. The answer is held to the proposal's JSON schema with
-// structured outputs (output_config.format): forcing a tool call, the older
-// way to get JSON, is refused by the current models.
+// structured outputs (output_config.format) where the model has them:
+// forcing a tool call, the older way to get JSON, is refused by the current
+// models. What each model is sent comes from claude-models.ts.
 
 export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
 
-// Models that take an effort level and Anthropic's server-side fallback on a
-// declined request. Other ids (an older Haiku, say) are sent without either.
-const CURRENT_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1"]);
 
 export interface AnthropicOptions {
   apiKey: string;
@@ -19,8 +18,8 @@ export interface AnthropicOptions {
   timeoutMs: number;
   // Tests point this at a local server; ANTHROPIC_BASE_URL works too.
   baseURL?: string;
-  // Sent only to models that still take one: the current ones refuse
-  // sampling settings. Unset: the model's own default.
+  // Sent only to models that take one (claude-models.ts), held to 0–1.
+  // Unset: the model's own default.
   temperature?: number | null;
 }
 
@@ -47,22 +46,27 @@ export function createAnthropicChat(options: AnthropicOptions): ChatModel {
   const anthropic = client(options);
   return {
     async propose(messages, { schema, signal }) {
-      const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+      const can = claudeCapabilities(options.model);
+      const instructions = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+      // Without structured outputs the schema is spelled out instead, and the
+      // answer is checked (and repaired once) like any model's.
+      const system = can.structuredOutputs ? instructions : `${instructions}\n\nAnswer with only a JSON object that follows this JSON schema, with no text around it:\n${JSON.stringify(schema)}`;
       const turns: Anthropic.MessageParam[] = messages.flatMap((m) => (m.role === "system" ? [] : [{ role: m.role, content: m.content }]));
-      const current = CURRENT_MODELS.has(options.model);
       const params = {
         model: options.model,
         // Room for adaptive thinking and a 20-line script.
         max_tokens: 8000,
         system,
         messages: turns,
-        output_config: { format: { type: "json_schema" as const, schema: schema as unknown as Record<string, unknown> }, ...(current ? { effort: "low" as const } : {}) },
-        ...(!current && options.temperature != null ? { temperature: options.temperature } : {}),
+        ...(can.structuredOutputs || can.effort
+          ? { output_config: { ...(can.structuredOutputs ? { format: { type: "json_schema" as const, schema: schema as unknown as Record<string, unknown> } } : {}), ...(can.effort ? { effort: "low" as const } : {}) } }
+          : {}),
+        ...(can.temperature && options.temperature != null ? { temperature: claudeTemperature(options.temperature) } : {}),
       };
       let content: { type: string; text?: string }[];
       let stopReason: string | null;
       try {
-        const response = current
+        const response = can.serverFallback
           ? await anthropic.beta.messages.create({ ...params, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" }, { signal })
           : await anthropic.messages.create(params, { signal });
         content = response.content;

@@ -64,14 +64,6 @@ describe("Claude provider", () => {
     expect(body).not.toHaveProperty("tool_choice");
   });
 
-  it("sends an older model id without effort or fallbacks", async () => {
-    reply = { status: 200, body: message(JSON.stringify(answer)) };
-    const chat = createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-haiku-4-5", timeoutMs: 5000, baseURL: server.url });
-    await chat.propose(turns, { schema });
-    const body = JSON.parse(server.requests.at(-1)!.body) as Record<string, unknown>;
-    expect(body).not.toHaveProperty("fallbacks");
-    expect(body.output_config).toEqual({ format: { type: "json_schema", schema: expect.any(Object) } });
-  });
 
   it("explains a refused key, a refusal and an unknown model", async () => {
     const chat = createAnthropicChat({ apiKey: "sk-ant-bad", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url });
@@ -88,14 +80,58 @@ describe("Claude provider", () => {
     expect(server.requests.slice(before).map((r) => `${r.method} ${r.path}`)).toEqual(["GET /v1/models/claude-opus-5-5"]);
   });
 
-  it("sends a temperature only when one is set and the model still takes one", async () => {
+
+});
+
+// What each model is sent: the capability table in claude-models.ts, checked
+// on the request bodies the fake API receives.
+describe("Claude request per model", () => {
+  async function bodyFor(model: string, temperature?: number) {
     reply = { status: 200, body: message(JSON.stringify(answer)) };
-    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-haiku-4-5", timeoutMs: 5000, baseURL: server.url, temperature: 0.7 }).propose(turns, { schema });
-    expect(JSON.parse(server.requests.at(-1)!.body).temperature).toBe(0.7);
-    // Current models refuse sampling settings.
-    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url, temperature: 0.7 }).propose(turns, { schema });
-    expect(JSON.parse(server.requests.at(-1)!.body)).not.toHaveProperty("temperature");
-    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-haiku-4-5", timeoutMs: 5000, baseURL: server.url }).propose(turns, { schema });
-    expect(JSON.parse(server.requests.at(-1)!.body)).not.toHaveProperty("temperature");
+    await createAnthropicChat({ apiKey: "sk-ant-test", model, timeoutMs: 5000, baseURL: server.url, temperature }).propose(turns, { schema });
+    const request = server.requests.at(-1)!;
+    return { body: JSON.parse(request.body) as Record<string, unknown>, beta: request.headers["anthropic-beta"] };
+  }
+  const format = { type: "json_schema", schema: expect.objectContaining({ required: ["summary", "lines", "actor"] }) };
+
+  it("claude-opus-5-5: structured output, low effort and the server-side fallback, never a temperature", async () => {
+    const { body, beta } = await bodyFor("claude-opus-5-5", 0.7);
+    expect(body).toMatchObject({ output_config: { format, effort: "low" }, fallbacks: "default" });
+    expect(body).not.toHaveProperty("temperature");
+    expect(beta).toContain("server-side-fallback-2026-07-01");
+  });
+
+  it("claude-opus-4-8: structured output and low effort, no fallback beta, and no temperature even when one is set", async () => {
+    const { body, beta } = await bodyFor("claude-opus-4-8", 0.7);
+    expect(body.output_config).toEqual({ format, effort: "low" });
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("fallbacks");
+    expect(beta ?? "").not.toContain("server-side-fallback");
+  });
+
+  it("claude-haiku-4-5: structured output and the temperature, held to Claude's 0–1, without effort", async () => {
+    const { body } = await bodyFor("claude-haiku-4-5", 1.5);
+    expect(body.output_config).toEqual({ format });
+    expect(body.temperature).toBe(1);
+    expect(body).not.toHaveProperty("fallbacks");
+    expect((await bodyFor("claude-haiku-4-5")).body).not.toHaveProperty("temperature");
+  });
+
+  it("claude-opus-4-6: low effort and a temperature, and the schema in the prompt since it has no structured output", async () => {
+    const { body } = await bodyFor("claude-opus-4-6", 0.3);
+    expect(body.output_config).toEqual({ effort: "low" });
+    expect(body.temperature).toBe(0.3);
+    expect(body.system).toContain("You write scripts.");
+    expect(body.system).toContain('"required":["summary","lines","actor"]');
+  });
+
+  it("an unknown id: nothing that could be refused, the schema in the prompt", async () => {
+    const { body, beta } = await bodyFor("claude-future-9", 0.5);
+    expect(body).not.toHaveProperty("output_config");
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("fallbacks");
+    expect(beta ?? "").not.toContain("server-side-fallback");
+    expect(body.system).toContain('"required":["summary","lines","actor"]');
+    expect(body.model).toBe("claude-future-9");
   });
 });

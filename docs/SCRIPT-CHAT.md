@@ -82,11 +82,11 @@ use the defaults below.
 | `OLLAMA_URL` | `http://127.0.0.1:11434` (Compose: `http://host.docker.internal:11434`) | private and loopback addresses are fine; cloud metadata and link-local ones are refused |
 | `OLLAMA_MODEL` | `qwen3:4b` | |
 | `ANTHROPIC_API_KEY` | — | a key saved in Settings takes precedence |
-| `ANTHROPIC_MODEL` | `claude-opus-5-5` | current models get a low effort level and Anthropic's server-side fallback on a declined request; other ids are sent without either |
+| `ANTHROPIC_MODEL` | `claude-opus-5-5` | what each model is sent comes from a table of its capabilities (`src/server/chat/claude-models.ts`, below) |
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
-| `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2; current Claude models take none, so it applies to older ids only |
+| `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2 for Ollama; Claude takes 0 to 1 (a higher value is sent as 1), and only the models marked below accept one |
 | `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
 
 | Static demo (`site/.env`, at build time) | Default | |
@@ -95,6 +95,27 @@ use the defaults below.
 | `VITE_WEBLLM_DOWNLOAD_MB` | `880` for the default model | the size shown before the first request (0 hides it) |
 | `VITE_CHAT_INSTRUCTIONS`, `VITE_CHAT_WORDS_PER_SECOND` | —, `2.5` | defaults for the demo's Settings |
 | `VITE_WEBLLM_TEMPERATURE`, `VITE_WEBLLM_MAX_TOKENS`, `VITE_CHAT_HISTORY_TURNS` | `0.4`, `1024`, `6` | sampling temperature (0 to 2), the longest answer in tokens (256 to 3072; the default model's context is 4,096 in all), earlier turns sent |
+
+### What each Claude model is sent
+
+From Anthropic's API reference. The newer models reject sampling settings
+with a 400, so the chat never sends them a temperature, whatever
+`TROUPE_CHAT_TEMPERATURE` says.
+
+| Model | Structured output | Effort `low` | Server-side fallback | Temperature |
+|---|---|---|---|---|
+| `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5`, `claude-fable-5-1` | yes | yes | yes | no |
+| `claude-fable-5`, `claude-mythos-5`, `claude-mythos-5-1`, `claude-sonnet-5`, `claude-opus-4-8` | yes | yes | no | no |
+| `claude-opus-4-7` | no | yes | no | no |
+| `claude-opus-4-6`, `claude-sonnet-4-6` | no | yes | no | yes |
+| `claude-opus-4-5` | yes | yes | no | yes |
+| `claude-haiku-4-5` | yes | no | no | yes |
+| `claude-sonnet-4-5` | no | no | no | yes |
+| any other id | no | no | no | no |
+
+Without structured output the JSON schema goes in the prompt, and the answer
+is checked and repaired like any other. An unknown id gets nothing a model
+could refuse; add it to the table to give it more.
 
 ## Testing
 

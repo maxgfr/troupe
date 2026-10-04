@@ -24,6 +24,7 @@ interface TextCall {
 function recorder(width: number, height: number) {
   const texts: TextCall[] = [];
   const fills: { x: number; y: number; width: number; height: number }[] = [];
+  const rounds: { x: number; y: number; width: number; height: number; radius: number; fill: unknown }[] = [];
   const gradient = () => ({ addColorStop() {} });
   const ctx: SceneContext = {
     fillStyle: "#000",
@@ -37,7 +38,9 @@ function recorder(width: number, height: number) {
     restore() {},
     beginPath() {},
     arc() {},
-    roundRect() {},
+    roundRect(x, y, w, h, radius) {
+      rounds.push({ x, y, width: w, height: h, radius, fill: ctx.fillStyle });
+    },
     fill() {},
     stroke() {},
     fillRect(x, y, w, h) {
@@ -53,7 +56,7 @@ function recorder(width: number, height: number) {
     createLinearGradient: gradient,
     createRadialGradient: gradient,
   };
-  return { ctx, texts, fills, width, height };
+  return { ctx, texts, fills, rounds, width, height };
 }
 
 const actor = { id: "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11", name: "Léa Martin" };
@@ -81,13 +84,28 @@ describe("drawFrame", () => {
     expect(fills[0]).toEqual({ x: 0, y: 0, width: 720, height: 1280 });
   });
 
-  it("draws the actor card: initials, name and the line's role and emotion", () => {
-    const { texts } = draw(0.5);
-    const shown = texts.map((t) => t.text);
+  it("draws the actor card with the initials and the name, and nothing from the script's notes", () => {
+    const shown = draw(0.5).texts.map((t) => t.text);
     expect(shown).toContain("LM");
     expect(shown).toContain("Léa Martin");
-    expect(shown).toContain("HOOK · excited");
-    expect(draw(4).texts.map((t) => t.text)).toContain("CTA · calm");
+    // Roles and emotions direct the voice; they are not for the audience.
+    expect(shown.join(" ")).not.toMatch(/hook|cta|excited|calm/i);
+  });
+
+  it("sizes the card to its content, as a pill around the portrait", () => {
+    const { width, height } = sizeFor("16:9", "720p");
+    const rec = draw(0.5, { width, height });
+    const { layout, palette } = rec.scene;
+    const card = rec.rounds.find((r) => r.fill === palette.card)!;
+    expect(card.x).toBe(layout.card.x);
+    expect(card.width).toBeLessThan(layout.card.width / 2);
+    expect(card.radius).toBeCloseTo(card.height / 2, 6);
+  });
+
+  it("caps a long name at the card's width", () => {
+    const rec = draw(0.5, { actor: { id: actor.id, name: "Maximiliana Alexandrovna Konstantinopoulou-Vanderbilt" } });
+    const card = rec.rounds.find((r) => r.fill === rec.scene.palette.card)!;
+    expect(card.width).toBeLessThanOrEqual(rec.scene.layout.card.width);
   });
 
   it("writes the current line word by word, lighting words up as they are said", () => {
@@ -106,11 +124,29 @@ describe("drawFrame", () => {
     expect(after.every((w) => w.fill === palette.ink)).toBe(true);
   });
 
-  it("highlights only the word being said", () => {
+  it("puts the word being said, and only it, on a pill in the actor's color", () => {
     const { scene } = draw(0);
     const word = scene.cues[0]!.words[2]!;
-    const highlighted = captionWords(draw((word.startS + word.endS) / 2)).filter((w) => w.fill === scene.palette.highlight);
-    expect(highlighted.map((w) => w.text)).toEqual([word.text]);
+    const rec = draw((word.startS + word.endS) / 2);
+    const said = captionWords(rec).find((w) => w.text === word.text)!;
+    expect(said.fill).toBe(scene.palette.ink);
+    const pills = rec.rounds.filter((r) => r.fill === scene.palette.highlight);
+    expect(pills).toHaveLength(1);
+    const width = rec.ctx.measureText(word.text).width;
+    expect(pills[0]!.x).toBeLessThan(said.x);
+    expect(pills[0]!.x + pills[0]!.width).toBeGreaterThan(said.x + width);
+    // No pill between words or once the line is said.
+    expect(draw(scene.cues[0]!.endS + 0.01).rounds.filter((r) => r.fill === scene.palette.highlight)).toHaveLength(0);
+  });
+
+  it("balances caption lines instead of leaving a word alone on the last one", () => {
+    // Greedy breaking would put "stuff." alone on the second line.
+    const text = "Absolutely incredible stuff.";
+    const rec = draw(1, { lines: [{ role: "body", text, emotion: "neutral" }], speechS: [4] });
+    const rows = new Map<number, string[]>();
+    for (const w of captionWords(rec)) rows.set(w.y, [...(rows.get(w.y) ?? []), w.text]);
+    expect(rows.size).toBeGreaterThan(1);
+    expect([...rows.values()].at(-1)!.length).toBeGreaterThan(1);
   });
 
   const formats = ["9:16", "16:9", "1:1"] as const;

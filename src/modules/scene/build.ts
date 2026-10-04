@@ -49,12 +49,12 @@ export interface Box {
 }
 
 export interface Layout {
+  // The most room the card may take; it is drawn as wide as its content.
   card: Box;
   portrait: { cx: number; cy: number; r: number };
   captions: Box;
   // Font sizes in pixels. Captions start at captionSize and shrink to fit.
   nameSize: number;
-  tagSize: number;
   captionSize: number;
   // Inner spacing of the card.
   padding: number;
@@ -108,18 +108,19 @@ function layoutFor(width: number, height: number): Layout {
   const diameter = 0.18 * s;
   const padding = 0.035 * s;
   const vertical = height > width;
-  const card = { x: margin, y: vertical ? 0.1 * height : margin, width: width - 2 * margin, height: diameter + 2 * padding };
-  // Vertical video keeps clear of the top bar and of the bottom fifth, where
-  // TikTok, Reels and Shorts draw their own buttons and text.
+  // Vertical video keeps clear of what TikTok, Reels and Shorts draw over it:
+  // the feed tabs at the top, the like/share rail on the right and the
+  // caption and description in the bottom fifth.
+  const card = { x: margin, y: vertical ? 0.11 * height : margin, width: width - 2 * margin, height: diameter + 2 * padding };
   const captionsTop = vertical ? 0.42 * height : card.y + card.height + margin;
   const captionsBottom = vertical ? 0.78 * height : height - margin;
+  const captionsRight = vertical ? 0.86 * width : width - margin;
   return {
     card,
     portrait: { cx: card.x + padding + diameter / 2, cy: card.y + card.height / 2, r: diameter / 2 },
-    captions: { x: margin, y: captionsTop, width: width - 2 * margin, height: captionsBottom - captionsTop },
-    nameSize: 0.055 * s,
-    tagSize: 0.03 * s,
-    captionSize: 0.07 * s,
+    captions: { x: margin, y: captionsTop, width: captionsRight - margin, height: captionsBottom - captionsTop },
+    nameSize: 0.06 * s,
+    captionSize: 0.08 * s,
     padding,
   };
 }

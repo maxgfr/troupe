@@ -39,9 +39,11 @@ export interface Palette {
   // The portrait disc and its initials, as ActorPortrait paints them.
   portrait: string;
   portraitInk: string;
-  // Caption words already said, still to come, and being said.
+  // Caption words already said and still to come.
   ink: string;
   inkMuted: string;
+  // The pill behind the word being said (ink on it reads at 4:1), and the
+  // ring around the portrait while the actor speaks.
   highlight: string;
 }
 
@@ -56,7 +58,7 @@ export function paletteFor(actorId: string): Palette {
     portrait: oklch(0.3, 0.05, hue),
     portraitInk: oklch(0.92, 0.02, hue),
     ink: oklch(0.97, 0.01, hue),
-    inkMuted: oklch(0.97, 0.01, hue, 0.45),
-    highlight: oklch(0.86, 0.1, hue),
+    inkMuted: oklch(0.97, 0.01, hue, 0.55),
+    highlight: oklch(0.58, 0.12, hue),
   };
 }

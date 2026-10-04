@@ -36,6 +36,10 @@ const font = (weight: number, px: number) => `${weight} ${px.toFixed(2)}px ${SCE
 
 const LINE_HEIGHT = 1.25;
 const MIN_CAPTION_SCALE = 0.35;
+// In font sizes: the pill's side padding behind the word being said, and the
+// extra word spacing that keeps it clear of the next word.
+const WORD_PILL_PAD = 0.1;
+const WORD_GAP_EXTRA = 0.08;
 
 function background(ctx: SceneContext, scene: Scene, t: number) {
   const { width: w, height: h, palette } = scene;
@@ -70,17 +74,26 @@ function fitWidth(ctx: SceneContext, text: string, weight: number, start: number
   return px;
 }
 
+// A pill hugging the portrait and the name: concentric with the portrait,
+// as wide as the name needs, at most the layout's card box.
 function card(ctx: SceneContext, scene: Scene, t: number) {
   const { layout, palette, actor } = scene;
   const { card: box, portrait, padding } = layout;
+  const textX = portrait.cx + portrait.r + padding;
+  const endPadding = box.height * 0.4;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  fitWidth(ctx, actor.name, 600, layout.nameSize, box.x + box.width - endPadding - textX);
+  const width = Math.min(box.width, textX + ctx.measureText(actor.name).width + endPadding - box.x);
+  const nameFont = ctx.font;
+
   ctx.fillStyle = palette.card;
   ctx.beginPath();
-  ctx.roundRect(box.x, box.y, box.width, box.height, padding);
+  ctx.roundRect(box.x, box.y, width, box.height, box.height / 2);
   ctx.fill();
 
   const cue = cueAt(scene, t);
-  const speaking = cue !== undefined && t >= cue.startS && t < cue.endS;
-  if (speaking) {
+  if (cue && t >= cue.startS && t < cue.endS) {
     ctx.strokeStyle = palette.highlight;
     ctx.lineWidth = portrait.r * 0.06;
     ctx.beginPath();
@@ -94,21 +107,12 @@ function card(ctx: SceneContext, scene: Scene, t: number) {
   ctx.fillStyle = palette.portraitInk;
   ctx.font = font(600, portrait.r * 0.6);
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
   ctx.fillText(actor.initials, portrait.cx, portrait.cy);
 
-  const textX = portrait.cx + portrait.r + padding;
-  const room = box.x + box.width - padding - textX;
   ctx.textAlign = "left";
   ctx.fillStyle = palette.ink;
-  fitWidth(ctx, actor.name, 600, layout.nameSize, room);
-  ctx.fillText(actor.name, textX, portrait.cy - layout.nameSize * 0.45);
-  if (cue) {
-    const tag = `${cue.role.toUpperCase()} · ${cue.emotion}`;
-    ctx.fillStyle = palette.inkMuted;
-    fitWidth(ctx, tag, 500, layout.tagSize, room);
-    ctx.fillText(tag, textX, portrait.cy + layout.tagSize * 0.9);
-  }
+  ctx.font = nameFont;
+  ctx.fillText(actor.name, textX, portrait.cy);
 }
 
 interface Placed {
@@ -118,34 +122,54 @@ interface Placed {
   y: number;
 }
 
-// Wraps words into centered lines that fit the box, shrinking the font
-// until they do. Returns the size used and each word's position.
+type Row = { indices: number[]; width: number };
+
+// Greedy line breaking at a given measure.
+function breakRows(widths: number[], gap: number, measure: number): Row[] {
+  const rows: Row[] = [];
+  for (const [i, width] of widths.entries()) {
+    const row = rows.at(-1);
+    if (row && row.width + gap + width <= measure) {
+      row.indices.push(i);
+      row.width += gap + width;
+    } else {
+      rows.push({ indices: [i], width });
+    }
+  }
+  return rows;
+}
+
+// Wraps words into centered, balanced lines that fit the box, shrinking the
+// font until they do. Returns the size used and each word's position.
 function wrap(ctx: SceneContext, words: string[], box: Box, start: number): { px: number; placed: Placed[] } {
   let px = start;
   for (;;) {
     ctx.font = font(700, px);
-    const space = ctx.measureText(" ").width;
+    // A little wider than a space, so the pill behind a word clears its
+    // neighbours.
+    const gap = ctx.measureText(" ").width + px * WORD_GAP_EXTRA;
     const widths = words.map((w) => ctx.measureText(w).width);
-    const rows: { indices: number[]; width: number }[] = [];
-    for (const [i, width] of widths.entries()) {
-      const row = rows.at(-1);
-      if (row && row.width + space + width <= box.width) {
-        row.indices.push(i);
-        row.width += space + width;
-      } else {
-        rows.push({ indices: [i], width });
-      }
-    }
+    let rows = breakRows(widths, gap, box.width);
     const lineHeight = px * LINE_HEIGHT;
     const fits = rows.length * lineHeight <= box.height && widths.every((w) => w <= box.width);
     if (fits || px * 0.9 < start * MIN_CAPTION_SCALE) {
+      // Balance: the narrowest measure that keeps the same number of lines,
+      // so the last line is not a lone word.
+      let lo = Math.max(...widths);
+      let hi = box.width;
+      for (let i = 0; i < 12 && hi - lo > 1; i++) {
+        const mid = (lo + hi) / 2;
+        if (breakRows(widths, gap, mid).length <= rows.length) hi = mid;
+        else lo = mid;
+      }
+      rows = breakRows(widths, gap, hi);
       const top = box.y + Math.max(0, (box.height - rows.length * lineHeight) / 2);
       const placed: Placed[] = [];
       for (const [r, row] of rows.entries()) {
         let x = box.x + (box.width - row.width) / 2;
         for (const i of row.indices) {
           placed.push({ text: words[i]!, index: i, x, y: top + r * lineHeight });
-          x += widths[i]! + space;
+          x += widths[i]! + gap;
         }
       }
       return { px, placed };
@@ -164,7 +188,17 @@ function captions(ctx: SceneContext, scene: Scene, t: number) {
   ctx.textBaseline = "top";
   for (const word of placed) {
     const timing = cue.words[word.index]!;
-    ctx.fillStyle = t >= timing.endS ? palette.ink : t >= timing.startS ? palette.highlight : palette.inkMuted;
+    const saying = t >= timing.startS && t < timing.endS;
+    if (saying) {
+      // The word being said sits on a pill, karaoke style.
+      const padX = px * WORD_PILL_PAD;
+      const height = px * 1.22;
+      ctx.fillStyle = palette.highlight;
+      ctx.beginPath();
+      ctx.roundRect(word.x - padX, word.y - px * 0.08, ctx.measureText(word.text).width + 2 * padX, height, height * 0.28);
+      ctx.fill();
+    }
+    ctx.fillStyle = saying || t >= timing.endS ? palette.ink : palette.inkMuted;
     ctx.fillText(word.text, word.x, word.y);
   }
 }

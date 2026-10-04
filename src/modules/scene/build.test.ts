@@ -105,9 +105,13 @@ describe("buildScene layout", () => {
     }
   }
 
-  it("keeps vertical captions out of the bottom fifth, where platforms draw their own buttons", () => {
+  it("keeps vertical video clear of the platforms' own buttons and text", () => {
     const { layout } = scene();
+    // Bottom fifth: caption and description; right edge: the like/share rail;
+    // top tenth: the feed tabs.
     expect(layout.captions.y + layout.captions.height).toBeLessThanOrEqual(1280 * 0.8);
+    expect(layout.captions.x + layout.captions.width).toBeLessThanOrEqual(720 * 0.88);
+    expect(layout.card.y).toBeGreaterThanOrEqual(1280 * 0.1);
   });
 
   it("scales with the frame", () => {

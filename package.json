@@ -67,7 +67,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "drizzle-kit": "^0.31.10",
     "fake-indexeddb": "^6.2.5",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.1.1",
     "kokoro-js": "1.2.1",
     "mediabunny": "^1.61.1",
     "postcss": "^8.5.28",

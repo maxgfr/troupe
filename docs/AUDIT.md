@@ -235,3 +235,25 @@ video, rendered in 3.7–4.0 s):
 | Added after **Test** (pace saved) | 6.2 s |
 | Added without **Test** (no pace: first poll at 20 s) | 22.8 s |
 | The same model after **Test** on its Settings row | 6.2 s |
+
+## Phase 5: script chat
+
+Run on 2026-10-05 on the same machine (Apple M5, 16 GB), Ollama 0.35.1 with
+`qwen3:4b`, Chrome with WebGPU for the demo.
+
+| Run | Result |
+|---|---|
+| `pnpm dev` + `pnpm renderer` + Ollama | Settings → Script chat → **Test**: "Ollama answers and has qwen3:4b." New project, three-line script, first render, then two requests: answers in 4–6 s, both valid on the first try. **Apply only** made version 2 (`origin chat`, the model's roles and emotions); **Apply & relaunch** made version 3 and rendered it on the local renderer in 4 s: h264 720×1280 + AAC, 7.5 s. Phone (390 px): the sheet opens from **Chat** and closes again. No console errors or 5xx. |
+| `docker compose --profile renderer up -d --build`, Ollama on the Mac | The app reached `http://host.docker.internal:11434` (Docker Desktop) with no setting. Regression walk (renderer at `http://renderer:8078`): h264 + AAC, 8.375 s, timeline and export. Chat walk: same results, relaunch rendered in 8 s, 7.975 s MP4. No console errors or 5xx. |
+| Static demo, `pnpm site:test:chat` (headed Chrome) | Fresh profile: the first answer came 81–84 s after the request, the 880 MB download included; later ones in a few seconds. Apply, then Apply & relaunch rendered in the tab; the chat survives a reload; migration 0018 applied by the browser migrator on a database from the previous phase. |
+| Static demo without WebGPU (`--disable-features=WebGPU`) | The chat says it needs a GPU through WebGPU and keeps the request field closed; the rest of the studio works. |
+
+- qwen3:4b follows the instructions well; Qwen2.5 1.5B (demo) changes what
+  was asked most of the time but its one-line summaries are sometimes wrong
+  about what it changed, and it tends to overshoot the word budget (the panel
+  then shows the length in amber and relaunching picks a longer clip).
+- Small models add Markdown emphasis and copied the prompt's own notation into
+  the lines; lines are now cleaned to plain spoken text, and the current
+  script is given to the model as JSON in the answer's own shape.
+- The Anthropic provider was tested against a fake API server only; no key
+  was available for a real call.

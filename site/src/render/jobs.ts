@@ -13,8 +13,11 @@ export interface JobRecord {
   status: "queued" | "running" | "succeeded" | "failed";
   job: BrowserRenderJob;
   detail?: string;
-  // The finished MP4, until the studio stores it as a render.
+  // The finished MP4, until the studio has stored it as a render, with what
+  // the page read from it (checked before the studio's transaction opens).
   video?: Blob;
+  probe?: { durationS: number; width: number; height: number };
+  checksum?: string;
   createdAt: number;
 }
 
@@ -107,4 +110,24 @@ export async function failInterruptedJobs(): Promise<void> {
   if (candidates.length === 0) return;
   const held = await heldLocks();
   for (const record of candidates) if (!held.has(lockName(record.id))) await failIfUnfinished(record.id);
+}
+
+// What the studio says about finished jobs: "settled" once its render is
+// stored (or failed) for good, "pending" while it may still need the file.
+// Jobs it does not know are kept for an hour, in case it has not yet
+// recorded them, then dropped.
+export type JobSettlement = "settled" | "pending";
+const UNKNOWN_KEPT_MS = 60 * 60_000;
+
+// Deletes finished jobs, MP4 included, only after the studio's own
+// transaction storing the render committed: called outside of it.
+export async function pruneJobs(settlement: (jobIds: string[]) => Promise<ReadonlyMap<string, JobSettlement>>): Promise<void> {
+  const finished = (await readAll()).filter((record) => !unfinished(record));
+  if (finished.length === 0) return;
+  const known = await settlement(finished.map((record) => record.id));
+  const now = Date.now();
+  for (const record of finished) {
+    const state = known.get(record.id);
+    if (state === "settled" || (state === undefined && now - record.createdAt > UNKNOWN_KEPT_MS)) await deleteJob(record.id);
+  }
 }

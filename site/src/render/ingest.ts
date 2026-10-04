@@ -1,63 +1,41 @@
-import { ingestRender, type RenderIngestor } from "~/modules/generation";
+import { inArray } from "drizzle-orm";
+
+import { generations, ingestRender, type RenderIngestor } from "~/modules/generation";
+import type { Db } from "~/server/db/types";
 import { saveMediaFile } from "../media";
-import { forgetRender } from "./runner";
+import type { JobSettlement } from "./jobs";
+import { readJob } from "./jobs";
 
-// The demo's counterpart of persistProviderRender (src/server/media/storage.ts):
-// the browser itself checks that the file is a playable video (there is no
-// ffprobe here), then the render is recorded and its file kept in IndexedDB,
-// where the media service worker serves it.
+// The demo's counterpart of persistProviderRender (src/server/media/storage.ts).
+// It runs inside the reconcile transaction of a database every tab shares, so
+// it only reads what the page found when the render ended (runner.ts checked
+// the file with a <video> and hashed it), records the render and keeps its
+// file in IndexedDB, where the media service worker serves it. The job, MP4
+// included, stays until that transaction has committed (pruneJobs).
 
-const PROBE_TIMEOUT_MS = 15_000;
-
-export interface VideoProbe {
-  durationS: number;
-  width: number;
-  height: number;
-}
-
-// Reads the duration and size the way the player will: from a <video>.
-export function probeVideo(blob: Blob): Promise<VideoProbe> {
-  const url = URL.createObjectURL(blob);
-  const video = document.createElement("video");
-  video.preload = "metadata";
-  video.muted = true;
-  return new Promise<VideoProbe>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("The rendered video could not be read in time.")), PROBE_TIMEOUT_MS);
-    video.onloadedmetadata = () => {
-      clearTimeout(timer);
-      const probe = { durationS: video.duration, width: video.videoWidth, height: video.videoHeight };
-      if (!Number.isFinite(probe.durationS) || probe.durationS <= 0 || probe.width <= 0 || probe.height <= 0) reject(new Error("The rendered video has no playable picture."));
-      else resolve(probe);
-    };
-    video.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error("This browser cannot play the video it rendered."));
-    };
-    video.src = url;
-  }).finally(() => {
-    video.removeAttribute("src");
-    video.load();
-    URL.revokeObjectURL(url);
-  });
-}
-
-async function sha256(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-export const ingestBrowserRender: RenderIngestor = async (db, gen, status, adapter) => {
+export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
   if (gen.outputAssetId) return;
-  if (!status.outputUrl || !adapter.downloadResult) throw new Error("The render left no video.");
-  const bytes = await adapter.downloadResult(status.outputUrl);
-  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "video/mp4" });
-  const probe = await probeVideo(blob);
+  const job = await readJob(status.providerJobId);
+  if (!job?.video || !job.probe || !job.checksum) throw new Error("The finished video is no longer in this browser.");
   const render = await ingestRender(db, {
     generationId: gen.id,
-    bytes: bytes.length,
-    checksum: await sha256(bytes),
-    probe: async () => ({ ...probe, storage: "indexeddb" }),
+    bytes: job.video.size,
+    checksum: job.checksum,
+    probe: async () => ({ ...job.probe, storage: "indexeddb" }),
   });
-  await saveMediaFile({ id: render.id, storagePath: render.storagePath, blob });
-  await forgetRender(status.providerJobId);
+  // Keyed by the asset: if the transaction rolls back, the next poll writes
+  // the file again under the asset it records then.
+  await saveMediaFile({ id: render.id, storagePath: render.storagePath, blob: job.video });
 };
+
+// For pruneJobs: whether the studio is done with each job, read after the
+// reconcile transaction committed. A render is settled once its file is
+// recorded, or once it failed; jobs the studio has no record of are left out.
+export async function settledBrowserJobs(db: Db, jobIds: string[]): Promise<Map<string, JobSettlement>> {
+  if (jobIds.length === 0) return new Map();
+  const rows = await db
+    .select({ providerJobId: generations.providerJobId, status: generations.status, outputAssetId: generations.outputAssetId })
+    .from(generations)
+    .where(inArray(generations.providerJobId, jobIds));
+  return new Map(rows.map((row) => [row.providerJobId!, row.outputAssetId || row.status === "failed" ? "settled" : "pending"]));
+}

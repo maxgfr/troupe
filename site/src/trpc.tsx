@@ -12,7 +12,8 @@ import { api } from "~/trpc/react";
 import { forgetDemoCatalog, loadDemoCatalog } from "./catalog";
 import { demoDatabase } from "./db/client";
 import { demoMedia } from "./media";
-import { ingestBrowserRender } from "./render/ingest";
+import { ingestBrowserRender, settledBrowserJobs } from "./render/ingest";
+import { pruneJobs } from "./render/jobs";
 
 // The studio's own router, called in the page instead of over HTTP: every
 // procedure runs against the PGlite database in this browser.
@@ -38,6 +39,29 @@ const forgetCatalogOnMutation: TRPCLink<AppRouter> = () => ({ op, next }) =>
     }),
   );
 
+// The procedures that poll renders (and may store one) in their transaction.
+const RECONCILING = new Set(["generation.forProject", "benchmark.get"]);
+
+// Finished render jobs keep their MP4 until the transaction that stored it
+// committed, so they are forgotten after such a call returns, not inside it.
+export function pruneSettledRenders(): void {
+  void demoDatabase()
+    .then(({ db }) => pruneJobs((ids) => settledBrowserJobs(db, ids)))
+    .catch((error: unknown) => console.warn("Finished renders could not be tidied:", error));
+}
+
+const pruneAfterReconcile: TRPCLink<AppRouter> = () => ({ op, next }) =>
+  observable((observer) =>
+    next(op).subscribe({
+      next(result) {
+        observer.next(result);
+        if (RECONCILING.has(op.path)) pruneSettledRenders();
+      },
+      error: (error) => observer.error(error),
+      complete: () => observer.complete(),
+    }),
+  );
+
 export function DemoTRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   const [client] = useState(() =>
@@ -45,6 +69,7 @@ export function DemoTRPCProvider({ children }: { children: React.ReactNode }) {
       links: [
         loggerLink({ enabled: (op) => import.meta.env.DEV || (op.direction === "down" && op.result instanceof Error) }),
         forgetCatalogOnMutation,
+        pruneAfterReconcile,
         unstable_localLink({ router: appRouter, createContext, transformer: SuperJSON }),
       ],
     }),

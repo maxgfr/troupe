@@ -1,5 +1,6 @@
 import type { BrowserRenderer } from "~/modules/generation";
-import { deleteJob, failInterruptedJobs, holdJobLock, jobState, readJob, saveJob, updateJob } from "./jobs";
+import { failInterruptedJobs, holdJobLock, jobState, readJob, saveJob, updateJob, type JobRecord } from "./jobs";
+import { readVideo } from "./probe";
 import { overallProgress, type FromWorker, type RenderStage } from "./protocol";
 import { renderSupport } from "./support";
 
@@ -58,7 +59,9 @@ const IDLE_MS = 10 * 60_000;
 let worker: Worker | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
-async function finish(jobId: string, outcome: { status: "succeeded"; video: Blob } | { status: "failed"; detail: string }) {
+type Outcome = { status: "succeeded"; video: Blob; probe: JobRecord["probe"]; checksum: string } | { status: "failed"; detail: string };
+
+async function finish(jobId: string, outcome: Outcome) {
   try {
     // The outcome is written before the lock goes: a job whose lock is free
     // and still unfinished can only be one whose tab closed (jobs.ts).
@@ -85,7 +88,12 @@ function renderWorker(): Worker {
       if (renderStage(data.jobId)?.stage === "queued") void updateJob(data.jobId, { status: "running" }, ["queued"]);
       publish({ jobId: data.jobId, stage: data.stage });
     } else if (data.type === "done") {
-      void finish(data.jobId, { status: "succeeded", video: data.video });
+      // Checked here, so a file the browser cannot play fails the render, and
+      // the studio's ingest only reads what was found.
+      void readVideo(data.video).then(
+        ({ probe, checksum }) => finish(data.jobId, { status: "succeeded", video: data.video, probe, checksum }),
+        (error: unknown) => finish(data.jobId, { status: "failed", detail: error instanceof Error ? error.message : "The rendered video could not be read." }),
+      );
     } else {
       void finish(data.jobId, { status: "failed", detail: data.message });
     }
@@ -132,8 +140,6 @@ export const browserRenderer: BrowserRenderer = {
   },
 };
 
-// Once the studio keeps the video as a render, the job is done with.
-export const forgetRender = deleteJob;
 
 // Renders left unfinished by a tab that closed fail on the next load.
 export function failInterruptedRenders(): void {

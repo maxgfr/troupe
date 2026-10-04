@@ -9,11 +9,11 @@ import { RouterProvider } from "react-router";
 import { registerMediaWorker } from "./media";
 import { failInterruptedRenders } from "./render/runner";
 import { router } from "./routes";
-import { pruneSettledRenders } from "./trpc";
+import { keepRecordedRenders } from "./trpc";
 
 registerMediaWorker();
 failInterruptedRenders();
-pruneSettledRenders();
+void keepRecordedRenders();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -12,8 +12,7 @@ import { api } from "~/trpc/react";
 import { forgetDemoCatalog, loadDemoCatalog } from "./catalog";
 import { demoDatabase } from "./db/client";
 import { demoMedia } from "./media";
-import { ingestBrowserRender, settledBrowserJobs } from "./render/ingest";
-import { pruneJobs } from "./render/jobs";
+import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 
 // The studio's own router, called in the page instead of over HTTP: every
 // procedure runs against the PGlite database in this browser.
@@ -39,28 +38,37 @@ const forgetCatalogOnMutation: TRPCLink<AppRouter> = () => ({ op, next }) =>
     }),
   );
 
-// The procedures that poll renders (and may store one) in their transaction.
+// The procedures that poll renders, and may record one, in their transaction.
 const RECONCILING = new Set(["generation.forProject", "benchmark.get"]);
 
-// Finished render jobs keep their MP4 until the transaction that stored it
-// committed, so they are forgotten after such a call returns, not inside it.
-export function pruneSettledRenders(): void {
-  void demoDatabase()
-    .then(({ db }) => pruneJobs((ids) => settledBrowserJobs(db, ids)))
-    .catch((error: unknown) => console.warn("Finished renders could not be tidied:", error));
+// Keeps the files of renders recorded by now-committed transactions, and
+// forgets their jobs (site/src/render/ingest.ts). Never throws.
+export async function keepRecordedRenders(): Promise<void> {
+  try {
+    await keepSettledRenders((await demoDatabase()).db);
+  } catch (error) {
+    console.warn("Finished renders could not be stored:", error);
+  }
 }
 
-const pruneAfterReconcile: TRPCLink<AppRouter> = () => ({ op, next }) =>
-  observable((observer) =>
-    next(op).subscribe({
+// The result of a reconciling call reaches the page only once the files of
+// the renders it recorded are stored: the timeline never offers a video the
+// media service worker cannot serve yet. Every tab does the same for itself.
+const keepRendersBeforeResults: TRPCLink<AppRouter> = () => ({ op, next }) =>
+  observable((observer) => {
+    if (!RECONCILING.has(op.path)) return next(op).subscribe(observer);
+    let delivered = Promise.resolve();
+    const after = (deliver: () => void) => {
+      delivered = delivered.then(deliver);
+    };
+    return next(op).subscribe({
       next(result) {
-        observer.next(result);
-        if (RECONCILING.has(op.path)) pruneSettledRenders();
+        after(() => keepRecordedRenders().then(() => observer.next(result)));
       },
-      error: (error) => observer.error(error),
-      complete: () => observer.complete(),
-    }),
-  );
+      error: (error) => after(() => observer.error(error)),
+      complete: () => after(() => observer.complete()),
+    });
+  });
 
 export function DemoTRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);
@@ -69,7 +77,7 @@ export function DemoTRPCProvider({ children }: { children: React.ReactNode }) {
       links: [
         loggerLink({ enabled: (op) => import.meta.env.DEV || (op.direction === "down" && op.result instanceof Error) }),
         forgetCatalogOnMutation,
-        pruneAfterReconcile,
+        keepRendersBeforeResults,
         unstable_localLink({ router: appRouter, createContext, transformer: SuperJSON }),
       ],
     }),

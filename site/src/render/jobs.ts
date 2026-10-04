@@ -52,8 +52,22 @@ async function run<T>(mode: IDBTransactionMode, body: (store: IDBObjectStore) =>
 export const readJob = (id: string) => run<JobRecord | undefined>("readonly", (store) => store.get(id));
 const readAll = async () => (await run<JobRecord[]>("readonly", (store) => store.getAll())) ?? [];
 export const saveJob = (record: JobRecord) => run("readwrite", (store) => store.put(record)).then(() => {});
-export const deleteJob = (id: string) => run("readwrite", (store) => store.delete(id)).then(() => {});
-export const clearJobs = () => run("readwrite", (store) => store.clear()).then(() => {});
+
+// The finished jobs the adapter last read (jobState), by id. The ingest runs
+// right after that read, inside the studio's transaction, and takes the
+// render's details from here rather than going back to IndexedDB.
+const known = new Map<string, JobRecord>();
+export const knownJob = (id: string): JobRecord | undefined => known.get(id);
+
+export async function deleteJob(id: string): Promise<void> {
+  await run("readwrite", (store) => store.delete(id));
+  known.delete(id);
+}
+
+export async function clearJobs(): Promise<void> {
+  await run("readwrite", (store) => store.clear());
+  known.clear();
+}
 
 // Read and write in one transaction, so concurrent updates never undo each
 // other. `from` limits the update to jobs in one of these states.
@@ -97,10 +111,16 @@ const failIfUnfinished = (id: string) => updateJob(id, { status: "failed", detai
 const unfinished = (record: JobRecord) => record.status === "queued" || record.status === "running";
 
 // The job as the adapter sees it: one left unfinished by a closed tab fails.
+// The reconciler asks inside its transaction. That costs one small record
+// read (a stored MP4 comes back as a Blob handle, its bytes are not read), a
+// Web Locks query and, rarely, one small write: kept there on purpose, since
+// answering from a snapshot taken before the transaction could miss a job
+// another tab just started and fail it, or report an outcome late.
 export async function jobState(id: string): Promise<BrowserJobState | null> {
   let record = await readJob(id);
   if (!record) return null;
   if (unfinished(record) && !(await heldLocks()).has(lockName(id))) record = await failIfUnfinished(id);
+  if (record && !unfinished(record)) known.set(id, record);
   return record ? stateOf(record) : null;
 }
 
@@ -112,22 +132,32 @@ export async function failInterruptedJobs(): Promise<void> {
   for (const record of candidates) if (!held.has(lockName(record.id))) await failIfUnfinished(record.id);
 }
 
-// What the studio says about finished jobs: "settled" once its render is
-// stored (or failed) for good, "pending" while it may still need the file.
-// Jobs it does not know are kept for an hour, in case it has not yet
-// recorded them, then dropped.
-export type JobSettlement = "settled" | "pending";
+// What the studio says about finished jobs, once its transaction committed:
+// "settled" when it is done with the job (with the file to keep when it
+// recorded a render), "pending" while it may still need it. Jobs it does not
+// know are kept for an hour, in case it has not yet recorded them, then
+// dropped.
+export type JobSettlement = { state: "pending" } | { state: "settled"; file?: { assetId: string; storagePath: string } };
 const UNKNOWN_KEPT_MS = 60 * 60_000;
 
-// Deletes finished jobs, MP4 included, only after the studio's own
-// transaction storing the render committed: called outside of it.
-export async function pruneJobs(settlement: (jobIds: string[]) => Promise<ReadonlyMap<string, JobSettlement>>): Promise<void> {
+// Keeps the file of every render the studio recorded (keepFile), then
+// forgets the job and its MP4. Called after the studio's transaction, never
+// inside it, so a rolled-back commit leaves neither a file nor a lost video.
+export async function pruneJobs(
+  settlement: (jobIds: string[]) => Promise<ReadonlyMap<string, JobSettlement>>,
+  keepFile: (file: { assetId: string; storagePath: string }, video: Blob) => Promise<void>,
+): Promise<void> {
   const finished = (await readAll()).filter((record) => !unfinished(record));
   if (finished.length === 0) return;
-  const known = await settlement(finished.map((record) => record.id));
+  const settled = await settlement(finished.map((record) => record.id));
   const now = Date.now();
   for (const record of finished) {
-    const state = known.get(record.id);
-    if (state === "settled" || (state === undefined && now - record.createdAt > UNKNOWN_KEPT_MS)) await deleteJob(record.id);
+    const outcome = settled.get(record.id);
+    if (outcome?.state === "settled") {
+      if (outcome.file && record.video) await keepFile(outcome.file, record.video);
+      await deleteJob(record.id);
+    } else if (outcome === undefined && now - record.createdAt > UNKNOWN_KEPT_MS) {
+      await deleteJob(record.id);
+    }
   }
 }

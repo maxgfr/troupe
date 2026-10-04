@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { installFakeLocks } from "./fake-locks";
-import { clearJobs, failInterruptedJobs, holdJobLock, INTERRUPTED, jobState, pruneJobs, readJob, saveJob, updateJob, type JobRecord } from "./jobs";
+import { clearJobs, failInterruptedJobs, holdJobLock, INTERRUPTED, jobState, knownJob, pruneJobs, readJob, saveJob, updateJob, type JobRecord, type JobSettlement } from "./jobs";
 
 const job = { width: 720, height: 1280, fps: 24, script: { lines: [], actor: { id: "a", name: "A", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm" }, language: "en" } };
 const record = (id: string, patch: Partial<JobRecord> = {}): JobRecord => ({ id, status: "running", job, createdAt: Date.now(), ...patch });
@@ -53,29 +53,47 @@ describe("render jobs", () => {
     expect((await readJob("done"))?.status).toBe("succeeded");
   });
 
-  it("forgets finished jobs once the studio has settled them, and only those", async () => {
+  it("keeps each stored render's file, then forgets its job, and only once the studio has settled it", async () => {
     const hourAgo = Date.now() - 2 * 60 * 60_000;
-    await saveJob(record("stored", { status: "succeeded" }));
-    await saveJob(record("not-yet-stored", { status: "succeeded" }));
+    const video = new Blob(["mp4"]);
+    await saveJob(record("stored", { status: "succeeded", video }));
+    await saveJob(record("not-yet-stored", { status: "succeeded", video }));
     await saveJob(record("failed", { status: "failed", detail: "x" }));
     await saveJob(record("unknown-new", { status: "failed", detail: "x" }));
     await saveJob(record("unknown-old", { status: "succeeded", createdAt: hourAgo }));
     await saveJob(record("running"));
     let asked: string[] = [];
-    await pruneJobs(async (ids) => {
-      asked = ids;
-      return new Map([
-        ["stored", "settled"],
-        ["not-yet-stored", "pending"],
-        ["failed", "settled"],
-      ] as const);
-    });
+    const kept: { assetId: string; storagePath: string; blob: Blob; jobStillThere: boolean }[] = [];
+    await pruneJobs(
+      async (ids) => {
+        asked = ids;
+        return new Map<string, JobSettlement>([
+          ["stored", { state: "settled", file: { assetId: "asset-1", storagePath: "renders/p/g.mp4" } }],
+          ["not-yet-stored", { state: "pending" }],
+          ["failed", { state: "settled" }],
+        ]);
+      },
+      async (file, blob) => {
+        kept.push({ ...file, blob, jobStillThere: Boolean(await readJob("stored")) });
+      },
+    );
     expect(asked.sort()).toEqual(["failed", "not-yet-stored", "stored", "unknown-new", "unknown-old"]);
+    // The file is kept before the job (and its copy of the MP4) goes.
+    expect(kept).toEqual([{ assetId: "asset-1", storagePath: "renders/p/g.mp4", blob: expect.any(Blob), jobStillThere: true }]);
     expect(await readJob("stored")).toBeUndefined();
     expect(await readJob("failed")).toBeUndefined();
     expect(await readJob("unknown-old")).toBeUndefined();
     expect(await readJob("not-yet-stored")).toBeDefined();
     expect(await readJob("unknown-new")).toBeDefined();
     expect(await readJob("running")).toBeDefined();
+  });
+
+  it("remembers the jobs it last read, for the ingest, and forgets them with the job", async () => {
+    await saveJob(record("seen", { status: "succeeded", checksum: "abc" }));
+    expect(knownJob("seen")).toBeUndefined();
+    await jobState("seen");
+    expect(knownJob("seen")).toMatchObject({ id: "seen", checksum: "abc" });
+    await pruneJobs(async () => new Map([["seen", { state: "settled" }]]), async () => {});
+    expect(knownJob("seen")).toBeUndefined();
   });
 });

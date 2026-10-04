@@ -1,41 +1,65 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
-import { generations, ingestRender, type RenderIngestor } from "~/modules/generation";
+import { generations, ingestRender, mediaAssets, type RenderIngestor } from "~/modules/generation";
 import type { Db } from "~/server/db/types";
 import { saveMediaFile } from "../media";
-import type { JobSettlement } from "./jobs";
-import { readJob } from "./jobs";
+import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 
-// The demo's counterpart of persistProviderRender (src/server/media/storage.ts).
-// It runs inside the reconcile transaction of a database every tab shares, so
-// it only reads what the page found when the render ended (runner.ts checked
-// the file with a <video> and hashed it), records the render and keeps its
-// file in IndexedDB, where the media service worker serves it. The job, MP4
-// included, stays until that transaction has committed (pruneJobs).
+// The demo's counterpart of persistProviderRender (src/server/media/storage.ts),
+// in two steps around the reconcile transaction of a database every tab shares.
+//
+// Inside it, the ingest only records the render, from what the page found when
+// the render ended (runner.ts read the file back with a <video> and hashed
+// it) and the adapter's status check just read (knownJob): no IndexedDB, no
+// probe. After it commits, keepSettledRenders stores the file under the asset
+// the database recorded, where the media service worker serves it, then
+// forgets the job. A rolled-back commit leaves no file and keeps the job, so
+// the next poll records it again.
+//
+// The page never points at a render before its file is stored: the demo's
+// tRPC client (site/src/trpc.tsx) runs keepSettledRenders before it hands the
+// result of a reconciling call to the page.
 
 export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
   if (gen.outputAssetId) return;
-  const job = await readJob(status.providerJobId);
-  if (!job?.video || !job.probe || !job.checksum) throw new Error("The finished video is no longer in this browser.");
-  const render = await ingestRender(db, {
+  const job = knownJob(status.providerJobId);
+  // getJob read the job just before, in this tab; without it, the next poll retries.
+  if (!job?.probe || !job.checksum || !job.video) throw new Error("The finished render's details have not been read yet.");
+  await ingestRender(db, {
     generationId: gen.id,
     bytes: job.video.size,
     checksum: job.checksum,
     probe: async () => ({ ...job.probe, storage: "indexeddb" }),
   });
-  // Keyed by the asset: if the transaction rolls back, the next poll writes
-  // the file again under the asset it records then.
-  await saveMediaFile({ id: render.id, storagePath: render.storagePath, blob: job.video });
 };
 
-// For pruneJobs: whether the studio is done with each job, read after the
-// reconcile transaction committed. A render is settled once its file is
-// recorded, or once it failed; jobs the studio has no record of are left out.
+// Whether the studio is done with each job: settled once its render is
+// recorded (with the file to keep) or failed; jobs it has no record of are
+// left out.
 export async function settledBrowserJobs(db: Db, jobIds: string[]): Promise<Map<string, JobSettlement>> {
   if (jobIds.length === 0) return new Map();
   const rows = await db
-    .select({ providerJobId: generations.providerJobId, status: generations.status, outputAssetId: generations.outputAssetId })
+    .select({ providerJobId: generations.providerJobId, status: generations.status, assetId: mediaAssets.id, storagePath: mediaAssets.storagePath })
     .from(generations)
+    .leftJoin(mediaAssets, eq(mediaAssets.id, generations.outputAssetId))
     .where(inArray(generations.providerJobId, jobIds));
-  return new Map(rows.map((row) => [row.providerJobId!, row.outputAssetId || row.status === "failed" ? "settled" : "pending"]));
+  return new Map(
+    rows.map((row): [string, JobSettlement] => [
+      row.providerJobId!,
+      row.assetId && row.storagePath
+        ? { state: "settled", file: { assetId: row.assetId, storagePath: row.storagePath } }
+        : row.status === "failed"
+          ? { state: "settled" }
+          : { state: "pending" },
+    ]),
+  );
+}
+
+// After a reconciling call committed: keep the files of the renders it
+// recorded, then forget their jobs.
+export function keepSettledRenders(db: Db): Promise<void> {
+  return pruneJobs(
+    (ids) => settledBrowserJobs(db, ids),
+    ({ assetId, storagePath }, blob) => saveMediaFile({ id: assetId, storagePath, blob }),
+  );
 }

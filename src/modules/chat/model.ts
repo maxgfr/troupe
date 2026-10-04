@@ -45,6 +45,8 @@ export interface ChatSetup {
   instructions: string;
   // Speaking rate used for the word budget (clip seconds × rate).
   wordsPerSecond: number;
+  // Earlier turns sent with each request (default HISTORY_TURNS).
+  historyTurns?: number;
 }
 
 export interface ChatConnectionReport {

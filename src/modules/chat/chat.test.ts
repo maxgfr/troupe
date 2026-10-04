@@ -1,11 +1,11 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { createTestDb, resetAuth, setAuthUser, type TestDb } from "~/test/db";
 import { seedFixture, type Fixture } from "~/test/fixture";
 import type { Db } from "~/server/db/types";
 import { listActors } from "~/modules/actors";
-import { getScriptHistory } from "~/modules/script";
+import { getScriptHistory, pasteScript } from "~/modules/script";
 import { projects } from "~/modules/studio";
 import {
   applyChatProposal,
@@ -29,8 +29,12 @@ let f: Fixture;
 beforeAll(async () => {
   t = await createTestDb();
   db = t.db as unknown as Db;
-  f = await seedFixture(db, { userId: OWNER, name: "Chat" });
   await seedFixture(db, { userId: STRANGER, name: "Other" });
+});
+
+// Every test gets its own project, so none depends on another's messages.
+beforeEach(async () => {
+  f = await seedFixture(db, { userId: OWNER, name: "Chat" });
 });
 
 // A model that answers from a script and records what it was sent.
@@ -77,15 +81,43 @@ describe("sending a request", () => {
 
   it("tells the model the word budget, the current lines and the house style", async () => {
     const { model, calls } = scriptedModel([GOOD]);
+    const first = await sendChatMessage(db, { projectId: f.projectId, message: "Punchier", durationS: 8, setup: setupWith(model) });
+    await applyChatProposal(db, { projectId: f.projectId, messageId: first.assistant.id });
     await sendChatMessage(db, { projectId: f.projectId, message: "Shorter", durationS: 8, setup: setupWith(model, { instructions: "Never use exclamation marks.", wordsPerSecond: 2 }) });
-    const system = calls[0]![0]!;
+    const system = calls[1]![0]!;
     expect(system.role).toBe("system");
     expect(system.content).toContain("within 16 words");
-    expect(system.content).toContain("Hook line. Body line. Call to action now.");
+    expect(system.content).toContain("One cup, ten seconds, no mess.");
     expect(system.content).toContain("House style: Never use exclamation marks.");
     // Earlier turns come along: the previous request and the model's summary.
-    expect(calls[0]!.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
-    expect(calls[0]!.at(-1)!.content).toBe("Shorter");
+    expect(calls[1]!.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
+    expect(calls[1]!.at(-1)!.content).toBe("Shorter");
+  });
+
+  it("builds a follow-up on the newest proposal not applied yet, until it is applied", async () => {
+    const { model, calls } = scriptedModel([GOOD]);
+    await sendChatMessage(db, { projectId: f.projectId, message: "Punchier", durationS: 8, setup: setupWith(model) });
+    expect(calls[0]![0]!.content).not.toContain("not applied yet");
+
+    const followUp = await sendChatMessage(db, { projectId: f.projectId, message: "Now make that warmer", durationS: 8, setup: setupWith(model) });
+    const system = calls[1]![0]!.content;
+    expect(system).toContain("Your last proposal, not applied yet");
+    expect(system).toContain("Stop scrolling: your mornings just got easier.");
+    expect(system).toContain("Hook line. Body line. Call to action now.");
+    // The diff still reads against the version the user has.
+    expect(followUp.assistant.baseScriptId).toBe(f.scriptId);
+
+    await applyChatProposal(db, { projectId: f.projectId, messageId: followUp.assistant.id });
+    await sendChatMessage(db, { projectId: f.projectId, message: "Shorter", durationS: 8, setup: setupWith(model) });
+    expect(calls[2]![0]!.content).not.toContain("not applied yet");
+  });
+
+  it("forgets a pending proposal once the script moved on without it", async () => {
+    const { model, calls } = scriptedModel([GOOD]);
+    await sendChatMessage(db, { projectId: f.projectId, message: "Punchier", durationS: 8, setup: setupWith(model) });
+    await pasteScript(db, { projectId: f.projectId, text: "A line written by hand." });
+    await sendChatMessage(db, { projectId: f.projectId, message: "Shorter", durationS: 8, setup: setupWith(model) });
+    expect(calls[1]![0]!.content).not.toContain("not applied yet");
   });
 
   it("asks once more when the answer does not follow the format, then keeps the good one", async () => {
@@ -169,6 +201,7 @@ describe("applying a proposal", () => {
 
 describe("row-level security", () => {
   it("shows a project's chat to its workspace members only", async () => {
+    await sendChatMessage(db, { projectId: f.projectId, message: "Hi", durationS: 8, setup: setupWith(scriptedModel([GOOD]).model) });
     await setAuthUser(t, OWNER);
     const mine = await t.pg.query("select id from troupe_chat_message");
     await setAuthUser(t, STRANGER);

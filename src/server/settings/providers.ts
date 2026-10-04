@@ -29,15 +29,17 @@ function tryBox(): SecretBox | null {
   }
 }
 
-export async function readCredentials(db: Db): Promise<Record<CredentialId, CredentialState>> {
+// `env` is where environment keys come from (tests and callers with their
+// own settings pass one); saved keys always come from the database.
+export async function readCredentials(db: Db, env: Record<string, string | undefined> = process.env): Promise<Record<CredentialId, CredentialState>> {
   const rows = await db.select().from(providerSettings);
   const box = tryBox();
   const out = {} as Record<CredentialId, CredentialState>;
   for (const id of CREDENTIAL_IDS) {
     const row = rows.find((r) => r.provider === id);
-    const env = process.env[ENV_KEYS[id]];
+    const fromEnv = env[ENV_KEYS[id]];
     if (!row) {
-      out[id] = env ? { source: "environment", key: env } : { source: "none" };
+      out[id] = fromEnv ? { source: "environment", key: fromEnv } : { source: "none" };
       continue;
     }
     if (row.apiKeyCiphertext) {

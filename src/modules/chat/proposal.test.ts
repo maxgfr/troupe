@@ -36,6 +36,9 @@ describe("word budget", () => {
     const turns = buildChatPrompt({ project: { title: "t", platform: "tiktok", format: "9:16", language: "en" }, actor: null, script: null, actors: [], durationS: 8, wordsPerSecond: 2.5, instructions: "", history, message: "now" });
     expect(turns.map((t) => t.role)).toEqual(["system", "user", "assistant", "user", "assistant", "user", "user"]);
     expect(turns[1]!.content).toBe("turn 4");
+    const two = buildChatPrompt({ project: { title: "t", platform: "tiktok", format: "9:16", language: "en" }, actor: null, script: null, actors: [], durationS: 8, wordsPerSecond: 2.5, instructions: "", history, message: "now", historyTurns: 2 });
+    expect(two.map((t) => t.content)).toEqual([two[0]!.content, "turn 8", "now"]);
+    expect(buildChatPrompt({ project: { title: "t", platform: "tiktok", format: "9:16", language: "en" }, actor: null, script: null, actors: [], durationS: 8, wordsPerSecond: 2.5, instructions: "", history, message: "now", historyTurns: 0 })).toHaveLength(2);
   });
 });
 

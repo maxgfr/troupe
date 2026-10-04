@@ -27,6 +27,8 @@ export const env = createEnv({
     TROUPE_CHAT_INSTRUCTIONS: z.string().max(2000).optional(),
     TROUPE_CHAT_WORDS_PER_SECOND: z.coerce.number().min(1).max(5).optional(),
     TROUPE_CHAT_TIMEOUT_S: z.coerce.number().int().min(10).max(1800).optional(),
+    TROUPE_CHAT_TEMPERATURE: z.coerce.number().min(0).max(2).optional(),
+    TROUPE_CHAT_HISTORY_TURNS: z.coerce.number().int().min(0).max(20).optional(),
     // Guards POST /api/jobs/reconcile — unset = 503.
     RECONCILE_SECRET: z.string().optional(),
     // Read directly by src/server (access-code.ts, settings/secrets.ts,
@@ -68,6 +70,8 @@ export const env = createEnv({
     TROUPE_CHAT_INSTRUCTIONS: process.env.TROUPE_CHAT_INSTRUCTIONS,
     TROUPE_CHAT_WORDS_PER_SECOND: process.env.TROUPE_CHAT_WORDS_PER_SECOND,
     TROUPE_CHAT_TIMEOUT_S: process.env.TROUPE_CHAT_TIMEOUT_S,
+    TROUPE_CHAT_TEMPERATURE: process.env.TROUPE_CHAT_TEMPERATURE,
+    TROUPE_CHAT_HISTORY_TURNS: process.env.TROUPE_CHAT_HISTORY_TURNS,
     TROUPE_ACCESS_CODE: process.env.TROUPE_ACCESS_CODE,
     TROUPE_SECRET: process.env.TROUPE_SECRET,
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,

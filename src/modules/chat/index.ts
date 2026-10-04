@@ -3,7 +3,7 @@ export { sendChatMessage, listChatMessages, applyChatProposal, getChatSettings, 
 export type { ChatMessageView } from "./server/service";
 export { buildChatPrompt, repairTurn, HISTORY_TURNS } from "./prompt";
 export type { ChatPromptInput } from "./prompt";
-export { proposalJsonSchema, checkProposal, parseJsonAnswer, countWords, wordBudget, LINE_ROLES, MAX_LINES } from "./proposal";
+export { proposalJsonSchema, StoredProposal, checkProposal, parseJsonAnswer, countWords, wordBudget, LINE_ROLES, MAX_LINES } from "./proposal";
 export type { Proposal, ActorChoice, ProposalJsonSchema } from "./proposal";
 export { diffLines } from "./diff";
 export type { LineChange } from "./diff";

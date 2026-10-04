@@ -11,9 +11,11 @@ import {
   listChatMessages,
   NothingToApplyError,
   sendChatMessage,
+  StoredProposal,
   type ChatBackend,
 } from "~/modules/chat";
 import { estimateDurationS, ScriptTooLongError } from "~/modules/script";
+import { ActorUnavailableError } from "~/modules/actors";
 import { MODEL_KEY, TIER } from "./generation";
 import { launchText } from "./_launch";
 
@@ -29,7 +31,7 @@ function asTrpcError(error: unknown): never {
   if (error instanceof TRPCError) throw error;
   if (error instanceof ChatProviderError) throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
   if (error instanceof ChatMessageNotFoundError) throw new TRPCError({ code: "NOT_FOUND", message: error.message });
-  if (error instanceof NothingToApplyError || error instanceof ScriptTooLongError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+  if (error instanceof NothingToApplyError || error instanceof ScriptTooLongError || error instanceof ActorUnavailableError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   throw error;
 }
 
@@ -61,8 +63,9 @@ export const chatRouter = createTRPCRouter({
       } catch (error) {
         if (signal?.aborted) throw new TRPCError({ code: "CLIENT_CLOSED_REQUEST", message: "The request was stopped." });
         if (error instanceof ChatProviderError) asTrpcError(error);
+        // The details stay in the server's log: they may name hosts or data.
         console.error(JSON.stringify({ event: "chat.send.failed", provider: setup.provider, model: setup.modelId, message: (error as Error).message }));
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `${setup.label} could not answer: ${(error as Error).message}` });
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `${setup.label} could not answer. Try again; the server's log has the details.` });
       }
     }),
 
@@ -82,8 +85,10 @@ export const chatRouter = createTRPCRouter({
         .where(and(eq(chatMessages.id, input.messageId), eq(chatMessages.projectId, input.projectId)))
         .limit(1);
       if (!message) asTrpcError(new ChatMessageNotFoundError());
-      if (!message.proposal) asTrpcError(new NothingToApplyError());
-      const estimatedS = estimateDurationS(message.proposal.lines.map((l) => l.text).join(" "));
+      // Read as applyChatProposal reads it: anything else is nothing to apply.
+      const proposal = message.proposal ? StoredProposal.safeParse(message.proposal) : null;
+      if (!proposal?.success) asTrpcError(new NothingToApplyError());
+      const estimatedS = estimateDurationS(proposal.data.lines.map((l) => l.text).join(" "));
       if (estimatedS > input.launch.durationS) asTrpcError(new ScriptTooLongError(estimatedS, input.launch.durationS));
 
       const applied = await applyChatProposal(ctx.db, { projectId: input.projectId, messageId: input.messageId }).catch(asTrpcError);

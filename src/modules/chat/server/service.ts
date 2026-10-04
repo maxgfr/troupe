@@ -97,8 +97,13 @@ export async function sendChatMessage(
   const budget = wordBudget(input.durationS, setup.wordsPerSecond);
   const context = { actors: choices, currentActorId: project.actorId, budgetWords: budget };
 
+  // The newest proposal, if it still waits on the version the user has.
+  const lastProposal = [...history].reverse().find((m) => m.role === "assistant" && m.proposal);
+  const pending = lastProposal?.proposal && !lastProposal.appliedScriptId && lastProposal.baseScriptId === (script?.id ?? null) ? { lines: lastProposal.proposal.lines } : null;
+
   const messages = buildChatPrompt({
     project,
+    pending,
     actor: actor ?? null,
     script: script ? { version: script.version, lines: script.lines } : null,
     actors: choices,
@@ -107,6 +112,7 @@ export async function sendChatMessage(
     instructions: setup.instructions,
     // An answer that was not a script stays out of the model's memory.
     history: history.filter((m) => m.role === "user" || m.proposal).map((m) => ({ role: m.role, content: m.content })),
+    historyTurns: setup.historyTurns,
     message: input.message,
   });
   const schema = proposalJsonSchema(choices.map((a) => a.name));

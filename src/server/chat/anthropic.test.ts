@@ -87,4 +87,15 @@ describe("Claude provider", () => {
     expect(await testAnthropic({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url })).toEqual({ ok: true, message: "The key works and Claude Opus 5.5 is available." });
     expect(server.requests.slice(before).map((r) => `${r.method} ${r.path}`)).toEqual(["GET /v1/models/claude-opus-5-5"]);
   });
+
+  it("sends a temperature only when one is set and the model still takes one", async () => {
+    reply = { status: 200, body: message(JSON.stringify(answer)) };
+    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-haiku-4-5", timeoutMs: 5000, baseURL: server.url, temperature: 0.7 }).propose(turns, { schema });
+    expect(JSON.parse(server.requests.at(-1)!.body).temperature).toBe(0.7);
+    // Current models refuse sampling settings.
+    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url, temperature: 0.7 }).propose(turns, { schema });
+    expect(JSON.parse(server.requests.at(-1)!.body)).not.toHaveProperty("temperature");
+    await createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-haiku-4-5", timeoutMs: 5000, baseURL: server.url }).propose(turns, { schema });
+    expect(JSON.parse(server.requests.at(-1)!.body)).not.toHaveProperty("temperature");
+  });
 });

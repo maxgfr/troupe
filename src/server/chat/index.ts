@@ -1,4 +1,4 @@
-import { getChatSettings, type ChatBackend, type ChatProviderId, type ChatSettings, type ChatSettingsView, type ChatSetup } from "~/modules/chat";
+import { getChatSettings, HISTORY_TURNS, type ChatBackend, type ChatProviderId, type ChatSettings, type ChatSettingsView, type ChatSetup } from "~/modules/chat";
 import type { Db } from "~/server/db/types";
 import { readCredentials } from "~/server/settings/providers";
 import { checkLocalUrl } from "~/server/settings/urls";
@@ -22,6 +22,9 @@ export interface ChatEnvironment {
   instructions: string;
   wordsPerSecond: number;
   timeoutMs: number;
+  // Null: each provider's default (Ollama 0.4, Claude its own).
+  temperature: number | null;
+  historyTurns: number;
 }
 
 const number = (raw: string | undefined, fallback: number, min: number, max: number) => {
@@ -41,6 +44,8 @@ export function chatEnvironment(env: Env = process.env): ChatEnvironment {
     instructions: env.TROUPE_CHAT_INSTRUCTIONS?.trim() ?? "",
     wordsPerSecond: number(env.TROUPE_CHAT_WORDS_PER_SECOND, DEFAULT_WORDS_PER_SECOND, 1, 5),
     timeoutMs: number(env.TROUPE_CHAT_TIMEOUT_S, 180, 10, 1800) * 1000,
+    temperature: ((t) => (t < 0 ? null : t))(number(env.TROUPE_CHAT_TEMPERATURE, -1, 0, 2)),
+    historyTurns: Math.round(number(env.TROUPE_CHAT_HISTORY_TURNS, HISTORY_TURNS, 0, 20)),
   };
 }
 
@@ -53,10 +58,12 @@ export interface ServerChatOptions {
 }
 
 export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatBackend {
-  const env = chatEnvironment(options.env);
+  // One environment for everything, the Anthropic key included.
+  const source = options.env ?? process.env;
+  const env = chatEnvironment(source);
 
   async function resolve() {
-    const [saved, credentials] = await Promise.all([getChatSettings(db), readCredentials(db)]);
+    const [saved, credentials] = await Promise.all([getChatSettings(db), readCredentials(db, source)]);
     const anthropic = credentials.anthropic;
     const anthropicKey = anthropic.source === "saved" || anthropic.source === "environment" ? anthropic.key : null;
     const settings: Required<Omit<ChatSettings, "provider">> & { provider: ChatSettings["provider"] } = {
@@ -72,18 +79,18 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
   }
 
   function setupFor(r: Awaited<ReturnType<typeof resolve>>): ChatSetup {
-    const common = { instructions: r.settings.instructions, wordsPerSecond: r.settings.wordsPerSecond };
+    const common = { instructions: r.settings.instructions, wordsPerSecond: r.settings.wordsPerSecond, historyTurns: env.historyTurns };
     if (r.provider === "anthropic") {
       const modelId = r.settings.anthropicModel;
       if (!r.anthropicKey) {
         return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: null, problem: "The chat is set to Claude but no Anthropic API key is saved. Add one under Provider accounts, or switch the chat to Ollama." };
       }
-      return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: createAnthropicChat({ apiKey: r.anthropicKey, model: modelId, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL }), problem: null };
+      return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: createAnthropicChat({ apiKey: r.anthropicKey, model: modelId, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL, temperature: env.temperature }), problem: null };
     }
     const modelId = r.settings.ollamaModel;
     const url = checkLocalUrl(r.settings.ollamaUrl);
     if (!url.ok) return { ...common, provider: "ollama", label: LABELS.ollama, modelId, model: null, problem: `The Ollama address is not allowed: ${url.reason}` };
-    return { ...common, provider: "ollama", label: LABELS.ollama, modelId, model: createOllamaChat({ baseUrl: url.base, model: modelId, timeoutMs: env.timeoutMs, fetch: options.fetch }), problem: null };
+    return { ...common, provider: "ollama", label: LABELS.ollama, modelId, model: createOllamaChat({ baseUrl: url.base, model: modelId, timeoutMs: env.timeoutMs, fetch: options.fetch, temperature: env.temperature }), problem: null };
   }
 
   return {

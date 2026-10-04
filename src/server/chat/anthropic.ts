@@ -19,6 +19,9 @@ export interface AnthropicOptions {
   timeoutMs: number;
   // Tests point this at a local server; ANTHROPIC_BASE_URL works too.
   baseURL?: string;
+  // Sent only to models that still take one: the current ones refuse
+  // sampling settings. Unset: the model's own default.
+  temperature?: number | null;
 }
 
 function client(options: AnthropicOptions) {
@@ -54,6 +57,7 @@ export function createAnthropicChat(options: AnthropicOptions): ChatModel {
         system,
         messages: turns,
         output_config: { format: { type: "json_schema" as const, schema: schema as unknown as Record<string, unknown> }, ...(current ? { effort: "low" as const } : {}) },
+        ...(!current && options.temperature != null ? { temperature: options.temperature } : {}),
       };
       let content: { type: string; text?: string }[];
       let stopReason: string | null;

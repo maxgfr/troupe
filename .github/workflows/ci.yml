@@ -27,6 +27,31 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # The static demo (site/): build it (the build fails on server code in the
+  # bundle), then the Playwright smoke test against the built site.
+  site-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm site:build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm site:test
+        env:
+          CI: "1"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-smoke-report
+          path: |
+            site/playwright-report
+            site/test-results
+
   docker-smoke:
     runs-on: ubuntu-latest
     steps:

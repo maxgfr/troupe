@@ -78,6 +78,9 @@ end to end.** Reports are welcome.
   reverse proxy, backups, upgrades.
 - [Vercel + Supabase](docs/VERCEL-SUPABASE.md): serverless hosting with
   Supabase for the database, files and scheduled job checks.
+- [Static demo](docs/STATIC-SITE.md): the same studio built as a static site
+  that runs in the browser, with no server; projects stay in that browser.
+  It cannot render video yet.
 - Development:
 
   ```bash

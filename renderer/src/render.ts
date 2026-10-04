@@ -18,8 +18,8 @@ const VOICE_SHARE = 0.3;
 
 // Voices each line, lays the scene out on the measured speech, then streams
 // frames drawn on a canvas into ffmpeg with the assembled track: an H.264 +
-// AAC MP4 as long as the script.
-export async function renderVideo(request: RenderRequest, outFile: string, deps: RenderDeps): Promise<void> {
+// AAC MP4 as long as the script. Returns its length in seconds.
+export async function renderVideo(request: RenderRequest, outFile: string, deps: RenderDeps): Promise<number> {
   const progress = deps.onProgress ?? (() => {});
   const speeches: Speech[] = [];
   if (request.audio) {
@@ -70,6 +70,7 @@ export async function renderVideo(request: RenderRequest, outFile: string, deps:
     }
     ffmpeg.stdin.end();
     await exited;
+    return scene.durationS;
   } finally {
     await rm(wavFile, { force: true });
   }

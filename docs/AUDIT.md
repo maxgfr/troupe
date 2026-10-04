@@ -196,3 +196,29 @@ These are UX gaps, not broken flows. They are left for the polish phase.
 - `@playwright/test` is now a dev dependency for the smoke tests that later
   phases add. Its browser is installed with `pnpm exec playwright install
   chromium`.
+
+## Phase 2: local renderer
+
+Run on 2026-10-04 on the same machine, with the Playwright walk above
+(Settings → add the model → wizard → three-line script → launch → playback →
+timeline download → export → download) and Kokoro q8 for the voices.
+
+| Run | Address | Result |
+|---|---|---|
+| `pnpm renderer` + `pnpm dev` | `http://127.0.0.1:8078` | completed one worker cycle (21 s) after launch; the render itself took 3.6 s. Timeline and export MP4s: h264 720×1280 + AAC, 8.250 s, the length the renderer logged for the voiced script ("3 lines, 8.25 s of video"). No console errors or 5xx. |
+| `docker compose --profile renderer up -d --build` | `http://renderer:8078` | Same walk against the image on port 3100 with the access code: completed in 20 s, h264 720×1280 + AAC, 7.667 s (the script voiced as 7.65 s, rounded to whole frames at 24 fps). No console errors or 5xx. |
+| Regression, `pnpm dev` with the example model server | `http://127.0.0.1:8077` | Unchanged: completed in 21 s, h264 720×1280 + AAC, 8.000 s. |
+
+- The connection check reported "Local renderer is reachable and speaks
+  contract 1." in both setups.
+- In the timeline player the app's own captions track (WebVTT from the
+  script) sits on top of the captions drawn in the video, so the words show
+  twice when captions are on.
+- The renderer image is about 1.8 GB (Debian, ffmpeg, the ONNX runtime). pnpm
+  installs the workspace root's dependencies with any filtered install, so
+  the Dockerfile strips them from the root manifest before installing.
+- Frames were extracted from each format (9:16, 1:1, 16:9) and reviewed for
+  layout: the script's role and emotion tags were taken out of the picture,
+  the actor card now hugs its content, the word being said sits on a pill,
+  caption lines are balanced, and vertical captions keep clear of the
+  platforms' right-hand button rail.

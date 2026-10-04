@@ -2,7 +2,8 @@
 
 Troupe can render on your own hardware in two ways: through
 [ComfyUI](https://github.com/comfyanonymous/ComfyUI), or through any HTTP server
-that follows a small contract. Add either in **Settings → Local models**, press
+that follows a small contract. The [local renderer](#local-renderer) in
+`renderer/` is one such server that needs no GPU. Add either in **Settings → Local models**, press
 **Test**, then **Add model**. Local models appear next to the cloud ones in every
 picker, estimate at $0 and get a two-hour time limit, since a single GPU works
 through one job at a time.
@@ -170,3 +171,73 @@ file must be an MP4 of at most 200 MB.
 
 Troupe polls every 20 seconds at first, then less often, for up to two hours by
 default (change it in the model's settings).
+
+## Local renderer
+
+`renderer/` voices the script and stages it, on the CPU, in seconds: a Kokoro
+voice per actor, the actor card (the same colors and initials as the actor's
+portrait in Troupe), word-by-word captions and a slowly moving background,
+encoded as H.264 + AAC. There is no generated picture of a person: it is a
+draft you can listen to, time and share, not a substitute for a video model.
+
+The video is as long as the script, not the clip length picked at launch:
+0.3 s of silence, each line as long as Kokoro takes to say it with 0.35 s
+between lines, then 0.6 s. The clip length still caps the script, as for any
+model.
+
+### Run it
+
+With Docker (the image is built from this checkout):
+
+```bash
+docker compose --profile renderer up -d --build
+```
+
+On a Mac or any machine with Node.js 22+ and ffmpeg:
+
+```bash
+pnpm install
+pnpm renderer          # http://127.0.0.1:8078
+```
+
+On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
+8-bit, about 90 MB) from Hugging Face, into the `renderer` volume in Docker or
+`~/.cache/troupe-renderer` otherwise. Later starts load it in under a second.
+
+| Variable | Default | |
+|---|---|---|
+| `PORT`, `HOST` | `8078`, `127.0.0.1` (`0.0.0.0` in Docker) | where it listens |
+| `TOKEN` | none | require `Authorization: Bearer <token>`; in Compose, set `TROUPE_RENDERER_TOKEN` in `.env` |
+| `KOKORO_DTYPE` | `q8` | `fp32` (about 330 MB) sounds slightly cleaner; `q4` is smaller |
+| `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
+| `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
+| `TROUPE_RENDERER_PORT` | `8078` | Compose only: the port published on `127.0.0.1` |
+
+### Add it to Troupe
+
+**Settings → Local models → Add a local model → HTTP endpoint**:
+
+| Field | Value |
+|---|---|
+| Address | `http://renderer:8078` when Troupe runs in the same Compose stack; `http://127.0.0.1:8078` under `pnpm dev`; `http://host.docker.internal:8078` for Troupe in Docker and `pnpm renderer` on the host |
+| Formats | 9:16, 16:9, 1:1 |
+| Resolutions | any (480p to 1080p); at 720p an 8 s clip takes under 4 s on an Apple M5 |
+| Clip lengths | the lengths you want to allow, e.g. `4, 6, 8, 10, 15` |
+| Audio | Always with audio (Audio on request also works: silent jobs skip the voice and time lines from the word count) |
+| Frames per second | 24 (up to 60) |
+
+Then **Test** and **Add model**. Troupe polls a local model every 20 seconds
+at first and the in-process worker runs every 30 seconds, so a render shows up
+about 20–30 s after launch even though it takes a few seconds; the HTTP
+endpoint form has no setting to poll faster.
+
+### Limits
+
+- Kokoro's voices are English (American and British). Lines in another
+  language are read with English pronunciation; Troupe warns about the
+  language when you launch only if the model declares its languages, which
+  the add-model form does not ask for yet.
+- The voice follows the actor's gender, and each actor keeps the same voice;
+  emotions and the actor's voice profile ("fast", "measured", …) set the pace.
+- Without `script` in the job (another client than Troupe), the renderer reads
+  the dialogue back from the compiled prompt and draws a "Narrator" card.

@@ -44,9 +44,9 @@ export function createRendererServer(options: RendererOptions): Server {
       job.status = "running";
       const started = Date.now();
       try {
-        await renderVideo(request, join(options.outDir, `${id}.mp4`), { speak: options.speak, onProgress: (p) => (job.progress = Math.min(0.99, p)) });
+        const durationS = await renderVideo(request, join(options.outDir, `${id}.mp4`), { speak: options.speak, onProgress: (p) => (job.progress = Math.min(0.99, p)) });
         Object.assign(job, { status: "succeeded", progress: 1 });
-        log(`Rendered ${id} (${request.lines.length} lines) in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+        log(`Rendered ${id}: ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
       } catch (error) {
         Object.assign(job, { status: "failed", error: (error as Error).message || "The render failed." });
         log(`Render ${id} failed: ${job.error}`);

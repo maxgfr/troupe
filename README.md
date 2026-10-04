@@ -41,12 +41,14 @@ from your checkout instead, run `docker compose up -d --build`.
 | Seedance 1.5 Pro | fal.ai (API key) | optional | 9:16, 16:9, 1:1 | 4–12 s |
 | LTX-2 | your GPU, via ComfyUI | always | 9:16, 16:9, 1:1 | 4–10 s |
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
+| Local renderer | your CPU ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
 
 Each model can be turned off, given default settings, a price per second (for
 cost estimates) and a time limit. Pickers only offer what the chosen model
 accepts, and warn when a model has only been tried in another language or makes
-silent video. See [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md) for ComfyUI.
+silent video. See [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md) for ComfyUI and
+the local renderer.
 
 ## What it does
 

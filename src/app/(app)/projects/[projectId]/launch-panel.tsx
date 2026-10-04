@@ -34,25 +34,33 @@ export function LaunchPanel({
   onCompare: (plan: { modelKeys: string[]; durationS: number; resolution: string }) => void;
 }) {
   const [choice, setChoice] = useState<{ durationS?: number; resolution?: string; audio?: boolean }>({});
-  const demo = useEdition().kind === "demo";
+  const edition = useEdition();
+  const rendering = edition.kind === "demo" ? edition.rendering : undefined;
   const usable = options.filter((o) => o.available && o.compatible);
-  if (usable.length === 0 && demo) {
+  // The demo's own model exists but this browser cannot run it.
+  const blocked = rendering ? options.find((o) => o.key === rendering.modelKey && !o.available) : undefined;
+  if (usable.length === 0 && blocked) {
     return (
-      <ProviderWarning>
-        The browser demo cannot render video yet. Your project and script are saved in this browser;{" "}
-        <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">run Troupe on your machine ↗</a> to render them now.
-      </ProviderWarning>
+      <div className="mt-3">
+        <ProviderWarning>
+          {blocked.unavailableReason} Your project and script are saved in this browser;{" "}
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">run Troupe on your machine ↗</a> to render them.
+        </ProviderWarning>
+      </div>
     );
   }
   if (usable.length === 0) {
     return (
-      <ProviderWarning>
-        No configured model can render this project&apos;s format.{" "}
-        <Link href="/settings" className="underline">Check your models in Settings</Link>.
-      </ProviderWarning>
+      <div className="mt-3">
+        <ProviderWarning>
+          No configured model can render this project&apos;s format.{" "}
+          <Link href="/settings" className="underline">Check your models in Settings</Link>.
+        </ProviderWarning>
+      </div>
     );
   }
   const settings = model ? launchSettings(model, estimatedS, choice) : null;
+  const inBrowser = Boolean(rendering && model?.key === rendering.modelKey);
   const plan = comparisonPlan(options, estimatedS);
   const cost = model && settings?.durationS ? (model.pricePerSecondUsd === null ? (model.kind === "local" ? 0 : null) : model.pricePerSecondUsd * settings.durationS) : null;
 
@@ -91,6 +99,7 @@ export function LaunchPanel({
       </div>
 
       {model?.warnings.map((w) => <ProviderWarning key={w}>{w}</ProviderWarning>)}
+      {inBrowser && rendering ? <rendering.LaunchNote /> : null}
       {settings?.tooLong ? (
         <ProviderWarning>
           This script is about {estimatedS}s long, but {model!.label} renders at most {settings.longestS}s. Shorten the script or choose another model.
@@ -111,7 +120,7 @@ export function LaunchPanel({
             Compare {plan.modelKeys.length} models
           </button>
         ) : null}
-        <span className="font-mono text-xs text-muted">{model?.kind === "local" ? "Runs on your machine." : cost === null ? "Billed by your provider." : `≈ ${formatCost(cost, "estimate")}`}</span>
+        <span className="font-mono text-xs text-muted">{inBrowser ? "Runs in this browser." : model?.kind === "local" ? "Runs on your machine." : cost === null ? "Billed by your provider." : `≈ ${formatCost(cost, "estimate")}`}</span>
       </div>
     </div>
   );

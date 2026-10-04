@@ -1,19 +1,30 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ComponentType } from "react";
 
 import { ErrorNote } from "./ui";
 
 // Which Troupe the pages run in. The self-hosted studio is the default; the
 // static browser demo (site/) runs the same pages with no server behind
 // them, so it can neither keep API keys nor reach model servers, and says so.
+// It renders with its own model, in the page (site/src/render).
 export type Edition =
   | { kind: "studio" }
   | {
       kind: "demo";
       // Empties this browser's studio: projects, scripts, renders.
       resetData: () => Promise<void>;
+      rendering?: DemoRendering;
     };
+
+// The demo's in-browser model, as the project page shows it.
+export interface DemoRendering {
+  modelKey: string;
+  // Under the launch controls, before any launch: what a render here takes.
+  LaunchNote: ComponentType;
+  // A render's live progress, in place of the timeline's generic bar.
+  Progress: ComponentType<{ providerJobId: string }>;
+}
 
 export const SELF_HOSTING_URL = "https://github.com/maxgfr/troupe#quick-start-docker";
 

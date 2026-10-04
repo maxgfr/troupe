@@ -1,19 +1,65 @@
-import { effectiveDefaultModel, getDefaultModelKey, listModelConfigs, resolveCatalog, type ModelCatalog } from "~/modules/models";
+import { BROWSER_CAPABILITIES, BROWSER_MODEL_KEY, BROWSER_MODEL_LABEL, createBrowserAdapter } from "~/modules/generation";
+import { effectiveDefaultModel, getDefaultModelKey, listModelConfigs, modelConfigs, resolveCatalog, type ModelCatalog } from "~/modules/models";
 import type { Db } from "~/server/db/types";
+import { RENDER_CONFIG } from "./render/env";
+import { browserRenderer } from "./render/runner";
+import { renderSupport } from "./render/support";
 
 // The demo's model catalog. Cloud models need API keys kept on a server and
-// local models a server that can reach them, so none can launch here yet:
-// each says why instead of asking for a key it could never use.
+// local model servers a studio that can reach them, so neither runs here and
+// each says why. The one model that does is the demo's own: Kokoro voices
+// and the shared scene, rendered in this browser (site/src/render).
 
 export const CLOUD_IN_DEMO = "Not available in the browser demo: cloud models need the self-hosted studio to keep your API key.";
 export const LOCAL_IN_DEMO = "Not available in the browser demo: local model servers need the self-hosted studio.";
 
-export async function loadDemoCatalog(db: Db): Promise<ModelCatalog> {
-  const [rows, savedDefault] = await Promise.all([listModelConfigs(db), getDefaultModelKey(db)]);
+// A render stuck for longer than this is failed (a closed tab is caught sooner).
+const BROWSER_TIMEOUT_S = 30 * 60;
+
+// The browser model is a row like any local model, so Settings can turn it
+// off and keep its defaults. Its capabilities follow the code.
+export async function ensureBrowserModel(db: Db): Promise<void> {
+  const owned = { family: "browser" as const, label: BROWSER_MODEL_LABEL, capabilities: BROWSER_CAPABILITIES, connection: {} };
+  await db
+    .insert(modelConfigs)
+    .values({ id: BROWSER_MODEL_KEY, ...owned, timeoutS: BROWSER_TIMEOUT_S })
+    .onConflictDoUpdate({ target: modelConfigs.id, set: { ...owned, updatedAt: new Date() } });
+}
+
+async function buildCatalog(db: Db): Promise<ModelCatalog> {
+  const [rows, savedDefault, support] = await Promise.all([listModelConfigs(db), getDefaultModelKey(db), renderSupport()]);
   const models = resolveCatalog({
     rows,
     credentials: { google: "none", fal: "none" },
-    checkLocal: () => ({ status: "unsupported-host", detail: LOCAL_IN_DEMO }),
+    checkLocal: (row) => {
+      if (row.family !== "browser") return { status: "unsupported-host", detail: LOCAL_IN_DEMO };
+      return support.ok ? null : { status: "unsupported-host", detail: support.detail };
+    },
   }).map((model) => (model.kind === "cloud" ? { ...model, status: "unsupported-host" as const, statusDetail: CLOUD_IN_DEMO } : model));
-  return { models, adapters: new Map(), defaultModelKey: effectiveDefaultModel(models, savedDefault) };
+  // The adapter stays even when the model is off, so renders in flight finish.
+  const adapters = new Map([[BROWSER_MODEL_KEY, createBrowserAdapter({ renderer: browserRenderer, fps: RENDER_CONFIG.fps })]]);
+  return { models, adapters, defaultModelKey: effectiveDefaultModel(models, savedDefault) };
+}
+
+// Every tRPC call needs the catalog, and it only changes when a mutation
+// does (Settings): read it once, again after mutations, here or in another tab.
+let cached: { db: Db; catalog: Promise<ModelCatalog> } | undefined;
+const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("troupe-catalog");
+channel?.addEventListener("message", () => {
+  cached = undefined;
+});
+
+export function loadDemoCatalog(db: Db): Promise<ModelCatalog> {
+  if (cached?.db === db) return cached.catalog;
+  const catalog = buildCatalog(db);
+  cached = { db, catalog };
+  catalog.catch(() => {
+    if (cached?.catalog === catalog) cached = undefined;
+  });
+  return catalog;
+}
+
+export function forgetDemoCatalog(): void {
+  cached = undefined;
+  channel?.postMessage("changed");
 }

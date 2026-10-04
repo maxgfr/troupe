@@ -252,7 +252,7 @@ export function DefaultModelSettings() {
         savedKey={list.data.savedDefaultModelKey}
         effectiveKey={list.data.defaultModelKey}
         busy={setDefault.isPending}
-        noModelHint={demo ? "No model can render in the browser demo yet. Projects and scripts work; rendering needs the self-hosted studio for now." : undefined}
+        noModelHint={demo ? "No model can render in this browser. Kokoro voice + captions, under Local models, says why." : undefined}
         onChange={(modelKey) => setDefault.mutate({ modelKey })}
       />
       {setDefault.error ? <ErrorNote>{setDefault.error.message}</ErrorNote> : null}

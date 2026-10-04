@@ -21,7 +21,7 @@ export function DashboardView({ projects }: { projects: DashboardProject[] }) {
         title="Create your first project"
         body={
           demo
-            ? "Pick a platform, format, language and actor, then write a short script. Everything you make here is saved in this browser."
+            ? "Pick a platform, format, language and actor, write a short script, then render it right here. Everything you make is saved in this browser."
             : "Pick a platform, format, language and actor, then write a short script. Add an API key or a local model in Settings when you are ready to render."
         }
         cta={{ label: "New project", href: "/projects/new" }}

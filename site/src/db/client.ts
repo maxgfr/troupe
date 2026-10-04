@@ -6,6 +6,7 @@ import { ensureLocalStudio } from "~/modules/identity";
 import { migratePglite, rebuildPglite } from "~/server/db/pglite-migrate";
 import * as schema from "~/server/db/schema";
 import type { Db } from "~/server/db/types";
+import { ensureBrowserModel } from "../catalog";
 import { MIGRATIONS } from "./migrations";
 import { INIT_FAILED } from "./protocol";
 
@@ -51,6 +52,7 @@ async function connect(host: Worker): Promise<DemoDatabase> {
   // drizzle's PGlite driver only needs query/transaction, which the worker proxy has.
   const db = drizzle(pg as unknown as PGlite, { schema }) as unknown as Db;
   await ensureLocalStudio(db);
+  await ensureBrowserModel(db);
   return { pg, db };
 }
 
@@ -110,6 +112,7 @@ export function resetDatabase(): Promise<void> {
     const { pg, db } = database;
     await navigator.locks.request(SETUP_LOCK, () => rebuildPglite(pg, MIGRATIONS));
     await ensureLocalStudio(db);
+    await ensureBrowserModel(db);
   })();
   const pending: Promise<void> = run.finally(() => {
     if (resetting === pending) resetting = undefined;

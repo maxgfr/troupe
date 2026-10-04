@@ -7,6 +7,9 @@ export interface GenerationRow {
   id: string;
   provider: string;
   modelId: string;
+  modelKey?: string;
+  // The model's own id for the job, once it accepted it.
+  providerJobId?: string | null;
   modelLabel?: string | null;
   tier: "draft" | "final";
   status: "queued" | "in_progress" | "completed" | "failed";
@@ -35,12 +38,13 @@ function failureMessage(g: GenerationRow): string | null {
 // Pure view — the launch timeline. The newest completed render is the star:
 // video on bare bg, no card around it; the rest is a quiet filmstrip.
 export function GenerationTimeline({ generations, onRelaunch }: { generations: GenerationRow[]; onRelaunch?: (generationId: string) => void }) {
-  const demo = useEdition().kind === "demo";
+  const edition = useEdition();
+  const rendering = edition.kind === "demo" ? edition.rendering : undefined;
   if (generations.length === 0) {
     return (
       <EmptyState
         title="No render yet — the stage is lit"
-        body={demo ? "Renders will show here once a model can run in this browser." : "Launch a draft below and follow its progress here."}
+        body={rendering ? "Launch a draft below. It renders in this tab and plays here when it is done." : "Launch a draft below and follow its progress here."}
       />
     );
   }
@@ -85,7 +89,9 @@ export function GenerationTimeline({ generations, onRelaunch }: { generations: G
               {g.status === "failed" && onRelaunch ? (
                 <button type="button" onClick={() => onRelaunch(g.id)} className="rounded-lg border border-muted/30 px-3 py-1 text-xs">Relaunch</button>
               ) : null}
-              {g.status === "in_progress" ? (
+              {g.status === "in_progress" && rendering && g.modelKey === rendering.modelKey && g.providerJobId ? (
+                <rendering.Progress providerJobId={g.providerJobId} />
+              ) : g.status === "in_progress" ? (
                 <span
                   aria-hidden
                   className="progress-glow h-1.5 w-24 overflow-hidden rounded-full bg-primary/30"

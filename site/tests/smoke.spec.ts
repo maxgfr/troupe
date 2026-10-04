@@ -39,7 +39,7 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Project title").fill("Smoke project");
   await page.getByRole("button", { name: "Continue" }).click();
-  // No model can render in the demo yet: each one says why.
+  // Cloud models cannot run in the demo: each one says why.
   await expect(page.getByText(/Not available in the browser demo/).first()).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
@@ -59,7 +59,8 @@ test("landing → dashboard → new project → script, kept across reloads and 
   const projectUrl = page.url().replace(/\/script$/, "");
   await page.goto(projectUrl);
   await expect(page.getByRole("heading", { name: "Smoke project" })).toBeVisible();
-  await expect(page.getByText("The browser demo cannot render video yet.")).toBeVisible();
+  // The in-browser model is offered, or the browser says why it cannot render.
+  await expect(page.getByText("Runs in this browser.").or(page.getByText(/This browser cannot render video/))).toBeVisible();
   await page.goto(`${APP}/dashboard`);
   await expect(page.getByRole("link", { name: /Smoke project/ })).toBeVisible();
 

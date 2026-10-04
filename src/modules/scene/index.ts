@@ -3,7 +3,7 @@
 export { buildScene, cueAt, actorInitials, TIMING } from "./build";
 export type { Scene, SceneInput, SceneLine, SceneActor, Cue, Word, Box, Layout } from "./build";
 export { drawFrame, SCENE_FONT } from "./draw";
-export type { SceneContext, SceneGradient } from "./draw";
+export type { DrawOptions, SceneContext, SceneGradient } from "./draw";
 export { voiceFor, parseVoicePools, KOKORO_VOICES } from "./voice";
 export type { VoiceActor, VoiceChoice, VoicePools } from "./voice";
 export { actorHue, oklch, paletteFor } from "./palette";

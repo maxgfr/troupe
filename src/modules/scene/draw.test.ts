@@ -46,6 +46,7 @@ function recorder(width: number, height: number) {
     fillRect(x, y, w, h) {
       fills.push({ x, y, width: w, height: h });
     },
+    clearRect() {},
     fillText(text, x, y) {
       texts.push({ text, x, y, font: ctx.font, fill: ctx.fillStyle, align: ctx.textAlign });
     },
@@ -173,6 +174,57 @@ describe("drawFrame", () => {
       }
     });
   }
+
+  describe("captions only, to lay over a video", () => {
+    function drawCaptions(t: number) {
+      const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] });
+      const rec = recorder(scene.width, scene.height);
+      const cleared: { x: number; y: number; width: number; height: number }[] = [];
+      rec.ctx.clearRect = (x, y, width, height) => cleared.push({ x, y, width, height });
+      drawFrame(rec.ctx, scene, t, { captionsOnly: true });
+      return { ...rec, scene, cleared };
+    }
+
+    it("leaves the frame transparent instead of painting the background", () => {
+      const rec = drawCaptions(0);
+      expect(rec.cleared).toEqual([{ x: 0, y: 0, width: 720, height: 1280 }]);
+      expect(rec.fills.some((f) => f.width === 720 && f.height === 1280)).toBe(false);
+    });
+
+    it("draws no actor card, only the words of the current line", () => {
+      const rec = drawCaptions(0.5);
+      const shown = rec.texts.map((t) => t.text);
+      expect(shown).not.toContain("LM");
+      expect(shown).not.toContain("Léa Martin");
+      expect(rec.rounds.some((r) => r.fill === rec.scene.palette.card)).toBe(false);
+      expect(shown).toEqual(lines[0]!.text.split(" "));
+    });
+
+    it("lights words up and sets them in the same places as the full frame", () => {
+      const word = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] }).cues[0]!.words[2]!;
+      const t = (word.startS + word.endS) / 2;
+      const over = drawCaptions(t);
+      expect(over.texts).toEqual(captionWords(draw(t)));
+      expect(over.rounds.filter((r) => r.fill === over.scene.palette.highlight)).toHaveLength(1);
+    });
+
+    it("puts a shade behind the caption rows so they read on any picture", () => {
+      const rec = drawCaptions(0.5);
+      const words = rec.texts;
+      const px = fontPx(words[0]!.font);
+      // One band, the frame's width, from above the first row to below the last.
+      expect(rec.fills).toHaveLength(1);
+      const [shade] = rec.fills;
+      expect(shade!.x).toBe(0);
+      expect(shade!.width).toBe(720);
+      expect(shade!.y).toBeLessThan(Math.min(...words.map((w) => w.y)));
+      expect(shade!.y + shade!.height).toBeGreaterThan(Math.max(...words.map((w) => w.y)) + px);
+      expect(shade!.y).toBeGreaterThanOrEqual(0);
+      expect(shade!.y + shade!.height).toBeLessThanOrEqual(1280);
+      // Tighter than the whole caption box: the picture shows around it.
+      expect(shade!.height).toBeLessThan(rec.scene.layout.captions.height);
+    });
+  });
 
   it("draws the same frame twice for the same time, and moves the background over time", () => {
     const a = draw(1.25);

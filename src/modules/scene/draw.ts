@@ -24,6 +24,7 @@ export interface SceneContext {
   fill(): void;
   stroke(): void;
   fillRect(x: number, y: number, width: number, height: number): void;
+  clearRect(x: number, y: number, width: number, height: number): void;
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): SceneGradient;
@@ -40,6 +41,9 @@ const MIN_CAPTION_SCALE = 0.35;
 // extra word spacing that keeps it clear of the next word.
 const WORD_PILL_PAD = 0.1;
 const WORD_GAP_EXTRA = 0.08;
+// How far the shade behind laid-over captions fades out past their rows, in
+// font sizes.
+const SHADE_REACH = 1.2;
 
 function background(ctx: SceneContext, scene: Scene, t: number) {
   const { width: w, height: h, palette } = scene;
@@ -178,11 +182,15 @@ function wrap(ctx: SceneContext, words: string[], box: Box, start: number): { px
   }
 }
 
-function captions(ctx: SceneContext, scene: Scene, t: number) {
+function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
   const cue = cueAt(scene, t);
   if (!cue) return;
   const { palette, layout } = scene;
   const { px, placed } = wrap(ctx, cue.words.map((w) => w.text), layout.captions, layout.captionSize);
+  if (shaded && placed.length > 0) {
+    const rows = placed.map((w) => w.y);
+    shade(ctx, scene, Math.min(...rows) - px * 0.5, Math.max(...rows) + px * (LINE_HEIGHT + 0.5), px);
+  }
   ctx.font = font(700, px);
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
@@ -203,12 +211,40 @@ function captions(ctx: SceneContext, scene: Scene, t: number) {
   }
 }
 
+// A soft band across the frame behind the caption rows, so the words read on
+// whatever picture they are laid over: dark in the middle, fading out above
+// and below.
+function shade(ctx: SceneContext, scene: Scene, top: number, bottom: number, px: number) {
+  const { width: w, height: h, palette } = scene;
+  const reach = px * SHADE_REACH;
+  const from = Math.max(0, top - reach);
+  const to = Math.min(h, bottom + reach);
+  const band = ctx.createLinearGradient(0, from, 0, to);
+  const edge = (top - from) / (to - from);
+  band.addColorStop(0, palette.shadeFade);
+  band.addColorStop(edge, palette.shade);
+  band.addColorStop(1 - (to - bottom) / (to - from), palette.shade);
+  band.addColorStop(1, palette.shadeFade);
+  ctx.fillStyle = band;
+  ctx.fillRect(0, from, w, to - from);
+}
+
+export interface DrawOptions {
+  // Only the captions, on a soft shade, over a transparent frame: for laying
+  // the script over a video made elsewhere.
+  captionsOnly?: boolean;
+}
+
 // Draws the frame at time t (seconds): background, actor card, captions.
-export function drawFrame(ctx: SceneContext, scene: Scene, t: number): void {
+export function drawFrame(ctx: SceneContext, scene: Scene, t: number, options: DrawOptions = {}): void {
   ctx.save();
   ctx.globalAlpha = 1;
-  background(ctx, scene, t);
-  card(ctx, scene, t);
-  captions(ctx, scene, t);
+  if (options.captionsOnly) {
+    ctx.clearRect(0, 0, scene.width, scene.height);
+  } else {
+    background(ctx, scene, t);
+    card(ctx, scene, t);
+  }
+  captions(ctx, scene, t, options.captionsOnly === true);
   ctx.restore();
 }

@@ -1,5 +1,6 @@
 import type { Speak } from "~/modules/scene";
 import type { VoiceDevice } from "./protocol";
+import { trackDownload } from "./download";
 import { RENDER_CONFIG } from "./env";
 import { voiceDevice } from "./support";
 
@@ -37,28 +38,21 @@ async function load(device: VoiceDevice, onDownload: (progress: DownloadProgress
     wasm.wasmPaths = undefined;
   }
 
-  // One entry per file; the sizes are known once each download starts.
-  const files = new Map<string, { loaded: number; total: number }>();
-  const progress_callback = (event: import("@huggingface/transformers").ProgressInfo) => {
-    if (event.status !== "progress" && event.status !== "done") return;
-    const previous = files.get(event.file);
-    if (event.status === "progress") files.set(event.file, { loaded: event.loaded, total: event.total });
-    else if (previous) files.set(event.file, { loaded: previous.total, total: previous.total });
-    let loadedBytes = 0;
-    let totalBytes = 0;
-    for (const file of files.values()) {
-      loadedBytes += file.loaded;
-      totalBytes += file.total;
-    }
-    onDownload({ loadedBytes, totalBytes, device });
-  };
+  const download = trackDownload(device, onDownload);
+  const progress_callback = download.onEvent;
   // KokoroTTS.from_pretrained, with ONNX Runtime told to keep quiet: on
   // WebGPU it logs, as an error, every op it leaves on the CPU.
-  const [model, tokenizer] = await Promise.all([
-    StyleTextToSpeech2Model.from_pretrained(RENDER_CONFIG.kokoroModel, { dtype: RENDER_CONFIG.dtype[device], device, progress_callback, session_options: { logSeverityLevel: 3 } }),
-    AutoTokenizer.from_pretrained(RENDER_CONFIG.kokoroModel, { progress_callback }),
-  ]);
-  return new KokoroTTS(model as ConstructorParameters<typeof KokoroTTS>[0], tokenizer);
+  try {
+    const [model, tokenizer] = await Promise.all([
+      StyleTextToSpeech2Model.from_pretrained(RENDER_CONFIG.kokoroModel, { dtype: RENDER_CONFIG.dtype[device], device, progress_callback, session_options: { logSeverityLevel: 3 } }),
+      AutoTokenizer.from_pretrained(RENDER_CONFIG.kokoroModel, { progress_callback }),
+    ]);
+    return new KokoroTTS(model as ConstructorParameters<typeof KokoroTTS>[0], tokenizer);
+  } catch (error) {
+    // A failed load may still have downloads reporting: they no longer count.
+    download.stop();
+    throw error;
+  }
 }
 
 let voice: Promise<Voice> | undefined;

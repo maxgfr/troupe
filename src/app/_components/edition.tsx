@@ -15,6 +15,7 @@ export type Edition =
       // Empties this browser's studio: projects, scripts, renders.
       resetData: () => Promise<void>;
       rendering?: DemoRendering;
+      chat?: DemoChat;
     };
 
 // The demo's in-browser model, as the project page shows it.
@@ -24,6 +25,14 @@ export interface DemoRendering {
   LaunchNote: ComponentType;
   // A render's live progress, in place of the timeline's generic bar.
   Progress: ComponentType<{ providerJobId: string }>;
+}
+
+// The demo's in-browser chat model, as the chat panel shows it.
+export interface DemoChat {
+  // Above an empty chat: what the first message downloads and where it runs.
+  Note: ComponentType;
+  // While the model downloads or loads onto the GPU; nothing otherwise.
+  Progress: ComponentType;
 }
 
 export const SELF_HOSTING_URL = "https://github.com/maxgfr/troupe#quick-start-docker";

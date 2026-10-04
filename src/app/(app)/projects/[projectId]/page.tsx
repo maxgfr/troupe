@@ -2,8 +2,10 @@
 
 import { GenerationTimeline, type GenerationRow } from "./generation-timeline";
 import { LaunchPanel } from "./launch-panel";
+import { ChatPanel } from "./chat-panel";
+import { chatLaunchBase } from "./chat-launch";
 import { ProjectActions } from "./project-actions";
-import { use, useState } from "react";
+import { use, useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +31,8 @@ export default function ProjectMonitorPage({
   const enabled = workspace.status === "ready";
   const utils = api.useUtils();
   const [launchError, setLaunchError] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const closeChat = useCallback(() => setChatOpen(false), []);
 
   const project = api.studio.getProject.useQuery(
     { projectId },
@@ -89,6 +93,9 @@ export default function ProjectMonitorPage({
     },
     onError: (error) => setLaunchError(error.message),
   });
+  // The chat writes for, and relaunches with, the newest render's settings.
+  const newest = generations.data?.[0];
+  const chatBase = chatLaunchBase(options, model, newest ? { modelKey: newest.modelKey, durationS: newest.durationS, resolution: newest.resolution } : null);
   const busy = updateModel.isPending || launch.isPending || compare.isPending;
   const loadError = project.error ?? generations.error ?? history.error ?? models.error;
 
@@ -113,6 +120,9 @@ export default function ProjectMonitorPage({
                 {pinned.label} · chosen
               </span>
             ) : null}
+            <button type="button" onClick={() => setChatOpen(true)} className="rounded-lg border border-muted/30 px-3 py-1 text-sm transition-colors duration-150 hover:border-muted/60 lg:hidden">
+              Chat
+            </button>
             <Link href={`/projects/${projectId}/script`} className="text-primary hover:underline">
               Script
             </Link>
@@ -139,7 +149,8 @@ export default function ProjectMonitorPage({
       ) : loadError ? (
         <ErrorNote>The project failed to load: {loadError.message}</ErrorNote>
       ) : (
-        <div className="space-y-8">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-8">
+        <div className="min-w-0 space-y-8">
           <GenerationTimeline
             generations={(generations.data ?? []) as GenerationRow[]}
             onRelaunch={busy || relaunch.isPending ? undefined : (generationId) => { setLaunchError(null); relaunch.mutate({ projectId, generationId }); }}
@@ -184,6 +195,15 @@ export default function ProjectMonitorPage({
             )}
             {launchError ? <div className="mt-3"><ErrorNote>{launchError}</ErrorNote></div> : null}
           </div>
+        </div>
+        <ChatPanel
+          projectId={projectId}
+          versions={history.data ?? []}
+          base={chatBase}
+          currentActorId={project.data?.actorId ?? null}
+          open={chatOpen}
+          onClose={closeChat}
+        />
         </div>
       )}
     </>

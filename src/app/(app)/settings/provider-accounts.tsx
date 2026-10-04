@@ -8,6 +8,7 @@ import { ConnectionResult, type Report } from "./connection-result";
 const ACCOUNTS = [
   { id: "google", name: "Google AI", models: "Veo 3.1 Fast", href: "https://aistudio.google.com/apikey" },
   { id: "fal", name: "fal.ai", models: "Kling 3.0 · Seedance 1.5 Pro", href: "https://fal.ai/dashboard/keys" },
+  { id: "anthropic", name: "Anthropic", models: "Claude, for the script chat", href: "https://console.anthropic.com/settings/keys" },
 ] as const;
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -22,9 +23,9 @@ const SOURCE_LABEL: Record<string, string> = {
 export function ProviderAccounts() {
   const utils = api.useUtils();
   const status = api.settings.credentials.status.useQuery();
-  const [keys, setKeys] = useState({ google: "", fal: "" });
+  const [keys, setKeys] = useState({ google: "", fal: "", anthropic: "" });
   const [reports, setReports] = useState<Record<string, Report | undefined>>({});
-  const refresh = () => Promise.all([utils.settings.credentials.status.invalidate(), utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate()]);
+  const refresh = () => Promise.all([utils.settings.credentials.status.invalidate(), utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate(), utils.settings.chat.get.invalidate()]);
   const save = api.settings.credentials.save.useMutation({ onSuccess: async (_d, input) => { setKeys((k) => ({ ...k, [input.provider]: "" })); await refresh(); } });
   const clear = api.settings.credentials.clear.useMutation({ onSuccess: refresh });
   const test = api.settings.credentials.test.useMutation({ onSuccess: (report, input) => setReports((r) => ({ ...r, [input.provider]: report })) });

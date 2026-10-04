@@ -5,6 +5,7 @@ import { useWorkspace } from "~/app/_components/workspace-context";
 import { ProviderAccounts } from "./provider-accounts";
 import { DefaultModelSettings, ModelCatalogSettings } from "./model-catalog";
 import { AddLocalModel } from "./add-local-model";
+import { ChatSettings } from "./chat-settings";
 import { ThemeToggle } from "~/app/_components/theme-toggle";
 import { DemoUnavailable, ResetDemoData, useEdition } from "~/app/_components/edition";
 import {
@@ -29,7 +30,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        lede="Your personal studio: appearance, video models and provider accounts."
+        lede="Your personal studio: appearance, video models, the script chat and provider accounts."
       />
 
       <Section title="Appearance">
@@ -61,6 +62,12 @@ export default function SettingsPage() {
       <Section title="Cloud models">
         <ModelCatalogSettings kind="cloud" />
       </Section>
+
+      <div id="script-chat" className="scroll-mt-24">
+        <Section title="Script chat">
+          <ChatSettings />
+        </Section>
+      </div>
 
       <Section title="Provider accounts">
         {demo ? (

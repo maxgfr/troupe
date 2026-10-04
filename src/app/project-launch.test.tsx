@@ -43,6 +43,13 @@ vi.mock("~/trpc/react", () => ({
       relaunch: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
     },
     script: { history: { useQuery: () => ({ isPending: false, data: history }) } },
+    chat: {
+      history: { useQuery: () => ({ isPending: false, error: null, data: { messages: [], provider: { id: "ollama", label: "Ollama", modelId: "qwen3:4b", problem: null, wordsPerSecond: 2.5 } } }) },
+      send: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      applyProposal: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      applyAndLaunch: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+    },
+    actors: { list: { useQuery: () => ({ data: [] }) } },
   },
 }));
 

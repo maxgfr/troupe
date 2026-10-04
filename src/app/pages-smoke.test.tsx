@@ -34,6 +34,11 @@ vi.mock("~/trpc/react", () => ({
     },
     benchmark: { start: { useMutation: () => ({}) } },
     settings: {
+      chat: {
+        get: { useQuery: () => ({ isPending: true }) },
+        save: { useMutation: () => ({}) },
+        test: { useMutation: () => ({}) },
+      },
       credentials: {
         status: { useQuery: () => ({ isPending: true }) },
         save: { useMutation: () => ({}) },

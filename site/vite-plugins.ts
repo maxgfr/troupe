@@ -126,24 +126,36 @@ export function pagesFallback({ base, outDir }: { base: string; outDir: string }
 const PICTURE_TYPES: Record<string, string> = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };
 const pictureType = (file: string): string | undefined => PICTURE_TYPES[extname(file).toLowerCase()];
 
+// `vite dev`: answers <base>actors/<file> with that picture from `dir`, and
+// passes everything else (other paths and files, escapes, malformed URLs) on.
+export function actorPicturesMiddleware(base: string, dir: string): Connect.NextHandleFunction {
+  const prefix = `${base}actors/`;
+  const root = resolve(dir);
+  return (req, res, next) => {
+    let path: string;
+    try {
+      path = decodeURIComponent((req.url ?? "/").split("?")[0]!);
+    } catch {
+      return next();
+    }
+    if (!path.startsWith(prefix)) return next();
+    const file = resolve(root, path.slice(prefix.length));
+    const type = pictureType(file);
+    if (!type || !file.startsWith(`${root}${sep}`) || !existsSync(file) || !statSync(file).isFile()) return next();
+    res.setHeader("Content-Type", type);
+    res.end(readFileSync(file));
+  };
+}
+
 // The actors' pictures live once in the repository, in public/actors (the
 // self-hosted app serves them from there). The site serves the same folder,
 // or `dir` when set, at <base>actors/: `vite dev` reads it in place and the
 // build copies it into the output.
 export function actorPictures({ base, dir, outDir }: { base: string; dir: string; outDir: string }): Plugin {
-  const prefix = `${base}actors/`;
   return {
     name: "troupe:actor-pictures",
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const path = decodeURIComponent((req.url ?? "/").split("?")[0]!);
-        if (!path.startsWith(prefix)) return next();
-        const file = resolve(dir, path.slice(prefix.length));
-        const type = pictureType(file);
-        if (!type || !file.startsWith(`${resolve(dir)}${sep}`) || !existsSync(file) || !statSync(file).isFile()) return next();
-        res.setHeader("Content-Type", type);
-        res.end(readFileSync(file));
-      });
+      server.middlewares.use(actorPicturesMiddleware(base, dir));
     },
     writeBundle() {
       if (!existsSync(dir)) this.error(`The actors' pictures folder ${dir} does not exist (VITE_PORTRAITS_DIR).`);

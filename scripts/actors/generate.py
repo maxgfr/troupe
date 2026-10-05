@@ -27,8 +27,9 @@ Options (all optional):
     --out DIR         where the WebP files go (default: public/actors)
     --raw DIR         where full-size PNGs are kept for review and as edit
                       references (default: scripts/actors/raw, not committed)
-    --resume          skip shots already made from the current front
-                      portrait (an interrupted run picks up where it stopped)
+    --resume          keep the front portraits already in --raw, and the
+                      shots already edited from them: an interrupted run
+                      picks up where it stopped
     --sheet           only build raw/contact-sheet.jpg from the WebP files
 
 Environment:
@@ -237,21 +238,36 @@ def main() -> None:
     # One pipeline is loaded at a time: each holds the whole model.
     drawn = [s for s in shots if s == "front" or args.derive == "prompt"]
     derived = [s for s in shots if s not in drawn]
-    if drawn:
+    def kept(actor: dict, shot: str) -> bool:
+        """With --resume, a picture already drawn from a prompt is kept: a
+        front redrawn would make every shot edited from it stale."""
+        return args.resume and (args.raw / actor["slug"] / f"{shot}.png").exists()
+
+    if any(not kept(actor, shot) for actor in cast for shot in drawn):
         model = load(Flux2Klein)
         for actor in cast:
             (args.raw / actor["slug"]).mkdir(parents=True, exist_ok=True)
             for shot in drawn:
+                if kept(actor, shot):
+                    continue
                 started, seed = time.monotonic(), seed_for(actor, shot)
                 image = model.generate_image(seed=seed, prompt=prompt_for(actor, shot), num_inference_steps=steps, width=size, height=size).image
                 save(actor, shot, image, seed, started)
         del model
         gc.collect()
         mx.clear_cache()
+    def edited(actor: dict, shot: str) -> bool:
+        """With --resume, a shot edited after its front portrait is kept."""
+        done = args.raw / actor["slug"] / f"{shot}.png"
+        front = args.raw / actor["slug"] / "front.png"
+        return args.resume and done.exists() and done.stat().st_mtime > front.stat().st_mtime
+
     if derived:
         missing = [a["slug"] for a in cast if not (args.raw / a["slug"] / "front.png").exists()]
         if missing:
             sys.exit(f"No front portrait in {args.raw} for {', '.join(missing)}: generate it first (--shots front).")
+        derived_cast = [a for a in cast if any(not edited(a, shot) for shot in derived)]
+    if derived and derived_cast:
         model = load(Flux2Klein if args.derive == "img2img" else Flux2KleinEdit)
         if args.derive == "edit":
             # The edit instructions are the same for every actor: encode them
@@ -265,13 +281,12 @@ def main() -> None:
             model.text_encoder = None
             gc.collect()
             mx.clear_cache()
-        for actor in cast:
+        for actor in derived_cast:
             # The reference at the edit size: fewer image tokens to attend to.
             front = args.raw / actor["slug"] / f"front-{edit_size}.png"
             Image.open(args.raw / actor["slug"] / "front.png").convert("RGB").resize((edit_size, edit_size), Image.LANCZOS).save(front)
             for shot in derived:
-                done = args.raw / actor["slug"] / f"{shot}.png"
-                if args.resume and done.exists() and done.stat().st_mtime > (args.raw / actor["slug"] / "front.png").stat().st_mtime:
+                if edited(actor, shot):
                     continue
                 started, seed = time.monotonic(), seed_for(actor, shot)
                 if args.derive == "img2img":

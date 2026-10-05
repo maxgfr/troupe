@@ -46,7 +46,7 @@ app and the static site; restart the renderer (or rebuild its Docker image).
 | Where | Variable | Default |
 |---|---|---|
 | Self-hosted app (browsers load the pictures from here) | `TROUPE_ACTOR_PORTRAITS_URL` | `/actors` (Next serves `public/actors`) |
-| Local renderer, run natively | `PORTRAITS_DIR` | `public/actors` in the checkout |
+| Local renderer, run natively | `PORTRAITS_DIR` (absolute, or relative to the repository root) | `public/actors` in the checkout |
 | Local renderer in Docker Compose | `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors`, mounted read-only |
 | Static site build | `VITE_PORTRAITS_DIR` | `public/actors`, copied to `/troupe/actors/` |
 
@@ -67,7 +67,8 @@ silicon, with the 8-bit MLX weights
 (8.6 GB, downloaded to the Hugging Face cache on first run).
 
 ```bash
-# Every actor, every shot (needs uv and Node.js; about 70 minutes on a 16 GB Apple M5: ~25 s per front portrait, ~20 s per edit)
+# Every actor, every shot (needs uv and Node.js). About 70 minutes on a
+# 16 GB Apple M5: ~25 s per front portrait, ~20 s per edit.
 uv run --project scripts/actors python scripts/actors/generate.py
 # Some actors or shots again
 uv run --project scripts/actors python scripts/actors/generate.py --only lea-01,tom-23 --shots happy,calm
@@ -95,8 +96,8 @@ uv run --project scripts/actors python scripts/actors/generate.py --sheet
 3. Every picture was reviewed on a contact sheet. The first fronts all wore
    the same six outfits, so 20 actors got their own clothes (`wear` in
    `cast.json`); two looks were rewritten and reseeded (Louis came out with
-   too light a skin for his description, Elsa's had a thin frame drawn around her). The edits came
-   out right the first time.
+   too light a skin for his description, Elsa's had a thin frame drawn
+   around her). The edits came out right the first time.
 4. The full-size PNGs stay in `scripts/actors/raw/` (not committed), which the
    edits read as their reference; the published files are WebP at quality 80.
 
@@ -112,4 +113,7 @@ Settings for the script:
 The edits use about 3.5 GB: the five edit instructions are the same for
 every actor, so they are encoded once and the text encoder is freed. Fronts
 need the whole model, about 11 GB. `--resume` picks an interrupted run up
-where it stopped.
+where it stopped: it keeps the front portraits already in
+`scripts/actors/raw/` and the shots already edited from them. To redraw a
+front, run without `--resume` for that actor (`--only <actor>`); its five
+other shots are then redone from the new one on the next `--resume` run.

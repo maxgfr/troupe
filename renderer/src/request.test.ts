@@ -33,11 +33,23 @@ describe("parseJobBody", () => {
     expect(parseJobBody({ ...base, script }).actor.portraits).toBeUndefined();
   });
 
-  it("refuses a portrait path outside the actors' folders", () => {
-    for (const path of ["../secrets/key.webp", "actors/../../etc/passwd", "/etc/passwd", "actors/lea-01/v1/front.svg", 42]) {
-      expect(() => parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: { front: path } } } }), String(path)).toThrow(/portraits\.front/);
+  it("refuses a portrait path that could leave the portraits folder", () => {
+    for (const path of ["../secrets/key.webp", "actors/../../etc/passwd", "actors/lea-01/v1/../../../x.webp", "/etc/passwd", "actors\\..\\x.webp"]) {
+      expect(() => parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: { front: path } } } }), path).toThrow(/portraits\.front/);
     }
-    expect(() => parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: "front.webp" } } })).toThrow(/portraits/);
+  });
+
+  it("drops portrait entries it cannot use, says so, and keeps the job", () => {
+    const log: string[] = [];
+    const portraits = { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.svg", calm: 42, excited: "cast/lea.webp" };
+    const parsed = parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits } } }, (m) => log.push(m));
+    expect(parsed.actor.portraits).toEqual({ front: "actors/lea-01/v1/front.webp" });
+    expect(log).toHaveLength(3);
+    expect(log.join("\n")).toMatch(/happy/);
+    // Not an object at all: no portraits, the initials.
+    const none = parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: "front.webp" } } }, (m) => log.push(m));
+    expect(none.actor.portraits).toBeUndefined();
+    expect(log).toHaveLength(4);
   });
 
   it("defaults to 24 fps", () => {

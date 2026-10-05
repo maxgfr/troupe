@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Image, loadImage } from "@napi-rs/canvas";
 
@@ -8,7 +8,14 @@ import type { PortraitShot, ScenePortraits } from "../../src/modules/scene";
 // The actors' pictures: the folder laid out like Troupe's storage paths
 // (actors/<slug>/v<version>/<file>), without the leading actors/. By default
 // the cast checked in with the app; PORTRAITS_DIR points elsewhere.
-export const DEFAULT_PORTRAITS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "public", "actors");
+export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+export const DEFAULT_PORTRAITS_DIR = join(REPO_ROOT, "public", "actors");
+
+// PORTRAITS_DIR as a folder: a relative path is read from the repository
+// root, since `pnpm renderer` runs from renderer/.
+export function portraitsDir(value: string | undefined): string {
+  return value?.trim() ? resolve(REPO_ROOT, value.trim()) : DEFAULT_PORTRAITS_DIR;
+}
 
 // Decodes the `shots` a scene shows from the job's portrait paths (already
 // checked by parseJobBody). A missing or unreadable picture is left out: the

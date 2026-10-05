@@ -16,6 +16,7 @@ import { parseVoicePools, type VoicePools } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
 import { type KokoroDtype, kokoroVoice } from "./kokoro";
 import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } from "./ltx";
+import { portraitsDir } from "./portraits";
 import { renderLtxVideo } from "./render-ltx";
 import { createRendererServer, LTX_PREFIX } from "./server";
 
@@ -61,7 +62,7 @@ const server = createRendererServer({
   speak: kokoro.speak,
   voices,
   // PORTRAITS_DIR: another cast, laid out as <actor>/v1/front.webp.
-  portraitsDir: process.env.PORTRAITS_DIR || undefined,
+  portraitsDir: portraitsDir(process.env.PORTRAITS_DIR),
   ...(ltx
     ? {
         ltx: {

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, serverGuard } from "./vite-plugins";
+import { actorPictures, actorPicturesMiddleware, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -90,5 +90,29 @@ describe("actor pictures", () => {
         build: { outDir, rollupOptions: { input: join(root, "index.js") } },
       }),
     ).rejects.toThrow(/pictures folder .*nowhere does not exist/);
+  });
+});
+
+describe("actor pictures in vite dev", () => {
+  function serve(url: string) {
+    const root = mkdtempSync(join(tmpdir(), "troupe-cast-dev-"));
+    dirs.push(root);
+    mkdirSync(join(root, "lea-01", "v1"), { recursive: true });
+    writeFileSync(join(root, "lea-01", "v1", "front.webp"), "RIFF-front");
+    writeFileSync(join(root, "secret.txt"), "no");
+    const sent: { type?: string; body?: string; next: boolean } = { next: false };
+    const res = { setHeader: (_: string, v: string) => (sent.type = v), end: (b: Buffer) => (sent.body = b.toString()) };
+    actorPicturesMiddleware("/troupe/", root)({ url } as never, res as never, () => (sent.next = true));
+    return sent;
+  }
+
+  it("serves a picture with its type", () => {
+    expect(serve("/troupe/actors/lea-01/v1/front.webp?x=1")).toEqual({ type: "image/webp", body: "RIFF-front", next: false });
+  });
+
+  it("passes anything else on: other paths, other files, escapes and malformed URLs", () => {
+    for (const url of ["/troupe/app/", "/troupe/actors/secret.txt", "/troupe/actors/..%2F..%2Fetc%2Fpasswd.webp", "/troupe/actors/%E0%A4%A.webp"]) {
+      expect(serve(url), url).toEqual({ next: true });
+    }
   });
 });

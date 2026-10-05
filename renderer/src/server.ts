@@ -107,7 +107,7 @@ export function createRendererServer(options: RendererOptions): Server {
         if (received > MAX_BODY_BYTES) return send(res, 413, { error: "The job body is larger than 1 MB." });
         let request: RenderRequest;
         try {
-          request = parseJobBody(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          request = parseJobBody(JSON.parse(Buffer.concat(chunks).toString("utf8")), log);
         } catch (error) {
           return send(res, 400, { error: error instanceof BadRequest ? error.message : "invalid JSON" });
         }

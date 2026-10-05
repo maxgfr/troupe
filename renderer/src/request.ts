@@ -58,25 +58,34 @@ function scriptLines(value: unknown): SceneLine[] {
   });
 }
 
-function portraits(value: unknown): Record<string, string> | undefined {
+// Anything that could step out of the portraits folder refuses the job.
+const ESCAPES = /(^|[\\/])\.\.([\\/]|$)|^[\\/]|\\/;
+
+// The pictures the renderer can use; an entry it cannot (another layout, a
+// type it does not draw) is dropped and logged, and the card falls back.
+function portraits(value: unknown, log: (message: string) => void): Record<string, string> | undefined {
   if (value === undefined) return undefined;
   const shots = record(value);
-  if (!shots) throw new BadRequest("script.actor.portraits must be an object of shot names to paths.");
-  for (const [shot, path] of Object.entries(shots)) {
-    if (typeof path !== "string" || !PORTRAIT_PATH.test(path)) {
-      throw new BadRequest(`script.actor.portraits.${shot} must be a path like actors/<actor>/v1/front.webp.`);
-    }
+  if (!shots) {
+    log("script.actor.portraits is not an object of shot names to paths: drawing the initials.");
+    return undefined;
   }
-  return shots as Record<string, string>;
+  const kept: Record<string, string> = {};
+  for (const [shot, path] of Object.entries(shots)) {
+    if (typeof path === "string" && ESCAPES.test(path)) throw new BadRequest(`script.actor.portraits.${shot} must stay in the portraits folder.`);
+    if (typeof path === "string" && PORTRAIT_PATH.test(path)) kept[shot] = path;
+    else log(`Ignoring script.actor.portraits.${shot}: expected a path like actors/<actor>/v1/front.webp.`);
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }
 
-function fromScript(value: unknown): Pick<RenderRequest, "language" | "actor" | "lines"> {
+function fromScript(value: unknown, log: (message: string) => void): Pick<RenderRequest, "language" | "actor" | "lines"> {
   const script = record(value);
   if (!script) throw new BadRequest("script must be an object.");
   const actor = record(script.actor);
   if (!actor || !text(actor.id) || typeof actor.name !== "string") throw new BadRequest("script.actor needs an id and a name.");
   const gender = GENDERS.find((g) => g === actor.gender);
-  const pictures = portraits(actor.portraits);
+  const pictures = portraits(actor.portraits, log);
   return {
     language: text(script.language) || "en",
     actor: {
@@ -109,7 +118,8 @@ function fromPrompt(prompt: string): Pick<RenderRequest, "language" | "actor" | 
   };
 }
 
-export function parseJobBody(body: unknown): RenderRequest {
+// `log` hears about parts of the job that were dropped rather than refused.
+export function parseJobBody(body: unknown, log: (message: string) => void = () => {}): RenderRequest {
   const input = record(body);
   if (!input) throw new BadRequest("The body must be a JSON object.");
   if (!text(input.prompt) || !input.width || !input.height || !input.duration_s) throw new BadRequest("prompt, width, height and duration_s are required");
@@ -120,6 +130,6 @@ export function parseJobBody(body: unknown): RenderRequest {
     height: size(input.height, "height"),
     fps,
     audio: input.audio !== false,
-    ...(input.script === undefined ? fromPrompt(text(input.prompt)) : fromScript(input.script)),
+    ...(input.script === undefined ? fromPrompt(text(input.prompt)) : fromScript(input.script, log)),
   };
 }

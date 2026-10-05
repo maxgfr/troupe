@@ -164,9 +164,15 @@ server that only reads `prompt` can ignore it.
   the delivery in a few words. `portraits`, when the actor has pictures, maps
   each shot (`front`, `profile-left`, `profile-right`, `happy`, `calm`,
   `excited`) to its path in Troupe's cast, such as
-  `actors/lea-01/v1/front.webp`: the file `public/actors/lea-01/v1/front.webp`
-  in this repository ([ACTORS.md](ACTORS.md)), or the same path under
-  `/actors/` on Troupe's own address. Paths only, never the picture itself.
+  `actors/lea-01/v1/front.webp`. Troupe sends paths, never the pictures. A
+  server can read them from its own copy of the cast (the file
+  `public/actors/lea-01/v1/front.webp` in this repository,
+  [ACTORS.md](ACTORS.md)), or download them from Troupe: append the path to
+  Troupe's address (`https://troupe.example.com/actors/lea-01/v1/front.webp`).
+  When Troupe sets `TROUPE_ACTOR_PORTRAITS_URL`, the pictures live there
+  instead: drop the leading `actors/` and append the rest to that URL
+  (`https://cdn.example.com/cast/lea-01/v1/front.webp`). The pictures are
+  public files; no token is needed.
 - `lines`: in speaking order. `role` is `hook`, `body` or `cta`; `emotion` is
   `neutral`, `excited`, `calm`, `serious`, `happy` or `disappointed`.
 
@@ -250,10 +256,10 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | `KOKORO_VOICES` | the built-in casting | the Kokoro voices actors are cast from, e.g. `female=af_heart,af_bella;male=am_michael`; both pools are required |
 | `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
 | `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
-| `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a missing picture falls back to the front one, then to the initials |
+| `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a relative path is read from the repository root; a missing picture falls back to the front one, then to the initials, and a job's portrait path the renderer cannot use is logged and skipped |
 | `TROUPE_RENDERER_PORT` | `8078` | Compose only: the port published on `127.0.0.1` |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
-| `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | Compose only: the host folder mounted, read-only, as the container's pictures |
+| `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | Compose only: the host folder mounted, read-only, as the container's pictures (relative to the repository root, where `docker-compose.yml` is) |
 
 ### Add it to Troupe
 

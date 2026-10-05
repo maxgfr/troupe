@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ActorPortrait } from "./actor-portrait";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const props = { id: "a1", name: "Léa Martin", label: "Léa Martin — casual, 25-34" };
 
@@ -32,5 +35,23 @@ describe("ActorPortrait", () => {
   it("shows the initials for an actor without a picture", () => {
     render(<ActorPortrait {...props} src={null} />);
     expect(screen.getByRole("img", { name: props.label }).tagName.toLowerCase()).toBe("svg");
+  });
+
+  it("fades the picture in and drops the initials once it has loaded", () => {
+    const { container } = render(<ActorPortrait {...props} src="/actors/lea-01/v1/front.webp" />);
+    const picture = screen.getByRole("img", { name: props.label });
+    expect(picture.className).toContain("opacity-0");
+    fireEvent.load(picture);
+    expect(picture.className).toContain("opacity-100");
+    expect(container.textContent).not.toContain("LM");
+  });
+
+  it("shows a picture the browser already had, whose load event came before React listened", () => {
+    // A cached picture is complete as soon as the element is created.
+    vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(768);
+    const { container } = render(<ActorPortrait {...props} src="/actors/lea-01/v1/front.webp" />);
+    expect(screen.getByRole("img", { name: props.label }).className).toContain("opacity-100");
+    expect(container.textContent).not.toContain("LM");
   });
 });

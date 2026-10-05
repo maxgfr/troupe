@@ -4,13 +4,15 @@ import { index, pgPolicy } from "drizzle-orm/pg-core";
 import { createTable } from "~/server/db/table";
 import { authenticated } from "~/modules/identity/server/schema";
 
-// Stored media: generated renders (and, on older installs, portraits and uploads).
+// Stored media: generated renders, the inspiration library's files (kind
+// "library", the original; "frame", a picture taken from a video) and, on
+// older installs, portraits and uploads.
 export const mediaAssets = createTable(
   "media_asset",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
     workspaceId: d.uuid().notNull(),
-    kind: d.text({ enum: ["photo", "video", "render", "portrait", "consent"] }).notNull(),
+    kind: d.text({ enum: ["photo", "video", "render", "portrait", "consent", "library", "frame"] }).notNull(),
     storagePath: d.text().notNull(),
     mimeType: d.text().notNull(),
     bytes: d.bigint({ mode: "number" }).notNull(),

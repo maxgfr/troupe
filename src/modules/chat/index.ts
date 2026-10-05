@@ -3,10 +3,10 @@ export { sendChatMessage, listChatMessages, applyChatProposal, getChatSettings, 
 export type { ChatMessageView } from "./server/service";
 export { buildChatPrompt, repairTurn, HISTORY_TURNS } from "./prompt";
 export type { ChatPromptInput } from "./prompt";
-export { proposalJsonSchema, StoredProposal, checkProposal, parseJsonAnswer, countWords, wordBudget, LINE_ROLES, MAX_LINES } from "./proposal";
+export { proposalJsonSchema, StoredProposal, checkProposal, parseJsonAnswer, countWords, wordBudget, spoken, LINE_ROLES, MAX_LINES } from "./proposal";
 export type { Proposal, ActorChoice, ProposalJsonSchema } from "./proposal";
 export { diffLines } from "./diff";
 export type { LineChange } from "./diff";
 export { CHAT_PROVIDERS, ChatProviderError } from "./model";
-export type { ChatModel, ChatTurn, ChatAnswer, ChatSetup, ChatProviderId, ChatSettings, ChatSettingsView, ChatBackend, ChatConnectionReport } from "./model";
+export type { AnswerSchema, ChatModel, ChatTurn, ChatAnswer, ChatSetup, ChatProviderId, ChatSettings, ChatSettingsView, ChatBackend, ChatConnectionReport } from "./model";
 export { chatMessages } from "./server/schema";

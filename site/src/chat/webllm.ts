@@ -108,7 +108,7 @@ let queue: Promise<unknown> = Promise.resolve();
 
 export function webllmChat(model: string): ChatModel {
   return {
-    propose(messages, { schema, signal }) {
+    propose(messages, { schema, signal, maxTokens }) {
       const run = async () => {
         const loaded = await loadEngine(model);
         if (signal?.aborted) throw new DOMException("The request was stopped.", "AbortError");
@@ -119,7 +119,8 @@ export function webllmChat(model: string): ChatModel {
             messages,
             response_format: { type: "json_object", schema: JSON.stringify(schema) },
             temperature: CHAT_CONFIG.temperature,
-            max_tokens: CHAT_CONFIG.maxTokens,
+            // The model's context is 4,096 tokens in all: a longer answer is held to 3,072.
+            max_tokens: Math.min(3072, Math.max(CHAT_CONFIG.maxTokens, maxTokens ?? 0)),
           });
           const text = reply.choices[0]?.message.content ?? "";
           return { text, proposal: parseJsonAnswer(text) };

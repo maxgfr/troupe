@@ -1,5 +1,3 @@
-import type { ProposalJsonSchema } from "./proposal";
-
 // The seam between the chat and whatever model answers it: Ollama or Claude
 // in the self-hosted studio (src/server/chat), WebLLM in the browser edition
 // (site/src/chat). The router only ever sees ctx.chat.
@@ -16,8 +14,15 @@ export interface ChatAnswer {
   proposal: unknown | null;
 }
 
+// The JSON schema an answer is held to: the script proposal's, or the
+// inspiration library's (src/modules/library). Only the features every
+// provider's constrained decoding understands (see proposal.ts).
+export type AnswerSchema = { readonly type: "object"; readonly [key: string]: unknown };
+
 export interface ChatModel {
-  propose(messages: ChatTurn[], options: { schema: ProposalJsonSchema; signal?: AbortSignal }): Promise<ChatAnswer>;
+  // `maxTokens` asks for room for a longer answer (the library's ideas); a
+  // provider may hold it to what its model allows.
+  propose(messages: ChatTurn[], options: { schema: AnswerSchema; signal?: AbortSignal; maxTokens?: number }): Promise<ChatAnswer>;
 }
 
 export const CHAT_PROVIDERS = ["ollama", "anthropic", "webllm"] as const;

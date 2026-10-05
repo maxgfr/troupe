@@ -10,6 +10,7 @@ export * from "~/modules/generation/server/media";
 export * from "~/modules/benchmark/server/schema";
 export * from "~/modules/export/server/schema";
 export * from "~/modules/chat/server/schema";
+export * from "~/modules/library/server/schema";
 export { reconcileHeartbeat } from "~/server/jobs/schema";
 export { providerSettings } from "~/server/settings/schema";
 export { modelConfigs, studioSettings } from "~/modules/models/schema";

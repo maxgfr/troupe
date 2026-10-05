@@ -54,7 +54,7 @@ async function errorOf(response: Response): Promise<string> {
 
 export function createOllamaChat(options: OllamaOptions): ChatModel {
   return {
-    async propose(messages, { schema, signal }) {
+    async propose(messages, { schema, signal, maxTokens }) {
       const send = (think: boolean) =>
         call(options, "/api/chat", {
           method: "POST",
@@ -67,7 +67,9 @@ export function createOllamaChat(options: OllamaOptions): ChatModel {
             // Thinking models (qwen3) answer far sooner without the reasoning
             // pass; the schema already shapes the answer.
             ...(think ? {} : { think: false }),
-            options: { temperature: options.temperature ?? DEFAULT_OLLAMA_TEMPERATURE },
+            // A long answer (the library's ideas) also needs a longer context than
+            // Ollama's default, which would cut the prompt silently.
+            options: { temperature: options.temperature ?? DEFAULT_OLLAMA_TEMPERATURE, ...(maxTokens ? { num_predict: maxTokens, num_ctx: 8192 } : {}) },
           }),
           signal,
         });

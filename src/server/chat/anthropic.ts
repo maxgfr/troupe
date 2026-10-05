@@ -47,7 +47,7 @@ function explain(error: unknown, model: string): never {
 export function createAnthropicChat(options: AnthropicOptions): ChatModel {
   const anthropic = client(options);
   return {
-    async propose(messages, { schema, signal }) {
+    async propose(messages, { schema, signal, maxTokens }) {
       const can = claudeCapabilities(options.model);
       const instructions = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
       // Without structured outputs the schema is spelled out instead, and the
@@ -57,7 +57,7 @@ export function createAnthropicChat(options: AnthropicOptions): ChatModel {
       const params = {
         model: options.model,
         // Room for adaptive thinking and a 20-line script.
-        max_tokens: 8000,
+        max_tokens: Math.max(8000, maxTokens ?? 0),
         system,
         messages: turns,
         ...(can.structuredOutputs || can.effort

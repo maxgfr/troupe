@@ -20,6 +20,12 @@ export function mediaFilePath(storagePath: string) {
   return path;
 }
 
+// FFPROBE_PATH, else the static build bundled for Vercel, else the PATH's.
+export function ffprobePath(env: Record<string, string | undefined> = process.env) {
+  if (env.FFPROBE_PATH?.trim()) return env.FFPROBE_PATH.trim();
+  return env.VERCEL ? join(process.cwd(), "node_modules/@ffprobe-installer/linux-x64/ffprobe") : "ffprobe";
+}
+
 // Write to a temporary file, validate actual media, then publish atomically.
 // A database rollback can safely retry: the destination is deterministic.
 export const persistProviderRender: RenderIngestor = async (db, gen, status, adapter) => {
@@ -32,7 +38,7 @@ export const persistProviderRender: RenderIngestor = async (db, gen, status, ada
   const temporary = join(scratch, "video.mp4");
   try {
     await writeFile(temporary, bytes, { mode: 0o600 });
-    const { stdout } = await run(process.env.VERCEL ? join(process.cwd(), "node_modules/@ffprobe-installer/linux-x64/ffprobe") : "ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", temporary], { timeout: 15_000 });
+    const { stdout } = await run(ffprobePath(), ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", temporary], { timeout: 15_000 });
     const probe = JSON.parse(stdout) as { streams?: { width: number; height: number }[]; format?: { duration: string } };
     const stream = probe.streams?.[0];
     const durationS = Number(probe.format?.duration);

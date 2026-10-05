@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-import { databaseTls } from "../../scripts/database-tls.mjs";
+import { databaseTls, isTransactionPooler } from "../../scripts/database-tls.mjs";
 import { accessCodeFile, ensureAccessCode, shareAccessCode } from "./access-code";
 import { prepareDatabase } from "./db/prepare";
 
@@ -46,6 +46,11 @@ export async function boot() {
   }
 
   const url = process.env.DATABASE_URL;
+  if (url) {
+    if (isTransactionPooler(url)) {
+      console.warn("Troupe: DATABASE_URL is Supabase's transaction pooler (port 6543), which can stall on pipelined queries. Use the session pooler (port 5432): docs/VERCEL-SUPABASE.md.");
+    }
+  }
   // Serverless platforms start many short-lived instances behind poolers that
   // cannot hold an advisory lock: migrate those explicitly (pnpm db:migrate).
   if (url && !process.env.VERCEL && flag("TROUPE_AUTO_MIGRATE", true)) {

@@ -34,3 +34,15 @@ export function databaseTls(url) {
     ? { rejectUnauthorized: true, ca: SUPABASE_CA }
     : undefined;
 }
+
+// Supabase's transaction pooler: the shared pooler's hostname, port 6543.
+// The studio pipelines queries, which it stalled on in testing; boot.ts warns.
+/** @param {string} url */
+export function isTransactionPooler(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.endsWith(".pooler.supabase.com") && parsed.port === "6543";
+  } catch {
+    return false;
+  }
+}

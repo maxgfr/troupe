@@ -9,7 +9,7 @@ import { seedFixture } from "~/test/fixture";
 import { TEST_CAPS } from "~/test/adapters";
 import { generations, generationWatches, mediaAssets, launchGeneration, reconcileDueJobs, type VideoProviderAdapter } from "~/modules/generation";
 vi.mock("./supabase", () => ({ uploadToSupabase: vi.fn(async () => false) }));
-import { persistProviderRender } from "./storage";
+import { ffprobePath, persistProviderRender } from "./storage";
 import { serveMediaFile } from "./serve";
 let t: TestDb, folder: string;
 beforeAll(async () => { t = await createTestDb(); folder = await mkdtemp(join(tmpdir(), "troupe-test-")); vi.stubEnv("TROUPE_DATA_DIR", folder); vi.stubEnv("VERCEL", ""); });
@@ -49,4 +49,10 @@ it("retries a failed download without resubmitting, validates a real MP4, persis
   expect(full.headers.get("content-disposition")).toBe('attachment; filename="spring-drop-2026-10-05.mp4"');
   expect(Buffer.from(await full.arrayBuffer())).toEqual(bytes);
   await expect(serveMediaFile("../outside.mp4", null, null)).rejects.toThrow("Invalid media path");
+});
+
+it("checks videos with FFPROBE_PATH, else the build bundled for Vercel, else the PATH's", () => {
+  expect(ffprobePath({ FFPROBE_PATH: "/opt/ffmpeg/bin/ffprobe", VERCEL: "1" })).toBe("/opt/ffmpeg/bin/ffprobe");
+  expect(ffprobePath({ VERCEL: "1" })).toBe(join(process.cwd(), "node_modules/@ffprobe-installer/linux-x64/ffprobe"));
+  expect(ffprobePath({})).toBe("ffprobe");
 });

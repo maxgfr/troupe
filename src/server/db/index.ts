@@ -13,9 +13,16 @@ const globalForDb = globalThis as unknown as {
   conn: postgres.Sql | undefined;
 };
 
-// Supabase's transaction-mode pooler (port 6543) does not support prepared
-// statements — keep them off for serverless runtime connections.
-const conn = globalForDb.conn ?? postgres(env.DATABASE_URL, { prepare: false, max: 3, ssl: databaseTls(env.DATABASE_URL) });
+// No prepared statements, so a transaction-mode pooler cannot lose them; idle
+// connections close after 20 s, so serverless instances give their pooler
+// slots back. Queries are pipelined: on Supabase use the session pooler
+// (port 5432), not the transaction pooler (port 6543), which stalled for good
+// on pipelined queries in testing (Supavisor 2.9.13, docs/VERCEL-SUPABASE.md).
+export function connectionOptions(url: string) {
+  return { prepare: false, max: 3, idle_timeout: 20, ssl: databaseTls(url) } as const;
+}
+
+const conn = globalForDb.conn ?? postgres(env.DATABASE_URL, connectionOptions(env.DATABASE_URL));
 if (env.NODE_ENV !== "production") globalForDb.conn = conn;
 
 export const db = drizzle(conn, { schema });

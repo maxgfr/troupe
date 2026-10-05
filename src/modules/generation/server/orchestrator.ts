@@ -114,7 +114,10 @@ export async function reconcileDueJobs(
           // A failed SQL write aborts its transaction. A savepoint lets the
           // outer queue transaction still schedule a download retry.
           await tx.transaction((savepoint) => input.ingest!(savepoint as unknown as Db, gen, completed, adapter));
-        } catch {
+        } catch (error) {
+          // Said once per attempt in the server log, the only place an
+          // operator can see why a finished video is not saved yet.
+          console.warn(JSON.stringify({ event: "jobs.ingest.failed", generationId: gen.id, error: error instanceof Error ? error.message : "unknown" }));
           // Keep the job watched: retry the download, never the paid generation.
           await tx.update(generations).set({ errorCode: "DOWNLOAD_RETRY" }).where(eq(generations.id, gen.id));
           status = { kind: "pending" };

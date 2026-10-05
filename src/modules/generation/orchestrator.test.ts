@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { createTestDb, type TestDb } from "~/test/db";
@@ -202,14 +202,18 @@ describe("job orchestration — Postgres reconciliation queue", () => {
     const done = testAdapter("orch-11", async () => ({ providerJobId: "orch-11", kind: "completed", eventType: "x", outputUrl: "https://x/y.mp4" }));
     const gen = await launchWatched(done);
     const ingest = async () => { throw new Error("storage down"); };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     await makeDue(gen.id, { ageMin: 31 });
     const afterDeadline = await reconcileDueJobs(t.db, { adapters: [done], ingest });
     expect(afterDeadline.find((r) => r.generationId === gen.id)?.outcome).toBe("pending");
     expect(await genOf(gen.id)).toMatchObject({ status: "in_progress", errorCode: "DOWNLOAD_RETRY" });
+    // The operator can read why in the server log.
+    expect(JSON.parse(warn.mock.calls[0]![0] as string)).toEqual({ event: "jobs.ingest.failed", generationId: gen.id, error: "storage down" });
     await makeDue(gen.id);
     const muchLater = new Date(Date.now() + 25 * 60 * 60_000);
     await reconcileDueJobs(t.db, { adapters: [done], ingest, now: muchLater });
     expect(await genOf(gen.id)).toMatchObject({ status: "failed", errorCode: "DOWNLOAD_FAILED" });
+    warn.mockRestore();
   });
 
   it("keeps the default pace for a model that sets none: 20 s first, doubling up to 5 minutes", () => {

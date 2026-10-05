@@ -4,6 +4,10 @@
 
 const DB_NAME = "troupe-media";
 const STORE = "files";
+// The only types served as themselves (keep in step with MEDIA_TYPES in
+// site/src/data/backup.ts). Anything else is a download: a file served inline
+// from the studio's own origin as HTML or SVG would run as one of its pages.
+const PLAYABLE = new Set(["video/mp4", "video/webm"]);
 
 // Service worker globals are not in the DOM typings the repo checks against.
 /** @type {any} */
@@ -54,13 +58,15 @@ async function serve(id, range, download) {
   if (!file) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
   const blob = file.blob;
   const size = blob.size;
-  const type = blob.type || "video/mp4";
+  const stored = blob.type || "video/mp4";
+  const playable = PLAYABLE.has(stored);
+  const type = playable ? stored : "application/octet-stream";
   const headers = new Headers({
     "content-type": type,
     "accept-ranges": "bytes",
     "cache-control": "private, no-store",
     "x-content-type-options": "nosniff",
-    "content-disposition": disposition(download, type.includes("webm") ? "webm" : "mp4"),
+    "content-disposition": playable ? disposition(download, type === "video/webm" ? "webm" : "mp4") : 'attachment; filename="troupe-file.bin"',
   });
   let start = 0;
   let end = size - 1;

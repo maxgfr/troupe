@@ -81,6 +81,9 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
   if (!(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) await page.reload();
 
   const result = await page.evaluate(async () => {
+    // Wait for the start-up clean-up of files no render refers to (these test
+    // files have no render): it holds this lock while it runs.
+    await navigator.locks.request("troupe-local-data", async () => {});
     const bytes = new Uint8Array(1000).map((_, i) => i % 256);
     await new Promise<void>((resolve, reject) => {
       const open = indexedDB.open("troupe-media", 1);
@@ -89,6 +92,8 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
       open.onsuccess = () => {
         const tx = open.result.transaction("files", "readwrite");
         tx.objectStore("files").put({ id: "smoke-asset", storagePath: "smoke-asset", blob: new Blob([bytes], { type: "video/mp4" }) });
+        // A file that is not a video must never be served as a page.
+        tx.objectStore("files").put({ id: "smoke-page", storagePath: "smoke-page", blob: new Blob(["<script>alert(1)</script>"], { type: "text/html" }) });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       };
@@ -99,6 +104,7 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
     const named = await fetch("/troupe/app/media/smoke-asset?download=smoke-project-kokoro-2026-10-05-0945.mp4");
     const unsafe = await fetch("/troupe/app/media/smoke-asset?download=..%2Fsecret.mp4");
     const missing = await fetch("/troupe/app/media/nothing-here");
+    const page = await fetch("/troupe/app/media/smoke-page");
     return {
       status: ranged.status,
       contentRange: ranged.headers.get("content-range"),
@@ -109,6 +115,9 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
       namedDisposition: named.headers.get("content-disposition"),
       unsafeDisposition: unsafe.headers.get("content-disposition"),
       missing: missing.status,
+      pageType: page.headers.get("content-type"),
+      pageDisposition: page.headers.get("content-disposition"),
+      pageSniffing: page.headers.get("x-content-type-options"),
     };
   });
   expect(result).toEqual({
@@ -122,6 +131,9 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
     namedDisposition: 'attachment; filename="smoke-project-kokoro-2026-10-05-0945.mp4"',
     unsafeDisposition: 'attachment; filename="troupe-video.mp4"',
     missing: 404,
+    pageType: "application/octet-stream",
+    pageDisposition: 'attachment; filename="troupe-file.bin"',
+    pageSniffing: "nosniff",
   });
 });
 

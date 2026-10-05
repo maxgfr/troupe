@@ -64,20 +64,30 @@ export async function readMediaFiles(): Promise<MediaFile[]> {
 
 // Stores many files at once: all of them, or none when one fails (no space left).
 export function saveMediaFiles(files: readonly MediaFile[]): Promise<void> {
+  if (files.length === 0) return Promise.resolve();
   return write((store) => {
     for (const file of files) store.put(file);
   });
 }
 
-// Deletes every file but these.
-export function keepOnlyMediaFiles(ids: ReadonlySet<string>): Promise<void> {
+// The ids of every stored file, without reading the files.
+export async function mediaFileIds(): Promise<string[]> {
+  const db = await open();
+  try {
+    return await new Promise<string[]>((resolve, reject) => {
+      const request = db.transaction(STORE, "readonly").objectStore(STORE).getAllKeys();
+      request.onsuccess = () => resolve(request.result.map(String));
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export function deleteMediaFiles(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return Promise.resolve();
   return write((store) => {
-    store.openKeyCursor().onsuccess = function () {
-      const cursor = this.result;
-      if (!cursor) return;
-      if (!ids.has(String(cursor.primaryKey))) store.delete(cursor.primaryKey);
-      cursor.continue();
-    };
+    for (const id of ids) store.delete(id);
   });
 }
 

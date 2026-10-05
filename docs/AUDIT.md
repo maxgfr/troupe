@@ -314,3 +314,12 @@ SELF-HOSTING.md where a control would be, and Settings → **Your data**
 | Screens at 390 and 1280 px, light and dark | Landing, dashboard, wizard model step, project page, Settings (Your data, the backup confirmation, the delete confirmation, a refused file), not-found page. No console errors. |
 | Self-hosted regression walk (`pnpm dev`, the example model) | Settings still shows **Your studio**, provider accounts and background checks, and no "demo"; launch → video in 5 s, played 720×1280; timeline and export downloads both h264 720×1280 + AAC, 8.000 s; the dashboard row moved to **Exported**. No console errors or 5xx. |
 
+Review fixes: a backup may only bring `video/mp4` or `video/webm` files, and
+the media service worker sends any other stored type as a download
+(`application/octet-stream`, `nosniff`); the smoke test stores an HTML file
+and checks it. Backups from a newer build are refused before the
+confirmation; foreign keys are checked again after a restore (a hand-damaged
+backup is refused, nothing changed); the import no longer overwrites a file
+before the database commits, always reloads once it has, and the studio
+clears files no render refers to when it starts.
+

@@ -1,5 +1,5 @@
 import type { BackupSummary } from "~/app/_components/edition";
-import type { PgliteSnapshot } from "~/server/db/pglite-migrate";
+import { BackupTooNewError, type PgliteSnapshot } from "~/server/db/pglite-migrate";
 import type { MediaFile } from "../media";
 import { readTar, writeTar } from "./tar";
 
@@ -17,6 +17,12 @@ import { readTar, writeTar } from "./tar";
 export const BACKUP_FORMAT = "troupe-backup";
 export const BACKUP_VERSION = 1;
 const MANIFEST = "troupe-backup.json";
+// What the studio stores (renders are MP4, src/modules/generation): the
+// media service worker serves these inline from the studio's own origin, so
+// nothing else may come in, an HTML or SVG file least of all.
+export const MEDIA_TYPES: readonly string[] = ["video/mp4", "video/webm"];
+// Asset ids are UUIDs; they also name the archive entries.
+const MEDIA_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const mediaPath = (id: string) => `media/${id}`;
 
 interface Manifest {
@@ -55,7 +61,8 @@ export function packBackup(input: { database: PgliteSnapshot; media: readonly Me
     version: BACKUP_VERSION,
     createdAt: now.toISOString(),
     database: input.database,
-    media: input.media.map((file) => ({ id: file.id, storagePath: file.storagePath, type: file.blob.type, size: file.blob.size })),
+    // The media service worker serves an untyped file as MP4 too.
+    media: input.media.map((file) => ({ id: file.id, storagePath: file.storagePath, type: file.blob.type || "video/mp4", size: file.blob.size })),
   };
   const blob = writeTar(
     [
@@ -70,9 +77,10 @@ export function packBackup(input: { database: PgliteSnapshot; media: readonly Me
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isString = (value: unknown): value is string => typeof value === "string";
 
-function checkManifest(value: unknown): Manifest {
+export function checkManifest(value: unknown): Manifest {
   if (!isRecord(value) || value.format !== BACKUP_FORMAT) throw new BackupError(NOT_A_BACKUP);
-  if (typeof value.version !== "number" || value.version > BACKUP_VERSION) {
+  if (typeof value.version !== "number" || !Number.isInteger(value.version) || value.version < 1) throw new BackupError(NOT_A_BACKUP);
+  if (value.version > BACKUP_VERSION) {
     throw new BackupError("This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.");
   }
   const { database, media, createdAt } = value;
@@ -85,7 +93,17 @@ function checkManifest(value: unknown): Manifest {
     isRecord(database.tables) &&
     Object.values(database.tables).every(Array.isArray) &&
     Array.isArray(media) &&
-    media.every((m) => isRecord(m) && isString(m.id) && isString(m.storagePath) && isString(m.type) && typeof m.size === "number");
+    media.every(
+      (m) =>
+        isRecord(m) &&
+        isString(m.id) &&
+        MEDIA_ID.test(m.id) &&
+        isString(m.storagePath) &&
+        isString(m.type) &&
+        MEDIA_TYPES.includes(m.type) &&
+        Number.isSafeInteger(m.size) &&
+        (m.size as number) >= 0,
+    );
   if (!valid) throw new BackupError("This backup is damaged: its contents list cannot be read.");
   return value as unknown as Manifest;
 }
@@ -114,6 +132,14 @@ export async function unpackBackup(file: Blob): Promise<Backup> {
     return { id: entry.id, storagePath: entry.storagePath, blob: new Blob([data], { type: entry.type }) };
   });
   return { createdAt: new Date(manifest.createdAt), database: manifest.database, media };
+}
+
+// A backup from a build with migrations this one does not have would need
+// that build to restore it: refused before anything is shown or written.
+export function checkMigrations(backup: Backup, known: readonly string[]): void {
+  const have = new Set(known);
+  const unknown = backup.database.migrations.filter((name) => !have.has(name));
+  if (unknown.length > 0) throw new BackupTooNewError(unknown);
 }
 
 export function summarize(backup: Backup): BackupSummary {

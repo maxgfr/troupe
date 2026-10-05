@@ -75,15 +75,30 @@ A plain tar archive (POSIX ustar, no compression; any `tar` lists it):
 | `media/<asset id>` | each render, byte for byte |
 
 `database.migrations` are the migrations the studio had applied, and
-`database.tables` every table's rows as Postgres writes them in JSON. An
-import rebuilds the tables at those migrations, puts the rows back, then
-runs the migrations the backup predates, exactly as a new deploy would
-(`restorePglite` in `src/server/db/pglite-migrate.ts`), all in one
-transaction. A backup from a newer build (an unknown migration or format
-version) is refused with a message, and so is a file that is not a backup or
-is incomplete; nothing changes then. The renders are stored first, in one
-IndexedDB transaction, so a device without room for them fails before the
-database is touched.
+`database.tables` every table's rows as Postgres writes them in JSON. Media
+entries must be `video/mp4` or `video/webm` (what the studio stores), with
+an asset id for a name.
+
+Before anything is shown or written, an import refuses a file that is not a
+backup, is incomplete, lists another media type, or comes from a newer build
+(a format version or a migration this one does not have), with a sentence
+saying which. Once confirmed:
+
+1. The backup's new files are stored, in one IndexedDB transaction: a device
+   without room for them fails here, with nothing changed.
+2. The database is rebuilt at the backup's migrations, its rows put back and
+   every foreign key checked again (a row pointing at one the backup does not
+   contain is refused), then the migrations the backup predates run on them,
+   exactly as a new deploy would (`restorePglite` in
+   `src/server/db/pglite-migrate.ts`), all in one transaction. If it fails,
+   the files from step 1 are taken out again and the studio is as it was.
+3. Then files the backup replaces or drops are updated, render jobs are
+   forgotten, and every tab reloads onto the restored studio.
+
+A tab closed in the middle can leave files that no render refers to; the
+studio clears them the next time it starts. The media service worker only
+serves `video/mp4` and `video/webm` as such; anything else is sent as a
+download (`application/octet-stream`, `nosniff`), never as a page.
 
 ### Across deploys
 

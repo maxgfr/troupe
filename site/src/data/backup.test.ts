@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { backupFilename, packBackup, summarize, unpackBackup } from "./backup";
+import { BackupTooNewError } from "~/server/db/pglite-migrate";
+import { backupFilename, checkManifest, checkMigrations, packBackup, summarize, unpackBackup } from "./backup";
 import { readTar, writeTar } from "./tar";
 
 const database = {
@@ -47,5 +48,31 @@ describe("browser edition backups", () => {
     await expect(unpackBackup(missing)).rejects.toThrow(/incomplete/);
     const damaged = writeTar([{ name: "troupe-backup.json", data: new Blob([JSON.stringify({ ...manifest, database: { tables: {} } })]) }]);
     await expect(unpackBackup(damaged)).rejects.toThrow(/damaged/);
+  });
+
+  it("accepts only the video types the studio stores, and sane ids", () => {
+    const manifest = (patch: Record<string, unknown> = {}, file: Record<string, unknown> = {}) => ({
+      format: "troupe-backup",
+      version: 1,
+      createdAt: now.toISOString(),
+      database,
+      media: [{ id: "6f1c1a52-3a0e-4f0e-9a51-1b0d7c2f4e10", storagePath: "browser/a.mp4", type: "video/mp4", size: 10, ...file }],
+      ...patch,
+    });
+    expect(checkManifest(manifest()).media[0]!.type).toBe("video/mp4");
+    expect(checkManifest(manifest({}, { type: "video/webm" })).media[0]!.type).toBe("video/webm");
+    // Served from the studio's own origin, an HTML or SVG file could run as a page there.
+    for (const type of ["text/html", "image/svg+xml", "application/javascript", "", "video/mp4; charset=x"]) {
+      expect(() => checkManifest(manifest({}, { type })), type).toThrow(/damaged/);
+    }
+    for (const id of ["../sw.js", "a/b", "", "x".repeat(200)]) expect(() => checkManifest(manifest({}, { id })), id).toThrow(/damaged/);
+    for (const version of [0, -1, 1.5, "1", null]) expect(() => checkManifest(manifest({ version })), String(version)).toThrow(/not a Troupe backup|damaged/);
+    expect(() => checkManifest(manifest({ version: 2 }))).toThrow(/newer version of Troupe/);
+  });
+
+  it("refuses a backup made by a build with migrations this one does not have, before anything is written", async () => {
+    const backup = await unpackBackup(packBackup({ database, media, now }).blob);
+    expect(() => checkMigrations(backup, ["0000_init.sql", "0001_more.sql", "0002_later.sql"])).not.toThrow();
+    expect(() => checkMigrations(backup, ["0000_init.sql"])).toThrow(BackupTooNewError);
   });
 });

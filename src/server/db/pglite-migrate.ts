@@ -114,6 +114,25 @@ export function snapshotPglite(pg: Pg): Promise<PgliteSnapshot> {
   });
 }
 
+// The rows went in with foreign-key triggers off: each foreign key is added
+// again, which makes Postgres check every row against it, so a damaged backup
+// (a row pointing at one it does not contain) is refused, not half-restored.
+async function checkForeignKeys(tx: Tx) {
+  const { rows } = await tx.query<{ name: string; tbl: string; def: string }>(
+    `select c.conname as name, c.conrelid::regclass::text as tbl, pg_get_constraintdef(c.oid) as def
+     from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+     where c.contype = 'f' and n.nspname = 'public'
+     order by c.conname`,
+  );
+  for (const fk of rows) {
+    try {
+      await tx.exec(`alter table ${fk.tbl} drop constraint ${ident(fk.name)}, add constraint ${ident(fk.name)} ${fk.def}`);
+    } catch {
+      throw new Error(`This backup is damaged: rows in ${fk.tbl.replaceAll('"', "")} point at rows it does not contain (${fk.name}). Nothing was changed.`);
+    }
+  }
+}
+
 // Replaces everything with a snapshot, in one transaction: the tables are
 // rebuilt at the snapshot's own migrations, its rows go back in, then the
 // migrations it predates run on them, exactly as an upgrade would. A snapshot
@@ -142,6 +161,7 @@ export async function restorePglite(pg: Pg, migrations: readonly Migration[], sn
       await tx.query(`insert into ${ident(name)} select * from json_populate_recordset(null::${ident(name)}, $1::json)`, [JSON.stringify(rows)]);
     }
     await tx.exec("set local session_replication_role = origin");
+    await checkForeignKeys(tx);
     for (const migration of later) await apply(tx, migration);
     await tx.exec(GRANTS);
   });

@@ -135,6 +135,18 @@ describe("PGlite snapshots (backups of the browser edition)", () => {
     expect(await count(pg, "troupe_project")).toBe(1);
   });
 
+  it("refuses a hand-damaged backup whose rows point at rows it does not contain", async () => {
+    const { pg } = await studioWithProject();
+    const snapshot = throughJson(await snapshotPglite(pg));
+    const project = snapshot.tables.troupe_project![0] as Record<string, unknown>;
+    const orphan = { ...snapshot, tables: { ...snapshot.tables, troupe_project: [{ ...project, workspaceId: "99999999-9999-4999-8999-999999999999" }] } };
+    await expect(restorePglite(pg, readMigrations(), orphan)).rejects.toThrow(/This backup is damaged: rows in troupe_project point at rows it does not contain/);
+    // Children left without their parent are refused too.
+    const headless = { ...snapshot, tables: { ...snapshot.tables, troupe_project: [] } };
+    await expect(restorePglite(pg, readMigrations(), headless)).rejects.toThrow(/This backup is damaged/);
+    expect(throughJson(await snapshotPglite(pg))).toEqual(snapshot);
+  });
+
   it("rolls back entirely when the rows do not fit", async () => {
     const { pg } = await studioWithProject();
     const snapshot = throughJson(await snapshotPglite(pg));

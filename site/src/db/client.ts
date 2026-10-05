@@ -2,6 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { PGliteWorker } from "@electric-sql/pglite/worker";
 import { drizzle } from "drizzle-orm/pglite";
 
+import { mediaAssets } from "~/modules/generation";
 import { ensureLocalStudio } from "~/modules/identity";
 import { migratePglite, rebuildPglite, restorePglite, snapshotPglite, type PgliteSnapshot } from "~/server/db/pglite-migrate";
 import * as schema from "~/server/db/schema";
@@ -132,6 +133,12 @@ export function resetDatabase(): Promise<void> {
     await navigator.locks.request(SETUP_LOCK, () => rebuildPglite(pg, MIGRATIONS));
     await seed(db);
   });
+}
+
+// The media assets the studio has recorded: the files it needs.
+export async function referencedMediaIds(): Promise<Set<string>> {
+  const { db } = await browserDatabase();
+  return new Set((await db.select({ id: mediaAssets.id }).from(mediaAssets)).map((row) => row.id));
 }
 
 // Every table's rows, for a backup.

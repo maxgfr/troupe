@@ -34,8 +34,22 @@ export async function createTestDb(opts: { until?: string } = {}): Promise<TestD
   return { db: drizzle(pg, { schema }), pg, applied };
 }
 
+// Runs the migrations not applied yet as the database owner, even after
+// setAuthUser: the impersonated user (role and claims) is back afterwards.
 export async function migrateTestDb(t: TestDb): Promise<void> {
-  t.applied.push(...(await migratePglite(t.pg, readMigrations())));
+  const { rows } = await t.pg.query<{ role: string; owner: string; claims: string | null }>(
+    "select current_user as role, session_user as owner, current_setting('request.jwt.claims', true) as claims",
+  );
+  const { role, owner, claims } = rows[0]!;
+  await t.pg.exec("reset role");
+  try {
+    t.applied.push(...(await migratePglite(t.pg, readMigrations())));
+  } finally {
+    if (role !== owner) {
+      await t.pg.exec(`set role "${role.replaceAll('"', '""')}"`);
+      await t.pg.query("select set_config('request.jwt.claims', $1, false)", [claims ?? ""]);
+    }
+  }
 }
 
 // Impersonate a signed-in user: assume the authenticated role and set the JWT

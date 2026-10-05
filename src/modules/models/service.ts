@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Db } from "~/server/db/types";
 import type { ModelCapabilities } from "~/modules/generation/server/adapter";
 import { BUILTIN_MODELS } from "./builtins";
+import { randomHex } from "./random";
 import type { ModelConfigRow, ModelDefaults } from "./resolve";
 import { modelConfigs, studioSettings } from "./schema";
 
@@ -63,11 +64,6 @@ export interface LocalModelInput {
 
 function slug(label: string) {
   return label.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "model";
-}
-
-// Web Crypto, so this also runs in a browser.
-function randomHex(bytes: number) {
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function newLocalModelKey(label: string) {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { framesFor, sizeFor, type FrameRule } from "~/modules/models/geometry";
+import { randomHex } from "~/modules/models/random";
 import { AdapterError, validateRequest, type ConnectionReport, type JobOutcome, type ModelCapabilities, type VideoProviderAdapter } from "../../adapter";
 import { videoBytes } from "../download";
 import { LOCAL_DOWNLOAD_LIMIT } from "../http-endpoint";
@@ -51,11 +52,6 @@ function excerpt(text: unknown): string | null {
 }
 
 const OUTPUT_KEYS = ["videos", "gifs", "images"] as const;
-
-// Web Crypto, so the adapter also runs in a browser.
-function randomHex(bytes: number) {
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 // A uniform seed in [0, 2^31): the top 31 bits of a random 32-bit word.
 function randomSeed() {

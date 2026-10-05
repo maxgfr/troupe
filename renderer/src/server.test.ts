@@ -227,9 +227,10 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
       const top = await pixel(file, at, cx, cy);
       for (const [i, channel] of rgb(CLIP_COLOR).entries()) expect(Math.abs(top[i]! - channel), `at ${at} s`).toBeLessThanOrEqual(12);
     }
-    // Behind the captions: the clip under the shade, darker but not hidden.
-    const { captions } = scene.layout;
-    const shaded = await pixel(file, 0.2, 4, captions.y + captions.height / 2);
+    // Behind the captions, in the lower third: the clip under the shade,
+    // darker but not hidden.
+    const overlay = scene.layout.overlayCaptions;
+    const shaded = await pixel(file, 0.2, 4, overlay.y + overlay.height / 2);
     for (const [i, channel] of rgb(CLIP_COLOR).entries()) {
       expect(shaded[i]!).toBeLessThan(channel);
       expect(shaded[i]!).toBeGreaterThan(channel * 0.3);

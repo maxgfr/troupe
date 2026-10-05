@@ -200,17 +200,22 @@ describe("drawFrame", () => {
       expect(shown).toEqual(lines[0]!.text.split(" "));
     });
 
-    it("lights words up and sets them in the same places as the full frame", () => {
+    it("lights words up like the full frame, in the lower third", () => {
       const word = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] }).cues[0]!.words[2]!;
       const t = (word.startS + word.endS) / 2;
       const over = drawCaptions(t);
       const full = captionWords(draw(t));
-      const { palette } = over.scene;
-      expect(over.texts.map(({ text, x, y, font }) => ({ text, x, y, font }))).toEqual(full.map(({ text, x, y, font }) => ({ text, x, y, font })));
+      const { palette, layout } = over.scene;
+      expect(over.texts.map((w) => w.text)).toEqual(full.map((w) => w.text));
       expect(over.rounds.filter((r) => r.fill === palette.highlight)).toHaveLength(1);
       // Words still to come are brighter than on the plain background.
       expect(over.texts.map((w) => w.fill)).toEqual(full.map((w) => (w.fill === palette.inkMuted ? palette.inkMutedOver : w.fill)));
       expect(over.texts.some((w) => w.fill === palette.inkMutedOver)).toBe(true);
+      const box = layout.overlayCaptions;
+      for (const w of over.texts) {
+        expect(w.y).toBeGreaterThanOrEqual(box.y);
+        expect(w.y + fontPx(w.font)).toBeLessThanOrEqual(box.y + box.height);
+      }
     });
 
     it("puts a shade behind the caption rows so they read on any picture", () => {

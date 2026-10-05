@@ -186,7 +186,8 @@ function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
   const cue = cueAt(scene, t);
   if (!cue) return;
   const { palette, layout } = scene;
-  const { px, placed } = wrap(ctx, cue.words.map((w) => w.text), layout.captions, layout.captionSize);
+  const box = shaded ? layout.overlayCaptions : layout.captions;
+  const { px, placed } = wrap(ctx, cue.words.map((w) => w.text), box, layout.captionSize);
   if (shaded && placed.length > 0) {
     const rows = placed.map((w) => w.y);
     shade(ctx, scene, Math.min(...rows) - px * 0.5, Math.max(...rows) + px * (LINE_HEIGHT + 0.5), px);

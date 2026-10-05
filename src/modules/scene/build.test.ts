@@ -114,6 +114,33 @@ describe("buildScene layout", () => {
     expect(layout.card.y).toBeGreaterThanOrEqual(1280 * 0.1);
   });
 
+  describe("captions laid over a video", () => {
+    for (const format of formats) {
+      it(`sits in the lower third of a ${format} frame, below the speaker's face`, () => {
+        const { width, height } = sizeFor(format, "720p");
+        const { layout } = scene({ width, height });
+        const box = layout.overlayCaptions;
+        expect(inside(box, { x: 0, y: 0, width, height })).toBe(true);
+        expect(box.y).toBeGreaterThanOrEqual(height * 0.6);
+        // Room for two lines at the starting size, and a margin at the bottom.
+        expect(box.height).toBeGreaterThanOrEqual(2 * layout.captionSize * 1.25);
+        expect(box.y + box.height).toBeLessThanOrEqual(height - 0.04 * Math.min(width, height));
+      });
+    }
+
+    it("keeps vertical video clear of the platforms' own buttons and text too", () => {
+      const box = scene().layout.overlayCaptions;
+      expect(box.y + box.height).toBeLessThanOrEqual(1280 * 0.8);
+      expect(box.x + box.width).toBeLessThanOrEqual(720 * 0.88);
+    });
+
+    it("leaves the full frame's layout as it was", () => {
+      const { layout } = scene();
+      const expected = { x: 43.2, y: 1280 * 0.42, width: 720 * 0.86 - 43.2, height: 1280 * 0.36 };
+      for (const [key, value] of Object.entries(expected)) expect(layout.captions[key as keyof typeof expected], key).toBeCloseTo(value, 6);
+    });
+  });
+
   it("scales with the frame", () => {
     const small = scene({ width: 480, height: 854 }).layout;
     const large = scene({ width: 1080, height: 1920 }).layout;

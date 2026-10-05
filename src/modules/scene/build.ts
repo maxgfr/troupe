@@ -53,6 +53,9 @@ export interface Layout {
   card: Box;
   portrait: { cx: number; cy: number; r: number };
   captions: Box;
+  // Where captions go when they are laid over a video (drawFrame's
+  // captionsOnly): the lower third, below the speaker's face.
+  overlayCaptions: Box;
   // Font sizes in pixels. Captions start at captionSize and shrink to fit.
   nameSize: number;
   captionSize: number;
@@ -115,10 +118,15 @@ function layoutFor(width: number, height: number): Layout {
   const captionsTop = vertical ? 0.42 * height : card.y + card.height + margin;
   const captionsBottom = vertical ? 0.78 * height : height - margin;
   const captionsRight = vertical ? 0.86 * width : width - margin;
+  // Over a talking head the face fills the upper half: keep the words below
+  // the chin, above the platforms' own text on vertical video.
+  const overlayTop = (vertical ? 0.62 : 0.66) * height;
+  const overlayBottom = vertical ? captionsBottom : height - margin;
   return {
     card,
     portrait: { cx: card.x + padding + diameter / 2, cy: card.y + card.height / 2, r: diameter / 2 },
     captions: { x: margin, y: captionsTop, width: captionsRight - margin, height: captionsBottom - captionsTop },
+    overlayCaptions: { x: margin, y: overlayTop, width: captionsRight - margin, height: overlayBottom - overlayTop },
     nameSize: 0.06 * s,
     captionSize: 0.08 * s,
     padding,

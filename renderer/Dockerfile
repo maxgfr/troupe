@@ -19,14 +19,15 @@ RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY renderer/package.json renderer/
-# pnpm always installs the workspace root's dependencies too (the whole web
-# app). Drop them from the root manifest first: the renderer's own packages
-# keep the versions pinned in the lockfile.
-RUN node -e 'const fs = require("fs"); const p = JSON.parse(fs.readFileSync("package.json")); fs.writeFileSync("package.json", JSON.stringify({ name: p.name, private: true, type: p.type, packageManager: p.packageManager, pnpm: p.pnpm }))' \
- && pnpm install --prod --filter @troupe/renderer \
+# `pnpm deploy` installs the renderer's production dependencies alone, at the
+# versions in the lockfile (--frozen-lockfile fails the build when it is out
+# of step with the manifests), into /deploy. inject-workspace-packages is
+# only what pnpm 10 asks of a deploy: the renderer depends on no workspace
+# package, and the lockfile stays as it is.
+RUN pnpm --filter @troupe/renderer deploy --prod --frozen-lockfile --config.inject-workspace-packages=true /deploy \
  # The ONNX runtime ships binaries for every OS and CPU: keep this one's.
  && arch="$(node -p process.arch)" \
- && for bin in node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v*; do \
+ && for bin in /deploy/node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/napi-v*; do \
       find "$bin" -mindepth 1 -maxdepth 1 ! -name linux -exec rm -rf {} + \
       && find "$bin/linux" -mindepth 1 -maxdepth 1 ! -name "$arch" -exec rm -rf {} +; \
     done
@@ -36,8 +37,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --from=deps /app/node_modules node_modules
-COPY --from=deps /app/renderer/node_modules renderer/node_modules
+COPY --from=deps /deploy/node_modules renderer/node_modules
 COPY renderer/package.json renderer/
 # The scene module is shared with the app; the renderer imports it from src/.
 COPY src/modules/scene src/modules/scene

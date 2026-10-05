@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# Cuts the footage scripts/demo/record.ts captured into the presentation
+# Cuts the footage scripts/tour/record.ts captured into the presentation
 # video: title cards, the steps with their captions, waits sped up (and
 # marked so), a punch-in on the chat proposal and the player, and the
 # render's own soundtrack under its playback.
 #
-#   pnpm demo:edit
+#   pnpm tour:edit
 #
-# Reads DEMO_OUT (default: <os tmp>/troupe-demo, as record.ts) and writes
-# site/public/demo/troupe-demo.mp4 (H.264 + AAC), troupe-demo.webm (VP9 +
-# Opus), troupe-demo.jpg (the poster) and troupe-demo-chapters.vtt (where
+# Reads TOUR_OUT (default: <os tmp>/troupe-tour, as record.ts) and writes
+# site/public/tour/troupe-tour.mp4 (H.264 + AAC), troupe-tour.webm (VP9 +
+# Opus), troupe-tour.jpg (the poster) and troupe-tour-chapters.vtt (where
 # each step starts; the landing page's step list jumps there),
-# troupe-demo-captions.vtt (what the actor says during the playback), and copies
-# the social preview record.ts drew to site/public/social.png. DEMO_MAX_MB caps each video's size
+# troupe-tour-captions.vtt (what the actor says during the playback), and copies
+# the social preview record.ts drew to site/public/social.png. TOUR_MAX_MB caps each video's size
 # (default 7.5); the bitrate is worked out from the cut's length.
 set -euo pipefail
 # Decimal points, whatever the machine's locale (awk prints the numbers).
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-IN="${DEMO_OUT:-${TMPDIR:-/tmp}}"
-[ -n "${DEMO_OUT:-}" ] || IN="${IN%/}/troupe-demo"
-DEST="${DEMO_DEST:-$ROOT/site/public/demo}"
-MAX_MB="${DEMO_MAX_MB:-7.5}"
+IN="${TOUR_OUT:-${TMPDIR:-/tmp}}"
+[ -n "${TOUR_OUT:-}" ] || IN="${IN%/}/troupe-tour"
+DEST="${TOUR_DEST:-$ROOT/site/public/tour}"
+MAX_MB="${TOUR_MAX_MB:-7.5}"
 OPEN_S=3
 CLOSE_S=3.5
 FPS=30
@@ -34,7 +34,7 @@ for tool in ffmpeg ffprobe awk; do
   command -v "$tool" >/dev/null || { echo "edit.sh needs $tool on the PATH" >&2; exit 1; }
 done
 for file in frames.txt edl.txt meta.txt captions.tsv lines.txt render.mp4 cards/open.png cards/close.png cards/social.png cards/poster.png; do
-  [ -e "$IN/$file" ] || { echo "Missing $IN/$file: run pnpm demo:record first." >&2; exit 1; }
+  [ -e "$IN/$file" ] || { echo "Missing $IN/$file: run pnpm tour:record first." >&2; exit 1; }
 done
 
 WORK="$IN/edit"
@@ -116,7 +116,7 @@ timecode() { awk -v t="$1" 'BEGIN{h=int(t/3600); m=int((t-h*3600)/60); printf "%
     title="$(awk -F'\t' -v s="$step" '$1==s{print $2}' "$IN/captions.tsv" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
     printf '\n%s\n%s --> %s\n%s\n' "$step" "$(timecode "$start")" "$(timecode "$end")" "$title"
   done
-} > "$DEST/troupe-demo-chapters.vtt"
+} > "$DEST/troupe-tour-chapters.vtt"
 
 # The render's soundtrack, where the player starts in the cut; silence
 # elsewhere. Its loudness is evened out for laptop speakers. (The silence is
@@ -133,12 +133,12 @@ echo "Cut: ${total}s, ${video_k} kbit/s video."
 echo "Encoding MP4…"
 (cd "$WORK" && ff -i cut.mov -c:v libx264 -preset slow -b:v "${video_k}k" -pass 1 -an -f mp4 /dev/null &&
   ff -i cut.mov -c:v libx264 -preset slow -b:v "${video_k}k" -maxrate "$((video_k * 3))k" -bufsize "$((video_k * 4))k" -pass 2 \
-    -pix_fmt yuv420p -profile:v high -c:a aac -b:a "${audio_k}k" -movflags +faststart "$DEST/troupe-demo.mp4")
+    -pix_fmt yuv420p -profile:v high -c:a aac -b:a "${audio_k}k" -movflags +faststart "$DEST/troupe-tour.mp4")
 
 echo "Encoding WebM…"
 (cd "$WORK" && ff -i cut.mov -c:v libvpx-vp9 -b:v "${video_k}k" -deadline good -cpu-used 2 -row-mt 1 -pass 1 -an -f webm /dev/null &&
   ff -i cut.mov -c:v libvpx-vp9 -b:v "${video_k}k" -deadline good -cpu-used 2 -row-mt 1 -pass 2 \
-    -pix_fmt yuv420p -c:a libopus -b:a "$((audio_k * 2 / 3))k" "$DEST/troupe-demo.webm")
+    -pix_fmt yuv420p -c:a libopus -b:a "$((audio_k * 2 / 3))k" "$DEST/troupe-tour.webm")
 
 # Captions for what is said: the render's lines, where its voice says them in
 # the cut. Pauses of 1.2 s or more separate the lines (Kokoro pauses about
@@ -161,15 +161,15 @@ echo "Encoding WebM…"
         if (n != count) { printf "\n%s --> %s\n", tc(at + speech_start[1]), tc(at + total); for (i = 1; i <= count; i++) print esc(text[i]); exit }
         for (i = 1; i <= count; i++) printf "\n%s --> %s\n%s\n", tc(at + speech_start[i]), tc(at + speech_end[i]), esc(text[i])
       }'
-} > "$DEST/troupe-demo-captions.vtt"
+} > "$DEST/troupe-tour-captions.vtt"
 
 # The poster, drawn by record.ts.
-ff -i "$IN/cards/poster.png" -vf "scale=1280:720:flags=lanczos" -q:v 3 "$DEST/troupe-demo.jpg"
+ff -i "$IN/cards/poster.png" -vf "scale=1280:720:flags=lanczos" -q:v 3 "$DEST/troupe-tour.jpg"
 
 # The landing page's social preview, drawn by record.ts.
 cp "$IN/cards/social.png" "$DEST/../social.png"
 
-for file in "$DEST"/troupe-demo.{mp4,webm,jpg} "$DEST"/troupe-demo-{chapters,captions}.vtt "$DEST/../social.png"; do
+for file in "$DEST"/troupe-tour.{mp4,webm,jpg} "$DEST"/troupe-tour-{chapters,captions}.vtt "$DEST/../social.png"; do
   printf '%6.2f MB  %s\n' "$(awk -v b="$(wc -c <"$file")" 'BEGIN{print b/1048576}')" "$file"
 done
-ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact "$DEST/troupe-demo.mp4"
+ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact "$DEST/troupe-tour.mp4"

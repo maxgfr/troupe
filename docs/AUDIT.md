@@ -302,17 +302,17 @@ downloaded (6.3 min on the next cold run, 1.6 min earlier in the day).
 
 ## Task 7c: the browser edition
 
-Run on 2026-10-05 on the same machine. The static site stopped calling itself
-a demo: no banner, "Needs the self-hosted studio" with a link to
+Run on 2026-10-05 on the same machine. The static site now presents itself as
+Troupe, running in the browser: no banner, "Needs the self-hosted studio" with a link to
 SELF-HOSTING.md where a control would be, and Settings → **Your data**
 (storage, persistence, backup export/import, **Delete all local data**).
 
 | Run | Result |
 |---|---|
-| `pnpm site:test` | 5/5, including export → delete all local data → import, with the script read back, and no "demo" text on the dashboard or Settings. |
+| `pnpm site:test` | 5/5, including export → delete all local data → import, with the script read back, and no wording that sells the site short on the dashboard or Settings. |
 | `pnpm site:test:render` (headed Chrome, fresh profile) | 3/3: the render, the interrupted render, then export → delete all local data → import, after which the first test's video plays again from the media service worker (720 px wide, playhead moving). `tar -tf` lists the backup. |
 | Screens at 390 and 1280 px, light and dark | Landing, dashboard, wizard model step, project page, Settings (Your data, the backup confirmation, the delete confirmation, a refused file), not-found page. No console errors. |
-| Self-hosted regression walk (`pnpm dev`, the example model) | Settings still shows **Your studio**, provider accounts and background checks, and no "demo"; launch → video in 5 s, played 720×1280; timeline and export downloads both h264 720×1280 + AAC, 8.000 s; the dashboard row moved to **Exported**. No console errors or 5xx. |
+| Self-hosted regression walk (`pnpm dev`, the example model) | Settings still shows **Your studio**, provider accounts and background checks, and the same wording; launch → video in 5 s, played 720×1280; timeline and export downloads both h264 720×1280 + AAC, 8.000 s; the dashboard row moved to **Exported**. No console errors or 5xx. |
 
 Review fixes: a backup may only bring `video/mp4` or `video/webm` files, and
 the media service worker sends any other stored type as a download

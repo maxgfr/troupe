@@ -1,5 +1,5 @@
-// The presentation video's chapters (site/public/demo/troupe-demo-chapters.vtt,
-// written by scripts/demo/edit.sh): one WebVTT cue per step, its identifier
+// The presentation video's chapters (site/public/tour/troupe-tour-chapters.vtt,
+// written by scripts/tour/edit.sh): one WebVTT cue per step, its identifier
 // naming the step.
 
 export interface Chapter {

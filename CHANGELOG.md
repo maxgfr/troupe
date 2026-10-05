@@ -55,8 +55,8 @@ First public release.
   reviewing each render with ffprobe and extracted frames
   ([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
 - A one-minute presentation video, recorded from the real browser edition by
-  `scripts/demo/record.ts` (Playwright, headed Chrome) and cut by
-  `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.
+  `scripts/tour/record.ts` (Playwright, headed Chrome) and cut by
+  `scripts/tour/edit.sh` (ffmpeg): `pnpm tour:record`, then `pnpm tour:edit`.
 - The whole product in one `docker compose up -d --wait`, with nothing to set
   first: next to the studio and its database, the local renderer, an Ollama
   server for the script chat (`troupe-ollama`, the official build without its

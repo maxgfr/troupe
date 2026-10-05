@@ -72,7 +72,7 @@ async function linkSteps() {
   if (!video || buttons.length === 0) return;
   let chapters: ReturnType<typeof parseChapters>;
   try {
-    const response = await fetch(new URL("demo/troupe-demo-chapters.vtt", document.baseURI));
+    const response = await fetch(new URL("tour/troupe-tour-chapters.vtt", document.baseURI));
     chapters = response.ok ? parseChapters(await response.text()) : [];
   } catch {
     return;

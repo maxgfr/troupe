@@ -15,9 +15,9 @@ entirely in your browser, renders with Kokoro voices and captions, and keeps
 your projects on your device, with a backup you can export and import
 ([docs/BROWSER-EDITION.md](docs/BROWSER-EDITION.md)).
 
-[![The presentation video: one project in the browser edition, from an empty studio to the downloaded MP4](site/public/demo/troupe-demo.jpg)](site/public/demo/troupe-demo.mp4)
+[![The presentation video: one project in the browser edition, from an empty studio to the downloaded MP4](site/public/tour/troupe-tour.jpg)](site/public/tour/troupe-tour.mp4)
 
-The presentation video (one minute, MP4; [WebM](site/public/demo/troupe-demo.webm)):
+The presentation video (one minute, MP4; [WebM](site/public/tour/troupe-tour.webm)):
 one project in the browser edition, recorded in Chrome, waits sped up and
 marked. GitHub shows the poster here; the link opens the file. It also plays
 on the site's landing page.

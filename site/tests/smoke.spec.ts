@@ -9,6 +9,10 @@ const APP = "/troupe/app";
 // and a reset take seconds on a laptop and far longer on a CI runner.
 const MIGRATING = { timeout: 60_000 };
 
+// The word that would sell the browser edition short, spelled d[e]mo so the
+// repository itself never says it (scripts/check-wording.ts).
+const TRIAL_WORD = /\bd[e]mo\b/i;
+
 // SITE_CPU_THROTTLE=6 replays the suite with the page's CPU six times slower
 // (the PGlite worker keeps its speed).
 test.beforeEach(async ({ page }) => {
@@ -34,8 +38,8 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.getByRole("link", { name: "Open Troupe in your browser" }).first().click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
   await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
-  // The browser edition is Troupe itself: nothing calls it a demo.
-  await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
+  // The browser edition is Troupe itself, and nothing says otherwise.
+  await expect(page.locator("body")).not.toContainText(TRIAL_WORD);
 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Project title").fill("Smoke project");
@@ -146,7 +150,7 @@ test("settings says what needs the self-hosted studio, and deleting all local da
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Set up the self-hosted studio ↗" }).first()).toHaveAttribute("href", /docs\/SELF-HOSTING\.md$/);
-  await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
+  await expect(page.locator("body")).not.toContainText(TRIAL_WORD);
 
   await page.goto(`${APP}/projects/new`);
   await page.getByLabel("Project title").fill("To be reset");

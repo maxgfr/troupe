@@ -28,6 +28,10 @@ SKIP_ENV_VALIDATION=1 pnpm build
   and add a backfill when existing rows need one (see `drizzle/0016_*.sql`).
   Never use `drizzle-kit push`: legacy tables kept for existing installs are
   absent from the TypeScript schema, so it would offer to drop them.
+- `pnpm lint` also runs `pnpm check:wording`: the static site is Troupe's
+  browser edition and the video its presentation tour, so one word for a
+  cut-down product is refused everywhere (`scripts/check-wording.ts` names it
+  and the two files allowed to contain it).
 - Describe what changed and how you checked it. Mention live-provider testing
   only if you actually ran it.
 

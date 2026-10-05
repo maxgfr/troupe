@@ -7,7 +7,8 @@ features. MIT licensed.
 It comes in two editions with the same pages: the self-hosted studio (Docker
 or a server) and the browser edition, a static site where the studio runs
 entirely in the visitor's browser with its own in-browser model and keeps
-the projects on that device. The browser edition is Troupe, not a demo of it.
+the projects on that device. The browser edition is Troupe itself, running in
+the browser.
 
 The core path: project → actor preset → short script with an emotion per line →
 model (cloud or local) → follow the render → preview → MP4 download. Comparing

@@ -5,13 +5,16 @@ import { expect, test } from "@playwright/test";
 // that stays on the site.
 
 const LANDING = "/troupe/";
+// The word that would sell the browser edition short, spelled d[e]mo so the
+// repository itself never says it (scripts/check-wording.ts).
+const TRIAL_WORD = /\bd[e]mo\b/i;
 
-test("says what Troupe is, opens the browser edition, and calls nothing a demo", async ({ page }) => {
+test("says what Troupe is, opens the browser edition, and presents it as Troupe itself", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(LANDING);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("A video studio that runs in your browser.");
-  await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
+  await expect(page.locator("body")).not.toContainText(TRIAL_WORD);
   // The cast, from the catalog, with the pictures the site serves.
   await expect(page.locator(".cast__grid img")).toHaveCount(30);
   // Small copies for the grid, the full picture for wide high-density screens.
@@ -61,6 +64,8 @@ test("both video files are there, small enough, and of the right kind", async ({
   await page.goto(LANDING);
   const sources = await page.locator("#watch video source").evaluateAll((list) => list.map((s) => ({ src: (s as HTMLSourceElement).src, type: (s as HTMLSourceElement).type })));
   expect(sources.map((s) => s.type)).toEqual(["video/webm", "video/mp4"]);
+  // Under the site's base, as the build rewrote them.
+  expect(sources.map((s) => new URL(s.src).pathname)).toEqual(["/troupe/tour/troupe-tour.webm", "/troupe/tour/troupe-tour.mp4"]);
   for (const { src } of sources) {
     const response = await request.get(src);
     expect(response.status(), src).toBe(200);

@@ -200,18 +200,18 @@ start copies, and every link that stays on the site answers.
 
 ### The presentation video
 
-`site/public/demo/` holds the video (`troupe-demo.mp4`, H.264 + AAC;
-`troupe-demo.webm`, VP9 + Opus; both under 8 MB), its poster and its
+`site/public/tour/` holds the video (`troupe-tour.mp4`, H.264 + AAC;
+`troupe-tour.webm`, VP9 + Opus; both under 8 MB), its poster and its
 chapters, and `site/public/social.png` the social preview. They are made from
 the real browser edition, never staged:
 
 ```bash
 pnpm site:build && pnpm site:preview   # in another terminal
-pnpm demo:record                       # headed Chrome drives one project
-pnpm demo:edit                         # ffmpeg cuts it into site/public/demo/
+pnpm tour:record                       # headed Chrome drives one project
+pnpm tour:edit                         # ffmpeg cuts it into site/public/tour/
 ```
 
-`scripts/demo/record.ts` creates a project, writes the script, asks the chat
+`scripts/tour/record.ts` creates a project, writes the script, asks the chat
 for a punchier hook, applies and relaunches it, lets the tab render, plays the
 result and downloads it. It captures Chrome's screencast at twice the page's
 size, notes where each step starts and how fast to play it, saves the render
@@ -221,22 +221,22 @@ in the site's fonts. The browser profile keeps the voice and chat models
 chat model is small and its answer changes from one run to the next: watch the
 take before keeping it. Keep the real mouse off the Chrome window while it
 records (the drawn pointer ignores it, but the page still sees it hover).
-`scripts/demo/edit.sh` speeds up the waits (the caption says by how much),
+`scripts/tour/edit.sh` speeds up the waits (the caption says by how much),
 punches in on the chat's proposal and the player, lays the render's own
-soundtrack under its playback, and encodes both files to fit `DEMO_MAX_MB`.
+soundtrack under its playback, and encodes both files to fit `TOUR_MAX_MB`.
 
 | Variable | Default | |
 |---|---|---|
-| `DEMO_URL` | `http://localhost:4173` | the preview to record |
-| `DEMO_OUT` | `<os tmp>/troupe-demo` | footage, cut list, render and cards (record and edit) |
-| `DEMO_PROFILE` | `<os tmp>/troupe-demo-profile` | the Chrome profile that keeps the models |
-| `DEMO_CHANNEL`, `DEMO_ARGS` | `chrome`, none | the browser and extra Chrome flags |
-| `DEMO_PROJECT`, `DEMO_ACTOR`, `DEMO_SCRIPT`, `DEMO_REQUEST` | the cold brew project | the story (`DEMO_SCRIPT` takes `\n` between lines) |
-| `DEMO_LINK`, `DEMO_SOCIAL_CAST` | the repository, six actors | the closing card's link and the social preview's faces |
-| `DEMO_DEST`, `DEMO_MAX_MB` | `site/public/demo`, `7.5` | where the cut goes and the size cap per file |
+| `TOUR_URL` | `http://localhost:4173` | the preview to record |
+| `TOUR_OUT` | `<os tmp>/troupe-tour` | footage, cut list, render and cards (record and edit) |
+| `TOUR_PROFILE` | `<os tmp>/troupe-tour-profile` | the Chrome profile that keeps the models |
+| `TOUR_CHANNEL`, `TOUR_ARGS` | `chrome`, none | the browser and extra Chrome flags |
+| `TOUR_PROJECT`, `TOUR_ACTOR`, `TOUR_SCRIPT`, `TOUR_REQUEST` | the cold brew project | the story (`TOUR_SCRIPT` takes `\n` between lines) |
+| `TOUR_LINK`, `TOUR_SOCIAL_CAST` | the repository, six actors | the closing card's link and the social preview's faces |
+| `TOUR_DEST`, `TOUR_MAX_MB` | `site/public/tour`, `7.5` | where the cut goes and the size cap per file |
 
-`node scripts/demo/record.ts --cards` redraws only the cards (after changing
-their text), and `pnpm demo:edit` cuts again from the same footage.
+`node scripts/tour/record.ts --cards` redraws only the cards (after changing
+their text), and `pnpm tour:edit` cuts again from the same footage.
 
 ## How it is put together
 

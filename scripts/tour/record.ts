@@ -4,12 +4,12 @@
 // render runs in the tab, and the MP4 it downloads is the one that plays.
 //
 //   pnpm site:build && pnpm site:preview      # in another terminal
-//   pnpm demo:record                           # footage → DEMO_OUT
-//   pnpm demo:edit                             # site/public/demo/troupe-demo.*
+//   pnpm tour:record                           # footage → TOUR_OUT
+//   pnpm tour:edit                             # site/public/tour/troupe-tour.*
 //
 // Frames come from Chrome's screencast (CDP) as high-quality JPEGs with their
 // own timestamps; Playwright's recordVideo encodes 1 Mbit/s VP8, too soft for
-// interface text. The run writes to DEMO_OUT (default: <os tmp>/troupe-demo):
+// interface text. The run writes to TOUR_OUT (default: <os tmp>/troupe-tour):
 //   frames/*.jpg, frames.txt  the footage, as an ffmpeg concat list
 //   edl.txt                   the cut: one segment per line (see "The cut")
 //   captions.tsv, meta.txt    the steps' names; the playback segment
@@ -19,9 +19,9 @@
 //   cards/*.png               title cards, captions, the poster and the
 //                             landing page's social preview, in the site's fonts
 //
-// `--cards` redraws the cards only, from what an earlier run left in DEMO_OUT.
+// `--cards` redraws the cards only, from what an earlier run left in TOUR_OUT.
 //
-// The browser profile (DEMO_PROFILE, default <os tmp>/troupe-demo-profile)
+// The browser profile (TOUR_PROFILE, default <os tmp>/troupe-tour-profile)
 // keeps the voice and chat models between runs: about 1.2 GB on the first.
 // The site's local data is deleted first, so the studio starts empty.
 
@@ -34,20 +34,20 @@ import { type CDPSession, chromium, type Locator, type Page } from "@playwright/
 import { type Box, type CaptionId, CAPTIONS, captionName, type CardOptions, drawCards } from "./cards.ts";
 
 const REPO = resolve(import.meta.dirname, "..", "..");
-const BASE_URL = process.env.DEMO_URL ?? "http://localhost:4173";
+const BASE_URL = process.env.TOUR_URL ?? "http://localhost:4173";
 const APP = "/troupe/app";
-const OUT = resolve(process.env.DEMO_OUT ?? join(tmpdir(), "troupe-demo"));
-const PROFILE = resolve(process.env.DEMO_PROFILE ?? join(tmpdir(), "troupe-demo-profile"));
+const OUT = resolve(process.env.TOUR_OUT ?? join(tmpdir(), "troupe-tour"));
+const PROFILE = resolve(process.env.TOUR_PROFILE ?? join(tmpdir(), "troupe-tour-profile"));
 // The page is laid out at 1280×720 and captured at twice that, so the cut
 // can punch in on the player and the chat without blurring them.
 const VIEWPORT = { width: 1280, height: 720 };
 const SCALE = 2;
 
 // What the video shows. Change these to record another story.
-const PROJECT = process.env.DEMO_PROJECT ?? "Cold brew launch";
-const ACTOR = process.env.DEMO_ACTOR ?? "Amara";
-const SCRIPT = (process.env.DEMO_SCRIPT ?? "Mornings are hard.\nOur cold brew is smooth, strong and ready in your fridge.\nGrab a bottle on your way out.").split("\\n").join("\n");
-const REQUEST = process.env.DEMO_REQUEST ?? "Make the first line punchier. Keep the other lines.";
+const PROJECT = process.env.TOUR_PROJECT ?? "Cold brew launch";
+const ACTOR = process.env.TOUR_ACTOR ?? "Amara";
+const SCRIPT = (process.env.TOUR_SCRIPT ?? "Mornings are hard.\nOur cold brew is smooth, strong and ready in your fridge.\nGrab a bottle on your way out.").split("\\n").join("\n");
+const REQUEST = process.env.TOUR_REQUEST ?? "Make the first line punchier. Keep the other lines.";
 
 const WAIT_LONG = 15 * 60_000;
 
@@ -157,7 +157,7 @@ const CURSOR = `(() => {
     document.documentElement.appendChild(c);
   };
   const place = (ms) => { c.style.transitionDuration = ms + "ms"; c.style.transform = "translate(" + (at[0] - 3) + "px," + (at[1] - 2) + "px)"; };
-  window.__demoCursor = {
+  window.__tourCursor = {
     move(x, y, ms) { draw(); at = [x, y]; place(ms); },
     press() {
       const r = document.createElement("div");
@@ -185,7 +185,7 @@ async function moveTo(target: Locator) {
 async function glide(to: { x: number; y: number }) {
   const distance = Math.hypot(to.x - pointer.x, to.y - pointer.y);
   const ms = Math.round(Math.min(900, 250 + distance * 0.8));
-  await page.evaluate(({ x, y, t }) => (window as unknown as { __demoCursor: { move(x: number, y: number, ms: number): void } }).__demoCursor.move(x, y, t), { x: to.x, y: to.y, t: ms });
+  await page.evaluate(({ x, y, t }) => (window as unknown as { __tourCursor: { move(x: number, y: number, ms: number): void } }).__tourCursor.move(x, y, t), { x: to.x, y: to.y, t: ms });
   await page.mouse.move(to.x, to.y, { steps: Math.max(8, Math.round(distance / 18)) });
   await sleep(Math.max(0, ms - 120));
   pointer = to;
@@ -194,7 +194,7 @@ async function glide(to: { x: number; y: number }) {
 async function click(target: Locator) {
   await moveTo(target);
   await sleep(120);
-  await page.evaluate(() => (window as unknown as { __demoCursor: { press(): void } }).__demoCursor.press());
+  await page.evaluate(() => (window as unknown as { __tourCursor: { press(): void } }).__tourCursor.press());
   await page.mouse.down();
   await page.mouse.up();
   await sleep(250);
@@ -212,8 +212,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const CARD_OPTIONS: CardOptions = {
   repo: REPO,
   out: OUT,
-  link: process.env.DEMO_LINK ?? "github.com/maxgfr/troupe",
-  socialCast: (process.env.DEMO_SOCIAL_CAST ?? "amara-28,marcus-02,aiko-03,ravi-21,elsa-22,malik-10").split(","),
+  link: process.env.TOUR_LINK ?? "github.com/maxgfr/troupe",
+  socialCast: (process.env.TOUR_SOCIAL_CAST ?? "amara-28,marcus-02,aiko-03,ravi-21,elsa-22,malik-10").split(","),
   pageWidth: VIEWPORT.width,
 };
 
@@ -229,7 +229,7 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
   // `--cards`: only the cards, from what an earlier run left, without recording.
   if (process.argv.includes("--cards")) {
-    const browser = await chromium.launch({ channel: process.env.DEMO_CHANNEL ?? "chrome" });
+    const browser = await chromium.launch({ channel: process.env.TOUR_CHANNEL ?? "chrome" });
     await drawCards(await browser.newPage(), CARD_OPTIONS, captionsInCut());
     await browser.close();
     console.log(`Cards → ${join(OUT, "cards")}`);
@@ -240,14 +240,14 @@ async function main() {
   // lists one whose file is gone (see site/tests/render.spec.ts).
   rmSync(join(PROFILE, "Default", "History"), { force: true });
   const context = await chromium.launchPersistentContext(PROFILE, {
-    channel: process.env.DEMO_CHANNEL ?? "chrome",
+    channel: process.env.TOUR_CHANNEL ?? "chrome",
     headless: false,
     viewport: VIEWPORT,
     deviceScaleFactor: SCALE,
     colorScheme: "dark",
     acceptDownloads: true,
     baseURL: BASE_URL,
-    args: ["--hide-scrollbars", ...(process.env.DEMO_ARGS ?? "").split(" ").filter(Boolean)],
+    args: ["--hide-scrollbars", ...(process.env.TOUR_ARGS ?? "").split(" ").filter(Boolean)],
   });
   page = context.pages()[0] ?? (await context.newPage());
   const errors: string[] = [];

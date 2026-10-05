@@ -45,7 +45,7 @@ export interface PosterSource {
 
 export interface CardOptions {
   repo: string; // the repository root, for the fonts and the actors' pictures
-  out: string; // DEMO_OUT
+  out: string; // TOUR_OUT
   link: string; // the closing card's link
   socialCast: string[]; // the actors on the social preview
   pageWidth: number; // the recorded page's width in CSS pixels

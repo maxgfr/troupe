@@ -6,9 +6,9 @@ import { ErrorNote } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 const ACCOUNTS = [
-  { id: "google", name: "Google AI", models: "Veo 3.1 Fast", href: "https://aistudio.google.com/apikey" },
-  { id: "fal", name: "fal.ai", models: "Kling 3.0 · Seedance 1.5 Pro", href: "https://fal.ai/dashboard/keys" },
-  { id: "anthropic", name: "Anthropic", models: "Claude, for the script chat", href: "https://console.anthropic.com/settings/keys" },
+  { id: "google", name: "Google AI", article: "a", models: "Veo 3.1 Fast · Veo 3.1 Lite", href: "https://aistudio.google.com/apikey" },
+  { id: "fal", name: "fal.ai", article: "a", models: "Kling 3.0 · Seedance 1.5 Pro", href: "https://fal.ai/dashboard/keys" },
+  { id: "anthropic", name: "Anthropic", article: "an", models: "Claude, for the script chat", href: "https://console.anthropic.com/settings/keys" },
 ] as const;
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -33,7 +33,7 @@ export function ProviderAccounts() {
 
   return (
     <div className="max-w-2xl space-y-5">
-      <p className="text-sm text-muted">Keys are encrypted in your database and never shown again. Your provider bills each render; Troupe takes no payment.</p>
+      <p className="text-sm text-muted">Keys are encrypted in your database and never shown again. Your provider bills each render; Troupe takes no payment. Test checks a key with a free request.</p>
       {ACCOUNTS.map((account) => {
         const s = status.data?.[account.id];
         return (
@@ -44,7 +44,7 @@ export function ProviderAccounts() {
             </div>
             <p className="text-xs text-muted">{account.models}</p>
             <div className="flex flex-wrap gap-2">
-              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className="min-w-0 flex-1 rounded-lg border border-muted/40 bg-bg px-3 py-2 text-sm" />
+              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className="min-w-0 flex-1 basis-full rounded-lg sm:basis-0 border border-muted/40 bg-bg px-3 py-2 text-sm" />
               <button type="submit" disabled={busy || !keys[account.id].trim()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">{save.isPending && save.variables?.provider === account.id ? "Saving…" : "Save key"}</button>
               {s?.configured ? <button type="button" disabled={busy || test.isPending} onClick={() => test.mutate({ provider: account.id })} className="rounded-lg border border-muted/30 px-3 py-2 text-sm disabled:opacity-40">{test.isPending && test.variables?.provider === account.id ? "Testing…" : "Test"}</button> : null}
               {s?.source === "saved" || s?.source === "undecryptable" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Remove</button> : null}
@@ -52,7 +52,7 @@ export function ProviderAccounts() {
               {s?.source === "disabled" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Turn back on</button> : null}
             </div>
             <ConnectionResult report={reports[account.id]} />
-            <a href={account.href} target="_blank" rel="noreferrer" className="inline-block py-1 text-xs text-primary hover:underline">Get a {account.name} key ↗</a>
+            <a href={account.href} target="_blank" rel="noreferrer" className="inline-block py-1 text-xs text-primary hover:underline">Get {account.article} {account.name} key ↗</a>
           </form>
         );
       })}

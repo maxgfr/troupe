@@ -38,6 +38,9 @@ export const env = createEnv({
     TROUPE_DATA_DIR: z.string().optional(),
     TROUPE_INPROCESS_WORKER: z.enum(["0", "1", "true", "false"]).optional(),
     TROUPE_AUTO_MIGRATE: z.enum(["0", "1", "true", "false"]).optional(),
+    // Where browsers load the actors' pictures (read by src/server/media/store.ts):
+    // a path or URL laid out like public/actors. Default: /actors.
+    TROUPE_ACTOR_PORTRAITS_URL: z.string().optional(),
   },
 
   /**
@@ -77,6 +80,7 @@ export const env = createEnv({
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,
     TROUPE_INPROCESS_WORKER: process.env.TROUPE_INPROCESS_WORKER,
     TROUPE_AUTO_MIGRATE: process.env.TROUPE_AUTO_MIGRATE,
+    TROUPE_ACTOR_PORTRAITS_URL: process.env.TROUPE_ACTOR_PORTRAITS_URL,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

@@ -1,6 +1,8 @@
 // The 30-actor library — the checked-in source of truth the
-// seeder loads. Portraits are generated offline with Nano Banana Pro
-// into these storage paths; the DB only tracks the versioned set.
+// seeder loads. Each actor's pictures are synthetic people generated with
+// FLUX.2 [klein] 4B by scripts/actors/generate.py, checked in at
+// public/actors/<slug>/v1/ (the storage paths below, under public/); the DB
+// only tracks the versioned set.
 export interface CatalogActor {
   slug: string;
   name: string;
@@ -68,14 +70,14 @@ export interface CatalogAsset {
   file: string;
 }
 
-// 6 assets per actor: front portrait, two profile angles, three emotions.
+// 6 assets per actor: front portrait, two side views, three emotions.
 export const ASSET_SET: CatalogAsset[] = [
-  { kind: "portrait", file: "front.png" },
-  { kind: "angle", file: "profile-left.png" },
-  { kind: "angle", file: "profile-right.png" },
-  { kind: "emotion", emotion: "happy", file: "happy.png" },
-  { kind: "emotion", emotion: "calm", file: "calm.png" },
-  { kind: "emotion", emotion: "excited", file: "excited.png" },
+  { kind: "portrait", file: "front.webp" },
+  { kind: "angle", file: "profile-left.webp" },
+  { kind: "angle", file: "profile-right.webp" },
+  { kind: "emotion", emotion: "happy", file: "happy.webp" },
+  { kind: "emotion", emotion: "calm", file: "calm.webp" },
+  { kind: "emotion", emotion: "excited", file: "excited.webp" },
 ];
 
 export function storagePathFor(slug: string, version: number, file: string): string {

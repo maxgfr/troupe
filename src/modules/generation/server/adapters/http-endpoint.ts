@@ -44,7 +44,10 @@ function scriptBody(script: JobScript) {
   const { actor } = script;
   return {
     language: script.language,
-    actor: { id: actor.id, name: actor.name, gender: actor.gender, age_range: actor.ageRange, voice_profile: actor.voiceProfile },
+    actor: {
+      id: actor.id, name: actor.name, gender: actor.gender, age_range: actor.ageRange, voice_profile: actor.voiceProfile,
+      ...(actor.portraits ? { portraits: actor.portraits } : {}),
+    },
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
   };
 }

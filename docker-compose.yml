@@ -97,6 +97,8 @@ services:
       - "127.0.0.1:${TROUPE_RENDERER_PORT:-8078}:8078"
     volumes:
       - renderer:/data
+      # The actors' pictures drawn in the card: the checked-in cast, or your own.
+      - ${TROUPE_RENDERER_PORTRAITS_DIR:-./public/actors}:/app/public/actors:ro
 
 volumes:
   troupe-media:

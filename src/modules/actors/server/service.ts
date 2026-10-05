@@ -7,24 +7,40 @@ import { actorAssets, actors } from "./schema";
 
 const MIN_ASSETS = 6;
 
-// Idempotent seed of the 30-actor global library from the catalog.
+const catalogAssets = (actorId: string, slug: string) =>
+  ASSET_SET.map((a) => ({ actorId, kind: a.kind, emotion: a.emotion, storagePath: storagePathFor(slug, 1, a.file), version: 1 }));
+
+// Idempotent seed of the 30-actor global library from the catalog. A library
+// actor seeded earlier gets its first set's rows rewritten when the catalog's
+// files changed (installs seeded before the pictures existed list .png files).
 export async function seedActorLibrary(db: Db): Promise<void> {
   for (const c of ACTOR_CATALOG) {
-    const existing = await db
+    const [existing] = await db
       .select({ id: actors.id })
       .from(actors)
       .where(and(isNull(actors.workspaceId), eq(actors.name, c.name), eq(actors.ageRange, c.ageRange)))
       .limit(1);
-    if (existing.length > 0) continue;
+    if (existing) {
+      const wanted = catalogAssets(existing.id, c.slug);
+      const stored = await db
+        .select({ storagePath: actorAssets.storagePath })
+        .from(actorAssets)
+        .where(and(eq(actorAssets.actorId, existing.id), eq(actorAssets.version, 1)));
+      const same = stored.length === wanted.length && wanted.every((w) => stored.some((r) => r.storagePath === w.storagePath));
+      if (same) continue;
+      await db.transaction(async (tx) => {
+        await tx.delete(actorAssets).where(and(eq(actorAssets.actorId, existing.id), eq(actorAssets.version, 1)));
+        await tx.insert(actorAssets).values(wanted);
+      });
+      continue;
+    }
     await db.transaction(async (tx) => {
       const [actor] = await tx
         .insert(actors)
         .values({ name: c.name, gender: c.gender, ageRange: c.ageRange, style: c.style, voiceProfile: c.voiceProfile, kind: "library", assetVersion: 1 })
         .returning();
       if (!actor) throw new Error("actor insert returned no row");
-      await tx.insert(actorAssets).values(
-        ASSET_SET.map((a) => ({ actorId: actor.id, kind: a.kind, emotion: a.emotion, storagePath: storagePathFor(c.slug, 1, a.file), version: 1 })),
-      );
+      await tx.insert(actorAssets).values(catalogAssets(actor.id, c.slug));
     });
   }
 }
@@ -39,6 +55,9 @@ export interface ListedActor {
   voiceProfile: string;
   assetVersion: number;
   portraitCount: number;
+  // The front portrait of the current set, as a storage path
+  // (actors/<slug>/v<n>/front.webp); null without one.
+  portraitPath: string | null;
   // Computed availability — an actor without its portrait set is
   // unavailable regardless of its stored status.
   status: "active" | "unavailable";
@@ -70,11 +89,17 @@ export async function listActors(db: Db, filter: { gender?: string; ageRange?: s
     .from(actorAssets)
     .groupBy(actorAssets.actorId, actorAssets.version);
   const byKey = new Map(counts.map((c) => [`${c.actorId}|${c.version}`, c.n]));
+  const fronts = await db
+    .select({ actorId: actorAssets.actorId, version: actorAssets.version, storagePath: actorAssets.storagePath })
+    .from(actorAssets)
+    .where(eq(actorAssets.kind, "portrait"));
+  const frontByKey = new Map(fronts.map((f) => [`${f.actorId}|${f.version}`, f.storagePath]));
   return rows.map((r) => {
     const portraitCount = byKey.get(`${r.id}|${r.assetVersion}`) ?? 0;
     return {
       ...r,
       portraitCount,
+      portraitPath: frontByKey.get(`${r.id}|${r.assetVersion}`) ?? null,
       status: r.storedStatus === "active" && portraitCount >= MIN_ASSETS ? ("active" as const) : ("unavailable" as const),
     };
   });

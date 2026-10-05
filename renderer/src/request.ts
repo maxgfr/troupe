@@ -11,8 +11,10 @@ export interface RenderRequest {
   fps: number;
   audio: boolean;
   language: string;
-  // ageRange describes the actor to a video model (render-ltx.ts).
-  actor: VoiceActor & { name: string; ageRange?: string };
+  // ageRange describes the actor to a video model (render-ltx.ts);
+  // portraits are the actor's pictures by shot (front, happy, …), as paths
+  // under the portraits folder (portraits.ts).
+  actor: VoiceActor & { name: string; ageRange?: string; portraits?: Record<string, string> };
   lines: SceneLine[];
 }
 
@@ -29,6 +31,10 @@ const EMOTIONS: Record<Emotion, true> = { neutral: true, excited: true, calm: tr
 const GENDERS = ["female", "male", "nonbinary"] as const;
 const isRole = (v: unknown): v is LineRole => typeof v === "string" && Object.hasOwn(ROLES, v);
 const isEmotion = (v: unknown): v is Emotion => typeof v === "string" && Object.hasOwn(EMOTIONS, v);
+
+// actors/<slug>/v<version>/<file>, as Troupe stores them: nothing that could
+// leave the portraits folder.
+const PORTRAIT_PATH = /^actors\/[a-z0-9][a-z0-9-]*\/v\d+\/[a-z0-9][a-z0-9-]*\.(webp|png|jpe?g)$/;
 
 const record = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -52,12 +58,25 @@ function scriptLines(value: unknown): SceneLine[] {
   });
 }
 
+function portraits(value: unknown): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  const shots = record(value);
+  if (!shots) throw new BadRequest("script.actor.portraits must be an object of shot names to paths.");
+  for (const [shot, path] of Object.entries(shots)) {
+    if (typeof path !== "string" || !PORTRAIT_PATH.test(path)) {
+      throw new BadRequest(`script.actor.portraits.${shot} must be a path like actors/<actor>/v1/front.webp.`);
+    }
+  }
+  return shots as Record<string, string>;
+}
+
 function fromScript(value: unknown): Pick<RenderRequest, "language" | "actor" | "lines"> {
   const script = record(value);
   if (!script) throw new BadRequest("script must be an object.");
   const actor = record(script.actor);
   if (!actor || !text(actor.id) || typeof actor.name !== "string") throw new BadRequest("script.actor needs an id and a name.");
   const gender = GENDERS.find((g) => g === actor.gender);
+  const pictures = portraits(actor.portraits);
   return {
     language: text(script.language) || "en",
     actor: {
@@ -66,6 +85,7 @@ function fromScript(value: unknown): Pick<RenderRequest, "language" | "actor" | 
       ...(gender ? { gender } : {}),
       ...(text(actor.age_range) ? { ageRange: text(actor.age_range) } : {}),
       ...(text(actor.voice_profile) ? { voiceProfile: text(actor.voice_profile) } : {}),
+      ...(pictures ? { portraits: pictures } : {}),
     },
     lines: scriptLines(script.lines),
   };

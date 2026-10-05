@@ -46,6 +46,10 @@ export interface JobActor {
   ageRange: string;
   // Free-text delivery, e.g. "warm and enthusiastic, mid-tempo".
   voiceProfile: string;
+  // The actor's current pictures by shot (front, profile-left,
+  // profile-right, happy, calm, excited), as storage paths:
+  // actors/<slug>/v<version>/<shot>.webp.
+  portraits?: Record<string, string>;
 }
 
 // A failure with a stable code for the UI and a readable sentence. Messages

@@ -4,7 +4,7 @@ import {
   canEncodeVideo, getFirstEncodableAudioCodec, type AudioCodec, type Quality,
 } from "mediabunny";
 
-import { drawFrame, type Scene, type SceneContext, type Speech } from "~/modules/scene";
+import { drawFrame, type Scene, type SceneContext, type ScenePortraits, type Speech } from "~/modules/scene";
 import type { VideoQuality } from "./config";
 import { encoderDelayS } from "./encoder-delay";
 import { RENDER_CONFIG } from "./env";
@@ -36,7 +36,12 @@ export async function pickCodecs(width: number, height: number): Promise<Codecs 
   return { video: "avc", audio };
 }
 
-export async function encodeScene(scene: Scene, track: Speech, onFrame: (frame: number, frames: number) => void): Promise<Blob> {
+export async function encodeScene(
+  scene: Scene,
+  track: Speech,
+  portraits: ScenePortraits<ImageBitmap>,
+  onFrame: (frame: number, frames: number) => void,
+): Promise<Blob> {
   const codecs = await pickCodecs(scene.width, scene.height);
   if ("problem" in codecs) throw new Error(`This browser cannot render video: ${codecs.problem}.`);
 
@@ -44,7 +49,7 @@ export async function encodeScene(scene: Scene, track: Speech, onFrame: (frame: 
   const context = canvas.getContext("2d");
   if (!context) throw new Error("This browser cannot draw on an OffscreenCanvas.");
   // The scene draws through the same 2D interface as in the Node renderer.
-  const ctx: SceneContext = context;
+  const ctx: SceneContext<ImageBitmap> = context;
 
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: "in-memory" }), target: new BufferTarget() });
   const video = new CanvasSource(canvas, { codec: codecs.video, bitrate: videoBits, keyFrameInterval: keyFrameIntervalS });
@@ -65,7 +70,7 @@ export async function encodeScene(scene: Scene, track: Speech, onFrame: (frame: 
 
     const frames = Math.round(scene.durationS * scene.fps);
     for (let i = 0; i < frames; i++) {
-      drawFrame(ctx, scene, i / scene.fps);
+      drawFrame(ctx, scene, i / scene.fps, { portraits });
       await video.add(i / scene.fps, 1 / scene.fps);
       if (i % scene.fps === 0) onFrame(i, frames);
     }

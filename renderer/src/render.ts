@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { rm, writeFile } from "node:fs/promises";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, type Image } from "@napi-rs/canvas";
 
-import { assembleTrack, buildScene, drawFrame, voiceFor, type Scene, type SceneContext, type Speak, type Speech, type VoicePools } from "../../src/modules/scene";
+import { assembleTrack, buildScene, drawFrame, portraitShots, voiceFor, type Scene, type SceneContext, type Speak, type Speech, type VoicePools } from "../../src/modules/scene";
 import { wavBytes } from "./audio";
+import { DEFAULT_PORTRAITS_DIR, loadPortraits } from "./portraits";
 import type { RenderRequest } from "./request";
 
 export interface RenderDeps {
@@ -12,6 +13,9 @@ export interface RenderDeps {
   voices?: VoicePools;
   // Progress in [0, 1].
   onProgress?: (progress: number) => void;
+  // The actors' pictures (portraits.ts; default: the checked-in cast).
+  portraitsDir?: string;
+  log?: (message: string) => void;
 }
 
 // Share of the progress bar spent voicing the lines; drawing takes the rest.
@@ -48,7 +52,7 @@ export async function writeVoiceTrack(file: string, speeches: Speech[], scene: S
 // Runs ffmpeg with `args`, whose first input must be raw RGBA frames of the
 // scene on stdin (`-f rawvideo -pix_fmt rgba -s WxH -r fps -i pipe:0`), and
 // streams it every frame `draw` paints. `onProgress` gets the share drawn.
-export async function encodeFrames(args: string[], scene: Scene, draw: (ctx: SceneContext, t: number) => void, onProgress: (share: number) => void = () => {}): Promise<void> {
+export async function encodeFrames(args: string[], scene: Scene, draw: (ctx: SceneContext<Image>, t: number) => void, onProgress: (share: number) => void = () => {}): Promise<void> {
   const ffmpeg = spawn(process.env.FFMPEG ?? "ffmpeg", args, { stdio: ["pipe", "ignore", "pipe"] });
   let stderr = "";
   ffmpeg.stderr.on("data", (d: Buffer) => (stderr += d));
@@ -64,7 +68,7 @@ export async function encodeFrames(args: string[], scene: Scene, draw: (ctx: Sce
   const canvas = createCanvas(scene.width, scene.height);
   const context = canvas.getContext("2d");
   // The scene draws through the same 2D interface as in the browser.
-  const ctx: SceneContext = context;
+  const ctx: SceneContext<Image> = context;
   const frames = Math.round(scene.durationS * scene.fps);
   for (let i = 0; i < frames && ffmpeg.exitCode === null; i++) {
     draw(ctx, i / scene.fps);
@@ -85,17 +89,19 @@ export const AAC_OUTPUT = ["-c:a", "aac", "-b:a", "128k"];
 
 // Voices each line, lays the scene out on the measured speech, then streams
 // frames drawn on a canvas into ffmpeg with the assembled track: an H.264 +
-// AAC MP4 as long as the script. Returns its length in seconds.
+// AAC MP4 as long as the script, the actor's pictures in the card. Returns
+// its length in seconds.
 export async function renderVideo(request: RenderRequest, outFile: string, deps: RenderDeps): Promise<number> {
   const progress = deps.onProgress ?? (() => {});
   const { scene, speeches } = await voiceScene(request, deps, (share) => progress(VOICE_SHARE * share));
+  const portraits = await loadPortraits(deps.portraitsDir ?? DEFAULT_PORTRAITS_DIR, request.actor.portraits, portraitShots(scene), deps.log);
   const wavFile = `${outFile}.wav`;
   try {
     const voiced = await writeVoiceTrack(wavFile, speeches, scene);
     const args = ["-y", "-loglevel", "error", ...framesInput(scene)];
     if (voiced) args.push("-i", wavFile, ...AAC_OUTPUT);
     args.push(...H264_OUTPUT, outFile);
-    await encodeFrames(args, scene, (ctx, t) => drawFrame(ctx, scene, t), (share) => progress(VOICE_SHARE + (1 - VOICE_SHARE) * share));
+    await encodeFrames(args, scene, (ctx, t) => drawFrame(ctx, scene, t, { portraits }), (share) => progress(VOICE_SHARE + (1 - VOICE_SHARE) * share));
     return scene.durationS;
   } finally {
     await rm(wavFile, { force: true });

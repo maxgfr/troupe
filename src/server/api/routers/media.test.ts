@@ -33,6 +33,7 @@ function fakeMedia() {
   const removed: StoredFile[][] = [];
   const media: MediaStore = {
     urlFor: (assetId, opts) => `blob:media/${assetId}${opts?.download ? "#download" : ""}`,
+    pictureUrl: (storagePath) => `blob:${storagePath}`,
     remove: async (files) => { removed.push(files); },
   };
   return { media, removed };

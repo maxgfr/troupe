@@ -1,4 +1,5 @@
 import type { MediaStore, StoredFile } from "~/server/media/store";
+import { actorPictureUrl } from "~/modules/actors/pictures";
 
 // Renders made in the demo live in IndexedDB, one record per media asset:
 // { id: asset id, storagePath, blob }. The service worker (public/sw.js)
@@ -62,6 +63,8 @@ function removeByStoragePath(files: StoredFile[]): Promise<void> {
 
 export const demoMedia: MediaStore = {
   urlFor: (assetId, opts) => `${import.meta.env.BASE_URL}app/media/${encodeURIComponent(assetId)}${opts?.download ? "?download=1" : ""}`,
+  // The build copies the cast to <base>actors/ (site/vite-plugins.ts).
+  pictureUrl: (storagePath) => actorPictureUrl(`${import.meta.env.BASE_URL}actors`, storagePath),
   remove: (files) => removeByStoragePath(files),
 };
 

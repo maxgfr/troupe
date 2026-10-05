@@ -64,8 +64,18 @@ describe("text-to-video generation", () => {
         { role: "hook", text: "This ended my search for good coffee.", emotion: "neutral" },
         { role: "cta", text: "Grab yours today.", emotion: "neutral" },
       ],
-      actor: { id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile },
+      actor: { id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile, portraits: expect.any(Object) },
       language: "fr",
+    });
+    // The actor's pictures, by shot, at the storage paths of their current set.
+    const folder = actor.portraitPath!.replace(/front\.webp$/, "");
+    expect(adapter.calls[0]!.script!.actor.portraits).toEqual({
+      front: `${folder}front.webp`,
+      "profile-left": `${folder}profile-left.webp`,
+      "profile-right": `${folder}profile-right.webp`,
+      happy: `${folder}happy.webp`,
+      calm: `${folder}calm.webp`,
+      excited: `${folder}excited.webp`,
     });
     await launchGeneration(t.db, { projectId, scriptId, adapter, tier: "draft", durationS: 8, resolution: "720p", language: "en" });
     expect(adapter.calls[1]!.script!.language).toBe("en");

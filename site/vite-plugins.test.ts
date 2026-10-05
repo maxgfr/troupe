@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { serverGuard } from "./vite-plugins";
+import { actorPictures, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -50,5 +50,45 @@ describe("server guard", () => {
 
     const other = project("guarded", `import zlib from "zlib";\nexport default zlib;\n`);
     await expect(bundle(other, serverGuard({ nodeBuiltinsAllowedIn: { guarded: { builtins: ["fs"], reason: "test" } } }))).rejects.toThrow(/zlib is a Node built-in/);
+  });
+});
+
+describe("actor pictures", () => {
+  function cast() {
+    const dir = mkdtempSync(join(tmpdir(), "troupe-cast-"));
+    dirs.push(dir);
+    mkdirSync(join(dir, "cast", "lea-01", "v1"), { recursive: true });
+    writeFileSync(join(dir, "cast", "lea-01", "v1", "front.webp"), "RIFF-front");
+    writeFileSync(join(dir, "cast", "lea-01", "v1", "notes.txt"), "not for the site");
+    writeFileSync(join(dir, "index.js"), "console.log(1);\n");
+    return dir;
+  }
+
+  it("copies the pictures, and only them, into the build at <base>actors/", async () => {
+    const root = cast();
+    const outDir = join(root, "dist");
+    await build({
+      root,
+      configFile: false,
+      logLevel: "silent",
+      plugins: [actorPictures({ base: "/troupe/", dir: join(root, "cast"), outDir })],
+      build: { outDir, rollupOptions: { input: join(root, "index.js") } },
+    });
+    expect(readFileSync(join(outDir, "actors", "lea-01", "v1", "front.webp"), "utf8")).toBe("RIFF-front");
+    expect(existsSync(join(outDir, "actors", "lea-01", "v1", "notes.txt"))).toBe(false);
+  });
+
+  it("stops the build when the pictures folder is missing", async () => {
+    const root = cast();
+    const outDir = join(root, "dist");
+    await expect(
+      build({
+        root,
+        configFile: false,
+        logLevel: "silent",
+        plugins: [actorPictures({ base: "/troupe/", dir: join(root, "nowhere"), outDir })],
+        build: { outDir, rollupOptions: { input: join(root, "index.js") } },
+      }),
+    ).rejects.toThrow(/pictures folder .*nowhere does not exist/);
   });
 });

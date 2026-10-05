@@ -60,6 +60,8 @@ const kokoro = kokoroVoice({
 const server = createRendererServer({
   speak: kokoro.speak,
   voices,
+  // PORTRAITS_DIR: another cast, laid out as <actor>/v1/front.webp.
+  portraitsDir: process.env.PORTRAITS_DIR || undefined,
   ...(ltx
     ? {
         ltx: {

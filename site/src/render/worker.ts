@@ -1,9 +1,10 @@
 import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 
 import type { BrowserRenderJob } from "~/modules/generation";
-import { assembleTrack, buildScene, SCENE_FONT, voiceFor, type Speech } from "~/modules/scene";
+import { assembleTrack, buildScene, portraitShots, SCENE_FONT, voiceFor, type Speech } from "~/modules/scene";
 import { encodeScene } from "./encode";
 import { RENDER_CONFIG } from "./env";
+import { loadPortraits } from "./portraits";
 import type { FromWorker, RenderStage, ToWorker } from "./protocol";
 import { loadVoice } from "./tts";
 
@@ -56,9 +57,14 @@ async function render(jobId: string, job: BrowserRenderJob): Promise<Blob> {
     lines,
     speechS: speeches.map((s) => s.samples.length / s.sampleRate),
   });
-  const video = await encodeScene(scene, assembleTrack(speeches, scene), (frame, frames) => report({ stage: "frames", frame, frames }));
-  report({ stage: "saving" });
-  return video;
+  const portraits = await loadPortraits(actor.portraits, portraitShots(scene), import.meta.env.BASE_URL);
+  try {
+    const video = await encodeScene(scene, assembleTrack(speeches, scene), portraits, (frame, frames) => report({ stage: "frames", frame, frames }));
+    report({ stage: "saving" });
+    return video;
+  } finally {
+    for (const picture of Object.values(portraits)) picture.close();
+  }
 }
 
 // Renders run one after another, in the order the page sent them.

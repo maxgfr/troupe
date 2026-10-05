@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { createCanvas } from "@napi-rs/canvas";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { compilePrompt, type CreateJobRequest } from "~/modules/generation/server/adapter";
@@ -43,8 +44,8 @@ const lines = [
 let scratch = "";
 const servers: Server[] = [];
 
-async function start(speak: Speak, ltx?: RenderMode): Promise<string> {
-  const server = createRendererServer({ speak, outDir: scratch, token: TOKEN, ...(ltx ? { ltx } : {}) });
+async function start(speak: Speak, ltx?: RenderMode, portraitsDir?: string): Promise<string> {
+  const server = createRendererServer({ speak, outDir: scratch, token: TOKEN, ...(ltx ? { ltx } : {}), ...(portraitsDir ? { portraitsDir } : {}) });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -129,6 +130,33 @@ describe("renderer (contract v1)", () => {
     const { cx, cy, r } = scene.layout.portrait;
     const disc = await pixel(file, 0.1, cx - r / 2, cy - r / 2);
     for (const [i, channel] of rgb(paletteFor(actor.id).portrait).entries()) expect(Math.abs(disc[i]! - channel)).toBeLessThanOrEqual(12);
+  });
+
+  it("draws the actor's pictures in the card, the line's expression when there is one", async () => {
+    // Flat pictures in a portraits folder: the card must show their colors.
+    const dir = join(scratch, "cast");
+    const flat = async (file: string, color: string) => {
+      const canvas = createCanvas(64, 64);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 64, 64);
+      await mkdir(join(dir, "lea-01", "v1"), { recursive: true });
+      await writeFile(join(dir, "lea-01", "v1", file), canvas.toBuffer("image/webp"));
+    };
+    await flat("front.webp", "#c08040");
+    await flat("excited.webp", "#2060d0");
+    const pictured = await start(tone, undefined, dir);
+    const portraits = { front: "actors/lea-01/v1/front.webp", excited: "actors/lea-01/v1/excited.webp", calm: "actors/lea-01/v1/calm.webp" };
+    const prompt = compilePrompt({ lines, voiceProfile: actor.voiceProfile, language: "en" });
+    const file = await save(await renderThroughTroupe(pictured, { prompt, aspectRatio: "9:16", resolution: "720p", durationS: 6, audio: true, script: { lines, actor: { ...actor, portraits }, language: "en" } }), "pictured.mp4");
+    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE));
+    const scene = buildScene({ width: 720, height: 1280, actor, lines, speechS });
+    const { cx, cy } = scene.layout.portrait;
+    const near = (got: number[], hex: string) => got.every((v, i) => Math.abs(v - rgb(hex)[i]!) <= 16);
+    // The first line is excited: its picture.
+    expect(near(await pixel(file, 0.1, cx, cy), "#2060d0")).toBe(true);
+    // The second is calm, which this actor has no picture for: the front one.
+    expect(near(await pixel(file, scene.cues[1]!.endS - 0.05, cx, cy), "#c08040")).toBe(true);
   });
 
   it("falls back to the dialogue in the prompt when the job has no script", async () => {

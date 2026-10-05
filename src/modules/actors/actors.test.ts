@@ -1,10 +1,13 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTestDb, type TestDb } from "~/test/db";
 import { createWorkspace } from "~/modules/identity";
 import { projects } from "~/modules/studio/server/schema";
-import { actors } from "~/modules/actors/server/schema";
-import { ACTOR_CATALOG, attachActorToProject, getActorSeedAssets, listActors, seedActorLibrary } from "~/modules/actors";
+import { actorAssets, actors } from "~/modules/actors/server/schema";
+import { ACTOR_CATALOG, ASSET_SET, attachActorToProject, getActorSeedAssets, listActors, seedActorLibrary, storagePathFor } from "~/modules/actors";
 
 const USER = "61111111-1111-4111-8111-111111111111";
 
@@ -71,5 +74,28 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
     await seedActorLibrary(t.db);
     const library = await listActors(t.db, {});
     expect(library.filter((a) => a.workspaceId === null)).toHaveLength(30);
+  });
+
+  it("lists each actor's front portrait, and none for an actor without pictures", async () => {
+    const library = await listActors(t.db, {});
+    const lea = ACTOR_CATALOG[0]!;
+    expect(library.find((a) => a.name === lea.name && a.ageRange === lea.ageRange)?.portraitPath).toBe(storagePathFor(lea.slug, 1, "front.webp"));
+    expect(library.find((a) => a.name === "Ghost")?.portraitPath).toBeNull();
+  });
+
+  it("keeps the library's pictures in step with the catalog when an older set was seeded", async () => {
+    const lea = ACTOR_CATALOG[0]!;
+    const [row] = await t.db.select({ id: actors.id }).from(actors).where(and(eq(actors.name, lea.name), eq(actors.ageRange, lea.ageRange)));
+    // Installs seeded before the pictures existed recorded .png paths.
+    await t.db.delete(actorAssets).where(eq(actorAssets.actorId, row!.id));
+    await t.db.insert(actorAssets).values(ASSET_SET.map((a) => ({ actorId: row!.id, kind: a.kind, emotion: a.emotion, storagePath: storagePathFor(lea.slug, 1, a.file.replace(".webp", ".png")), version: 1 })));
+    await seedActorLibrary(t.db);
+    const seed = await getActorSeedAssets(t.db, row!.id);
+    expect(seed.assets.map((a) => a.storagePath).sort()).toEqual(ASSET_SET.map((a) => storagePathFor(lea.slug, 1, a.file)).sort());
+  });
+
+  it("ships every picture the catalog declares", () => {
+    const missing = ACTOR_CATALOG.flatMap((actor) => ASSET_SET.map((a) => storagePathFor(actor.slug, 1, a.file))).filter((path) => !existsSync(join("public", path)));
+    expect(missing).toEqual([]);
   });
 });

@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
-import { actors } from "~/modules/actors/server/schema";
+import { actorAssets, actors } from "~/modules/actors/server/schema";
 import { assertScriptFitsClip, getScript, lockScript } from "~/modules/script";
 import { AdapterError, compilePrompt, validateRequest, type JobScript, type VideoProviderAdapter } from "./adapter";
 import { generations } from "./schema";
@@ -49,9 +49,18 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
     voiceProfile: `${actor.voiceProfile}. Appearance: adult, ${actor.gender}, ${actor.ageRange}, ${actor.style} style`,
     language,
   });
+  // The pictures of the actor's current set, keyed by shot (the file's name).
+  const pictures = await db
+    .select({ storagePath: actorAssets.storagePath })
+    .from(actorAssets)
+    .where(and(eq(actorAssets.actorId, actor.id), eq(actorAssets.version, actor.assetVersion)));
+  const portraits = Object.fromEntries(pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]));
   const jobScript: JobScript = {
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
-    actor: { id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile },
+    actor: {
+      id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile,
+      ...(pictures.length > 0 ? { portraits } : {}),
+    },
     language,
   };
 

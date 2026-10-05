@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { sizeFor } from "~/modules/models/geometry";
 import { buildScene, type SceneInput } from "./build";
-import { drawFrame, type SceneContext } from "./draw";
+import { drawFrame, portraitShotFor, portraitShots, type SceneContext, type SceneImage, type ScenePortraits } from "./draw";
 
 // Both renderers hand drawFrame a real canvas context: the browser's
 // OffscreenCanvas one must fit the interface (the Node one is checked where
 // the renderer creates it).
-const _browserContextFits = (ctx: OffscreenCanvasRenderingContext2D): SceneContext => ctx;
+const _browserContextFits = (ctx: OffscreenCanvasRenderingContext2D): SceneContext<ImageBitmap> => ctx;
 void _browserContextFits;
 
 interface TextCall {
@@ -25,6 +25,8 @@ function recorder(width: number, height: number) {
   const texts: TextCall[] = [];
   const fills: { x: number; y: number; width: number; height: number }[] = [];
   const rounds: { x: number; y: number; width: number; height: number; radius: number; fill: unknown }[] = [];
+  const images: { image: SceneImage; source: number[]; x: number; y: number; width: number; height: number; alpha: number; clipped: boolean }[] = [];
+  let clipped = false;
   const gradient = () => ({ addColorStop() {} });
   const ctx: SceneContext = {
     fillStyle: "#000",
@@ -34,8 +36,18 @@ function recorder(width: number, height: number) {
     textAlign: "start",
     textBaseline: "alphabetic",
     globalAlpha: 1,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: "low",
     save() {},
-    restore() {},
+    restore() {
+      clipped = false;
+    },
+    clip() {
+      clipped = true;
+    },
+    drawImage(image, sx, sy, sw, sh, x, y, width, height) {
+      images.push({ image, source: [sx, sy, sw, sh], x, y, width, height, alpha: ctx.globalAlpha, clipped });
+    },
     beginPath() {},
     arc() {},
     roundRect(x, y, w, h, radius) {
@@ -57,7 +69,7 @@ function recorder(width: number, height: number) {
     createLinearGradient: gradient,
     createRadialGradient: gradient,
   };
-  return { ctx, texts, fills, rounds, width, height };
+  return { ctx, texts, fills, rounds, images, width, height };
 }
 
 const actor = { id: "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11", name: "Léa Martin" };
@@ -66,10 +78,10 @@ const lines: SceneInput["lines"] = [
   { role: "cta", text: "Grab yours today.", emotion: "calm" },
 ];
 
-function draw(t: number, patch: Partial<SceneInput> = {}) {
+function draw(t: number, patch: Partial<SceneInput> = {}, portraits?: ScenePortraits) {
   const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2], ...patch });
   const rec = recorder(scene.width, scene.height);
-  drawFrame(rec.ctx, scene, t);
+  drawFrame(rec.ctx, scene, t, portraits ? { portraits } : {});
   return { ...rec, scene };
 }
 
@@ -233,6 +245,73 @@ describe("drawFrame", () => {
       expect(shade!.y + shade!.height).toBeLessThanOrEqual(1280);
       // Tighter than the whole caption box: the picture shows around it.
       expect(shade!.height).toBeLessThan(rec.scene.layout.captions.height);
+    });
+  });
+
+  describe("with the actor's portraits", () => {
+    // Stand-ins for decoded images: only their size matters to drawFrame.
+    const picture = (width = 768, height = 768): SceneImage => ({ width, height });
+    const front = picture();
+    const excited = picture(512, 512);
+    const calm = picture(512, 512);
+
+    it("draws the front portrait in the card's circle instead of the initials", () => {
+      const rec = draw(0.1, {}, { front });
+      const { portrait } = rec.scene.layout;
+      expect(rec.texts.map((t) => t.text)).not.toContain("LM");
+      expect(rec.texts.map((t) => t.text)).toContain("Léa Martin");
+      expect(rec.images).toHaveLength(1);
+      const [drawn] = rec.images;
+      expect(drawn!.image).toBe(front);
+      expect(drawn!.clipped).toBe(true);
+      expect(drawn!.source).toEqual([0, 0, 768, 768]);
+      expect(drawn!.x).toBeCloseTo(portrait.cx - portrait.r, 6);
+      expect(drawn!.y).toBeCloseTo(portrait.cy - portrait.r, 6);
+      expect(drawn!.width).toBeCloseTo(2 * portrait.r, 6);
+      expect(drawn!.height).toBeCloseTo(2 * portrait.r, 6);
+    });
+
+    it("crops a picture that is not square to its centre", () => {
+      const tall = picture(600, 800);
+      const [drawn] = draw(0.1, {}, { front: tall }).images;
+      expect(drawn!.source).toEqual([0, 100, 600, 600]);
+    });
+
+    it("shows the expression of the line being said, and the front portrait for the others", () => {
+      const portraits = { front, excited, calm };
+      const { scene } = draw(0);
+      const [first, second] = scene.cues;
+      expect(draw((first!.startS + first!.endS) / 2, {}, portraits).images.map((i) => i.image)).toEqual([excited]);
+      expect(draw(second!.endS - 0.01, {}, portraits).images.map((i) => i.image)).toEqual([calm]);
+      // No calm picture: the front one.
+      expect(draw(second!.endS - 0.01, {}, { front, excited }).images.map((i) => i.image)).toEqual([front]);
+      const serious = draw(0.5, { lines: [{ role: "body", text: "Listen.", emotion: "serious" }], speechS: [1] }, portraits);
+      expect(serious.images.map((i) => i.image)).toEqual([front]);
+    });
+
+    it("cross-fades to the next expression when a line starts", () => {
+      const portraits = { front, excited, calm };
+      const second = draw(0).scene.cues[1]!;
+      const fading = draw(second.startS + 0.05, {}, portraits).images;
+      expect(fading.map((i) => i.image)).toEqual([excited, calm]);
+      expect(fading[0]!.alpha).toBe(1);
+      expect(fading[1]!.alpha).toBeGreaterThan(0);
+      expect(fading[1]!.alpha).toBeLessThan(1);
+      expect(draw(second.startS + 0.5, {}, portraits).images.map((i) => i.image)).toEqual([calm]);
+    });
+
+    it("lays captions over a video without any portrait", () => {
+      const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] });
+      const rec = recorder(scene.width, scene.height);
+      drawFrame(rec.ctx, scene, 0.5, { captionsOnly: true, portraits: { front } });
+      expect(rec.images).toHaveLength(0);
+    });
+
+    it("names the pictures a scene needs: the front one and the lines' expressions", () => {
+      expect(portraitShots(draw(0).scene)).toEqual(["front", "excited", "calm"]);
+      expect(portraitShots(draw(0, { lines: [{ role: "body", text: "Hi.", emotion: "serious" }], speechS: [1] }).scene)).toEqual(["front"]);
+      expect(["neutral", "serious", "disappointed"].map((e) => portraitShotFor(e as "neutral"))).toEqual(["front", "front", "front"]);
+      expect(["happy", "calm", "excited"].map((e) => portraitShotFor(e as "happy"))).toEqual(["happy", "calm", "excited"]);
     });
   });
 

@@ -22,6 +22,8 @@ RUN node -e 'const fs = require("fs"); const p = JSON.parse(fs.readFileSync("pac
 # The scene module is shared with the app; the renderer imports it from src/.
 COPY src/modules/scene src/modules/scene
 COPY renderer/src renderer/src
+# The actors' pictures drawn in the card (renderer/src/portraits.ts).
+COPY public/actors public/actors
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8078 \

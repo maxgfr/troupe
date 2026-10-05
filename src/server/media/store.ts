@@ -1,6 +1,9 @@
-// Where the API sends people for stored renders, and how it deletes them.
-// Self-hosted, renders play from the /api/media route; another host passes
-// its own store through the request context. Nothing here touches Node.
+// Where the API sends people for stored renders and actors' pictures, and how
+// it deletes renders. Self-hosted, renders play from the /api/media route and
+// pictures load from public/actors (or TROUPE_ACTOR_PORTRAITS_URL); another
+// host passes its own store through the request context.
+import { actorPictureUrl, DEFAULT_PICTURES_BASE } from "~/modules/actors/pictures";
+
 
 // A stored render file, as listed when its rows are deleted.
 export interface StoredFile {
@@ -11,6 +14,9 @@ export interface StoredFile {
 export interface MediaLinks {
   // A URL the browser can play, or download when `download` is set.
   urlFor(assetId: string, opts?: { download?: boolean }): string;
+  // Where the browser loads an actor's picture, from its storage path
+  // (actors/<slug>/v<n>/<file>).
+  pictureUrl(storagePath: string): string;
 }
 
 export interface MediaStore extends MediaLinks {
@@ -19,8 +25,11 @@ export interface MediaStore extends MediaLinks {
 }
 
 // Served by src/app/api/media/[assetId]/route.ts.
+// Pictures: Next serves public/actors at /actors; TROUPE_ACTOR_PORTRAITS_URL
+// points at another copy of the cast (a CDN, a bucket, another path).
 export const apiMediaLinks: MediaLinks = {
   urlFor: (assetId, opts) => `/api/media/${assetId}${opts?.download ? "?download=1" : ""}`,
+  pictureUrl: (storagePath) => actorPictureUrl(process.env.TROUPE_ACTOR_PORTRAITS_URL || DEFAULT_PICTURES_BASE, storagePath),
 };
 
 export const DEFAULT_DOWNLOAD_NAME = "troupe-video";

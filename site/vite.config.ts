@@ -6,7 +6,7 @@ import { defineConfig, loadEnv, type UserConfig } from "vite";
 import { THEME_SCRIPT } from "../src/app/theme-script";
 import { parseChatConfig } from "./src/chat/config";
 import { parseRenderConfig } from "./src/render/config";
-import { headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
+import { actorPictures, headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
 
 // The static demo: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
@@ -41,6 +41,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // check the build's model id.
   const { prebuiltAppConfig } = await import("@mlc-ai/web-llm");
   const chatConfig = parseChatConfig(env, prebuiltAppConfig.model_list.map((m) => m.model_id));
+  // The actors' pictures: the cast checked in for the self-hosted app, or
+  // another folder laid out the same way (<slug>/v1/front.webp, …).
+  const portraitsDir = resolve(REPO, env.VITE_PORTRAITS_DIR || "public/actors");
   return {
     root: SITE,
     base: BASE,
@@ -61,6 +64,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       react(),
       headScript(THEME_SCRIPT),
       pagesFallback({ base: BASE, outDir: OUT }),
+      actorPictures({ base: BASE, dir: portraitsDir, outDir: OUT }),
     ],
     css: {
       postcss: { plugins: [tailwindcss({ base: REPO })] },

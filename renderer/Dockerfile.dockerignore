@@ -7,4 +7,5 @@
 !renderer/package.json
 !renderer/src
 !src/modules/scene
+!public/actors
 **/*.test.ts

@@ -26,6 +26,20 @@ describe("parseJobBody", () => {
     });
   });
 
+  it("reads the actor's portraits, keyed by shot", () => {
+    const portraits = { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp", "profile-left": "actors/lea-01/v1/profile-left.webp" };
+    expect(parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits } } }).actor.portraits).toEqual(portraits);
+    // Not sent: none.
+    expect(parseJobBody({ ...base, script }).actor.portraits).toBeUndefined();
+  });
+
+  it("refuses a portrait path outside the actors' folders", () => {
+    for (const path of ["../secrets/key.webp", "actors/../../etc/passwd", "/etc/passwd", "actors/lea-01/v1/front.svg", 42]) {
+      expect(() => parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: { front: path } } } }), String(path)).toThrow(/portraits\.front/);
+    }
+    expect(() => parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, portraits: "front.webp" } } })).toThrow(/portraits/);
+  });
+
   it("defaults to 24 fps", () => {
     expect(parseJobBody({ ...base, script }).fps).toBe(24);
   });

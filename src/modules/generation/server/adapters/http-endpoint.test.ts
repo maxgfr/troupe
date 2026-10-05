@@ -58,7 +58,10 @@ describe("generic HTTP endpoint adapter", () => {
         { role: "hook" as const, text: "Hello there.", emotion: "excited" as const },
         { role: "cta" as const, text: "Try it today.", emotion: "calm" as const },
       ],
-      actor: { id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm and enthusiastic, mid-tempo" },
+      actor: {
+        id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm and enthusiastic, mid-tempo",
+        portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
+      },
       language: "fr",
     };
     await createHttpEndpointAdapter({ model: model(server.url) }).createJob({ ...req, script });
@@ -66,7 +69,10 @@ describe("generic HTTP endpoint adapter", () => {
       prompt: "Hello there.", aspect_ratio: "9:16", resolution: "720p", width: 720, height: 1280, duration_s: 5, fps: 24, audio: false,
       script: {
         language: "fr",
-        actor: { id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female", age_range: "25-34", voice_profile: "warm and enthusiastic, mid-tempo" },
+        actor: {
+          id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female", age_range: "25-34", voice_profile: "warm and enthusiastic, mid-tempo",
+          portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
+        },
         lines: [
           { role: "hook", text: "Hello there.", emotion: "excited" },
           { role: "cta", text: "Try it today.", emotion: "calm" },

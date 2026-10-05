@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { buildScene } from "../../src/modules/scene";
+
 // A real render in the browser: Kokoro voices, the shared scene, WebCodecs
 // and mediabunny, then playback through the media service worker. Run it
 // with `pnpm site:test:render` after `pnpm site:build` (docs/STATIC-SITE.md):
@@ -25,6 +27,7 @@ test.describe.configure({ mode: "serial" });
 
 let context: BrowserContext;
 let page: Page;
+let actorPicture = "";
 const errors: string[] = [];
 
 // biome-ignore lint/correctness/noEmptyPattern: Playwright wants the fixtures argument destructured, and this hook uses none.
@@ -62,7 +65,10 @@ async function newProject(title: string): Promise<string> {
   await page.goto(`${APP}/projects/new`);
   await page.getByLabel("Project title").fill(title);
   for (let step = 0; step < 3; step++) await page.getByRole("button", { name: "Continue" }).click();
-  await page.locator('label:has(input[name="actor"]:not([disabled]))').first().click();
+  const actor = page.locator('label:has(input[name="actor"]:not([disabled]))').first();
+  // The actor's picture, as the site serves it: /troupe/actors/<slug>/v1/front.webp.
+  actorPicture = (await actor.locator("img").getAttribute("src")) ?? "";
+  await actor.click();
   await page.getByRole("button", { name: /Create project/ }).click();
   await expect(page).toHaveURL(/\/script$/);
   await page.getByLabel(/Write or paste your script/).fill(SCRIPT);
@@ -147,6 +153,22 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
   expect(Math.abs(Number(info.format.duration) - meta.duration)).toBeLessThan(0.1);
   expect(Math.abs(Number(audioStream?.duration) - Number(videoStream?.duration))).toBeLessThan(0.1);
   test.info().annotations.push({ type: "render", description: JSON.stringify({ duration: meta.duration, audio: audioStream?.codec_name }) });
+
+  // The actor card shows the actor's picture: the middle of the card's circle
+  // matches the middle of the front picture scaled to the circle's size.
+  const { portrait } = buildScene({ width: 720, height: 1280, actor: { id: "x", name: "x" }, lines: [{ role: "hook", text: "x", emotion: "neutral" }] }).layout;
+  const side = Math.round(2 * portrait.r);
+  const patch = 16;
+  const mean = (args: string[]) => {
+    const rgb = execFileSync("ffmpeg", ["-v", "error", ...args, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+    return [0, 1, 2].map((c) => rgb.filter((_, i) => i % 3 === c).reduce((a, b) => a + b, 0) / (rgb.length / 3));
+  };
+  const centre = (x: number) => Math.round(x - patch / 2);
+  const inVideo = mean(["-ss", "0.1", "-i", file, "-vf", `crop=${patch}:${patch}:${centre(portrait.cx)}:${centre(portrait.cy)}`]);
+  expect(actorPicture).toMatch(/^\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front\.webp$/);
+  const source = join(import.meta.dirname, "..", "..", "public", actorPicture.replace(/^\/troupe\//, ""));
+  const inPicture = mean(["-i", source, "-vf", `scale=${side}:${side},crop=${patch}:${patch}:${centre(side / 2)}:${centre(side / 2)}`]);
+  for (const [i, channel] of inVideo.entries()) expect(Math.abs(channel - inPicture[i]!), `channel ${i}: ${inVideo} vs ${inPicture}`).toBeLessThan(20);
 
   // Once the render is stored, its job (and its copy of the MP4) is forgotten.
   const jobsLeft = () =>

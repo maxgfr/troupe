@@ -1,4 +1,5 @@
-import { cueAt, type Box, type Scene } from "./build";
+import type { Emotion } from "~/modules/script";
+import { cueAt, type Box, type Cue, type Scene } from "./build";
 
 // The slice of the Canvas 2D API drawFrame uses. Both the browser's
 // OffscreenCanvasRenderingContext2D and @napi-rs/canvas's context fit it, so
@@ -7,7 +8,15 @@ export interface SceneGradient {
   addColorStop(offset: number, color: string): void;
 }
 
-export interface SceneContext {
+// A decoded picture the context can draw: @napi-rs/canvas's Image in Node,
+// an ImageBitmap in the browser. Each renderer loads its own and draws
+// through a context typed with it.
+export interface SceneImage {
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface SceneContext<Image extends SceneImage = SceneImage> {
   // A color string or a gradient from this context.
   fillStyle: string | object;
   strokeStyle: string | object;
@@ -16,17 +25,21 @@ export interface SceneContext {
   textAlign: string;
   textBaseline: string;
   globalAlpha: number;
+  imageSmoothingEnabled: boolean;
+  imageSmoothingQuality: "low" | "medium" | "high";
   save(): void;
   restore(): void;
   beginPath(): void;
   arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
   roundRect(x: number, y: number, width: number, height: number, radius: number): void;
   fill(): void;
+  clip(): void;
   stroke(): void;
   fillRect(x: number, y: number, width: number, height: number): void;
   clearRect(x: number, y: number, width: number, height: number): void;
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };
+  drawImage(image: Image, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): SceneGradient;
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): SceneGradient;
 }
@@ -78,9 +91,75 @@ function fitWidth(ctx: SceneContext, text: string, weight: number, start: number
   return px;
 }
 
+// The actor's pictures (actors/<slug>/v<n>/<shot>.webp): the front portrait
+// and the expressions a line's emotion can call for.
+export type PortraitShot = "front" | "happy" | "calm" | "excited";
+export type ScenePortraits<Image extends SceneImage = SceneImage> = Partial<Record<PortraitShot, Image>>;
+
+// The picture for a line said with `emotion`: its own expression when the
+// set has one, the front portrait otherwise.
+export function portraitShotFor(emotion: Emotion): PortraitShot {
+  return emotion === "happy" || emotion === "calm" || emotion === "excited" ? emotion : "front";
+}
+
+// The pictures a scene shows, front first: what a renderer needs to load.
+export function portraitShots(scene: Scene): PortraitShot[] {
+  return [...new Set<PortraitShot>(["front", ...scene.cues.map((c) => portraitShotFor(c.emotion))])];
+}
+
+// How long the card takes to cross-fade to the next line's expression.
+const PORTRAIT_FADE_S = 0.25;
+
+function pictureFor<Image extends SceneImage>(portraits: ScenePortraits<Image>, cue: Cue | undefined): Image | undefined {
+  return (cue && portraits[portraitShotFor(cue.emotion)]) ?? portraits.front;
+}
+
+// `image` filling the portrait's circle, cropped to its centred square.
+function drawPicture<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, image: Image, alpha: number) {
+  const { cx, cy, r } = scene.layout.portrait;
+  const side = Math.min(image.width, image.height);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, cx - r, cy - r, 2 * r, 2 * r);
+  ctx.restore();
+}
+
+// The portrait: the picture for the line on screen, faded in over the
+// previous line's when it changes; the initials on a disc without pictures.
+function drawPortrait<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, portraits: ScenePortraits<Image>) {
+  const { layout, palette, actor } = scene;
+  const { portrait: disc } = layout;
+  const cue = cueAt(scene, t);
+  const current = pictureFor(portraits, cue);
+  if (current) {
+    const previous = cue && cue.index > 0 ? pictureFor(portraits, scene.cues[cue.index - 1]) : undefined;
+    const fade = cue ? (t - cue.startS) / PORTRAIT_FADE_S : 1;
+    if (previous && previous !== current && fade >= 0 && fade < 1) {
+      drawPicture(ctx, scene, previous, 1);
+      drawPicture(ctx, scene, current, fade);
+    } else {
+      drawPicture(ctx, scene, current, 1);
+    }
+    return;
+  }
+  ctx.fillStyle = palette.portrait;
+  ctx.beginPath();
+  ctx.arc(disc.cx, disc.cy, disc.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = palette.portraitInk;
+  ctx.font = font(600, disc.r * 0.6);
+  ctx.textAlign = "center";
+  ctx.fillText(actor.initials, disc.cx, disc.cy);
+}
+
 // A pill hugging the portrait and the name: concentric with the portrait,
 // as wide as the name needs, at most the layout's card box.
-function card(ctx: SceneContext, scene: Scene, t: number) {
+function card<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, portraits: ScenePortraits<Image>) {
   const { layout, palette, actor } = scene;
   const { card: box, portrait, padding } = layout;
   const textX = portrait.cx + portrait.r + padding;
@@ -104,14 +183,7 @@ function card(ctx: SceneContext, scene: Scene, t: number) {
     ctx.arc(portrait.cx, portrait.cy, portrait.r * (1.06 + 0.025 * Math.sin(t * 9)), 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.fillStyle = palette.portrait;
-  ctx.beginPath();
-  ctx.arc(portrait.cx, portrait.cy, portrait.r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = palette.portraitInk;
-  ctx.font = font(600, portrait.r * 0.6);
-  ctx.textAlign = "center";
-  ctx.fillText(actor.initials, portrait.cx, portrait.cy);
+  drawPortrait(ctx, scene, t, portraits);
 
   ctx.textAlign = "left";
   ctx.fillStyle = palette.ink;
@@ -230,21 +302,25 @@ function shade(ctx: SceneContext, scene: Scene, top: number, bottom: number, px:
   ctx.fillRect(0, from, w, to - from);
 }
 
-export interface DrawOptions {
+export interface DrawOptions<Image extends SceneImage = SceneImage> {
   // Only the captions, on a soft shade, over a transparent frame: for laying
   // the script over a video made elsewhere.
   captionsOnly?: boolean;
+  // The actor's pictures, decoded by the renderer. Without them, or for an
+  // expression the set lacks, the card shows the front portrait, then the
+  // initials.
+  portraits?: ScenePortraits<Image>;
 }
 
 // Draws the frame at time t (seconds): background, actor card, captions.
-export function drawFrame(ctx: SceneContext, scene: Scene, t: number, options: DrawOptions = {}): void {
+export function drawFrame<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, options: DrawOptions<Image> = {}): void {
   ctx.save();
   ctx.globalAlpha = 1;
   if (options.captionsOnly) {
     ctx.clearRect(0, 0, scene.width, scene.height);
   } else {
     background(ctx, scene, t);
-    card(ctx, scene, t);
+    card(ctx, scene, t, options.portraits ?? {});
   }
   captions(ctx, scene, t, options.captionsOnly === true);
   ctx.restore();

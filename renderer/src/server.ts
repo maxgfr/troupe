@@ -27,6 +27,8 @@ export interface RendererOptions {
   speak: Speak;
   // Kokoro voices to cast actors from (default: the scene module's).
   voices?: VoicePools;
+  // Where the actors' pictures are (default: the checked-in cast).
+  portraitsDir?: string;
   // The AI video mode, served under /ltx when set.
   ltx?: RenderMode;
   // Where finished MP4s are kept.
@@ -56,7 +58,7 @@ export function createRendererServer(options: RendererOptions): Server {
   const jobs = new Map<string, Job>();
   let queue = Promise.resolve();
   const fast: RenderMode = {
-    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, onProgress }),
+    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, onProgress, portraitsDir: options.portraitsDir, log }),
     // A render takes seconds: ask Troupe to check every second.
     pollEveryS: 1,
   };

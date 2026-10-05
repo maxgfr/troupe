@@ -62,6 +62,8 @@ describe("actors router", () => {
   it("the library lists over HTTP", async () => {
     const list = await asMember().actors.list({});
     expect(list.length).toBeGreaterThan(0);
+    // Each with its front portrait, served from public/actors.
+    for (const actor of list) expect(actor.portraitUrl).toMatch(/^\/actors\/[a-z]+-\d{2}\/v1\/front\.webp$/);
   });
 });
 

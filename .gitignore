@@ -51,3 +51,4 @@ yarn-error.log*
 # the AI video mode's Python environment (renderer/ltx)
 .venv/
 __pycache__/
+/scripts/actors/raw/

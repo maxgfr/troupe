@@ -58,12 +58,16 @@ describe.each(veoModels.map((m) => [m.key] as const))("Google %s", (key) => {
 
   it.each([
     ["an unknown key", google.invalidKey, 400, "PROVIDER_AUTH", /rejected this API key/],
-    ["a missing key", google.noKey, 403, "PROVIDER_PERMISSION", /may not call the Gemini API/],
+    ["a missing key", google.noKey, 403, "PROVIDER_AUTH", /^Google received no usable API key/],
+    ["a key without access", google.permission, 403, "PROVIDER_PERMISSION", /^Google refused this key access to the Gemini API/],
     ["an unsupported region", google.region, 400, "PROVIDER_REGION", /region/],
-    ["a spent quota", google.quota, 429, "PROVIDER_QUOTA", /quota/],
+    ["a spent quota, or none for Veo on a free key", google.quota, 429, "PROVIDER_QUOTA", /quota.*Veo needs a paid \(billing-enabled\) project/],
   ] as const)("refuses a launch with %s, saying what to do", async (_what, body, status, code, said) => {
     const http = vi.fn().mockResolvedValue(response(body, status));
-    expect(await refusal(veo(key, http).createJob(req))).toEqual({ code, detail: expect.stringMatching(said) });
+    const refused = await refusal(veo(key, http).createJob(req));
+    expect(refused).toEqual({ code, detail: expect.stringMatching(said) });
+    // Nothing in a refusal claims the key is valid.
+    expect(refused.detail).not.toMatch(/key is valid/);
   });
 
   it("checks the key for free by reading the model", async () => {

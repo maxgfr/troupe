@@ -39,6 +39,14 @@ export const google = {
     },
   },
   // The documented google.rpc.Status bodies for the other refusals.
+  permission: {
+    error: {
+      code: 403,
+      message: "Generative Language API has not been used in project 1234 before or it is disabled.",
+      status: "PERMISSION_DENIED",
+      details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "SERVICE_DISABLED", domain: "googleapis.com" }],
+    },
+  },
   region: { error: { code: 400, message: "User location is not supported for the API use.", status: "FAILED_PRECONDITION" } },
   quota: { error: { code: 429, message: "You exceeded your current quota.", status: "RESOURCE_EXHAUSTED" } },
 } as const;

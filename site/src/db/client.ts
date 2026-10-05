@@ -61,8 +61,12 @@ async function connect(host: Worker): Promise<BrowserDatabase> {
 async function open(): Promise<BrowserDatabase> {
   const host = new Worker(new URL("./pglite.worker.ts", import.meta.url), { type: "module" });
   const start = startFailure(host);
+  const connecting = connect(host);
+  // When the start fails first, the terminated worker makes `connecting`
+  // reject later: nobody waits for it any more.
+  connecting.catch(() => {});
   try {
-    return await Promise.race([connect(host), start.failed]);
+    return await Promise.race([connecting, start.failed]);
   } catch (error) {
     host.terminate();
     throw error;
@@ -154,12 +158,15 @@ export async function snapshotDatabase(): Promise<PgliteSnapshot> {
 }
 
 // Replaces the whole database with a backup's, in one transaction: a backup
-// that does not fit changes nothing (restorePglite).
+// that does not fit changes nothing (restorePglite), and rejects. Once the
+// backup is in, this resolves: seeding the studio again is repaired on the
+// next start (connect seeds too), so a failure there is only logged and the
+// caller keeps the backup's files the database now refers to.
 export function restoreDatabase(snapshot: PgliteSnapshot): Promise<void> {
   return rebuildWith(async () => {
     const { pg, db } = await openOnce();
     await navigator.locks.request(SETUP_LOCK, () => restorePglite(pg, MIGRATIONS, snapshot));
-    await seed(db);
+    await seed(db).catch((error: unknown) => console.warn("The backup was imported; the studio is set up again on the next start:", error));
   });
 }
 

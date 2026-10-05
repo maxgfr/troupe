@@ -11,11 +11,12 @@ import type { Backup } from "./backup";
 const db = vi.hoisted(() => ({
   restoreDatabase: vi.fn(async (_snapshot: unknown) => {}),
   referencedMediaIds: vi.fn(async () => new Set<string>()),
+  resetDatabase: vi.fn(async () => {}),
 }));
 vi.mock("../db/client", () => ({
   restoreDatabase: db.restoreDatabase,
   referencedMediaIds: db.referencedMediaIds,
-  resetDatabase: vi.fn(),
+  resetDatabase: db.resetDatabase,
   snapshotDatabase: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ clearJobs: vi.fn(async () => {}) }));
@@ -26,7 +27,7 @@ vi.stubGlobal("window", { location: { assign, reload: vi.fn() } });
 // One tab here: no channel to the others.
 vi.stubGlobal("BroadcastChannel", undefined);
 
-const { pruneUnreferencedMedia, restoreBackup } = await import("./local-data");
+const { localData, pruneUnreferencedMedia, restoreBackup } = await import("./local-data");
 
 const file = (id: string, text: string) => ({ id, storagePath: `browser/${id}.mp4`, blob: new Blob([text], { type: "video/mp4" }) });
 const backup = (media: ReturnType<typeof file>[]): Backup => ({ createdAt: new Date(), database: { migrations: [], tables: {} }, media });
@@ -36,8 +37,10 @@ async function contents() {
   return Object.fromEntries(await Promise.all(files.map(async (f) => [f.id, await f.blob.text()] as const)));
 }
 
+let locks: ReturnType<typeof installFakeLocks>;
+
 beforeEach(async () => {
-  installFakeLocks();
+  locks = installFakeLocks();
   await clearMediaFiles();
   await saveMediaFiles([file("old", "old bytes"), file("shared", "bytes here")]);
   assign.mockClear();
@@ -68,6 +71,24 @@ describe("importing a backup", () => {
     await restoreBackup(backup([file("new", "new bytes")]));
     expect(assign).toHaveBeenCalledOnce();
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe("deleting everything", () => {
+  it("waits for an import or a clean-up in another tab, then empties the studio and reloads", async () => {
+    let release = () => {};
+    const held = locks.request("troupe-local-data", () => new Promise<void>((resolve) => (release = resolve)));
+    const deleting = localData.deleteAll();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(db.resetDatabase).not.toHaveBeenCalled();
+    expect((await mediaFileIds()).sort()).toEqual(["old", "shared"]);
+    release();
+    await held;
+    await deleting;
+    expect(db.resetDatabase).toHaveBeenCalledOnce();
+    expect(await mediaFileIds()).toEqual([]);
+    expect(jobs.clearJobs).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith("/app/dashboard");
   });
 });
 

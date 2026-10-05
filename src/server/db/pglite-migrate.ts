@@ -91,6 +91,7 @@ export class BackupTooNewError extends Error {
 }
 
 const ident = (name: string) => `"${name.replaceAll('"', '""')}"`;
+const FOREIGN_KEY_VIOLATION = "23503";
 
 async function publicTables(tx: Tx): Promise<string[]> {
   const { rows } = await tx.query<{ name: string }>(
@@ -127,7 +128,10 @@ async function checkForeignKeys(tx: Tx) {
   for (const fk of rows) {
     try {
       await tx.exec(`alter table ${fk.tbl} drop constraint ${ident(fk.name)}, add constraint ${ident(fk.name)} ${fk.def}`);
-    } catch {
+    } catch (error) {
+      // Only a violation (foreign_key_violation) says the backup is damaged;
+      // anything else goes up as it is.
+      if ((error as { code?: unknown }).code !== FOREIGN_KEY_VIOLATION) throw error;
       throw new Error(`This backup is damaged: rows in ${fk.tbl.replaceAll('"', "")} point at rows it does not contain (${fk.name}). Nothing was changed.`);
     }
   }

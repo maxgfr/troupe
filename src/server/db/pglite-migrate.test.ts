@@ -159,6 +159,24 @@ describe("PGlite snapshots (backups of the browser edition)", () => {
     expect(throughJson(await snapshotPglite(pg))).toEqual(snapshot);
   });
 
+  it("reports a failure re-checking the foreign keys as it is, not as a damaged backup", async () => {
+    const { pg } = await studioWithProject();
+    const snapshot = throughJson(await snapshotPglite(pg));
+    // The database fails while re-adding a foreign key, for its own reasons.
+    const failing: Parameters<typeof restorePglite>[0] = {
+      exec: (sql) => pg.exec(sql),
+      query: (sql, params) => pg.query(sql, params),
+      transaction: (run) =>
+        pg.transaction((tx) =>
+          run(Object.assign(Object.create(tx) as typeof tx, {
+            exec: (sql: string) => (/^alter table .* add constraint/s.test(sql) ? Promise.reject(Object.assign(new Error("could not extend file: No space left on device"), { code: "53100" })) : tx.exec(sql)),
+          })),
+        ),
+    };
+    await expect(restorePglite(failing, readMigrations(), snapshot)).rejects.toThrow("could not extend file: No space left on device");
+    expect(throughJson(await snapshotPglite(pg))).toEqual(snapshot);
+  });
+
   it("rolls back entirely when the rows do not fit", async () => {
     const { pg } = await studioWithProject();
     const snapshot = throughJson(await snapshotPglite(pg));

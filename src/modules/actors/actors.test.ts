@@ -105,7 +105,9 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
     let statements = 0;
     const counted = drizzle(fresh.pg, { schema, logger: { logQuery: () => void statements++ } }) as unknown as Db;
     await seedActorLibrary(counted);
-    expect(statements).toBeLessThanOrEqual(6);
+    // Three queries, plus the transaction's begin and commit (not logged):
+    // the "at most 5 statements" of docs/AUDIT.md.
+    expect(statements).toBeLessThanOrEqual(3);
     expect((await listActors(counted, {})).filter((a) => a.workspaceId === null && a.portraitCount >= 6)).toHaveLength(30);
     statements = 0;
     await seedActorLibrary(counted);

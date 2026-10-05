@@ -22,8 +22,9 @@ function reopen() {
   window.location.assign(`${import.meta.env.BASE_URL}app/dashboard`);
 }
 
-// An import and the clean-up of unreferenced files never overlap, in any tab:
-// the import stores files before the database refers to them.
+// An import, a deletion and the clean-up of unreferenced files never
+// overlap, in any tab: the import stores files before the database refers to
+// them, and a deletion must not empty the studio under either.
 const DATA_LOCK = "troupe-local-data";
 
 function withDataLock<T>(run: () => Promise<T>): Promise<T> {
@@ -32,9 +33,11 @@ function withDataLock<T>(run: () => Promise<T>): Promise<T> {
 }
 
 async function deleteAll(): Promise<void> {
-  await resetDatabase();
-  await clearMediaFiles();
-  await clearJobs();
+  await withDataLock(async () => {
+    await resetDatabase();
+    await clearMediaFiles();
+    await clearJobs();
+  });
   reopen();
 }
 

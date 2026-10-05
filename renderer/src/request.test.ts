@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { compilePrompt } from "~/modules/generation/server/adapter";
+import { buildScene } from "../../src/modules/scene";
 import { BadRequest, parseJobBody } from "./request";
 
 const base = { prompt: "UGC-style ad", aspect_ratio: "9:16", resolution: "720p", width: 720, height: 1280, duration_s: 6, audio: true };
@@ -20,7 +21,6 @@ describe("parseJobBody", () => {
       height: 1280,
       fps: 30,
       audio: true,
-      language: "en",
       actor: { id: "6f1c0e8a", name: "Léa", gender: "female", ageRange: "18-24", voiceProfile: "warm and enthusiastic, mid-tempo" },
       lines: script.lines,
     });
@@ -72,7 +72,6 @@ describe("parseJobBody", () => {
       { role: "body", text: "Fresh beans, every week.", emotion: "happy" },
       { role: "cta", text: "Grab yours today.", emotion: "calm" },
     ]);
-    expect(parsed.language).toBe("en");
     expect(parsed.actor).toMatchObject({ name: "Narrator", voiceProfile: "calm and confident, low register" });
     // The same prompt voice keeps the same colors and voice.
     expect(parseJobBody({ ...base, prompt }).actor.id).toBe(parsed.actor.id);
@@ -81,13 +80,50 @@ describe("parseJobBody", () => {
   it("reads a prompt without dialogue as a single line", () => {
     const parsed = parseJobBody({ ...base, prompt: "  A presenter says hello.  " });
     expect(parsed.lines).toEqual([{ role: "hook", text: "A presenter says hello.", emotion: "neutral" }]);
-    expect(parsed.language).toBe("en");
+  });
+
+  // The estimated length of the lines, as buildScene times a silent job.
+  const lengthS = (lines: ReturnType<typeof parseJobBody>["lines"]) => buildScene({ width: 720, height: 1280, actor: { id: "a", name: "A" }, lines }).durationS;
+
+  it("cuts the prompt's dialogue to about one and a half times duration_s, and says so", () => {
+    const said = "Fresh beans every week and a grinder that finally keeps up with my mornings.";
+    const prompt = compilePrompt({ lines: Array.from({ length: 40 }, () => ({ role: "body" as const, text: said, emotion: "neutral" as const })), voiceProfile: "calm", language: "en" });
+    const log: string[] = [];
+    const parsed = parseJobBody({ ...base, prompt, duration_s: 6 }, (m) => log.push(m));
+    expect(lengthS(parsed.lines)).toBeLessThanOrEqual(6 * 1.5);
+    expect(lengthS(parsed.lines)).toBeGreaterThan(6);
+    expect(parsed.lines[0]!.text).toBe(said);
+    expect(log.join("\n")).toMatch(/duration_s/);
+
+    // A prompt without dialogue is one line: cut the same way.
+    const plain = parseJobBody({ ...base, prompt: said.repeat(50), duration_s: 4 }, (m) => log.push(m));
+    expect(plain.lines).toHaveLength(1);
+    expect(lengthS(plain.lines)).toBeLessThanOrEqual(4 * 1.5);
+    expect(plain.lines[0]!.text.length).toBeGreaterThan(0);
+
+    // A dialogue that fits is kept whole, without a word in the log.
+    const quiet: string[] = [];
+    const short = compilePrompt({ lines: script.lines.map((l) => ({ ...l, role: l.role as "hook", emotion: l.emotion as "calm" })), voiceProfile: "calm", language: "en" });
+    expect(parseJobBody({ ...base, prompt: short }, (m) => quiet.push(m)).lines).toEqual(script.lines);
+    expect(quiet).toEqual([]);
+  });
+
+  it("warns that lines in another language are read with English voices", () => {
+    const log: string[] = [];
+    parseJobBody({ ...base, script }, (m) => log.push(m));
+    expect(log).toEqual([]);
+    parseJobBody({ ...base, script: { ...script, language: "fr" } }, (m) => log.push(m));
+    expect(log).toEqual([expect.stringMatching(/"fr".*English/)]);
+    parseJobBody({ ...base, prompt: compilePrompt({ lines: [{ role: "hook", text: "Bonjour.", emotion: "calm" }], voiceProfile: "calm", language: "de" }) }, (m) => log.push(m));
+    expect(log.at(-1)).toMatch(/"de"/);
   });
 
   it("refuses bodies the contract does not allow", () => {
     expect(() => parseJobBody(null)).toThrow(BadRequest);
     expect(() => parseJobBody({ prompt: "x" })).toThrow(/prompt, width, height and duration_s are required/);
     expect(() => parseJobBody({ ...base, width: 721 })).toThrow(/even/);
+    expect(() => parseJobBody({ ...base, duration_s: "six" })).toThrow(/duration_s/);
+    expect(() => parseJobBody({ ...base, duration_s: -4 })).toThrow(/duration_s/);
     expect(() => parseJobBody({ ...base, width: 8000 })).toThrow(/between/);
     expect(() => parseJobBody({ ...base, fps: 1000 })).toThrow(/fps/);
     expect(() => parseJobBody({ ...base, script: { ...script, lines: [] } })).toThrow(/at least one line/);

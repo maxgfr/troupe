@@ -5,7 +5,16 @@ import type { Speak } from "../../src/modules/scene";
 // cacheDir and are reused afterwards.
 export const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
-export type KokoroDtype = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
+const DTYPES = ["fp32", "fp16", "q8", "q4", "q4f16"] as const;
+export type KokoroDtype = (typeof DTYPES)[number];
+
+// KOKORO_DTYPE: the weights to run, q8 when unset.
+export function parseKokoroDtype(value: string | undefined): KokoroDtype {
+  const dtype = value?.trim() || "q8";
+  const known = DTYPES.find((d) => d === dtype);
+  if (!known) throw new Error(`KOKORO_DTYPE must be one of ${DTYPES.join(", ")} (got "${dtype}").`);
+  return known;
+}
 
 export function kokoroVoice(options: { cacheDir: string; dtype?: KokoroDtype; log?: (message: string) => void }): { speak: Speak; load: () => Promise<void> } {
   let model: Promise<import("kokoro-js").KokoroTTS> | undefined;

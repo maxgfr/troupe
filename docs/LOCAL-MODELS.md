@@ -246,7 +246,10 @@ a video model.
 The video is as long as the script, not the clip length picked at launch:
 0.3 s of silence, each line as long as Kokoro takes to say it with 0.35 s
 between lines, then 0.6 s. The clip length still caps the script, as for any
-model, and the project page shows the video's real length once it is saved.
+model: Troupe will not launch a script whose estimated length (2.5 words a
+second) is over it, though the voice may run a little longer or shorter than
+that estimate. The project page shows the video's real length once it is
+saved.
 The captions are drawn into the picture, so the player keeps its own captions
 track off for these videos. Videos rendered before Troupe read the
 `captions` field still turn it on: nothing stored says which HTTP model was
@@ -287,7 +290,8 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | `KOKORO_DTYPE` | `q8` | weights to run: `q8` (about 90 MB), `fp16` (165 MB), `q4f16` (155 MB), `q4` (305 MB) or `fp32` (330 MB, slightly cleaner) |
 | `KOKORO_VOICES` | the built-in casting | the Kokoro voices actors are cast from, e.g. `female=af_heart,af_bella;male=am_michael`; both pools are required |
 | `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
-| `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
+| `OUT_DIR` | the OS temp folder | finished MP4s |
+| `KEEP_RENDERS_HOURS` | `24` | how long a finished job and its MP4 are kept before the renderer forgets the job and deletes the file (Troupe downloads each video as soon as it is done); MP4s an earlier run left in `OUT_DIR` go once they are that old; `0` keeps everything |
 | `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a relative path is read from the repository root; a missing picture falls back to the front one, then to the initials, and a job's portrait path the renderer cannot use is logged and skipped |
 | `TROUPE_RENDERER_PORT` | `8078` | Compose with `docker-compose.dev.yml` only: the port published on `127.0.0.1` |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
@@ -320,14 +324,18 @@ supported picks the pace up when you press **Test** on it in Settings.
 ### Limits
 
 - Kokoro's voices are English (American and British). Lines in another
-  language are read with English pronunciation; Troupe warns about the
+  language are read with English pronunciation (the renderer logs it when a
+  job's `language` is not English); Troupe warns about the
   language when you launch only if the model declares its languages, which
   the add-model form does not ask for yet.
 - The voice follows the actor's gender, and each actor keeps the same voice;
   emotions and the actor's voice profile ("fast", "measured", …) set the pace.
 - Without `script` in the job (another client than Troupe), the renderer reads
   the dialogue back from the compiled prompt and draws a "Narrator" card with
-  initials.
+  initials. That dialogue is cut to about one and a half times `duration_s`
+  (timed at 2.5 words a second), and the renderer logs what it left out.
+- A line too long for the caption area even at the smallest caption size is
+  shown a few rows at a time, following the word being said.
 
 ## AI video mode (LTX-Video)
 

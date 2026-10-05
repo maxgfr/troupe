@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -163,7 +164,10 @@ describe("renderer (contract v1)", () => {
     const prompt = compilePrompt({ lines, voiceProfile: actor.voiceProfile, language: "en" });
     const clip = await probe(await save(await renderThroughTroupe(baseUrl, { prompt, aspectRatio: "1:1", resolution: "480p", durationS: 4, audio: true }), "prompt.mp4"));
     expect(clip.streams.map((s) => s.codec_type).sort()).toEqual(["audio", "video"]);
-    expect(Number(clip.format.duration)).toBeGreaterThan(2);
+    // The prompt's lines, voiced for the narrator its voice profile keys.
+    const narrator = { id: `prompt:${actor.voiceProfile}`, name: "Narrator", voiceProfile: actor.voiceProfile };
+    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(narrator, l.emotion))).samples.length / RATE));
+    expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("1:1", "480p"), actor: narrator, lines, speechS }).durationS, 1);
   });
 
   it("renders silent video at the requested size when audio is off", async () => {
@@ -192,6 +196,39 @@ describe("renderer (contract v1)", () => {
       ok: false,
       message: `Renderer returned HTTP 503: ${LTX_OFF}`,
     });
+  });
+
+  it("forgets finished jobs and deletes their videos after keepRendersS, and old videos left in the folder", async () => {
+    const outDir = await mkdtemp(join(tmpdir(), "troupe-renderer-sweep-"));
+    try {
+      const hourAgo = new Date(Date.now() - 3600_000);
+      const orphan = join(outDir, "00000000-0000-0000-0000-000000000001.mp4");
+      const notes = join(outDir, "notes.txt");
+      for (const file of [orphan, notes]) {
+        await writeFile(file, "x");
+        await utimes(file, hourAgo, hourAgo);
+      }
+      const server = createRendererServer({ speak: tone, outDir, keepRendersS: 1.5 });
+      servers.push(server);
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      const body = { prompt: "x", width: 160, height: 160, duration_s: 4, audio: false, script: { language: "en", actor: { id: actor.id, name: actor.name }, lines } };
+      const { id } = (await (await fetch(`${origin}/jobs`, { method: "POST", body: JSON.stringify(body) })).json()) as { id: string };
+      const status = async () => {
+        const res = await fetch(`${origin}/jobs/${id}`);
+        return res.status === 404 ? "gone" : ((await res.json()) as { status: string }).status;
+      };
+      await expect.poll(status, { timeout: 20_000, interval: 100 }).toBe("succeeded");
+      const video = join(outDir, `${id}.mp4`);
+      expect(existsSync(video)).toBe(true);
+      // The orphan is older than keepRendersS: swept at once; the rest stays.
+      await expect.poll(() => existsSync(orphan), { timeout: 2000 }).toBe(false);
+      expect(existsSync(notes)).toBe(true);
+      await expect.poll(status, { timeout: 5000, interval: 100 }).toBe("gone");
+      expect(existsSync(video)).toBe(false);
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
+    }
   });
 
   it("reports a voice failure as a failed job with a readable error", async () => {

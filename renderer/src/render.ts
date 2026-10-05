@@ -70,16 +70,21 @@ export async function encodeFrames(args: string[], scene: Scene, draw: (ctx: Sce
   // The scene draws through the same 2D interface as in the browser.
   const ctx: SceneContext<Image> = context;
   const frames = Math.round(scene.durationS * scene.fps);
-  for (let i = 0; i < frames && ffmpeg.exitCode === null; i++) {
-    draw(ctx, i / scene.fps);
-    const pixels = context.getImageData(0, 0, scene.width, scene.height).data;
-    if (!ffmpeg.stdin.write(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength))) {
-      await Promise.race([once(ffmpeg.stdin, "drain").catch(() => {}), exited.catch(() => {})]);
+  try {
+    for (let i = 0; i < frames && ffmpeg.exitCode === null; i++) {
+      draw(ctx, i / scene.fps);
+      const pixels = context.getImageData(0, 0, scene.width, scene.height).data;
+      if (!ffmpeg.stdin.write(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength))) {
+        await Promise.race([once(ffmpeg.stdin, "drain").catch(() => {}), exited.catch(() => {})]);
+      }
+      if (i % scene.fps === 0) onProgress(i / frames);
     }
-    if (i % scene.fps === 0) onProgress(i / frames);
+    ffmpeg.stdin.end();
+    await exited;
+  } finally {
+    // A frame that failed to draw leaves ffmpeg waiting for the next one.
+    if (ffmpeg.exitCode === null && ffmpeg.signalCode === null) ffmpeg.kill("SIGKILL");
   }
-  ffmpeg.stdin.end();
-  await exited;
 }
 
 // The raw frames input encodeFrames feeds.

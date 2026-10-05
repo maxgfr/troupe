@@ -14,11 +14,11 @@ import { fileURLToPath } from "node:url";
 
 import { parseVoicePools, type VoicePools } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
-import { type KokoroDtype, kokoroVoice } from "./kokoro";
+import { type KokoroDtype, kokoroVoice, parseKokoroDtype } from "./kokoro";
 import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } from "./ltx";
 import { portraitsDir } from "./portraits";
 import { renderLtxVideo } from "./render-ltx";
-import { createRendererServer, LTX_PREFIX } from "./server";
+import { createRendererServer, KEEP_RENDERS_S, LTX_PREFIX } from "./server";
 
 const PORT = Number(process.env.PORT ?? 8078);
 const HOST = process.env.HOST ?? "127.0.0.1";
@@ -29,9 +29,16 @@ function refuse(message: string): never {
   process.exit(1);
 }
 
-const DTYPES: KokoroDtype[] = ["fp32", "fp16", "q8", "q4", "q4f16"];
-const dtype = (process.env.KOKORO_DTYPE || "q8") as KokoroDtype;
-if (!DTYPES.includes(dtype)) refuse(`KOKORO_DTYPE must be one of ${DTYPES.join(", ")} (got "${dtype}").`);
+let dtype: KokoroDtype = "q8";
+try {
+  dtype = parseKokoroDtype(process.env.KOKORO_DTYPE);
+} catch (error) {
+  refuse((error as Error).message);
+}
+
+// KEEP_RENDERS_HOURS: how long finished videos stay on disk (0: forever).
+const keepHours = Number(process.env.KEEP_RENDERS_HOURS?.trim() || KEEP_RENDERS_S / 3600);
+if (!Number.isFinite(keepHours) || keepHours < 0) refuse(`KEEP_RENDERS_HOURS must be a number of hours, 0 or more (got "${process.env.KEEP_RENDERS_HOURS}").`);
 
 // KOKORO_VOICES="female=af_heart,af_bella;male=am_michael" recasts the actors.
 let voices: VoicePools | undefined;
@@ -75,6 +82,7 @@ const server = createRendererServer({
       }
     : {}),
   outDir: process.env.OUT_DIR ?? join(tmpdir(), "troupe-renderer"),
+  keepRendersS: keepHours * 3600,
   token: process.env.TOKEN || undefined,
   log,
 });

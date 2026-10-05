@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream, mkdirSync, statSync } from "node:fs";
+import { readdir, rm, stat } from "node:fs/promises";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 
@@ -33,6 +34,9 @@ export interface RendererOptions {
   ltx?: RenderMode;
   // Where finished MP4s are kept.
   outDir: string;
+  // How long a finished job and its MP4 are kept, in seconds; 0 keeps them
+  // all (default: a day). Troupe downloads a video as soon as it is done.
+  keepRendersS?: number;
   token?: string;
   log?: (message: string) => void;
 }
@@ -41,9 +45,13 @@ interface Job {
   status: "queued" | "running" | "succeeded" | "failed";
   progress: number;
   error?: string;
+  // When it succeeded or failed (Date.now()).
+  finishedAt?: number;
 }
 
 const MAX_BODY_BYTES = 1024 * 1024;
+export const KEEP_RENDERS_S = 24 * 3600;
+const VIDEO_FILE = /^([0-9a-f-]+)\.mp4$/;
 export const LTX_PREFIX = "/ltx";
 export const LTX_OFF = "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md).";
 
@@ -70,16 +78,38 @@ export function createRendererServer(options: RendererOptions): Server {
       const started = Date.now();
       try {
         const durationS = await mode.render(request, join(options.outDir, `${id}.mp4`), (p) => (job.progress = Math.min(0.99, p)));
-        Object.assign(job, { status: "succeeded", progress: 1 });
+        Object.assign(job, { status: "succeeded", progress: 1, finishedAt: Date.now() });
         log(`Rendered ${id} (${name}): ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
       } catch (error) {
-        Object.assign(job, { status: "failed", error: (error as Error).message || "The render failed." });
+        Object.assign(job, { status: "failed", error: (error as Error).message || "The render failed.", finishedAt: Date.now() });
         log(`Render ${id} (${name}) failed: ${job.error}`);
       }
     });
   }
 
-  return createServer((req, res) => {
+  // Forgets jobs finished more than keepRendersS ago and deletes the MP4s no
+  // job it remembers owns once they are that old: theirs, and any left by an
+  // earlier run.
+  const keepS = options.keepRendersS ?? KEEP_RENDERS_S;
+  async function sweep() {
+    const cutoff = Date.now() - keepS * 1000;
+    for (const [id, job] of jobs) if (job.finishedAt !== undefined && job.finishedAt < cutoff) jobs.delete(id);
+    for (const name of await readdir(options.outDir)) {
+      const id = VIDEO_FILE.exec(name)?.[1];
+      if (!id || jobs.has(id)) continue;
+      const file = join(options.outDir, name);
+      if ((await stat(file)).mtimeMs < cutoff) await rm(file, { force: true });
+    }
+  }
+  let sweeping: NodeJS.Timeout | undefined;
+  if (keepS > 0) {
+    const run = () => void sweep().catch((error: Error) => log(`Could not clean up old renders: ${error.message}`));
+    run();
+    sweeping = setInterval(run, Math.min(Math.max(100, (keepS * 1000) / 4), 3600_000));
+    sweeping.unref();
+  }
+
+  const server = createServer((req, res) => {
     if (options.token && req.headers.authorization !== `Bearer ${options.token}`) return send(res, 401, { error: "unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     let path = url.pathname;
@@ -137,4 +167,6 @@ export function createRendererServer(options: RendererOptions): Server {
     }
     send(res, 404, { error: "not found" });
   });
+  server.on("close", () => clearInterval(sweeping));
+  return server;
 }

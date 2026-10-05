@@ -1,4 +1,4 @@
-import type { SceneLine, VoiceActor } from "../../src/modules/scene";
+import { type SceneLine, TIMING, type VoiceActor, WORDS_PER_SECOND } from "../../src/modules/scene";
 import type { Emotion, LineRole } from "~/modules/script";
 
 // A POST /jobs body (docs/LOCAL-MODELS.md), checked and reduced to what the
@@ -10,7 +10,6 @@ export interface RenderRequest {
   height: number;
   fps: number;
   audio: boolean;
-  language: string;
   // ageRange describes the actor to a video model (render-ltx.ts);
   // portraits are the actor's pictures by shot (front, happy, …), as paths
   // under the portraits folder (portraits.ts).
@@ -79,7 +78,9 @@ function portraits(value: unknown, log: (message: string) => void): Record<strin
   return Object.keys(kept).length > 0 ? kept : undefined;
 }
 
-function fromScript(value: unknown, log: (message: string) => void): Pick<RenderRequest, "language" | "actor" | "lines"> {
+type Spoken = Pick<RenderRequest, "actor" | "lines"> & { language: string };
+
+function fromScript(value: unknown, log: (message: string) => void): Spoken {
   const script = record(value);
   if (!script) throw new BadRequest("script must be an object.");
   const actor = record(script.actor);
@@ -102,7 +103,7 @@ function fromScript(value: unknown, log: (message: string) => void): Pick<Render
 
 // compilePrompt() writes "Voice: <profile>. Language: <code>." then one
 // "[emotion] (role) text" line per script line.
-function fromPrompt(prompt: string): Pick<RenderRequest, "language" | "actor" | "lines"> {
+function fromPrompt(prompt: string): Spoken {
   const voice = /^Voice: (.*)\. Language: ([\w-]+)\.$/m.exec(prompt);
   const lines: SceneLine[] = [];
   for (const match of prompt.matchAll(/^\[(\w+)\] \((\w+)\) (.+)$/gm)) {
@@ -118,18 +119,47 @@ function fromPrompt(prompt: string): Pick<RenderRequest, "language" | "actor" | 
   };
 }
 
+// Troupe keeps a script within the clip length, but a prompt from another
+// client can hold any amount of text: its dialogue is cut to about this many
+// times duration_s, timed at the pace of a line without a voice.
+export const PROMPT_LENGTH_SLACK = 1.5;
+
+function capToDuration(lines: SceneLine[], durationS: number, log: (message: string) => void): SceneLine[] {
+  const maxS = durationS * PROMPT_LENGTH_SLACK;
+  let words = (maxS - TIMING.leadInS - TIMING.tailS) * WORDS_PER_SECOND;
+  const kept: SceneLine[] = [];
+  for (const line of lines) {
+    if (kept.length > 0) words -= TIMING.gapS * WORDS_PER_SECOND;
+    const said = line.text.split(/\s+/).filter(Boolean);
+    // At least the first word, whatever the length asked for.
+    const room = Math.max(kept.length === 0 ? 1 : 0, Math.floor(words));
+    if (room === 0) break;
+    kept.push(said.length <= room ? line : { ...line, text: said.slice(0, room).join(" ") });
+    words -= said.length;
+    if (said.length > room) break;
+  }
+  const total = (ls: SceneLine[]) => ls.reduce((n, l) => n + l.text.split(/\s+/).filter(Boolean).length, 0);
+  if (total(kept) < total(lines)) {
+    log(`The prompt's dialogue is longer than duration_s (${durationS} s) allows: reading its first ${total(kept)} of ${total(lines)} words, about ${maxS} s.`);
+  }
+  return kept;
+}
+
 // `log` hears about parts of the job that were dropped rather than refused.
 export function parseJobBody(body: unknown, log: (message: string) => void = () => {}): RenderRequest {
   const input = record(body);
   if (!input) throw new BadRequest("The body must be a JSON object.");
   if (!text(input.prompt) || !input.width || !input.height || !input.duration_s) throw new BadRequest("prompt, width, height and duration_s are required");
+  const durationS = Number(input.duration_s);
+  if (!Number.isFinite(durationS) || durationS <= 0) throw new BadRequest("duration_s must be a positive number of seconds.");
   const fps = input.fps === undefined ? 24 : Number(input.fps);
   if (!Number.isInteger(fps) || fps < 1 || fps > 60) throw new BadRequest("fps must be a whole number between 1 and 60.");
-  return {
-    width: size(input.width, "width"),
-    height: size(input.height, "height"),
-    fps,
-    audio: input.audio !== false,
-    ...(input.script === undefined ? fromPrompt(text(input.prompt)) : fromScript(input.script, log)),
-  };
+  const width = size(input.width, "width");
+  const height = size(input.height, "height");
+  const fromScriptOrPrompt = input.script === undefined ? fromPrompt(text(input.prompt)) : fromScript(input.script, log);
+  const { language, actor } = fromScriptOrPrompt;
+  // Kokoro only has English voices (docs/LOCAL-MODELS.md, Limits).
+  if (!/^en\b/i.test(language)) log(`Lines in "${language}" are read with English pronunciation: the Kokoro voices are English.`);
+  const lines = input.script === undefined ? capToDuration(fromScriptOrPrompt.lines, durationS, log) : fromScriptOrPrompt.lines;
+  return { width, height, fps, audio: input.audio !== false, actor, lines };
 }

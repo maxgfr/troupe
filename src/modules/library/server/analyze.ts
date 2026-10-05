@@ -28,6 +28,8 @@ const DEFAULT_VISION_FRAMES = 6;
 const EMBED_BATCH = 16;
 const CTA = /\b(follow|subscribe|link in|comment|share|save this|like this|abonne|lien|commente|partage)/i;
 
+const STEP_NAMES: Record<AnalysisStep["name"], string> = { frames: "the pictures", transcript: "the transcript", vision: "what the pictures show", insights: "the hook, structure and tags", embeddings: "search by meaning" };
+
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error)).replace(/\s+/g, " ").slice(0, 300);
 
 // Takes the oldest queued item for analysis; null when none waits.
@@ -232,7 +234,8 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
       }
     }
 
-    const notes = steps.filter((s) => s.status !== "done" && s.detail).map((s) => s.detail!);
+    // "Skipped: what the pictures show (why)." once per step.
+    const notes = steps.filter((s) => s.status !== "done" && s.detail).map((s) => `${s.status === "failed" ? "Failed" : "Skipped"}: ${STEP_NAMES[s.name]}. ${s.detail}`);
     await db.transaction(async (tx) => {
       await tx.delete(libraryChunks).where(eq(libraryChunks.itemId, item.id));
       await tx.insert(libraryChunks).values(

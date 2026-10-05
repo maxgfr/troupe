@@ -101,7 +101,7 @@ describe("the inspiration library", () => {
     expect(detail.durationS).toBe(20);
     expect(detail.tags).toEqual(["coffee", "cold brew"]);
     const a = detail.analysis!;
-    expect(a.hook).toEqual({ text: "Stop buying cold brew. Make", endS: 3, why: "It opens on a bold claim." });
+    expect(a.hook).toEqual({ text: "Stop buying cold brew.", endS: 3, why: "It opens on a bold claim." });
     expect(a.frames).toHaveLength(3);
     expect(a.frames![0]).toMatchObject({ atS: 0.5, description: "A barista holds a jar of coffee.", text: "COLD BREW HACK" });
     expect(a.structure).toEqual([{ part: "hook", startS: 0, summary: "Bold claim" }, { part: "cta", startS: 18, summary: "Follow" }]);
@@ -124,9 +124,9 @@ describe("the inspiration library", () => {
     }));
     const detail = await getItem(t.db, workspaceId, item.id);
     expect(detail.status).toBe("ready");
-    expect(detail.problem).toBe("Pull the vision model. No chat model is set up. Pull the embedding model.");
+    expect(detail.problem).toBe("Skipped: what the pictures show. Pull the vision model. Skipped: the hook, structure and tags. No chat model is set up. Skipped: search by meaning. Pull the embedding model.");
     expect(detail.tags).toContain("coffee");
-    expect(detail.analysis!.structure).toEqual([{ part: "hook", startS: 0, summary: "Stop buying cold brew. Make" }, { part: "cta", startS: 18, summary: "Follow for more coffee tricks." }]);
+    expect(detail.analysis!.structure).toEqual([{ part: "hook", startS: 0, summary: "Stop buying cold brew." }, { part: "cta", startS: 18, summary: "Follow for more coffee tricks." }]);
     const found = await searchLibrary(t.db, { workspaceId, query: "jar overnight", embedder: { ready: false, problem: "Pull the embedding model." } });
     expect(found.mode).toBe("keyword");
     expect(found.note).toBe("Pull the embedding model.");

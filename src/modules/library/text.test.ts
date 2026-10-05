@@ -56,13 +56,17 @@ describe("keywordScore", () => {
 });
 
 describe("hooks", () => {
-  it("takes the words said in the first 3 seconds, cutting a long segment in proportion", () => {
-    expect(hookFromTranscript([seg(0, 1.5, "Stop."), seg(1.5, 6, "This one trick saves you an hour every day")])).toEqual({ text: "Stop. This one trick", endS: 3 });
+  it("takes the whole phrases said in the first 3 seconds, and at least the first", () => {
+    expect(hookFromTranscript([seg(0, 1.5, "Stop."), seg(1.5, 6, "This one trick saves you an hour every day")])).toEqual({ text: "Stop.", endS: 3 });
+    expect(hookFromTranscript([seg(0, 1.2, "Stop."), seg(1.2, 2.8, "Look at this."), seg(2.9, 5, "Here is why.")])).toEqual({ text: "Stop. Look at this.", endS: 3 });
+    expect(hookFromTranscript([seg(0.4, 4.5, "Most people brew coffee wrong.")])).toEqual({ text: "Most people brew coffee wrong.", endS: 4.5 });
+    expect(hookFromTranscript([seg(9, 12, "Late start.")])).toBeNull();
   });
 
   it("falls back to the first sentence of a text", () => {
     expect(hookFromText("Most people get mornings wrong. Here is why.")).toBe("Most people get mornings wrong.");
     expect(hookFromText("   ")).toBeNull();
+    expect(hookFromText("Three hooks that always work:\n\n1. Name the problem.")).toBe("Three hooks that always work:");
   });
 });
 

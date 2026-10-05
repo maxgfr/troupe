@@ -35,7 +35,7 @@ describe("AppShell", () => {
       </WorkspaceProvider>,
     );
     expect(screen.getByLabelText("troupe — home")).toBeDefined();
-    for (const label of ["Dashboard", "Actors", "Benchmark"]) {
+    for (const label of ["Dashboard", "Library", "Actors", "Benchmark"]) {
       expect(screen.getByRole("link", { name: label })).toBeDefined();
     }
     expect(screen.getByRole("link", { name: "Acme Growth" })).toBeDefined();

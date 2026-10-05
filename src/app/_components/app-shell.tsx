@@ -9,11 +9,14 @@ import { Wordmark } from "./wordmark";
 import { useWorkspace } from "./workspace-context";
 import { ErrorNote } from "./ui";
 
-// Personal studio navigation. Project tools stay within each project.
+// Personal studio navigation. Project tools stay within each project. On
+// phones the wordmark leads to the dashboard and its own link leaves the
+// row, so the bar keeps one row down to 360 px.
 const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/actors", label: "Actors" },
-  { href: "/benchmark", label: "Benchmark" },
+  { href: "/dashboard", label: "Dashboard", phone: false },
+  { href: "/library", label: "Library", phone: true },
+  { href: "/actors", label: "Actors", phone: true },
+  { href: "/benchmark", label: "Benchmark", phone: true },
 ] as const;
 
 // Three sliders: the studio's settings, on phones where the name does not fit.
@@ -49,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`flex min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 max-[380px]:px-1.5 max-[380px]:text-[13px] sm:min-h-0 sm:px-3 sm:py-1.5 ${
+                    className={`${item.phone ? "flex" : "max-sm:hidden sm:flex"} min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 max-[380px]:px-1.5 max-[380px]:text-[13px] sm:min-h-0 sm:px-3 sm:py-1.5 ${
                       active
                         ? "bg-primary/15 font-medium text-primary"
                         : "text-muted hover:text-fg"

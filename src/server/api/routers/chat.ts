@@ -16,6 +16,7 @@ import {
 } from "~/modules/chat";
 import { estimateDurationS, ScriptTooLongError } from "~/modules/script";
 import { ActorUnavailableError } from "~/modules/actors";
+import { voiceProfile } from "~/modules/library";
 import { MODEL_KEY } from "./generation";
 import { launchText } from "./_launch";
 
@@ -56,7 +57,10 @@ export const chatRouter = createTRPCRouter({
   send: projectProcedure
     .input(z.object({ message: z.string().trim().min(1).max(2000), durationS: z.number().int().min(1).max(600) }))
     .mutation(async ({ ctx, input, signal }) => {
-      const setup = await backend(ctx.chat).load();
+      const loaded = await backend(ctx.chat).load();
+      // "In my voice": the style of the library items marked as the user's own.
+      const { profile } = await voiceProfile(ctx.db, ctx.workspaceId);
+      const setup = profile ? { ...loaded, instructions: [loaded.instructions.trim(), `Write in the creator's own voice: ${profile}`].filter(Boolean).join(" ") } : loaded;
       try {
         return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal });
       } catch (error) {

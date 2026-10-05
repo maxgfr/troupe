@@ -131,23 +131,21 @@ export function keywordScore(query: string, text: string): number {
   return terms.reduce((sum, term) => sum + Math.min(3, counts.get(term) ?? 0), 0);
 }
 
-// The hook: the words said in the first `seconds`, a segment that runs past
-// them cut in proportion to its length.
+// The hook: what is said in the first `seconds`, in whole segments (Whisper
+// cuts on phrases): every segment that starts in the window and is said
+// mostly inside it, and at least the first one.
 export function hookFromTranscript(segments: readonly TranscriptSegment[], seconds = 3): { text: string; endS: number } | null {
-  const said: string[] = [];
-  for (const segment of segments) {
-    if (segment.startS >= seconds) break;
-    const tokens = squash(segment.text).split(" ").filter(Boolean);
-    const span = segment.endS - segment.startS;
-    const share = span <= 0 || segment.endS <= seconds ? 1 : (seconds - segment.startS) / span;
-    said.push(...tokens.slice(0, Math.max(1, Math.round(tokens.length * share))));
-  }
-  return said.length ? { text: said.join(" "), endS: seconds } : null;
+  const spoken = segments.filter((s) => s.text.trim());
+  const first = spoken[0];
+  if (!first || first.startS >= seconds * 2) return null;
+  const inside = spoken.filter((s, i) => i === 0 || (s.startS < seconds && (s.startS + s.endS) / 2 <= seconds));
+  return { text: inside.map((s) => squash(s.text)).join(" "), endS: Math.round(Math.max(seconds, inside.at(-1)!.endS) * 100) / 100 };
 }
 
 // A text's hook: its first sentence (or its first 160 characters).
 export function hookFromText(text: string): string | null {
-  const flat = squash(text);
+  // The first line: a list's heading ("Three hooks:") stays whole.
+  const flat = squash(text.split(/\n/).find((line) => line.trim()) ?? "");
   if (!flat) return null;
   const sentence = /^.+?[.!?…](?=\s|$)/.exec(flat)?.[0] ?? flat;
   return sentence.length > 160 ? `${sentence.slice(0, 159)}…` : sentence;

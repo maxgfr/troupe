@@ -4,7 +4,7 @@ import { createTestDb, type TestDb } from "~/test/db";
 import { seedFixture, type Fixture } from "~/test/fixture";
 import { testCaller } from "~/test/caller";
 import { fakeEmbedder, fakeWriter } from "~/test/library";
-import type { ChatBackend } from "~/modules/chat";
+import type { ChatBackend, ChatTurn } from "~/modules/chat";
 import type { AnalysisTools, LibraryBackend } from "~/modules/library";
 import { runLibraryQueue } from "~/modules/library";
 import type { Db } from "~/server/db/types";
@@ -116,5 +116,17 @@ describe("library router", () => {
     expect(item).toMatchObject({ id: uploadId, kind: "video", title: "clip", mine: true, mediaUrl: `/api/media/${item.assetId}` });
     await caller(MEMBER, backend).library.delete({ workspaceId: fx.workspaceId, itemId: item.id });
     expect(removed.at(-1)).toEqual([`library/${uploadId}/original.mp4`]);
+  });
+
+  it("writes the project's script chat in my voice once items are marked as mine", async () => {
+    const mine = await caller().library.addText({ workspaceId: fx.workspaceId, text: "Your desk is lying to you. Fix the light first.", mine: true });
+    await runLibraryQueue(db, async () => tools);
+    expect((await caller().library.voice({ workspaceId: fx.workspaceId })).items).toBeGreaterThanOrEqual(1);
+    const seen: ChatTurn[][] = [];
+    const recording: ChatBackend = { ...chat, async load() { return { ...(await chat.load()), model: fakeWriter(seen), instructions: "Warm." }; } };
+    await testCaller({ db, userId: MEMBER, chat: recording, library: library() }).chat.send({ projectId: fx.projectId, message: "Write it", durationS: 8 });
+    expect(seen[0]![0]!.content).toContain("House style: Warm. Write in the creator's own voice: From");
+    expect(seen[0]![0]!.content).toContain('"Your desk is lying to you."');
+    await caller().library.delete({ workspaceId: fx.workspaceId, itemId: mine.id });
   });
 });

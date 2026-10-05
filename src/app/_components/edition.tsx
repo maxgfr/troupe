@@ -14,7 +14,17 @@ export type Edition =
       data: LocalData;
       rendering?: BrowserRendering;
       chat?: BrowserChat;
+      library?: LibraryUploader;
     };
+
+// How a file reaches the inspiration library: the self-hosted studio posts
+// it to /api/library/upload (src/app/(app)/library/upload.ts); the browser
+// edition keeps it in this browser and records it (site/src/library).
+export interface LibraryUploader {
+  upload(file: File, input: { workspaceId: string; mine: boolean; onProgress?: (fraction: number) => void }): Promise<{ id: string }>;
+  // Under the add bar: where the analysis runs and what it downloads first.
+  Note?: ComponentType;
+}
 
 // The browser edition's own model, as the project page shows it.
 export interface BrowserRendering {

@@ -55,7 +55,7 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
 function modelTool<T>(model: string | null, p: Probe, name: string, envName: string, make: (model: string) => T): Tool<T> & { model: string | null } {
   if (!model) return { ready: false, problem: `The ${name} model is off (${envName}).`, model: null };
   if (!p.pulled) return { ready: false, problem: `${p.ollamaProblem ?? "Ollama cannot be reached."} The ${name} step waits for it.`, model };
-  if (!hasModel(p.pulled, model)) return { ready: false, problem: `Ollama does not have ${model} yet (the Docker stack downloads it after the chat model; otherwise run \`ollama pull ${model}\`).`, model };
+  if (!hasModel(p.pulled, model)) return { ready: false, problem: `Ollama does not have ${model} yet: \`ollama pull ${model}\` (the Docker stack pulls it by itself).`, model };
   return { ready: true, tool: make(model), model };
 }
 

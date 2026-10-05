@@ -98,6 +98,7 @@ use the defaults below.
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
 | `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2 for Ollama; Claude takes 0 to 1 (a higher value is sent as 1), and only the models marked below accept one |
 | `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
+| `TROUPE_CHAT_ANTHROPIC_FALLBACK` | `auto` | the server-side fallback below (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): `auto` sends it only when requests go to `api.anthropic.com` (no `ANTHROPIC_BASE_URL`, or that one), since a gateway may refuse the beta; `on` or `off` decides for any address |
 
 | Browser edition (`site/.env`, at build time) | Default | |
 |---|---|---|
@@ -114,18 +115,20 @@ with a 400, so the chat never sends them a temperature, whatever
 
 | Model | Structured output | Effort `low` | Server-side fallback | Temperature |
 |---|---|---|---|---|
-| `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5`, `claude-fable-5-1` | yes | yes | yes | no |
-| `claude-fable-5`, `claude-mythos-5`, `claude-mythos-5-1`, `claude-sonnet-5`, `claude-opus-4-8` | yes | yes | no | no |
+| `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5`, `claude-fable-5-1`, `claude-fable-5`, `claude-mythos-5-1` | yes | yes | yes | no |
+| `claude-mythos-5` (no safety classifiers, so nothing to fall back from), `claude-sonnet-5`, `claude-opus-4-8` | yes | yes | no | no |
 | `claude-opus-4-7` | no | yes | no | no |
 | `claude-opus-4-6`, `claude-sonnet-4-6` | no | yes | no | yes |
-| `claude-opus-4-5` | yes | yes | no | yes |
-| `claude-haiku-4-5` | yes | no | no | yes |
-| `claude-sonnet-4-5` | no | no | no | yes |
+| `claude-opus-4-5`, `claude-opus-4-5-20251101` | yes | yes | no | yes |
+| `claude-haiku-4-5`, `claude-haiku-4-5-20251001` | yes | no | no | yes |
+| `claude-sonnet-4-5`, `claude-sonnet-4-5-20250929` | no | no | no | yes |
 | any other id | no | no | no | no |
 
-Without structured output the JSON schema goes in the prompt, and the answer
-is checked and repaired like any other. An unknown id gets nothing a model
-could refuse; add it to the table to give it more.
+The current models have no dated ids; the older ones answer to their alias
+and to their dated id alike. Without structured output the JSON schema goes
+in the prompt, and the answer is checked and repaired like any other. An
+unknown id gets nothing a model could refuse; add it to the table to give it
+more. `claude-opus-4-1` is not listed: Anthropic retired it on 2026-08-05.
 
 ## Testing
 

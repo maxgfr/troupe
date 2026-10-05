@@ -1,8 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 
 import { createTestDb, resetAuth, setAuthUser, type TestDb } from "~/test/db";
 import { seedFixture, type Fixture } from "~/test/fixture";
+import * as schema from "~/server/db/schema";
 import type { Db } from "~/server/db/types";
 import { listActors } from "~/modules/actors";
 import { getScriptHistory, pasteScript } from "~/modules/script";
@@ -196,6 +198,35 @@ describe("applying a proposal", () => {
     await expect(applyChatProposal(db, { projectId: f.projectId, messageId: user.id })).rejects.toThrow(/no script to apply/i);
     const other = await seedFixture(db, { userId: "63333333-3333-4333-8333-333333333333", name: "Third" });
     await expect(applyChatProposal(db, { projectId: other.projectId, messageId: assistant.id })).rejects.toThrow(/not found/i);
+  });
+});
+
+describe("against an emotion retag in place", () => {
+  // The same database, with every statement written down.
+  function logged() {
+    const queries: string[] = [];
+    const conn = drizzle(t.pg, { schema, logger: { logQuery: (query) => void queries.push(query) } }) as unknown as Db;
+    return { conn, queries };
+  }
+  const shareLockOn = (queries: string[]) => queries.findIndex((q) => /^select .* from "troupe_script" where "troupe_script"\."id" = \$1 for share$/.test(q));
+
+  it("records a request under a share lock on the version it was made on", async () => {
+    const { conn, queries } = logged();
+    const { model } = scriptedModel([GOOD]);
+    await sendChatMessage(conn, { projectId: f.projectId, message: "Sharper", durationS: 8, setup: setupWith(model) });
+    const lock = shareLockOn(queries);
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeLessThan(queries.findIndex((q) => q.startsWith('insert into "troupe_chat_message"')));
+  });
+
+  it("applies a proposal under a share lock on the version it was made on", async () => {
+    const { model } = scriptedModel([GOOD]);
+    const { assistant } = await sendChatMessage(db, { projectId: f.projectId, message: "Sharper", durationS: 8, setup: setupWith(model) });
+    const { conn, queries } = logged();
+    await applyChatProposal(conn, { projectId: f.projectId, messageId: assistant.id });
+    const lock = shareLockOn(queries);
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeLessThan(queries.findIndex((q) => q.startsWith('insert into "troupe_script"')));
   });
 });
 

@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import { SUPPORTED_EMOTIONS, ScriptEmotionsMismatchError, getScriptHistory, lockScript, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
 import { generations } from "~/modules/generation";
 import { chatMessages } from "~/modules/chat";
+import { projects } from "~/modules/studio";
 import { assertScriptInProject } from "./_scope";
 
 const EMOTION = z.enum(SUPPORTED_EMOTIONS);
@@ -14,7 +15,12 @@ const EMOTION = z.enum(SUPPORTED_EMOTIONS);
 // Trying emotions on the newest version changes it in place, as long as no
 // render was made from it and no chat message refers to it: those keep the
 // version exactly as they saw it, so a retag then adds a version.
+// Decided under the project's row lock (no key update), which conflicts with
+// the one every new version is allocated under (insertScript): a version
+// added by the chat, a restore or a paste either commits first, and this one
+// is no longer the newest, or waits until the retag is done.
 async function retaggableInPlace(db: Db, projectId: string, scriptId: string): Promise<boolean> {
+  await db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).for("no key update");
   const [newest] = await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, projectId)).orderBy(desc(scripts.version)).limit(1);
   if (newest?.id !== scriptId) return false;
   const [rendered] = await db.select({ id: generations.id }).from(generations).where(eq(generations.scriptId, scriptId)).limit(1);

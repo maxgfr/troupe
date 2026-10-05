@@ -5,7 +5,7 @@ import type { Db } from "~/server/db/types";
 import { checkLocalUrl } from "~/server/settings/urls";
 import { actors, listActors } from "~/modules/actors";
 import { studioSettings } from "~/modules/models";
-import { getScript, saveScriptLines, scripts, type ScriptWithLines } from "~/modules/script";
+import { getScript, lockScript, saveScriptLines, scripts, type ScriptWithLines } from "~/modules/script";
 import { changeProjectActor, getProject } from "~/modules/studio";
 import { ChatProviderError, type ChatAnswer, type ChatSettings, type ChatSetup, type ChatTurn } from "../model";
 import { buildChatPrompt, repairTurn } from "../prompt";
@@ -140,6 +140,10 @@ export async function sendChatMessage(
   const answeredAt = new Date(askedAt.getTime() + 1);
   const baseScriptId = script?.id ?? null;
   const [user, assistant] = await db.transaction(async (tx) => {
+    // Under a share lock on the version, as a launch records it: an emotion
+    // retag in place (an update lock) either finished before, or waits and
+    // then sees this message and adds a version instead.
+    if (baseScriptId) await lockScript(tx as unknown as Db, baseScriptId, "share");
     const [u] = await tx.insert(chatMessages).values({ projectId: input.projectId, role: "user", content: input.message, baseScriptId, createdAt: askedAt }).returning();
     const [a] = await tx
       .insert(chatMessages)
@@ -175,6 +179,10 @@ export async function applyChatProposal(db: Db, input: { projectId: string; mess
     if (!proposal?.success) throw new NothingToApplyError();
     if (row.appliedScriptId) return { script: await getScript(conn, row.appliedScriptId), actorChanged: false };
 
+    // The version the proposal was made on is not retagged in place meanwhile
+    // (see sendChatMessage); the new version itself is allocated under the
+    // project's lock, which a retag in place takes too.
+    if (row.baseScriptId) await lockScript(conn, row.baseScriptId, "share");
     const script = await saveScriptLines(conn, { projectId: input.projectId, origin: "chat", lines: proposal.data.lines });
     let actorChanged = false;
     if (proposal.data.actorId) {

@@ -64,7 +64,6 @@ describe("Claude provider", () => {
     expect(body).not.toHaveProperty("tool_choice");
   });
 
-
   it("explains a refused key, a refusal and an unknown model", async () => {
     const chat = createAnthropicChat({ apiKey: "sk-ant-bad", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url });
     reply = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } };
@@ -79,16 +78,14 @@ describe("Claude provider", () => {
     expect(await testAnthropic({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url })).toEqual({ ok: true, message: "The key works and Claude Opus 5.5 is available." });
     expect(server.requests.slice(before).map((r) => `${r.method} ${r.path}`)).toEqual(["GET /v1/models/claude-opus-5-5"]);
   });
-
-
 });
 
 // What each model is sent: the capability table in claude-models.ts, checked
 // on the request bodies the fake API receives.
 describe("Claude request per model", () => {
-  async function bodyFor(model: string, temperature?: number) {
+  async function bodyFor(model: string, temperature?: number, serverFallback?: boolean) {
     reply = { status: 200, body: message(JSON.stringify(answer)) };
-    await createAnthropicChat({ apiKey: "sk-ant-test", model, timeoutMs: 5000, baseURL: server.url, temperature }).propose(turns, { schema });
+    await createAnthropicChat({ apiKey: "sk-ant-test", model, timeoutMs: 5000, baseURL: server.url, temperature, serverFallback }).propose(turns, { schema });
     const request = server.requests.at(-1)!;
     return { body: JSON.parse(request.body) as Record<string, unknown>, beta: request.headers["anthropic-beta"] };
   }
@@ -99,6 +96,23 @@ describe("Claude request per model", () => {
     expect(body).toMatchObject({ output_config: { format, effort: "low" }, fallbacks: "default" });
     expect(body).not.toHaveProperty("temperature");
     expect(beta).toContain("server-side-fallback-2026-07-01");
+  });
+
+  it("claude-fable-5 and claude-mythos-5-1: the server-side fallback too, as on Claude Fable 5.1", async () => {
+    for (const model of ["claude-fable-5-1", "claude-fable-5", "claude-mythos-5-1"]) {
+      const { body, beta } = await bodyFor(model);
+      expect(body, model).toMatchObject({ fallbacks: "default" });
+      expect(beta, model).toContain("server-side-fallback-2026-07-01");
+    }
+    // Claude Mythos 5 runs no safety classifiers: nothing to fall back from.
+    expect((await bodyFor("claude-mythos-5")).body).not.toHaveProperty("fallbacks");
+  });
+
+  it("no fallback beta when the server-side fallback is turned off (a gateway in between)", async () => {
+    const { body, beta } = await bodyFor("claude-opus-5-5", undefined, false);
+    expect(body).not.toHaveProperty("fallbacks");
+    expect(beta ?? "").not.toContain("server-side-fallback");
+    expect(body.output_config).toMatchObject({ effort: "low" });
   });
 
   it("claude-opus-4-8: structured output and low effort, no fallback beta, and no temperature even when one is set", async () => {

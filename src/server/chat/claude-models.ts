@@ -1,6 +1,7 @@
 // What each Claude model accepts, for the parts of a request the chat may
 // send. From Anthropic's API reference (models, structured outputs, effort,
-// refusals and fallback), as of 2026-09. A model missing here gets none of
+// refusals and fallback), as of 2026-09. The current models have no dated
+// ids; the older ones are listed under both their alias and dated id. A model missing here gets none of
 // them: an unknown id is sent only what every model takes, and the JSON
 // schema goes in the prompt instead.
 
@@ -24,8 +25,9 @@ const caps = (structuredOutputs: boolean, effort: boolean, serverFallback: boole
 
 export const CLAUDE_MODELS: Readonly<Record<string, ClaudeCapabilities>> = {
   "claude-fable-5-1": caps(true, true, true, false),
-  "claude-mythos-5-1": caps(true, true, false, false),
-  "claude-fable-5": caps(true, true, false, false),
+  "claude-mythos-5-1": caps(true, true, true, false),
+  "claude-fable-5": caps(true, true, true, false),
+  // Runs no safety classifiers, so it never declines: nothing to fall back from.
   "claude-mythos-5": caps(true, true, false, false),
   "claude-opus-5-5": caps(true, true, true, false),
   "claude-opus-5": caps(true, true, true, false),
@@ -43,6 +45,7 @@ export const CLAUDE_MODELS: Readonly<Record<string, ClaudeCapabilities>> = {
   "claude-opus-4-5-20251101": caps(true, true, false, true),
   "claude-sonnet-4-5": caps(false, false, false, true),
   "claude-sonnet-4-5-20250929": caps(false, false, false, true),
+  // Not claude-opus-4-1: Anthropic retired it on 2026-08-05.
 };
 
 const NOTHING_EXTRA = caps(false, false, false, false);

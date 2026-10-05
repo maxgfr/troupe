@@ -25,6 +25,9 @@ export interface ChatEnvironment {
   // Null: each provider's default (Ollama 0.4, Claude its own).
   temperature: number | null;
   historyTurns: number;
+  // The Claude models' server-side fallback (fallbacks: "default"): "auto"
+  // sends it to Anthropic's own API only.
+  anthropicFallback: "auto" | "on" | "off";
 }
 
 const number = (raw: string | undefined, fallback: number, min: number, max: number) => {
@@ -46,7 +49,22 @@ export function chatEnvironment(env: Env = process.env): ChatEnvironment {
     timeoutMs: number(env.TROUPE_CHAT_TIMEOUT_S, 180, 10, 1800) * 1000,
     temperature: ((t) => (t < 0 ? null : t))(number(env.TROUPE_CHAT_TEMPERATURE, -1, 0, 2)),
     historyTurns: Math.round(number(env.TROUPE_CHAT_HISTORY_TURNS, HISTORY_TURNS, 0, 20)),
+    anthropicFallback: ((f) => (f === "on" || f === "off" ? f : "auto"))(env.TROUPE_CHAT_ANTHROPIC_FALLBACK?.trim()),
   };
+}
+
+// The server-side fallback is a beta of Anthropic's own API (Amazon Bedrock,
+// Vertex AI and Foundry lack it), and a gateway in between may refuse the
+// whole request over it. "auto" sends it only when requests go to
+// api.anthropic.com (no ANTHROPIC_BASE_URL, or that one).
+export function anthropicFallbackAllowed(mode: ChatEnvironment["anthropicFallback"], baseURL: string | undefined): boolean {
+  if (mode !== "auto") return mode === "on";
+  if (!baseURL?.trim()) return true;
+  try {
+    return new URL(baseURL).hostname === "api.anthropic.com";
+  } catch {
+    return false;
+  }
 }
 
 const LABELS: Record<ChatProviderId, string> = { ollama: "Ollama", anthropic: "Claude", webllm: "This browser" };
@@ -85,7 +103,7 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
       if (!r.anthropicKey) {
         return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: null, problem: "The chat is set to Claude but no Anthropic API key is saved. Add one under Provider accounts, or switch the chat to Ollama." };
       }
-      return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: createAnthropicChat({ apiKey: r.anthropicKey, model: modelId, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL, temperature: env.temperature }), problem: null };
+      return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: createAnthropicChat({ apiKey: r.anthropicKey, model: modelId, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL, temperature: env.temperature, serverFallback: anthropicFallbackAllowed(env.anthropicFallback, options.anthropicBaseURL ?? source.ANTHROPIC_BASE_URL) }), problem: null };
     }
     const modelId = r.settings.ollamaModel;
     const url = checkLocalUrl(r.settings.ollamaUrl);

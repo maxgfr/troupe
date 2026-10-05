@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chatEnvironment } from "./index";
+import { anthropicFallbackAllowed, chatEnvironment } from "./index";
 
 describe("chatEnvironment", () => {
   it("has a documented default for every setting", () => {
@@ -14,6 +14,7 @@ describe("chatEnvironment", () => {
       timeoutMs: 180_000,
       temperature: null,
       historyTurns: 6,
+      anthropicFallback: "auto",
     });
   });
 
@@ -26,5 +27,21 @@ describe("chatEnvironment", () => {
       timeoutMs: 60_000,
     });
     expect(chatEnvironment({ TROUPE_CHAT_PROVIDER: "gpt", TROUPE_CHAT_TEMPERATURE: "9", TROUPE_CHAT_HISTORY_TURNS: "-1" })).toMatchObject({ provider: "auto", temperature: null, historyTurns: 6 });
+    expect(chatEnvironment({ TROUPE_CHAT_ANTHROPIC_FALLBACK: " off " }).anthropicFallback).toBe("off");
+    expect(chatEnvironment({ TROUPE_CHAT_ANTHROPIC_FALLBACK: "maybe" }).anthropicFallback).toBe("auto");
+  });
+});
+
+describe("the server-side fallback", () => {
+  it("goes to Anthropic's own API only, unless set on or off", () => {
+    expect(anthropicFallbackAllowed("auto", undefined)).toBe(true);
+    expect(anthropicFallbackAllowed("auto", "")).toBe(true);
+    expect(anthropicFallbackAllowed("auto", "https://api.anthropic.com")).toBe(true);
+    expect(anthropicFallbackAllowed("auto", "https://api.anthropic.com/")).toBe(true);
+    // A gateway or proxy may not know the beta, and refuse the whole request.
+    expect(anthropicFallbackAllowed("auto", "https://llm-gateway.example.com/anthropic")).toBe(false);
+    expect(anthropicFallbackAllowed("auto", "not a url")).toBe(false);
+    expect(anthropicFallbackAllowed("on", "https://llm-gateway.example.com/anthropic")).toBe(true);
+    expect(anthropicFallbackAllowed("off", undefined)).toBe(false);
   });
 });

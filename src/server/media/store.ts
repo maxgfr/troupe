@@ -4,7 +4,6 @@
 // host passes its own store through the request context.
 import { actorPictureUrl, DEFAULT_PICTURES_BASE } from "~/modules/actors/pictures";
 
-
 // A stored render file, as listed when its rows are deleted.
 export interface StoredFile {
   storagePath: string;

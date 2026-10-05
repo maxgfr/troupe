@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 
+import * as schema from "~/server/db/schema";
 import { createTestDb, type TestDb } from "~/test/db";
 import { testCaller } from "~/test/caller";
 import { seedFixture, type Fixture } from "~/test/fixture";
@@ -89,6 +91,17 @@ describe("script router", () => {
     // Retagging an older version always makes a new one.
     const fourth = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "serious" });
     expect(fourth.version).toBe(3);
+  });
+
+  it("decides on an in-place retag under the project's lock, which every new version takes", async () => {
+    const own = await seedFixture(t.db, { userId: MEMBER, name: "Retag lock" });
+    const queries: string[] = [];
+    const logged = drizzle(t.pg, { schema, logger: { logQuery: (query) => void queries.push(query) } });
+    await testCaller({ db: logged as unknown as typeof t.db, userId: MEMBER, adapters }).script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "excited" });
+    const lock = queries.findIndex((q) => /from "troupe_project" where "troupe_project"\."id" = \$1 for no key update$/.test(q));
+    expect(lock).toBeGreaterThanOrEqual(0);
+    // Before it looks for the newest version.
+    expect(lock).toBeLessThan(queries.findIndex((q) => /from "troupe_script" where "troupe_script"\."projectId" = \$1 order by/.test(q)));
   });
 
   it("adds a version when the chat refers to the newest one", async () => {

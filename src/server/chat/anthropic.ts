@@ -11,7 +11,6 @@ import { claudeCapabilities, claudeTemperature } from "./claude-models";
 
 export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
 
-
 export interface AnthropicOptions {
   apiKey: string;
   model: string;
@@ -21,6 +20,9 @@ export interface AnthropicOptions {
   // Sent only to models that take one (claude-models.ts), held to 0–1.
   // Unset: the model's own default.
   temperature?: number | null;
+  // false keeps the server-side fallback beta out of every request, for a
+  // gateway that would refuse it (index.ts decides). Unset: the model table.
+  serverFallback?: boolean;
 }
 
 function client(options: AnthropicOptions) {
@@ -66,7 +68,7 @@ export function createAnthropicChat(options: AnthropicOptions): ChatModel {
       let content: { type: string; text?: string }[];
       let stopReason: string | null;
       try {
-        const response = can.serverFallback
+        const response = can.serverFallback && options.serverFallback !== false
           ? await anthropic.beta.messages.create({ ...params, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" }, { signal })
           : await anthropic.messages.create(params, { signal });
         content = response.content;

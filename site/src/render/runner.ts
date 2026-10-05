@@ -140,7 +140,6 @@ export const browserRenderer: BrowserRenderer = {
   },
 };
 
-
 // Renders left unfinished by a tab that closed fail on the next load.
 export function failInterruptedRenders(): void {
   failInterruptedJobs().catch((error: unknown) => console.warn("Interrupted renders could not be checked:", error));

@@ -149,7 +149,7 @@ def prompt_for(actor: dict, shot: str) -> str:
     )
 
 
-def edit_prompt(actor: dict, shot: str) -> str:
+def edit_prompt(actor: dict | None, shot: str) -> str:
     return f"{EDITS[shot]} {KEEP}"
 
 
@@ -253,6 +253,18 @@ def main() -> None:
         if missing:
             sys.exit(f"No front portrait in {args.raw} for {', '.join(missing)}: generate it first (--shots front).")
         model = load(Flux2Klein if args.derive == "img2img" else Flux2KleinEdit)
+        if args.derive == "edit":
+            # The edit instructions are the same for every actor: encode them
+            # once, then free the text encoder (about 4 GB), so the run fits
+            # beside other work on a 16 GB Mac.
+            encoded = {}
+            for shot in derived:
+                encoded[edit_prompt(None, shot)] = model._encode_prompt_pair(prompt=edit_prompt(None, shot), negative_prompt=" ", guidance=1.0)
+                mx.eval(*[a for a in encoded[edit_prompt(None, shot)] if a is not None])
+            model._encode_prompt_pair = lambda *, prompt, negative_prompt, guidance: encoded[prompt]
+            model.text_encoder = None
+            gc.collect()
+            mx.clear_cache()
         for actor in cast:
             # The reference at the edit size: fewer image tokens to attend to.
             front = args.raw / actor["slug"] / f"front-{edit_size}.png"

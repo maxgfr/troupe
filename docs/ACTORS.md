@@ -67,7 +67,7 @@ silicon, with the 8-bit MLX weights
 (8.6 GB, downloaded to the Hugging Face cache on first run).
 
 ```bash
-# Every actor, every shot (needs uv and Node.js; about MINUTES on an Apple M5)
+# Every actor, every shot (needs uv and Node.js; about 70 minutes on a 16 GB Apple M5: ~25 s per front portrait, ~20 s per edit)
 uv run --project scripts/actors python scripts/actors/generate.py
 # Some actors or shots again
 uv run --project scripts/actors python scripts/actors/generate.py --only lea-01,tom-23 --shots happy,calm
@@ -92,7 +92,11 @@ uv run --project scripts/actors python scripts/actors/generate.py --sheet
    - `prompt` (the front picture's seed under the shot's prompt) changes the
      person: hair length, age and clothes drift, and side views come out as
      three-quarter views.
-3. Every picture was reviewed on a contact sheet; REGENERATED
+3. Every picture was reviewed on a contact sheet. The first fronts all wore
+   the same six outfits, so 20 actors got their own clothes (`wear` in
+   `cast.json`); two looks were rewritten and reseeded (Louis came out with
+   too light a skin for his description, Elsa's crop was off). The edits came
+   out right the first time.
 4. The full-size PNGs stay in `scripts/actors/raw/` (not committed), which the
    edits read as their reference; the published files are WebP at quality 80.
 
@@ -102,4 +106,10 @@ Settings for the script:
 |---|---|---|
 | `ACTOR_IMAGE_MODEL` | `mflux-community/flux2-klein-4b-mflux-q8` | the weights: a Hugging Face repo or a local folder (another FLUX.2 [klein] 4B conversion, e.g. `-q4` for less memory) |
 | `ACTOR_IMAGE_STEPS` | `4` | denoising steps |
-| `ACTOR_IMAGE_SIZE` | `1024` | the generated side, in pixels |
+| `ACTOR_IMAGE_SIZE` | `1024` | the front portraits' side, in pixels |
+| `ACTOR_IMAGE_EDIT_SIZE` | `768` | the other shots' side, and the reference they are edited from |
+
+The edits use about 3.5 GB: the five edit instructions are the same for
+every actor, so they are encoded once and the text encoder is freed. Fronts
+need the whole model, about 11 GB. `--resume` picks an interrupted run up
+where it stopped.

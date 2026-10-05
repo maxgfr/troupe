@@ -5,7 +5,7 @@ import { useEffect, useId, useState } from "react";
 import { useEdition } from "~/app/_components/edition";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
-import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, SkeletonRows } from "~/app/_components/ui";
+import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { AddBar } from "./add-bar";
 import { KIND_LABELS, type ItemKind } from "./format";
@@ -50,31 +50,40 @@ export default function LibraryPage() {
   const status = api.library.status.useQuery(undefined, { enabled: ready, retry: false, staleTime: 30_000 });
   const items = api.library.list.useQuery(
     { workspaceId, ...(kind ? { kind } : {}), ...(onlyMine ? { mine: true } : {}), ...(tag ? { tag } : {}) },
-    { enabled: ready && status.isSuccess, refetchInterval: (q) => (q.state.data?.some((i) => i.status === "queued" || i.status === "analyzing") ? 2000 : false) },
+    { enabled: ready, refetchInterval: (q) => (q.state.data?.some((i) => i.status === "queued" || i.status === "analyzing") ? 2000 : false) },
   );
   const uploader = edition.kind === "browser" ? edition.library : serverUploader;
   const filtered = Boolean(kind || onlyMine || tag);
 
   if (workspace.status === "unauthenticated") return <SignedOutNotice />;
 
-  const chat = ready && status.isSuccess ? <LibraryChat workspaceId={workspaceId} /> : null;
+  const chat = ready && !status.error ? <LibraryChat workspaceId={workspaceId} /> : null;
 
   return (
     <>
       <PageHeader title="Library" lede="Videos, posts and articles you saved for inspiration, read by your own models. Search them by meaning, ask about them, and turn what works into scripts." />
 
-      {workspace.status === "loading" || (ready && status.isPending) ? (
+      {workspace.status === "loading" ? (
         <SkeletonRows rows={4} />
       ) : workspace.status === "error" ? (
         <ErrorNote>{workspace.message}</ErrorNote>
       ) : status.error ? (
         <EmptyState title="The library is off" body={`${status.error.message} Set TROUPE_LIBRARY=1 (docs/LIBRARY.md) to turn it on.`} />
-      ) : status.data && uploader ? (
+      ) : uploader ? (
         <>
           <div className="mb-6 space-y-3">
-            <AddBar workspaceId={workspaceId} uploader={uploader} canFetchLinks={status.data.edition === "self-hosted"} maxUploadBytes={status.data.maxUploadBytes} onAdded={() => setQuery("")} />
-            {uploader.Note ? <uploader.Note /> : null}
-            <ToolStatus tools={status.data.tools} />
+            {status.data ? (
+              <>
+                <AddBar workspaceId={workspaceId} uploader={uploader} canFetchLinks={status.data.edition === "self-hosted"} maxUploadBytes={status.data.maxUploadBytes} onAdded={() => setQuery("")} />
+                {uploader.Note ? <uploader.Note /> : null}
+                <ToolStatus tools={status.data.tools} />
+              </>
+            ) : (
+              <div role="status" aria-label="Loading the library's tools" className="space-y-3">
+                <Skeleton className="h-[5.5rem] w-full rounded-xl" />
+                <Skeleton className="h-4 w-80 max-w-full" />
+              </div>
+            )}
           </div>
 
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-8">
@@ -140,7 +149,7 @@ export default function LibraryPage() {
                     <EmptyState
                       title="Save your first piece"
                       body={
-                        status.data.edition === "self-hosted"
+                        edition.kind === "self-hosted"
                           ? "Paste a link to a short video or an article, paste a text, or drop a file above. Troupe transcribes it, looks at its pictures, finds its hook and makes it searchable."
                           : "Paste a text or drop a video above. Troupe transcribes it in this tab, finds its hook and makes it searchable, all in this browser."
                       }

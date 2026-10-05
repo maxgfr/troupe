@@ -29,7 +29,16 @@ interface Probe {
   ytDlp: string | null;
 }
 
-const state = globalThis as unknown as { troupeLibraryProbe?: Probe; troupeLibraryQueue?: { running: Promise<void> | null; again: boolean } };
+const state = globalThis as unknown as { troupeLibraryProbe?: Probe; troupeLibraryQueue?: { running: Promise<void> | null; again: boolean }; troupeYtDlp?: { at: number; version: Promise<string | null> } };
+
+// yt-dlp's version changes only when the program does: asked every ten minutes.
+function cachedYtDlpVersion(path: string): Promise<string | null> {
+  const cached = state.troupeYtDlp;
+  if (cached && Date.now() - cached.at < 10 * 60_000) return cached.version;
+  const version = ytDlpVersion(path);
+  state.troupeYtDlp = { at: Date.now(), version };
+  return version;
+}
 
 async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
   const cached = state.troupeLibraryProbe;
@@ -45,7 +54,7 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
     env.transcribeUrl
       ? transcriberHealth({ baseUrl: env.transcribeUrl, token: env.transcribeToken, timeoutMs: env.transcribeTimeoutMs })
       : Promise.resolve({ ok: false as const, problem: "Transcription is off: set TROUPE_TRANSCRIBE_URL to a renderer with Whisper (docs/LIBRARY.md)." }),
-    ytDlpVersion(env.ytDlpPath),
+    cachedYtDlpVersion(env.ytDlpPath),
   ]);
   const next: Probe = { at: Date.now(), pulled: ollama.pulled, ollamaProblem: ollama.problem, transcriber, ytDlp };
   state.troupeLibraryProbe = next;
@@ -109,7 +118,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
     tools: () => tools(),
     schedule,
     async status(): Promise<LibraryStatus> {
-      const p = await probe(env, true);
+      const p = await probe(env);
       const t = await tools();
       const line = (name: ToolStatus["name"], label: string, tool: Tool<unknown>, model: string | null, ok: string): ToolStatus => ({ name, label, ready: tool.ready, model, detail: tool.ready ? ok : tool.problem });
       return {

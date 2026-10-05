@@ -83,10 +83,16 @@ function openOnce(): Promise<BrowserDatabase> {
 // the studio again the database holds no workspace, so everyone else waits
 // it out.
 let resetting: Promise<void> | undefined;
+let rebuilds = 0;
 
 async function resetDone() {
   while (resetting) await resetting.catch(() => {});
 }
+
+// For calls already past the wait below when a rebuild starts
+// (site/src/rebuild-link.ts): how many have started, and when none runs.
+export const rebuildGeneration = () => rebuilds;
+export const rebuildsDone = () => resetDone();
 
 export async function browserDatabase(): Promise<BrowserDatabase> {
   // Before the open: a reset that is deleting a database that would not open
@@ -102,6 +108,7 @@ export async function browserDatabase(): Promise<BrowserDatabase> {
 // Runs a change that empties the tables for a while; queries from this tab
 // wait for all of it, the studio seeded again included.
 function rebuildWith(change: () => Promise<void>): Promise<void> {
+  rebuilds += 1;
   const run = change();
   const pending: Promise<void> = run.finally(() => {
     if (resetting === pending) resetting = undefined;

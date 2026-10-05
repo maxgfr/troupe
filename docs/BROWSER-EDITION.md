@@ -201,7 +201,14 @@ a machine with a GPU.
   edition, and hands them its data (`site/src/data/`: backups, storage,
   deletion) and its in-browser renderer and chat.
 - `site/src/db/`: PGlite in a worker (`idb://troupe`), shared by every open tab;
-  the Drizzle migrations are bundled with `import.meta.glob`.
+  the Drizzle migrations are bundled with `import.meta.glob`. Every
+  statement is a round trip to the worker, which writes to IndexedDB after
+  each one, so code that runs on every start (seeding the actor library)
+  works in a few statements, not a few per row. While Delete all local data
+  or an import rebuilds the tables, calls from the page wait; a query already
+  on its way is asked again once the rebuild is over
+  (`site/src/rebuild-link.ts`), so the studio never shows itself empty or
+  broken in between.
 - `troupe:actor-pictures` (`site/vite-plugins.ts`): the cast lives once in
   the repository, in `public/actors`; `vite dev` serves it and the build
   copies it to `/troupe/actors/`, the same paths the self-hosted app serves.

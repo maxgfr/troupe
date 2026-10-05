@@ -1,8 +1,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import * as schema from "~/server/db/schema";
+import type { Db } from "~/server/db/types";
 import { createTestDb, type TestDb } from "~/test/db";
 import { createWorkspace } from "~/modules/identity";
 import { projects } from "~/modules/studio/server/schema";
@@ -92,6 +95,22 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
     await seedActorLibrary(t.db);
     const seed = await getActorSeedAssets(t.db, row!.id);
     expect(seed.assets.map((a) => a.storagePath).sort()).toEqual(ASSET_SET.map((a) => storagePathFor(lea.slug, 1, a.file)).sort());
+  });
+
+  // In the browser edition every statement is a round trip to the PGlite
+  // worker and a write to IndexedDB, and this runs on every page load and
+  // after every reset: a few statements for the whole library, not a few per actor.
+  it("seeds the library, and checks it again, in a handful of statements", async () => {
+    const fresh = await createTestDb();
+    let statements = 0;
+    const counted = drizzle(fresh.pg, { schema, logger: { logQuery: () => void statements++ } }) as unknown as Db;
+    await seedActorLibrary(counted);
+    expect(statements).toBeLessThanOrEqual(6);
+    expect((await listActors(counted, {})).filter((a) => a.workspaceId === null && a.portraitCount >= 6)).toHaveLength(30);
+    statements = 0;
+    await seedActorLibrary(counted);
+    expect(statements).toBeLessThanOrEqual(2);
+    await fresh.pg.close();
   });
 
   it("ships every picture the catalog declares", () => {

@@ -11,8 +11,9 @@ import { createQueryClient } from "~/trpc/query-client";
 import { api } from "~/trpc/react";
 import { forgetBrowserCatalog, loadBrowserCatalog } from "./catalog";
 import { createBrowserChat } from "./chat/backend";
-import { browserDatabase } from "./db/client";
+import { browserDatabase, rebuildGeneration, rebuildsDone } from "./db/client";
 import { browserMedia } from "./media";
+import { rerunQueriesCaughtByRebuild } from "./rebuild-link";
 import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 
 // The studio's own router, called in the page instead of over HTTP: every
@@ -79,6 +80,7 @@ export function BrowserTRPCProvider({ children }: { children: React.ReactNode })
         loggerLink({ enabled: (op) => import.meta.env.DEV || (op.direction === "down" && op.result instanceof Error) }),
         forgetCatalogOnMutation,
         keepRendersBeforeResults,
+        rerunQueriesCaughtByRebuild<AppRouter>({ generation: rebuildGeneration, rebuilt: rebuildsDone }),
         unstable_localLink({ router: appRouter, createContext, transformer: SuperJSON }),
       ],
     }),

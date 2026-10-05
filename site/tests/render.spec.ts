@@ -224,9 +224,23 @@ test("a render survives export, deleting all local data and import", async () =>
   expect(listed[0]).toBe("troupe-backup.json");
   expect(listed.filter((name) => name.startsWith("media/")).length).toBeGreaterThan(0);
 
+  // While the tables are rebuilt, the studio must never look broken: queries
+  // already on their way are asked again afterwards (site/src/rebuild-link.ts).
+  const glimpses: string[] = [];
+  await page.exposeFunction("reportGlimpse", (text: string) => glimpses.push(text));
+  await page.evaluate(() => {
+    new MutationObserver(() => {
+      const text = document.querySelector("main")?.textContent ?? "";
+      if (/could not (load|be initialized)/.test(text)) (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  });
   await page.getByRole("button", { name: "Delete all local data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();
+  // Two steps, as the app takes them: the deletion ends by opening the
+  // dashboard, where Postgres then starts again.
+  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, { timeout: 60_000 });
   await expect(page.getByText("Create your first project")).toBeVisible({ timeout: 60_000 });
+  expect(glimpses).toEqual([]);
 
   await page.goto(`${APP}/settings`);
   await page.getByLabel("Backup file to import").setInputFiles(backup);

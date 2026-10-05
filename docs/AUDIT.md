@@ -323,3 +323,16 @@ backup is refused, nothing changed); the import no longer overwrites a file
 before the database commits, always reloads once it has, and the studio
 clears files no render refers to when it starts.
 
+CI hotfix: on GitHub's runner the render test's "Delete all local data"
+never reached the dashboard within its 60 s, and the page meanwhile said the
+studio could not be initialized. Measured locally (headless Chromium, CPU
+voices): the deletion took 20–28 s, 18 s of it seeding the actor library
+again, one statement at a time (90 statements, each a PGlite worker round
+trip that writes to IndexedDB), and queries already on their way read the
+rebuilt tables before the seed. The library now seeds in at most 5
+statements and checks itself in 2 (deletion to dashboard 38 s → 16 s,
+database start on each page load 8.4 s → 2.2 s, `pnpm site:test` 1.5 → 0.75
+min), queries caught by a rebuild are asked again afterwards, and the test
+waits for each step the app takes (deletion, then start) and fails if the
+studio ever looks broken in between.
+

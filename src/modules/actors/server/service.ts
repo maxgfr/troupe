@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
@@ -13,36 +13,51 @@ const catalogAssets = (actorId: string, slug: string) =>
 // Idempotent seed of the 30-actor global library from the catalog. A library
 // actor seeded earlier gets its first set's rows rewritten when the catalog's
 // files changed (installs seeded before the pictures existed list .png files).
+//
+// A handful of statements for the whole library, whatever its state: in the
+// browser edition each one is a round trip to the PGlite worker and a write
+// to IndexedDB, and this runs on every page load and after every reset.
 export async function seedActorLibrary(db: Db): Promise<void> {
-  for (const c of ACTOR_CATALOG) {
-    const [existing] = await db
-      .select({ id: actors.id })
-      .from(actors)
-      .where(and(isNull(actors.workspaceId), eq(actors.name, c.name), eq(actors.ageRange, c.ageRange)))
-      .limit(1);
-    if (existing) {
-      const wanted = catalogAssets(existing.id, c.slug);
-      const stored = await db
-        .select({ storagePath: actorAssets.storagePath })
+  const key = (name: string, ageRange: string) => `${name}\u0000${ageRange}`;
+  const library = await db.select({ id: actors.id, name: actors.name, ageRange: actors.ageRange }).from(actors).where(isNull(actors.workspaceId)).orderBy(asc(actors.createdAt), asc(actors.id));
+  const byKey = new Map<string, string>();
+  for (const row of library) if (!byKey.has(key(row.name, row.ageRange))) byKey.set(key(row.name, row.ageRange), row.id);
+
+  const seeded = ACTOR_CATALOG.flatMap((c) => {
+    const id = byKey.get(key(c.name, c.ageRange));
+    return id ? [{ id, slug: c.slug }] : [];
+  });
+  const missing = ACTOR_CATALOG.filter((c) => !byKey.has(key(c.name, c.ageRange)));
+
+  // Seeded earlier with other files (installs seeded before the pictures
+  // existed list .png files): their first set is rewritten.
+  const stored = seeded.length
+    ? await db
+        .select({ actorId: actorAssets.actorId, storagePath: actorAssets.storagePath })
         .from(actorAssets)
-        .where(and(eq(actorAssets.actorId, existing.id), eq(actorAssets.version, 1)));
-      const same = stored.length === wanted.length && wanted.every((w) => stored.some((r) => r.storagePath === w.storagePath));
-      if (same) continue;
-      await db.transaction(async (tx) => {
-        await tx.delete(actorAssets).where(and(eq(actorAssets.actorId, existing.id), eq(actorAssets.version, 1)));
-        await tx.insert(actorAssets).values(wanted);
-      });
-      continue;
+        .where(and(inArray(actorAssets.actorId, seeded.map((s) => s.id)), eq(actorAssets.version, 1)))
+    : [];
+  const stale = seeded.filter(({ id, slug }) => {
+    const have = stored.filter((r) => r.actorId === id).map((r) => r.storagePath);
+    const wanted = catalogAssets(id, slug).map((w) => w.storagePath);
+    return have.length !== wanted.length || wanted.some((path) => !have.includes(path));
+  });
+  if (missing.length === 0 && stale.length === 0) return;
+
+  await db.transaction(async (tx) => {
+    if (stale.length > 0) {
+      await tx.delete(actorAssets).where(and(inArray(actorAssets.actorId, stale.map((s) => s.id)), eq(actorAssets.version, 1)));
     }
-    await db.transaction(async (tx) => {
-      const [actor] = await tx
-        .insert(actors)
-        .values({ name: c.name, gender: c.gender, ageRange: c.ageRange, style: c.style, voiceProfile: c.voiceProfile, kind: "library", assetVersion: 1 })
-        .returning();
-      if (!actor) throw new Error("actor insert returned no row");
-      await tx.insert(actorAssets).values(catalogAssets(actor.id, c.slug));
-    });
-  }
+    const inserted = missing.length
+      ? await tx
+          .insert(actors)
+          .values(missing.map((c) => ({ name: c.name, gender: c.gender, ageRange: c.ageRange, style: c.style, voiceProfile: c.voiceProfile, kind: "library" as const, assetVersion: 1 })))
+          .returning({ id: actors.id, name: actors.name, ageRange: actors.ageRange })
+      : [];
+    if (inserted.length !== missing.length) throw new Error("actor insert returned too few rows");
+    const added = inserted.map((row) => ({ id: row.id, slug: missing.find((c) => c.name === row.name && c.ageRange === row.ageRange)!.slug }));
+    await tx.insert(actorAssets).values([...stale, ...added].flatMap(({ id, slug }) => catalogAssets(id, slug)));
+  });
 }
 
 export interface ListedActor {

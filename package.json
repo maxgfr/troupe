@@ -18,6 +18,8 @@
     "lint": "biome lint .",
     "preview": "next build && next start",
     "renderer": "pnpm --filter @troupe/renderer start",
+    "renderer:ltx": "pnpm --filter @troupe/renderer start:ltx",
+    "renderer:ltx:setup": "pnpm --filter @troupe/renderer setup:ltx",
     "site:build": "vite build --config site/vite.config.ts",
     "site:dev": "vite --config site/vite.config.ts",
     "site:preview": "vite preview --config site/vite.config.ts",

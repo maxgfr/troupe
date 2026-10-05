@@ -13,7 +13,9 @@ import { sizeFor } from "~/modules/models/geometry";
 import { buildScene, paletteFor, voiceFor } from "../../src/modules/scene";
 import type { Speak } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
-import { createRendererServer } from "./server";
+import { ltxSettingsFromEnv, type LtxSettings } from "./ltx";
+import { renderLtxVideo } from "./render-ltx";
+import { createRendererServer, LTX_OFF, type RenderMode } from "./server";
 
 // Contract test for the local renderer: Troupe's own HTTP endpoint adapter
 // drives it like any contract v1 model. A tone stands in for Kokoro so the
@@ -41,8 +43,8 @@ const lines = [
 let scratch = "";
 const servers: Server[] = [];
 
-async function start(speak: Speak): Promise<string> {
-  const server = createRendererServer({ speak, outDir: scratch, token: TOKEN });
+async function start(speak: Speak, ltx?: RenderMode): Promise<string> {
+  const server = createRendererServer({ speak, outDir: scratch, token: TOKEN, ...(ltx ? { ltx } : {}) });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -96,7 +98,7 @@ describe("renderer (contract v1)", () => {
     baseUrl = await start(tone);
   });
   afterAll(async () => {
-    for (const server of servers) server.close();
+    for (const server of servers.splice(0)) server.close();
     if (scratch) await rm(scratch, { recursive: true, force: true });
   });
 
@@ -155,11 +157,94 @@ describe("renderer (contract v1)", () => {
     await expect(createHttpEndpointAdapter({ model: model(baseUrl) }).getJob!("00000000-0000-0000-0000-000000000000")).rejects.toMatchObject({ code: "LOCAL_HTTP" });
   });
 
+  it("says how to turn the AI video mode on when it is off", async () => {
+    expect(await createHttpEndpointAdapter({ model: model(`${baseUrl}/ltx`) }).testConnection!()).toEqual({
+      ok: false,
+      message: `Renderer returned HTTP 503: ${LTX_OFF}`,
+    });
+  });
+
   it("reports a voice failure as a failed job with a readable error", async () => {
     const broken = await start(async () => {
       throw new Error("Could not load the Kokoro voices.");
     });
     await expect(renderThroughTroupe(broken, { prompt: "x", aspectRatio: "9:16", resolution: "480p", durationS: 4, audio: true, script: { lines, actor, language: "en" } }))
       .rejects.toThrow("The renderer failed the job: Renderer reported: Could not load the Kokoro voices.");
+  });
+});
+
+// The AI video mode, with a script standing in for LTX-Video: it "generates"
+// a small clip of one flat color, which the renderer must upscale, repeat to
+// the script's length, caption and voice.
+describe("renderer AI video mode (/ltx, contract v1)", () => {
+  const FAKE = join(import.meta.dirname, "..", "test", "fake-generate.mjs");
+  const CLIP_COLOR = "#2a6fdb";
+  let baseUrl = "";
+  let failing = "";
+  const settings = (patch: Partial<LtxSettings> = {}): LtxSettings => ({
+    ...ltxSettingsFromEnv({}, [process.execPath, FAKE, "--color", `0x${CLIP_COLOR.slice(1)}`]),
+    resolution: { width: 96, height: 160 },
+    frames: 25,
+    ...patch,
+  });
+  const ltxMode = (patch: Partial<LtxSettings> = {}): RenderMode => ({
+    render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: tone, settings: settings(patch), onProgress }),
+    pollEveryS: 5,
+  });
+
+  beforeAll(async () => {
+    scratch = await mkdtemp(join(tmpdir(), "troupe-renderer-ltx-"));
+    registerSceneFonts();
+    baseUrl = `${await start(tone, ltxMode())}/ltx`;
+    failing = `${await start(tone, ltxMode({ command: [process.execPath, FAKE, "--fail", "RuntimeError: MPS backend out of memory"] }))}/ltx`;
+  });
+  afterAll(async () => {
+    for (const server of servers.splice(0)) server.close();
+    await rm(scratch, { recursive: true, force: true });
+  });
+
+  it("is its own model at /ltx, polled every 5 s, beside the fast mode", async () => {
+    expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toMatchObject({ ok: true, pollEveryS: 5 });
+    const fast = baseUrl.replace(/\/ltx$/, "");
+    expect(await createHttpEndpointAdapter({ model: model(fast) }).testConnection!()).toMatchObject({ ok: true, pollEveryS: 1 });
+  });
+
+  it("lays the captions and the voice over the generated clip, upscaled and as long as the script", async () => {
+    const file = await save(await renderThroughTroupe(baseUrl, { prompt: "x", aspectRatio: "9:16", resolution: "720p", durationS: 6, audio: true, script: { lines, actor, language: "en" } }), "ltx.mp4");
+    const clip = await probe(file);
+    expect(clip.streams).toEqual(expect.arrayContaining([
+      expect.objectContaining({ codec_type: "video", codec_name: "h264", width: 720, height: 1280 }),
+      expect.objectContaining({ codec_type: "audio", codec_name: "aac" }),
+    ]));
+    // The generated clip lasts about a second; the video lasts the script.
+    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE));
+    const scene = buildScene({ width: 720, height: 1280, actor, lines, speechS });
+    expect(Number(clip.format.duration)).toBeCloseTo(scene.durationS, 1);
+
+    // Above the captions: the clip itself, upscaled, with no actor card.
+    const { cx, cy } = scene.layout.portrait;
+    for (const at of [0.2, scene.durationS - 0.2]) {
+      const top = await pixel(file, at, cx, cy);
+      for (const [i, channel] of rgb(CLIP_COLOR).entries()) expect(Math.abs(top[i]! - channel), `at ${at} s`).toBeLessThanOrEqual(12);
+    }
+    // Behind the captions: the clip under the shade, darker but not hidden.
+    const { captions } = scene.layout;
+    const shaded = await pixel(file, 0.2, 4, captions.y + captions.height / 2);
+    for (const [i, channel] of rgb(CLIP_COLOR).entries()) {
+      expect(shaded[i]!).toBeLessThan(channel);
+      expect(shaded[i]!).toBeGreaterThan(channel * 0.3);
+    }
+  });
+
+  it("crops the clip to other formats, and plays it from the start again when asked", async () => {
+    const server = `${await start(tone, ltxMode({ loop: "loop", upscale: "bicubic" }))}/ltx`;
+    const clip = await probe(await save(await renderThroughTroupe(server, { prompt: "x", aspectRatio: "16:9", resolution: "480p", durationS: 4, audio: false, script: { lines, actor, language: "en" } }), "ltx-wide.mp4"));
+    expect(clip.streams).toEqual([expect.objectContaining({ codec_type: "video", ...sizeFor("16:9", "480p") })]);
+    expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS, 1);
+  });
+
+  it("reports a generation failure as a failed job with the model's error", async () => {
+    await expect(renderThroughTroupe(failing, { prompt: "x", aspectRatio: "9:16", resolution: "480p", durationS: 4, audio: true, script: { lines, actor, language: "en" } }))
+      .rejects.toThrow("The renderer failed the job: Renderer reported: LTX failed: RuntimeError: MPS backend out of memory");
   });
 });

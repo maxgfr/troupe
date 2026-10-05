@@ -47,3 +47,7 @@ yarn-error.log*
 /site/dist
 /site/test-results
 /site/playwright-report
+
+# the AI video mode's Python environment (renderer/ltx)
+.venv/
+__pycache__/

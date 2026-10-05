@@ -11,7 +11,8 @@ export interface RenderRequest {
   fps: number;
   audio: boolean;
   language: string;
-  actor: VoiceActor & { name: string };
+  // ageRange describes the actor to a video model (render-ltx.ts).
+  actor: VoiceActor & { name: string; ageRange?: string };
   lines: SceneLine[];
 }
 
@@ -63,6 +64,7 @@ function fromScript(value: unknown): Pick<RenderRequest, "language" | "actor" | 
       id: text(actor.id),
       name: actor.name.trim(),
       ...(gender ? { gender } : {}),
+      ...(text(actor.age_range) ? { ageRange: text(actor.age_range) } : {}),
       ...(text(actor.voice_profile) ? { voiceProfile: text(actor.voice_profile) } : {}),
     },
     lines: scriptLines(script.lines),

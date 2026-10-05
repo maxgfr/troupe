@@ -21,7 +21,7 @@ describe("parseJobBody", () => {
       fps: 30,
       audio: true,
       language: "en",
-      actor: { id: "6f1c0e8a", name: "Léa", gender: "female", voiceProfile: "warm and enthusiastic, mid-tempo" },
+      actor: { id: "6f1c0e8a", name: "Léa", gender: "female", ageRange: "18-24", voiceProfile: "warm and enthusiastic, mid-tempo" },
       lines: script.lines,
     });
   });

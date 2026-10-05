@@ -2,11 +2,13 @@
   "name": "@troupe/renderer",
   "version": "0.1.0",
   "private": true,
-  "description": "Troupe's local renderer: voices a script with Kokoro and composes the video with ffmpeg (HTTP contract v1).",
+  "description": "Troupe's local renderer: voices a script with Kokoro and composes the video with ffmpeg, optionally over an LTX-Video clip (HTTP contract v1).",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "tsx src/main.ts"
+    "start": "tsx src/main.ts",
+    "start:ltx": "tsx src/main.ts --ltx",
+    "setup:ltx": "uv sync --project ltx && uv run --project ltx python ltx/generate.py --download"
   },
   "dependencies": {
     "@fontsource/geist-sans": "^5.3.0",

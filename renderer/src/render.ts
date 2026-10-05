@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { rm, writeFile } from "node:fs/promises";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { assembleTrack, buildScene, drawFrame, voiceFor, type SceneContext, type Speak, type Speech, type VoicePools } from "../../src/modules/scene";
+import { assembleTrack, buildScene, drawFrame, voiceFor, type Scene, type SceneContext, type Speak, type Speech, type VoicePools } from "../../src/modules/scene";
 import { wavBytes } from "./audio";
 import type { RenderRequest } from "./request";
 
@@ -17,16 +17,14 @@ export interface RenderDeps {
 // Share of the progress bar spent voicing the lines; drawing takes the rest.
 const VOICE_SHARE = 0.3;
 
-// Voices each line, lays the scene out on the measured speech, then streams
-// frames drawn on a canvas into ffmpeg with the assembled track: an H.264 +
-// AAC MP4 as long as the script. Returns its length in seconds.
-export async function renderVideo(request: RenderRequest, outFile: string, deps: RenderDeps): Promise<number> {
-  const progress = deps.onProgress ?? (() => {});
+// Voices each line (unless the job is silent) and lays the scene out on the
+// measured speech. `onProgress` gets the share of lines voiced, in [0, 1].
+export async function voiceScene(request: RenderRequest, deps: Pick<RenderDeps, "speak" | "voices">, onProgress: (share: number) => void = () => {}): Promise<{ scene: Scene; speeches: Speech[] }> {
   const speeches: Speech[] = [];
   if (request.audio) {
     for (const line of request.lines) {
       speeches.push(await deps.speak(line.text, voiceFor(request.actor, line.emotion, deps.voices)));
-      progress((VOICE_SHARE * speeches.length) / request.lines.length);
+      onProgress(speeches.length / request.lines.length);
     }
   }
   const scene = buildScene({
@@ -37,40 +35,67 @@ export async function renderVideo(request: RenderRequest, outFile: string, deps:
     lines: request.lines,
     ...(request.audio ? { speechS: speeches.map((s) => s.samples.length / s.sampleRate) } : {}),
   });
+  return { scene, speeches };
+}
 
-  const wavFile = `${outFile}.wav`;
-  if (request.audio) await writeFile(wavFile, wavBytes(assembleTrack(speeches, scene)));
-  try {
-    const args = ["-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", `${scene.width}x${scene.height}`, "-r", String(scene.fps), "-i", "pipe:0"];
-    if (request.audio) args.push("-i", wavFile, "-c:a", "aac", "-b:a", "128k");
-    args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outFile);
-    const ffmpeg = spawn(process.env.FFMPEG ?? "ffmpeg", args, { stdio: ["pipe", "ignore", "pipe"] });
-    let stderr = "";
-    ffmpeg.stderr.on("data", (d: Buffer) => (stderr += d));
-    const exited = new Promise<void>((resolve, reject) => {
-      ffmpeg.on("error", () => reject(new Error("ffmpeg is not installed on the renderer.")));
-      ffmpeg.on("close", (code) => (code === 0 ? resolve() : reject(new Error(stderr.trim().slice(0, 200) || `ffmpeg exited with ${code}.`))));
-    });
-    // Awaited below; marked handled so an early exit is not reported twice.
-    exited.catch(() => {});
-    // Writes after ffmpeg is gone fail with EPIPE; `exited` says why.
-    ffmpeg.stdin.on("error", () => {});
+// The voice track as a WAV file ffmpeg can read, or none for a silent job.
+export async function writeVoiceTrack(file: string, speeches: Speech[], scene: Scene): Promise<boolean> {
+  if (speeches.length === 0) return false;
+  await writeFile(file, wavBytes(assembleTrack(speeches, scene)));
+  return true;
+}
 
-    const canvas = createCanvas(scene.width, scene.height);
-    const context = canvas.getContext("2d");
-    // The scene draws through the same 2D interface as in the browser.
-    const ctx: SceneContext = context;
-    const frames = Math.round(scene.durationS * scene.fps);
-    for (let i = 0; i < frames && ffmpeg.exitCode === null; i++) {
-      drawFrame(ctx, scene, i / scene.fps);
-      const pixels = context.getImageData(0, 0, scene.width, scene.height).data;
-      if (!ffmpeg.stdin.write(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength))) {
-        await Promise.race([once(ffmpeg.stdin, "drain").catch(() => {}), exited.catch(() => {})]);
-      }
-      if (i % scene.fps === 0) progress(VOICE_SHARE + ((1 - VOICE_SHARE) * i) / frames);
+// Runs ffmpeg with `args`, whose first input must be raw RGBA frames of the
+// scene on stdin (`-f rawvideo -pix_fmt rgba -s WxH -r fps -i pipe:0`), and
+// streams it every frame `draw` paints. `onProgress` gets the share drawn.
+export async function encodeFrames(args: string[], scene: Scene, draw: (ctx: SceneContext, t: number) => void, onProgress: (share: number) => void = () => {}): Promise<void> {
+  const ffmpeg = spawn(process.env.FFMPEG ?? "ffmpeg", args, { stdio: ["pipe", "ignore", "pipe"] });
+  let stderr = "";
+  ffmpeg.stderr.on("data", (d: Buffer) => (stderr += d));
+  const exited = new Promise<void>((resolve, reject) => {
+    ffmpeg.on("error", () => reject(new Error("ffmpeg is not installed on the renderer.")));
+    ffmpeg.on("close", (code) => (code === 0 ? resolve() : reject(new Error(stderr.trim().slice(0, 200) || `ffmpeg exited with ${code}.`))));
+  });
+  // Awaited below; marked handled so an early exit is not reported twice.
+  exited.catch(() => {});
+  // Writes after ffmpeg is gone fail with EPIPE; `exited` says why.
+  ffmpeg.stdin.on("error", () => {});
+
+  const canvas = createCanvas(scene.width, scene.height);
+  const context = canvas.getContext("2d");
+  // The scene draws through the same 2D interface as in the browser.
+  const ctx: SceneContext = context;
+  const frames = Math.round(scene.durationS * scene.fps);
+  for (let i = 0; i < frames && ffmpeg.exitCode === null; i++) {
+    draw(ctx, i / scene.fps);
+    const pixels = context.getImageData(0, 0, scene.width, scene.height).data;
+    if (!ffmpeg.stdin.write(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength))) {
+      await Promise.race([once(ffmpeg.stdin, "drain").catch(() => {}), exited.catch(() => {})]);
     }
-    ffmpeg.stdin.end();
-    await exited;
+    if (i % scene.fps === 0) onProgress(i / frames);
+  }
+  ffmpeg.stdin.end();
+  await exited;
+}
+
+// The raw frames input encodeFrames feeds.
+export const framesInput = (scene: Scene) => ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", `${scene.width}x${scene.height}`, "-r", String(scene.fps), "-i", "pipe:0"];
+export const H264_OUTPUT = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart"];
+export const AAC_OUTPUT = ["-c:a", "aac", "-b:a", "128k"];
+
+// Voices each line, lays the scene out on the measured speech, then streams
+// frames drawn on a canvas into ffmpeg with the assembled track: an H.264 +
+// AAC MP4 as long as the script. Returns its length in seconds.
+export async function renderVideo(request: RenderRequest, outFile: string, deps: RenderDeps): Promise<number> {
+  const progress = deps.onProgress ?? (() => {});
+  const { scene, speeches } = await voiceScene(request, deps, (share) => progress(VOICE_SHARE * share));
+  const wavFile = `${outFile}.wav`;
+  try {
+    const voiced = await writeVoiceTrack(wavFile, speeches, scene);
+    const args = ["-y", "-loglevel", "error", ...framesInput(scene)];
+    if (voiced) args.push("-i", wavFile, ...AAC_OUTPUT);
+    args.push(...H264_OUTPUT, outFile);
+    await encodeFrames(args, scene, (ctx, t) => drawFrame(ctx, scene, t), (share) => progress(VOICE_SHARE + (1 - VOICE_SHARE) * share));
     return scene.durationS;
   } finally {
     await rm(wavFile, { force: true });

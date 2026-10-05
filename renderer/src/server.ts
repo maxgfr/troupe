@@ -8,13 +8,24 @@ import { renderVideo } from "./render";
 import { BadRequest, parseJobBody, type RenderRequest } from "./request";
 
 // Troupe's HTTP contract v1 (docs/LOCAL-MODELS.md), the same routes as
-// examples/http-model/server.mjs. Jobs render one at a time: voicing and
-// encoding each use the whole CPU.
+// examples/http-model/server.mjs. The fast mode answers at the root; the
+// opt-in AI video mode answers the same routes under /ltx, so Troupe adds it
+// as a second model with the address http://host:port/ltx. Jobs from both
+// render one at a time: each takes the whole CPU or GPU.
+
+// A way to render a job: resolves with the video's length in seconds.
+export interface RenderMode {
+  render(request: RenderRequest, outFile: string, onProgress: (progress: number) => void): Promise<number>;
+  // How often Troupe should ask about a job, sent in /health.
+  pollEveryS: number;
+}
 
 export interface RendererOptions {
   speak: Speak;
   // Kokoro voices to cast actors from (default: the scene module's).
   voices?: VoicePools;
+  // The AI video mode, served under /ltx when set.
+  ltx?: RenderMode;
   // Where finished MP4s are kept.
   outDir: string;
   token?: string;
@@ -28,6 +39,8 @@ interface Job {
 }
 
 const MAX_BODY_BYTES = 1024 * 1024;
+export const LTX_PREFIX = "/ltx";
+export const LTX_OFF = "The AI video mode is off on this renderer. Start it with `pnpm renderer:ltx` (docs/LOCAL-MODELS.md).";
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });
@@ -39,19 +52,24 @@ export function createRendererServer(options: RendererOptions): Server {
   const log = options.log ?? (() => {});
   const jobs = new Map<string, Job>();
   let queue = Promise.resolve();
+  const fast: RenderMode = {
+    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, onProgress }),
+    // A render takes seconds: ask Troupe to check every second.
+    pollEveryS: 1,
+  };
 
-  function enqueue(id: string, request: RenderRequest) {
+  function enqueue(id: string, request: RenderRequest, mode: RenderMode, name: string) {
     const job = jobs.get(id)!;
     queue = queue.then(async () => {
       job.status = "running";
       const started = Date.now();
       try {
-        const durationS = await renderVideo(request, join(options.outDir, `${id}.mp4`), { speak: options.speak, voices: options.voices, onProgress: (p) => (job.progress = Math.min(0.99, p)) });
+        const durationS = await mode.render(request, join(options.outDir, `${id}.mp4`), (p) => (job.progress = Math.min(0.99, p)));
         Object.assign(job, { status: "succeeded", progress: 1 });
-        log(`Rendered ${id}: ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+        log(`Rendered ${id} (${name}): ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
       } catch (error) {
         Object.assign(job, { status: "failed", error: (error as Error).message || "The render failed." });
-        log(`Render ${id} failed: ${job.error}`);
+        log(`Render ${id} (${name}) failed: ${job.error}`);
       }
     });
   }
@@ -59,9 +77,17 @@ export function createRendererServer(options: RendererOptions): Server {
   return createServer((req, res) => {
     if (options.token && req.headers.authorization !== `Bearer ${options.token}`) return send(res, 401, { error: "unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
-    // A render takes seconds: ask Troupe to check every second.
-    if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
-    if (req.method === "POST" && url.pathname === "/jobs") {
+    let path = url.pathname;
+    let mode = fast;
+    let name = "fast";
+    if (path === LTX_PREFIX || path.startsWith(`${LTX_PREFIX}/`)) {
+      if (!options.ltx) return send(res, 503, { ok: false, error: LTX_OFF });
+      path = path.slice(LTX_PREFIX.length);
+      mode = options.ltx;
+      name = "ltx";
+    }
+    if (req.method === "GET" && path === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: mode.pollEveryS });
+    if (req.method === "POST" && path === "/jobs") {
       const chunks: Buffer[] = [];
       let received = 0;
       req.on("data", (chunk: Buffer) => {
@@ -78,23 +104,23 @@ export function createRendererServer(options: RendererOptions): Server {
         }
         const id = randomUUID();
         jobs.set(id, { status: "queued", progress: 0 });
-        enqueue(id, request);
+        enqueue(id, request, mode, name);
         send(res, 200, { id });
       });
       return;
     }
-    const job = /^\/jobs\/([0-9a-f-]+)$/.exec(url.pathname);
+    const job = /^\/jobs\/([0-9a-f-]+)$/.exec(path);
     if (req.method === "GET" && job) {
       const state = jobs.get(job[1]!);
       if (!state) return send(res, 404, { error: "unknown job" });
       return send(res, 200, { ...state, ...(state.status === "succeeded" ? { video_url: `/files/${job[1]}.mp4` } : {}) });
     }
-    const file = /^\/files\/([0-9a-f-]+\.mp4)$/.exec(url.pathname);
+    const file = /^\/files\/([0-9a-f-]+\.mp4)$/.exec(path);
     if (req.method === "GET" && file) {
-      const path = join(options.outDir, file[1]!);
+      const filePath = join(options.outDir, file[1]!);
       try {
-        res.writeHead(200, { "content-type": "video/mp4", "content-length": statSync(path).size });
-        return createReadStream(path).pipe(res);
+        res.writeHead(200, { "content-type": "video/mp4", "content-length": statSync(filePath).size });
+        return createReadStream(filePath).pipe(res);
       } catch {
         return send(res, 404, { error: "not found" });
       }

@@ -5,15 +5,19 @@
 //
 //   pnpm renderer                       # http://127.0.0.1:8078
 //   PORT=8078 HOST=0.0.0.0 TOKEN=secret pnpm renderer
+//   pnpm renderer:ltx                   # also the AI video mode, at /ltx
 //
-// Requires ffmpeg on the PATH.
+// Requires ffmpeg on the PATH; the AI video mode also needs uv.
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { parseVoicePools, type VoicePools } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
 import { type KokoroDtype, kokoroVoice } from "./kokoro";
-import { createRendererServer } from "./server";
+import { type LtxSettings, ltxSettingsFromEnv } from "./ltx";
+import { renderLtxVideo } from "./render-ltx";
+import { createRendererServer, LTX_PREFIX } from "./server";
 
 const PORT = Number(process.env.PORT ?? 8078);
 const HOST = process.env.HOST ?? "127.0.0.1";
@@ -36,6 +40,17 @@ try {
   refuse(`KOKORO_VOICES: ${(error as Error).message}`);
 }
 
+// The AI video mode is opt-in: `--ltx` (pnpm renderer:ltx) or LTX_ENABLED=1.
+const LTX_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "ltx");
+let ltx: LtxSettings | undefined;
+if (process.argv.includes("--ltx") || ["1", "true", "yes"].includes(process.env.LTX_ENABLED ?? "")) {
+  try {
+    ltx = ltxSettingsFromEnv(process.env, ["uv", "run", "--project", LTX_DIR, "python", join(LTX_DIR, "generate.py")]);
+  } catch (error) {
+    refuse((error as Error).message);
+  }
+}
+
 registerSceneFonts();
 const kokoro = kokoroVoice({
   cacheDir: process.env.KOKORO_CACHE ?? join(homedir(), ".cache", "troupe-renderer"),
@@ -45,6 +60,15 @@ const kokoro = kokoroVoice({
 const server = createRendererServer({
   speak: kokoro.speak,
   voices,
+  ...(ltx
+    ? {
+        ltx: {
+          render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, settings: ltx, onProgress, log }),
+          // A generation takes minutes.
+          pollEveryS: 5,
+        },
+      }
+    : {}),
   outDir: process.env.OUT_DIR ?? join(tmpdir(), "troupe-renderer"),
   token: process.env.TOKEN || undefined,
   log,
@@ -53,7 +77,12 @@ const server = createRendererServer({
 // PORT=0 picks a free port: print the one actually bound.
 server.listen(PORT, HOST, () => {
   const address = server.address();
-  log(`Troupe renderer on http://${HOST}:${typeof address === "object" && address ? address.port : PORT} (contract v1)`);
+  const origin = `http://${HOST}:${typeof address === "object" && address ? address.port : PORT}`;
+  log(`Troupe renderer on ${origin} (contract v1)`);
+  if (ltx) {
+    const { width, height } = ltx.resolution;
+    log(`AI video mode (LTX-Video) on ${origin}${LTX_PREFIX}: ${width}x${height}, ${ltx.frames} frames at ${ltx.frameRate} fps, upscaled with ${ltx.upscale}`);
+  }
   // Fetch the voices now so the first render does not wait for the download.
   log(`Loading the Kokoro voices (${dtype}, downloaded once)…`);
   kokoro.load().catch((error: Error) => log(error.message));

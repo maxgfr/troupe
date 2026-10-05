@@ -3,6 +3,8 @@ import { type Command, type Context, flag } from "../command.ts";
 import { configPath, isLoopback, updateConfig } from "../config.ts";
 import { CliError, EXIT } from "../errors.ts";
 import { ago, fields, table } from "../output.ts";
+import { livePlans, money, planTotal, runLive } from "./live.ts";
+import { validateWatch, WATCH_OPTIONS } from "./render.ts";
 
 // Does this studio answer API calls with the given cookie (or none)?
 async function admitted(url: string, cookie: string | null): Promise<boolean> {
@@ -130,7 +132,7 @@ const whoami: Command = {
   },
 };
 
-type Status = "ok" | "warn" | "fail";
+type Status = "ok" | "warn" | "fail" | "skip";
 interface Check {
   name: string;
   status: Status;
@@ -139,22 +141,40 @@ interface Check {
 
 const WORKER_STALE_MS = 2 * 60_000;
 
+const ACCOUNTS = [
+  { id: "google", name: "Google AI" },
+  { id: "fal", name: "fal.ai" },
+  { id: "anthropic", name: "Anthropic" },
+] as const;
+
 const doctor: Command = {
   path: ["doctor"],
-  summary: "Check the studio, the sign-in, the video models (local ones are contacted), the job worker and the script chat.",
+  summary: "Check the studio, the sign-in, the video models (local ones are contacted), the job worker and the script chat; --providers checks each API key for free, --live renders for real.",
   options: {
     "skip-tests": { type: "boolean", description: "Do not contact local models or the chat provider; only read their status." },
+    providers: { type: "boolean", description: "Check each provider account's key with a free call (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model)." },
+    live: { type: "boolean", description: "Render one clip per model at its cheapest settings and ffprobe the download; prints the plan and its cost first." },
+    yes: { type: "boolean", description: "With --live: spend the estimate shown and launch." },
+    model: { type: "string", multiple: true, value: "<model>", description: "With --live: only these models (repeatable; default: every model that can launch)." },
+    output: { type: "string", short: "o", value: "<folder>", description: "With --live: where the videos land (default: ./troupe-live-<date>)." },
+    ...WATCH_OPTIONS,
   },
+  examples: ["troupe doctor", "troupe doctor --providers", "troupe doctor --live", "troupe doctor --live --model seedance-1.5-pro --yes"],
+  validate: validateWatch,
   async run(ctx, { options }) {
     const checks: Check[] = [];
     const add = (name: string, status: Status, detail: string) => checks.push({ name, status, detail });
     const contact = !flag(options, "skip-tests");
+    const live = flag(options, "live");
+    const providers = flag(options, "providers") || live;
+    let extra: { data: Record<string, unknown>; text: string; failed: boolean; exitCode?: (typeof EXIT)[keyof typeof EXIT] } | null = null;
     const finish = () => {
-      const failed = checks.some((c) => c.status === "fail");
+      const failed = checks.some((c) => c.status === "fail") || Boolean(extra?.failed);
+      const text = table(["STATUS", "CHECK", "DETAIL"], checks.map((c) => [c.status, c.name, c.detail]));
       return {
-        data: { ok: !failed, url: ctx.url, checks },
-        text: table(["STATUS", "CHECK", "DETAIL"], checks.map((c) => [c.status, c.name, c.detail])),
-        exitCode: failed ? EXIT.failed : EXIT.ok,
+        data: { ok: !failed, url: ctx.url, checks, ...extra?.data },
+        text: extra ? `${text}\n\n${extra.text}` : text,
+        exitCode: extra?.exitCode ?? (failed ? EXIT.failed : EXIT.ok),
       };
     };
 
@@ -188,7 +208,12 @@ const doctor: Command = {
     }
     for (const model of launchable) {
       if (model.kind !== "local") {
-        add(`model ${model.key}`, "ok", `${model.label}: key configured; not contacted (troupe models test ${model.key} checks it).`);
+        if (!providers) {
+          add(`model ${model.key}`, "ok", `${model.label}: key configured; not contacted (troupe doctor --providers checks it for free).`);
+          continue;
+        }
+        const report = await ctx.api.settings.models.test.mutate({ modelKey: model.key });
+        add(`model ${model.key}`, report.ok === true ? "ok" : report.ok === null ? "warn" : "fail", `${model.label}: ${report.message}`);
         continue;
       }
       if (!contact) {
@@ -198,6 +223,19 @@ const doctor: Command = {
       const report = await ctx.api.settings.models.test.mutate({ modelKey: model.key });
       const status: Status = report.ok === true ? "ok" : report.ok === null ? "warn" : model.key === defaultModelKey ? "fail" : "warn";
       add(`model ${model.key}`, status, `${model.label}: ${report.message}`);
+    }
+
+    if (providers) {
+      const status = await ctx.api.settings.credentials.status.query();
+      for (const account of ACCOUNTS) {
+        const s = status[account.id];
+        if (!s.configured) {
+          add(`account ${account.id}`, "skip", `${account.name}: ${s.source === "disabled" ? "turned off" : s.source === "undecryptable" ? "the saved key can no longer be read; enter it again in Settings" : "no key (optional)"}.`);
+          continue;
+        }
+        const report = await ctx.api.settings.credentials.test.mutate({ provider: account.id });
+        add(`account ${account.id}`, report.ok === true ? "ok" : report.ok === null ? "warn" : "fail", `${account.name} (${s.source === "saved" ? "saved key" : "environment key"}): ${report.message}`);
+      }
     }
 
     const beat = await ctx.api.ops.reconcileHeartbeat.query();
@@ -219,6 +257,34 @@ const doctor: Command = {
       }
     } catch (error) {
       add("chat", "warn", explainError(error, ctx.url).message);
+    }
+
+    if (live) {
+      if (checks.some((c) => c.status === "fail")) {
+        extra = { data: { live: null }, text: "Nothing was launched: fix the failed checks above first.", failed: true };
+        return finish();
+      }
+      const plans = await livePlans(ctx, options);
+      const total = planTotal(plans);
+      const plan = table(["MODEL", "CLIP", "COST"], plans.map((p) => [p.label, `${p.durationS} s, ${p.resolution}, ${p.audio ? "with audio" : "silent"}`, money(p.estimateUsd)]));
+      const unknown = total.unknown.length ? `, plus ${total.unknown.join(", ")} (no price set)` : "";
+      const spend = `${total.usd > 0 ? `${money(total.usd)}, billed by each provider` : "nothing on video models"}${unknown}, and one script chat answer (Claude bills it; Ollama is free)`;
+      if (!flag(options, "yes")) {
+        extra = { data: { live: { plans, confirmed: false } }, text: `${plan}\n\nNothing was launched. This would spend ${spend}. Run again with --yes to launch.`, failed: false, exitCode: EXIT.usage };
+        return finish();
+      }
+      ctx.note(`Launching ${plans.length} render${plans.length === 1 ? "" : "s"}; this spends ${spend}.`);
+      const outcome = await runLive(ctx, plans, options);
+      const failed = outcome.results.some((r) => r.status !== "completed") || !outcome.chat.ok;
+      extra = {
+        data: { live: { ...outcome, confirmed: true } },
+        text: [
+          table(["RESULT", "MODEL", "CLIP", "COST", "VIDEO"], outcome.results.map((r) => [r.status === "completed" ? "ok" : "fail", r.label, `${r.durationS} s, ${r.resolution}`, money(r.estimateUsd), r.detail])),
+          `${outcome.chat.ok ? "ok" : "fail"}  chat: ${outcome.chat.detail}`,
+          `Videos in ${outcome.folder}; renders in project ${outcome.projectId}.`,
+        ].join("\n"),
+        failed,
+      };
     }
     return finish();
   },

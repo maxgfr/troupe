@@ -88,11 +88,13 @@ beforeAll(async () => {
   vi.stubEnv("FAL_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   // A video model speaking the HTTP contract, finished as soon as it is asked.
+  let jobs = 0;
   model = await startServer((r, res) => {
     if (r.path === "/health") return json(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
-    if (r.method === "POST" && r.path === "/jobs") return json(res, 200, { id: "job-1" });
-    if (r.path === "/jobs/job-1") return json(res, 200, { status: "succeeded", video_url: "/out/job-1.mp4" });
-    if (r.path === "/out/job-1.mp4") {
+    if (r.method === "POST" && r.path === "/jobs") return json(res, 200, { id: `job-${++jobs}` });
+    const job = /^\/jobs\/(job-\d+)$/.exec(r.path);
+    if (job) return json(res, 200, { status: "succeeded", video_url: `/out/${job[1]}.mp4` });
+    if (/^\/out\/job-\d+\.mp4$/.test(r.path)) {
       res.writeHead(200, { "content-type": "video/mp4" });
       res.end(clip);
       return;
@@ -232,5 +234,32 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect((await troupe(["render", "list"])).code).toBe(3);
     // TROUPE_ACCESS_CODE signs a command in without a saved cookie.
     expect((await troupe(["render", "list", "--json"], { env: { TROUPE_ACCESS_CODE: CODE } })).data()).toHaveLength(1);
+  });
+
+  it("checks provider keys for free, and renders one clip per model only with --yes", async () => {
+    const signed = { env: { TROUPE_ACCESS_CODE: CODE } };
+    const providers = await troupe(["doctor", "--providers", "--json"], signed);
+    expect(providers.code).toBe(0);
+    expect(providers.data().checks.filter((c: { name: string }) => c.name.startsWith("account "))).toEqual([
+      { name: "account google", status: "skip", detail: "Google AI: no key (optional)." },
+      { name: "account fal", status: "skip", detail: "fal.ai: no key (optional)." },
+      { name: "account anthropic", status: "skip", detail: "Anthropic: no key (optional)." },
+    ]);
+
+    // The plan and its cost, and nothing launched: exit 2.
+    const before = (await troupe(["projects", "list", "--json"], signed)).data().length;
+    const plan = await troupe(["doctor", "--live", "--json"], signed);
+    expect(plan.code).toBe(2);
+    expect(plan.data().live).toEqual({ confirmed: false, plans: [expect.objectContaining({ label: "Test renderer", durationS: 4, resolution: "720p", audio: false, estimateUsd: 0 })] });
+    expect((await troupe(["projects", "list", "--json"], signed)).data()).toHaveLength(before);
+    expect((await troupe(["doctor", "--live"], signed)).stdout).toContain("Nothing was launched");
+
+    const live = await troupe(["doctor", "--live", "--yes", "--interval", "0.05", "-o", "live", "--json"], signed);
+    expect(live.code).toBe(0);
+    const { results, chat, folder: out } = live.data().live;
+    expect(out).toBe(join(folder, "live"));
+    expect(results).toEqual([expect.objectContaining({ label: "Test renderer", status: "completed", file: join(folder, "live", `${results[0].modelKey}.mp4`), probe: expect.objectContaining({ codec: "h264" }) })]);
+    expect(await readFile(results[0].file)).toEqual(clip);
+    expect(chat).toEqual({ ok: true, detail: "ollama (qwen3:4b) proposed a script." });
   });
 });

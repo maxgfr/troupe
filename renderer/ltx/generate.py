@@ -10,6 +10,7 @@ It answers with one JSON object per line on stdout:
 
     {"stage": "text" | "load" | "denoise" | "decode" | "write"}
     {"step": 3, "steps": 8}
+    {"decode": 12, "decodes": 64}
     {"done": true, "frames": 121, "width": 480, "height": 832,
      "seconds": 95.2, "peak_rss_mb": 9500}
 
@@ -31,6 +32,8 @@ The model is set by environment variables (docs/LOCAL-MODELS.md):
     LTX_GUIDANCE              classifier-free guidance; 1 turns it off
     LTX_VAE_TILING            1 decodes the video in tiles, across the frame
                               and across time (less memory)
+    LTX_VAE_TILE_FRAMES       frames per decoded chunk (16); more is faster
+                              and takes more memory
     LTX_PROMPT_CACHE          folder for encoded prompts ("" turns it off)
 
     uv run python generate.py --download   fetches the weights and exits.
@@ -91,6 +94,10 @@ def settings() -> dict:
         fail("LTX_TIMESTEPS must be comma-separated numbers, LTX_STEPS a whole number and LTX_GUIDANCE a number.")
     if steps < 1 or steps > 200:
         fail(f"LTX_STEPS must be between 1 and 200 (got {steps}).")
+    tile_frames = env("LTX_VAE_TILE_FRAMES", "16")
+    if not tile_frames.isdigit() or int(tile_frames) % 8 or not 16 <= int(tile_frames) <= 256:
+        fail(f"LTX_VAE_TILE_FRAMES must be a multiple of 8 between 16 and 256 (got {tile_frames!r}).")
+    tile_frames = int(tile_frames)
     return {
         "model": env("LTX_MODEL", DEFAULT_MODEL),
         "base_model": env("LTX_BASE_MODEL", DEFAULT_BASE_MODEL),
@@ -102,6 +109,7 @@ def settings() -> dict:
         "steps": steps,
         "guidance": guidance,
         "vae_tiling": env("LTX_VAE_TILING", "1") not in ("0", "false", "no"),
+        "vae_tile_frames": tile_frames,
         "prompt_cache": os.environ.get("LTX_PROMPT_CACHE", str(Path.home() / ".cache" / "troupe-renderer" / "ltx-prompts")).strip(),
     }
 
@@ -155,9 +163,38 @@ def download(cfg: dict) -> None:
         snapshot_download(model, allow_patterns=["transformer/*", "vae/*"])
 
 
+def load_cached(cache: Path):
+    """The embeddings cached in `cache`, or None. A file that does not load
+    (cut short, from another version) is deleted and counts as a miss."""
+    import torch
+
+    if not cache.exists():
+        return None
+    try:
+        return torch.load(cache, map_location="cpu")
+    except Exception:
+        cache.unlink(missing_ok=True)
+        return None
+
+
+def save_cached(cache: Path, prompt: dict) -> None:
+    """Writes the embeddings next to `cache`, then renames the file into
+    place, so another render never reads half of it."""
+    import torch
+
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    temp = cache.with_name(f"{cache.name}.{os.getpid()}.tmp")
+    try:
+        torch.save(prompt, temp)
+        os.replace(temp, cache)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def encode_prompt(cfg: dict, job: dict, dtype, device):
     """T5 embeddings for the prompt (and the negative prompt under guidance),
-    on the CPU, cached on disk: loading T5 is the most memory a render takes.
+    on LTX_TEXT_ENCODER_DEVICE, cached on disk: loading T5 is the most memory
+    a render takes, so it is freed before the video model loads.
     """
     import torch
 
@@ -166,8 +203,9 @@ def encode_prompt(cfg: dict, job: dict, dtype, device):
         json.dumps([cfg["base_model"], cfg["text_encoder"], cfg["dtype"], job["prompt"], job["negative_prompt"] if guided else ""]).encode()
     ).hexdigest()
     cache = Path(cfg["prompt_cache"]) / f"{key}.pt" if cfg["prompt_cache"] else None
-    if cache and cache.exists():
-        return torch.load(cache, map_location="cpu")
+    cached = load_cached(cache) if cache else None
+    if cached is not None:
+        return cached
 
     emit(stage="text")
     from diffusers import LTXConditionPipeline
@@ -198,8 +236,7 @@ def encode_prompt(cfg: dict, job: dict, dtype, device):
     del encoder, text_encoder, embeds, mask, negative_embeds, negative_mask
     free(text_device)
     if cache:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(prompt, cache)
+        save_cached(cache, prompt)
     return prompt
 
 
@@ -220,9 +257,49 @@ def load_pipeline(cfg: dict, dtype, device):
     if cfg["vae_tiling"]:
         # Tiles across the frame and across time: decoding all frames at once
         # would take most of a 16 GB Mac.
-        pipe.vae.enable_tiling()
+        frames = cfg["vae_tile_frames"]
+        pipe.vae.enable_tiling(tile_sample_min_num_frames=frames, tile_sample_stride_num_frames=frames - 8)
         pipe.vae.use_framewise_decoding = True
     return pipe
+
+
+def decode_calls(vae, latent_frames: int, latent_height: int, latent_width: int) -> int:
+    """How many times the VAE's decoder runs on these latents, following
+    AutoencoderKLLTXVideo's tiling: chunks across time, tiles across the frame."""
+    chunks = 1
+    if vae.use_framewise_decoding and latent_frames > vae.tile_sample_min_num_frames // vae.temporal_compression_ratio:
+        chunks = len(range(0, latent_frames, vae.tile_sample_stride_num_frames // vae.temporal_compression_ratio))
+    tiles = 1
+    min_height = vae.tile_sample_min_height // vae.spatial_compression_ratio
+    min_width = vae.tile_sample_min_width // vae.spatial_compression_ratio
+    if vae.use_tiling and (latent_width > min_width or latent_height > min_height):
+        rows = range(0, latent_height, vae.tile_sample_stride_height // vae.spatial_compression_ratio)
+        columns = range(0, latent_width, vae.tile_sample_stride_width // vae.spatial_compression_ratio)
+        tiles = len(rows) * len(columns)
+    return chunks * tiles
+
+
+def report_decoding(pipe, job: dict) -> None:
+    """Emits a progress line each time the decoder runs: decoding is most of
+    a render's time on a Mac."""
+    vae = pipe.vae
+    total = decode_calls(
+        vae,
+        (int(job["num_frames"]) - 1) // vae.temporal_compression_ratio + 1,
+        int(job["height"]) // vae.spatial_compression_ratio,
+        int(job["width"]) // vae.spatial_compression_ratio,
+    )
+    decode = vae.decoder.forward
+    done = 0
+
+    def counted(*args, **kwargs):
+        nonlocal done
+        result = decode(*args, **kwargs)
+        done += 1
+        emit(decode=min(done, total), decodes=total)
+        return result
+
+    vae.decoder.forward = counted
 
 
 def write_video(frames, fps: int, out: str) -> None:
@@ -258,6 +335,8 @@ def generate(cfg: dict, job: dict) -> None:
         if step + 1 == steps:
             emit(stage="decode")
         return kwargs
+
+    report_decoding(pipe, job)
 
     emit(stage="denoise")
     generator = torch.Generator(device="cpu").manual_seed(int(job["seed"]))
@@ -317,7 +396,7 @@ def main() -> None:
         generate(cfg, job)
     except RuntimeError as error:
         text = str(error)
-        if "out of memory" in text.lower() or "MPS backend out of memory" in text:
+        if "out of memory" in text.lower():
             fail("LTX ran out of memory. Lower LTX_RESOLUTION or LTX_FRAMES, or close other apps. " + text.splitlines()[0][:200])
         raise
 

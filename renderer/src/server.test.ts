@@ -243,6 +243,14 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
     expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS, 1);
   });
 
+  it("tells Test why the mode cannot render yet", async () => {
+    const unready = `${await start(tone, { ...ltxMode(), ready: () => "The AI video mode's Python environment is not set up yet." })}/ltx`;
+    expect(await createHttpEndpointAdapter({ model: model(unready) }).testConnection!()).toEqual({
+      ok: false,
+      message: "Renderer returned HTTP 503: The AI video mode's Python environment is not set up yet.",
+    });
+  });
+
   it("reports a generation failure as a failed job with the model's error", async () => {
     await expect(renderThroughTroupe(failing, { prompt: "x", aspectRatio: "9:16", resolution: "480p", durationS: 4, audio: true, script: { lines, actor, language: "en" } }))
       .rejects.toThrow("The renderer failed the job: Renderer reported: LTX failed: RuntimeError: MPS backend out of memory");

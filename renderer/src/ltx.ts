@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomInt } from "node:crypto";
+import { accessSync, constants, existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { createInterface } from "node:readline";
 
 import type { RenderRequest } from "./request";
@@ -87,6 +89,32 @@ export function ltxSettingsFromEnv(env: Env, defaultCommand: string[]): LtxSetti
   };
 }
 
+function installed(program: string): boolean {
+  const runnable = (file: string) => {
+    try {
+      accessSync(file, constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (program.includes("/")) return runnable(program);
+  return (process.env.PATH ?? "").split(delimiter).some((dir) => dir && runnable(join(dir, program)));
+}
+
+// Why the mode cannot render yet, or null: the program LTX_COMMAND starts
+// (uv by default) must be installed and, with the default command, the
+// Python environment set up (`venv`), so the first job does not spend
+// minutes installing PyTorch. /ltx/health reports it, so Test shows it.
+export function ltxReadiness(command: string[], venv?: string): string | null {
+  const program = command[0] ?? "";
+  if (!installed(program)) return `The AI video mode needs "${program}", which is not installed here. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.`;
+  if (venv && !existsSync(join(venv, "pyvenv.cfg"))) {
+    return "The AI video mode's Python environment is not set up yet. Run pnpm renderer:ltx:setup on the renderer's machine (it also downloads the weights).";
+  }
+  return null;
+}
+
 const round32 = (n: number) => Math.max(32, Math.round(n / 32) * 32);
 
 // The size to generate for a video of width × height: its shape, with about
@@ -158,18 +186,43 @@ export interface GenerateReport {
   device?: string;
 }
 
-// Progress through a generation: encoding the prompt, loading the model,
-// the denoising steps, then decoding and writing the clip.
-const STAGES: Record<string, number> = { text: 0.02, load: 0.1, denoise: 0.2, decode: 0.85, write: 0.95 };
-const STEPS_START = 0.2;
-const STEPS_END = 0.85;
+// Progress through a generation, weighted by what each stage took on an
+// Apple M5 (docs/LOCAL-MODELS.md): encoding a new prompt about 40 s,
+// loading 6 s, the 8 denoising steps 3 s, decoding the frames 70 s (reported
+// tile by tile), writing the clip 2 s.
+const STAGES: Record<string, number> = { text: 0.02, load: 0.25, denoise: 0.3, decode: 0.35, write: 0.97 };
+const STEPS = [0.3, 0.35] as const;
+const DECODES = [0.35, 0.97] as const;
+const along = ([from, to]: readonly [number, number], done: unknown, total: unknown) =>
+  typeof done === "number" && typeof total === "number" && total > 0 ? from + ((to - from) * Math.min(done, total)) / total : undefined;
+
+// Generations running now, by process group. generate.py runs in its own
+// group so that stopping it reaches Python under `uv run` too, which may
+// outlive uv and would keep the GPU's memory and the output pipes.
+const running = new Set<number>();
+const KILL_GRACE_MS = 5000;
+
+function signalGroup(pid: number, signal: NodeJS.Signals) {
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // The group is already gone.
+  }
+}
+
+// Kills every running generation at once: for the renderer's own shutdown.
+export function stopGenerators(): void {
+  for (const pid of running) signalGroup(pid, "SIGKILL");
+}
 
 // Runs generate.py on `job` and resolves once the clip is written.
 // `onProgress` gets values in [0, 1].
 export async function generateClip(settings: LtxSettings, job: GenerateJob, onProgress: (progress: number) => void = () => {}): Promise<GenerateReport> {
   const [program, ...args] = settings.command;
   if (!program) throw new Error("LTX_COMMAND is empty.");
-  const child = spawn(program, args, { stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(program, args, { stdio: ["pipe", "pipe", "pipe"], detached: true });
+  const group = child.pid;
+  if (group) running.add(group);
   let stderr = "";
   child.stderr.on("data", (d: Buffer) => {
     // Keep the end: that is where Python puts the error.
@@ -184,20 +237,21 @@ export async function generateClip(settings: LtxSettings, job: GenerateJob, onPr
       return;
     }
     if (typeof event.stage === "string" && event.stage in STAGES) onProgress(STAGES[event.stage]!);
-    if (typeof event.step === "number" && typeof event.steps === "number" && event.steps > 0) {
-      onProgress(STEPS_START + ((STEPS_END - STEPS_START) * event.step) / event.steps);
-    }
+    const progress = along(STEPS, event.step, event.steps) ?? along(DECODES, event.decode, event.decodes);
+    if (progress !== undefined) onProgress(progress);
     if (event.done === true) report = event as unknown as GenerateReport;
   });
   child.stdin.on("error", () => {});
   child.stdin.end(JSON.stringify(job));
 
   let timedOut = false;
-  // uv passes SIGTERM on to Python; SIGKILL follows if it lingers.
+  let grace: NodeJS.Timeout | undefined;
+  // SIGTERM lets Python free the GPU; SIGKILL follows if anything lingers.
   const timer = setTimeout(() => {
     timedOut = true;
-    child.kill("SIGTERM");
-    setTimeout(() => child.kill("SIGKILL"), 5000).unref();
+    if (!group) return;
+    signalGroup(group, "SIGTERM");
+    grace = setTimeout(() => signalGroup(group, "SIGKILL"), KILL_GRACE_MS);
   }, settings.timeoutS * 1000);
   try {
     const code = await new Promise<number | null>((resolve, reject) => {
@@ -213,6 +267,7 @@ export async function generateClip(settings: LtxSettings, job: GenerateJob, onPr
       child.on("close", resolve);
     });
     if (timedOut) throw new Error(`LTX took longer than ${settings.timeoutS} s and was stopped (LTX_TIMEOUT_S).`);
+    if (code === null) throw new Error("LTX was stopped.");
     if (code !== 0) {
       const last = stderr.trim().split("\n").filter((l) => l.trim()).at(-1)?.trim();
       throw new Error(last ? `LTX failed: ${last.slice(0, 300)}` : `LTX exited with ${code}.`);
@@ -221,5 +276,11 @@ export async function generateClip(settings: LtxSettings, job: GenerateJob, onPr
     return report;
   } finally {
     clearTimeout(timer);
+    clearTimeout(grace);
+    if (group) {
+      // Nothing of the generation may outlive it.
+      signalGroup(group, "SIGKILL");
+      running.delete(group);
+    }
   }
 }

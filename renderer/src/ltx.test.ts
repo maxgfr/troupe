@@ -1,11 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { DEFAULT_LTX_NEGATIVE_PROMPT, DEFAULT_LTX_PROMPT, generateClip, generateJob, generationSize, ltxPrompt, ltxSettingsFromEnv, type LtxSettings } from "./ltx";
+import { DEFAULT_LTX_NEGATIVE_PROMPT, DEFAULT_LTX_PROMPT, generateClip, generateJob, generationSize, ltxPrompt, ltxReadiness, ltxSettingsFromEnv, stopGenerators, type LtxSettings } from "./ltx";
 import { parseJobBody } from "./request";
 
 // The AI video mode's Node side, with a script standing in for
@@ -146,6 +146,13 @@ describe("generateClip", () => {
     expect(seen[0]).toBeLessThan(0.1);
     expect(seen.at(-1)).toBeGreaterThanOrEqual(0.95);
     expect(seen).toEqual([...seen].sort((a, b) => a - b));
+    // Stages weigh what they take on a Mac: the denoising steps are quick and
+    // decoding the frames is most of the wait, reported tile by tile.
+    // text, load, denoise, 4 steps, decode, 4 decoded tiles, write:
+    expect(seen).toHaveLength(13);
+    expect(seen[6]).toBeLessThan(0.4);
+    expect(seen[8]! - seen[7]!).toBeGreaterThan(0.1);
+    expect(seen[11]).toBeGreaterThanOrEqual(0.9);
   });
 
   it("picks a new seed for each render unless one is set", () => {
@@ -175,10 +182,69 @@ describe("generateClip", () => {
     expect(stdout.trim()).toBe("");
   });
 
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const pidIn = async (file: string) => {
+    for (let i = 0; i < 50; i++) {
+      const text = await readFile(file, "utf8").catch(() => "");
+      if (text) return Number(text);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw new Error("The fake never started its grandchild.");
+  };
+
+  it("stops the whole process tree on a timeout, even a grandchild that ignores SIGTERM", async () => {
+    const pidFile = join(scratch, "stubborn-timeout.pid");
+    const job = generateJob(settings(), request, join(scratch, "stubborn.mp4"));
+    const done = generateClip(settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile], timeoutS: 1 }), job);
+    const grandchild = await pidIn(pidFile);
+    await expect(done).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
+    expect(alive(grandchild)).toBe(false);
+  }, 15_000);
+
+  it("stops running generations when the renderer shuts down", async () => {
+    const pidFile = join(scratch, "stubborn-stop.pid");
+    const job = generateJob(settings(), request, join(scratch, "stopped.mp4"));
+    const done = generateClip(settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile] }), job);
+    const grandchild = await pidIn(pidFile);
+    stopGenerators();
+    await expect(done).rejects.toThrow(/LTX/);
+    expect(alive(grandchild)).toBe(false);
+  });
+
   it("says how to install uv when it is missing", async () => {
     const job = generateJob(settings(), request, join(scratch, "none.mp4"));
     await expect(generateClip(settings({ command: ["troupe-no-such-uv", "run"] }), job)).rejects.toThrow(
       'Could not start the LTX generator: "troupe-no-such-uv" is not installed. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.',
+    );
+  });
+});
+
+describe("ltxReadiness", () => {
+  it("is ready when the program is on the PATH and the environment is set up", async () => {
+    const venv = join(scratch, "venv-ready");
+    await mkdir(venv, { recursive: true });
+    await writeFile(join(venv, "pyvenv.cfg"), "home = /usr/bin\n");
+    expect(ltxReadiness(["node", "generate.py"], venv)).toBeNull();
+    expect(ltxReadiness([process.execPath, FAKE])).toBeNull();
+  });
+
+  it("says when uv, or another LTX_COMMAND program, is missing", () => {
+    expect(ltxReadiness(["troupe-no-such-uv", "run"])).toBe(
+      'The AI video mode needs "troupe-no-such-uv", which is not installed here. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.',
+    );
+    expect(ltxReadiness(["/opt/nowhere/python", "generate.py"])).toMatch(/needs "\/opt\/nowhere\/python", which is not installed here/);
+  });
+
+  it("says to run the setup when the Python environment is missing", () => {
+    expect(ltxReadiness(["node"], join(scratch, "no-venv"))).toBe(
+      "The AI video mode's Python environment is not set up yet. Run pnpm renderer:ltx:setup on the renderer's machine (it also downloads the weights).",
     );
   });
 });

@@ -18,6 +18,9 @@ export interface RenderMode {
   render(request: RenderRequest, outFile: string, onProgress: (progress: number) => void): Promise<number>;
   // How often Troupe should ask about a job, sent in /health.
   pollEveryS: number;
+  // Why the mode cannot render right now, or null. /health answers 503
+  // with it.
+  ready?: () => string | null;
 }
 
 export interface RendererOptions {
@@ -86,7 +89,11 @@ export function createRendererServer(options: RendererOptions): Server {
       mode = options.ltx;
       name = "ltx";
     }
-    if (req.method === "GET" && path === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: mode.pollEveryS });
+    if (req.method === "GET" && path === "/health") {
+      const unready = mode.ready?.();
+      if (unready) return send(res, 503, { ok: false, error: unready });
+      return send(res, 200, { ok: true, contract: 1, poll_every_s: mode.pollEveryS });
+    }
     if (req.method === "POST" && path === "/jobs") {
       const chunks: Buffer[] = [];
       let received = 0;

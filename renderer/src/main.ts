@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { parseVoicePools, type VoicePools } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
 import { type KokoroDtype, kokoroVoice } from "./kokoro";
-import { type LtxSettings, ltxSettingsFromEnv } from "./ltx";
+import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } from "./ltx";
 import { renderLtxVideo } from "./render-ltx";
 import { createRendererServer, LTX_PREFIX } from "./server";
 
@@ -66,6 +66,8 @@ const server = createRendererServer({
           render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, settings: ltx, onProgress, log }),
           // A generation takes minutes.
           pollEveryS: 5,
+          // The default command runs in renderer/ltx/.venv, made by the setup.
+          ready: () => ltxReadiness(ltx.command, process.env.LTX_COMMAND?.trim() ? undefined : join(LTX_DIR, ".venv")),
         },
       }
     : {}),
@@ -73,6 +75,16 @@ const server = createRendererServer({
   token: process.env.TOKEN || undefined,
   log,
 });
+
+// Generations run in their own process group, out of reach of Ctrl-C and
+// of a container's stop signal: take them down with the renderer.
+process.on("exit", stopGenerators);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+  process.once(signal, () => {
+    stopGenerators();
+    process.kill(process.pid, signal);
+  });
+}
 
 // PORT=0 picks a free port: print the one actually bound.
 server.listen(PORT, HOST, () => {

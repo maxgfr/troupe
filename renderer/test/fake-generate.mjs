@@ -4,7 +4,12 @@
 //
 //   node fake-generate.mjs [--color 0x2a6fdb] [--record job.json]
 //                          [--fail "message"] [--hang] [--no-done]
-import { execFileSync } from "node:child_process";
+//                          [--stubborn-child pid.txt]
+//
+// --stubborn-child starts a grandchild that ignores SIGTERM and shares the
+// script's stdout and stderr, as Python does under `uv run`, and writes its
+// pid to the file.
+import { execFileSync, spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
@@ -14,6 +19,10 @@ const emit = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
 const job = JSON.parse(readFileSync(0, "utf8"));
 if (value("--record")) writeFileSync(value("--record"), JSON.stringify(job));
+if (value("--stubborn-child")) {
+  const child = spawn(process.execPath, ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], { stdio: ["ignore", "inherit", "inherit"] });
+  writeFileSync(value("--stubborn-child"), String(child.pid));
+}
 emit({ stage: "text" });
 emit({ stage: "load" });
 // Noise a library might print on stdout: ignored by the renderer.
@@ -26,6 +35,7 @@ else if (value("--fail")) {
   emit({ stage: "denoise" });
   for (let step = 1; step <= 4; step++) emit({ step, steps: 4 });
   emit({ stage: "decode" });
+  for (let decode = 1; decode <= 4; decode++) emit({ decode, decodes: 4 });
   emit({ stage: "write" });
   const color = value("--color") ?? "0x2a6fdb";
   const seconds = job.num_frames / job.frame_rate;

@@ -96,7 +96,10 @@ Each studio you sign in to is a profile (`default` unless you pass
 (`$XDG_CONFIG_HOME/troupe`, or `TROUPE_CONFIG_DIR`), written with mode 0600 in
 a 0700 folder. Commands that change it take a lock file
 (`config.json.lock`) and write a new file before renaming it over the old
-one, so two commands running at once never lose each other's change:
+one, so two commands running at once never lose each other's change. A lock
+left by a command that crashed is taken over once it is 3 seconds old; a
+command waits up to 8 seconds for the lock before it stops with
+`CONFIG_LOCKED`:
 
 ```json
 { "profile": "default", "profiles": { "default": { "url": "http://127.0.0.1:3000", "cookie": "…", "project": "3808a42c-…" } } }

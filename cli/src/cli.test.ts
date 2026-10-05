@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { mainHelp, runCli } from "./cli.ts";
 import type { Io } from "./command.ts";
 import { fetchMedia } from "./client.ts";
-import { assertSecureTransport, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
+import { assertSecureTransport, LOCK_TIMING, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
 import { startServer } from "~/test/local-server";
 import { numberRanges, sentence, table } from "./output.ts";
 import { pick } from "./resolve.ts";
@@ -181,6 +181,40 @@ describe("config file", () => {
       config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
     })));
     expect(Object.keys((await readConfig(env)).profiles).sort()).toEqual(Array.from({ length: 12 }, (_, i) => `p${i}`).sort());
+  });
+
+  // A lock file whose command crashed `ageMs` ago.
+  async function crashedLock(dir: string, ageMs: number) {
+    const lock = join(dir, "config.json.lock");
+    await writeFile(lock, "");
+    const then = new Date(Date.now() - ageMs);
+    await utimes(lock, then, then);
+    return lock;
+  }
+
+  it("takes over a lock a crashed command left, and loses no update doing it", async () => {
+    for (let round = 0; round < 5; round++) {
+      const dir = await mkdtemp(join(tmpdir(), "troupe-config-"));
+      folders.push(dir);
+      const env = { TROUPE_CONFIG_DIR: dir };
+      await crashedLock(dir, 60_000);
+      await Promise.all(Array.from({ length: 12 }, (_, i) => updateConfig(env, (config) => {
+        config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
+      })));
+      expect(Object.keys((await readConfig(env)).profiles).sort(), `round ${round}`).toEqual(Array.from({ length: 12 }, (_, i) => `p${i}`).sort());
+    }
+  });
+
+  it("waits out a lock a command crashed holding just now, instead of giving up first", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-config-"));
+    folders.push(dir);
+    await crashedLock(dir, 0);
+    const started = Date.now();
+    await updateConfig({ TROUPE_CONFIG_DIR: dir }, (config) => {
+      config.profile = "after";
+    });
+    expect((await readConfig({ TROUPE_CONFIG_DIR: dir })).profile).toBe("after");
+    expect(Date.now() - started).toBeGreaterThanOrEqual(LOCK_TIMING.staleMs - 100);
   });
 });
 

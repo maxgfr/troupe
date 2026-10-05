@@ -3,6 +3,8 @@ export {
   SUPPORTED_EMOTIONS,
   ScriptTooLongError,
   ScriptEmotionsMismatchError,
+  ScriptTooManyLinesError,
+  MAX_SCRIPT_LINES,
   estimateDurationS,
   assertScriptFitsClip,
   pasteScript,

@@ -1,10 +1,15 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { drizzle } from "drizzle-orm/pglite";
 
+import * as schema from "~/server/db/schema";
+import type { Db } from "~/server/db/types";
 import { createTestDb, type TestDb } from "~/test/db";
 import { createWorkspace } from "~/modules/identity";
 import { projects } from "~/modules/studio/server/schema";
 import {
+  MAX_SCRIPT_LINES,
   SUPPORTED_EMOTIONS,
+  ScriptTooManyLinesError,
   ScriptTooLongError,
   assertScriptFitsClip,
   estimateDurationS,
@@ -27,6 +32,25 @@ beforeAll(async () => {
     .values({ workspaceId: ws.id, title: "Coffee ad", format: "9:16", platform: "tiktok", language: "fr" })
     .returning();
   projectId = p!.id;
+});
+
+describe("pasting a script", () => {
+  it("refuses more lines than the studio keeps per version, as it refuses as many emotions", async () => {
+    const text = Array.from({ length: MAX_SCRIPT_LINES + 1 }, (_, i) => `Line ${i}.`).join("\n");
+    await expect(pasteScript(t.db, { projectId, text })).rejects.toBeInstanceOf(ScriptTooManyLinesError);
+    const most = Array.from({ length: MAX_SCRIPT_LINES }, (_, i) => `Line ${i}.`).join("\n\n");
+    expect((await pasteScript(t.db, { projectId, text: most })).lines).toHaveLength(MAX_SCRIPT_LINES);
+  });
+
+  it("reads the emotions to keep from the newest version under the lock that allocates the next one", async () => {
+    const queries: string[] = [];
+    const logged = drizzle(t.pg, { schema, logger: { logQuery: (query) => void queries.push(query) } }) as unknown as Db;
+    await pasteScript(logged, { projectId, text: "Locked read." });
+    const lock = queries.findIndex((q) => /from "troupe_project" where "troupe_project"\."id" = \$1 for update$/.test(q));
+    const newest = queries.findIndex((q) => /from "troupe_script" where "troupe_script"\."projectId" = \$1 order by "troupe_script"\."version" desc limit \$2$/.test(q));
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(newest).toBeGreaterThan(lock);
+  });
 });
 
 describe("script editing with emotion tags", () => {

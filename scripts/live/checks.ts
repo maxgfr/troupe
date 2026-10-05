@@ -11,7 +11,7 @@ import { createVeoTextAdapter } from "~/modules/generation/server/adapters/veo-t
 import type { HttpLike, VideoProviderAdapter } from "~/modules/generation";
 import { buildChatPrompt, proposalJsonSchema, type ChatModel } from "~/modules/chat";
 import { builtinModels, type BuiltinModel } from "~/modules/models";
-import { listPriceUsd } from "~/modules/models/list-price";
+import { CLAUDE_CHAT_ANSWER_USD, listPriceUsd } from "~/modules/models/list-price";
 import { createAnthropicChat, DEFAULT_ANTHROPIC_MODEL, testAnthropic } from "~/server/chat/anthropic";
 import { createOllamaChat, testOllama } from "~/server/chat/ollama";
 import { claudeCapabilities } from "~/server/chat/claude-models";
@@ -110,9 +110,7 @@ export function planChecks(env: Env, models: readonly BuiltinModel[] = builtinMo
     {
       id: "anthropic", name: "Anthropic",
       job: `${claude}, one script chat answer`,
-      // About 2,000 tokens in and 1,000 to 4,500 out at Claude Opus 5.5's
-      // $4 / $20 per million: adaptive thinking is billed as output.
-      estimate: { lowUsd: 0.03, highUsd: 0.1 },
+      estimate: CLAUDE_CHAT_ANSWER_USD,
       skip: environmentKey("anthropic", env) ? null : "no ANTHROPIC_API_KEY",
     },
     {

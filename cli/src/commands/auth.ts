@@ -3,6 +3,7 @@ import { type Command, type Context, flag } from "../command.ts";
 import { configPath, isLoopback, updateConfig } from "../config.ts";
 import { CliError, EXIT } from "../errors.ts";
 import { ago, fields, table } from "../output.ts";
+import { CLAUDE_CHAT_ANSWER_USD } from "../../../src/modules/models/list-price.ts";
 import { livePlans, money, planTotal, runLive } from "./live.ts";
 import { validateWatch, WATCH_OPTIONS } from "./render.ts";
 
@@ -155,7 +156,7 @@ const doctor: Command = {
     providers: { type: "boolean", description: "Check each provider account's key with a free call (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model)." },
     live: { type: "boolean", description: "Render one clip per model at its cheapest settings and ffprobe the download; prints the plan and its cost first." },
     yes: { type: "boolean", description: "With --live: spend the estimate shown and launch." },
-    model: { type: "string", multiple: true, value: "<model>", description: "With --live: only this model (default: every model that can launch)." },
+    model: { type: "string", multiple: true, value: "<model>", description: "With --live: only these models; repeat it for each (default: every model that can launch)." },
     output: { type: "string", short: "o", value: "<folder>", description: "With --live: where the videos land (default: ./troupe-live-<date>)." },
     ...WATCH_OPTIONS,
   },
@@ -268,7 +269,7 @@ const doctor: Command = {
       const total = planTotal(plans);
       const plan = table(["MODEL", "CLIP", "COST"], plans.map((p) => [p.label, `${p.durationS} s, ${p.resolution}, ${p.audio ? "with audio" : "silent"}`, money(p.estimateUsd)]));
       const unknown = total.unknown.length ? `, plus ${total.unknown.join(", ")} (no price set)` : "";
-      const spend = `${total.usd > 0 ? `${money(total.usd)}, billed by each provider` : "nothing on video models"}${unknown}, and one script chat answer (Claude: about $0.03–0.10; Ollama: free)`;
+      const spend = `${total.usd > 0 ? `${money(total.usd)}, billed by each provider` : "nothing on video models"}${unknown}, and one script chat answer (Claude: about $${CLAUDE_CHAT_ANSWER_USD.lowUsd.toFixed(2)}–${CLAUDE_CHAT_ANSWER_USD.highUsd.toFixed(2)}; Ollama: free)`;
       if (!flag(options, "yes")) {
         extra = { data: { live: { plans, confirmed: false } }, text: `${plan}\n\nNothing was launched. This would spend ${spend}. Run again with --yes to launch.`, failed: false, exitCode: EXIT.usage };
         return finish();

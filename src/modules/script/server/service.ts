@@ -58,14 +58,27 @@ async function nextVersion(db: Db, projectId: string): Promise<number> {
   return (latest?.version ?? 0) + 1;
 }
 
-async function insertScript(db: Db, input: { projectId: string; origin: "chat" | "pasted"; lines: DraftLine[] }): Promise<ScriptWithLines> {
-  validateLines(input.lines);
-  const estimated = estimateDurationS(input.lines.map((l) => l.text).join(" "));
+type LineList = ScriptWithLines["lines"];
+
+// `lines`, or how to make them from the newest version's (none for a first
+// version), read under the same lock as the version number.
+async function insertScript(db: Db, input: { projectId: string; origin: "chat" | "pasted"; lines: DraftLine[] | ((newest: LineList) => DraftLine[]) }): Promise<ScriptWithLines> {
+  if (Array.isArray(input.lines)) validateLines(input.lines);
   return db.transaction(async (tx) => {
+    const conn = tx as unknown as Db;
     // Serialize version allocation even when saves arrive from multiple tabs.
     const [project] = await tx.select({ id: projects.id }).from(projects).where(eq(projects.id, input.projectId)).for("update");
     if (!project) throw new Error(`project ${input.projectId} not found`);
-    const version = await nextVersion(tx as unknown as Db, input.projectId);
+    let draft: DraftLine[];
+    if (Array.isArray(input.lines)) {
+      draft = input.lines;
+    } else {
+      const [latest] = await tx.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, input.projectId)).orderBy(desc(scripts.version)).limit(1);
+      draft = input.lines(latest ? (await loadScript(conn, latest.id)).lines : []);
+      validateLines(draft);
+    }
+    const estimated = estimateDurationS(draft.map((l) => l.text).join(" "));
+    const version = await nextVersion(conn, input.projectId);
     const [script] = await tx
       .insert(scripts)
       .values({ projectId: input.projectId, version, origin: input.origin, estimatedDurationS: estimated })
@@ -73,7 +86,7 @@ async function insertScript(db: Db, input: { projectId: string; origin: "chat" |
     if (!script) throw new Error("script insert returned no row");
     const lines = await tx
       .insert(scriptLines)
-      .values(input.lines.map((l, index) => ({ scriptId: script.id, index, role: l.role, text: l.text, emotion: l.emotion })))
+      .values(draft.map((l, index) => ({ scriptId: script.id, index, role: l.role, text: l.text, emotion: l.emotion })))
       .returning();
     return {
       id: script.id,
@@ -93,6 +106,17 @@ export class ScriptEmotionsMismatchError extends Error {
   }
 }
 
+// The most lines a pasted version may have (and so the most emotions sent
+// with one).
+export const MAX_SCRIPT_LINES = 200;
+
+export class ScriptTooManyLinesError extends Error {
+  constructor(lines: number) {
+    super(`The script has ${lines} lines; a version holds at most ${MAX_SCRIPT_LINES}. Split it or shorten it.`);
+    this.name = "ScriptTooManyLinesError";
+  }
+}
+
 // Pasted scripts split into lines with a neutral default emotion.
 // `emotions`, one per non-empty line, sets them in the same version; a null
 // keeps the default.
@@ -102,20 +126,22 @@ export async function pasteScript(db: Db, input: { projectId: string; text: stri
     .map((l) => l.trim())
     .filter(Boolean);
   if (raw.length === 0) throw new Error("The script is empty. Write at least one line.");
+  if (raw.length > MAX_SCRIPT_LINES) throw new ScriptTooManyLinesError(raw.length);
   if (input.emotions && input.emotions.length !== raw.length) throw new ScriptEmotionsMismatchError(raw.length, input.emotions.length);
-  // Lines whose text did not change keep the emotion chosen for them.
-  const [latest] = await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, input.projectId)).orderBy(desc(scripts.version)).limit(1);
-  const previous = latest ? (await loadScript(db, latest.id)).lines : [];
-  const used = new Set<number>();
-  const lines: DraftLine[] = raw.map((text, i) => {
-    const match = previous.find((p) => p.text === text && !used.has(p.index));
-    if (match) used.add(match.index);
-    return {
-      text,
-      role: i === 0 ? "hook" : i === raw.length - 1 && raw.length > 1 ? "cta" : "body",
-      emotion: input.emotions?.[i] ?? match?.emotion ?? "neutral",
-    };
-  });
+  // Lines whose text did not change keep the emotion chosen for them in the
+  // newest version, read under the lock the new version is numbered under.
+  const lines = (previous: LineList): DraftLine[] => {
+    const used = new Set<number>();
+    return raw.map((text, i) => {
+      const match = previous.find((p) => p.text === text && !used.has(p.index));
+      if (match) used.add(match.index);
+      return {
+        text,
+        role: i === 0 ? "hook" : i === raw.length - 1 && raw.length > 1 ? "cta" : "body",
+        emotion: input.emotions?.[i] ?? match?.emotion ?? "neutral",
+      };
+    });
+  };
   return insertScript(db, { projectId: input.projectId, origin: "pasted", lines });
 }
 

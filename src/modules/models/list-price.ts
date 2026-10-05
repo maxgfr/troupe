@@ -38,3 +38,8 @@ export function listPriceUsd(model: PricedModel, clip: ClipSettings): number | n
   if (size) return cents(((size[0] * size[1] * 24 * clip.durationS) / 1024 / 1_000_000) * (clip.audio ? 2.4 : 1.2));
   return model.pricePerSecondUsd === null ? null : cents(model.pricePerSecondUsd * clip.durationS);
 }
+
+// One script chat answer from Claude Opus 5.5, the default chat model: about
+// 2,000 tokens in and 1,000 to 4,500 out at $4 / $20 per million (adaptive
+// thinking is billed as output, so the length varies).
+export const CLAUDE_CHAT_ANSWER_USD = { lowUsd: 0.03, highUsd: 0.1 } as const;

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createTRPCRouter, projectProcedure } from "~/server/api/trpc";
 import type { Db } from "~/server/db/types";
 import { TRPCError } from "@trpc/server";
-import { SUPPORTED_EMOTIONS, ScriptEmotionsMismatchError, getScriptHistory, lockScript, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
+import { MAX_SCRIPT_LINES, SUPPORTED_EMOTIONS, ScriptEmotionsMismatchError, ScriptTooManyLinesError, getScriptHistory, lockScript, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
 import { generations } from "~/modules/generation";
 import { chatMessages } from "~/modules/chat";
 import { projects } from "~/modules/studio";
@@ -36,10 +36,10 @@ export const scriptRouter = createTRPCRouter({
   // `emotions` (one per non-empty line, null to keep it) tags the lines in
   // the same version, as the CLI's script files do.
   paste: projectProcedure
-    .input(z.object({ text: z.string().min(1), emotions: z.array(EMOTION.nullable()).max(200).optional() }))
+    .input(z.object({ text: z.string().min(1), emotions: z.array(EMOTION.nullable()).max(MAX_SCRIPT_LINES).optional() }))
     .mutation(({ ctx, input }) =>
       pasteScript(ctx.db, { projectId: input.projectId, text: input.text, emotions: input.emotions }).catch((error: unknown) => {
-        if (error instanceof ScriptEmotionsMismatchError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+        if (error instanceof ScriptEmotionsMismatchError || error instanceof ScriptTooManyLinesError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
         throw error;
       }),
     ),

@@ -40,7 +40,7 @@ interface Job {
 
 const MAX_BODY_BYTES = 1024 * 1024;
 export const LTX_PREFIX = "/ltx";
-export const LTX_OFF = "The AI video mode is off on this renderer. Start it with `pnpm renderer:ltx` (docs/LOCAL-MODELS.md).";
+export const LTX_OFF = "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md).";
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });

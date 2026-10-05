@@ -67,12 +67,16 @@ export function DemoUnavailable({ children }: { children: React.ReactNode }) {
 export function DemoBanner() {
   return (
     <aside aria-label="Browser demo" className="border-b border-muted/20 bg-bg">
-      <p className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2 text-xs text-muted sm:px-6">
-        <span>
-          <span className="font-medium text-fg">Browser demo.</span> Your work is saved in this browser and never leaves it.
+      {/* One line on a phone: the short wording below the small breakpoint. */}
+      <p className="mx-auto flex max-w-6xl items-baseline justify-between gap-x-3 px-4 py-2 text-xs text-muted sm:justify-start sm:px-6">
+        <span className="min-w-0 truncate">
+          <span className="font-medium text-fg">Browser demo.</span>{" "}
+          <span className="sm:hidden">Saved in this browser only.</span>
+          <span className="hidden sm:inline">Your work is saved in this browser and never leaves it.</span>
         </span>
-        <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="-my-1 inline-block py-1 text-primary underline-offset-4 hover:underline">
-          Run Troupe on your machine ↗
+        <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="-my-1 inline-block shrink-0 py-1 text-primary underline-offset-4 hover:underline">
+          <span className="sm:hidden">Run it yourself ↗</span>
+          <span className="hidden sm:inline">Run Troupe on your machine ↗</span>
         </a>
       </p>
     </aside>

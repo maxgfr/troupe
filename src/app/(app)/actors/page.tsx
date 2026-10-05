@@ -69,7 +69,7 @@ export default function ActorsPage() {
             <ErrorNote>The library failed to load: {actors.error.message}</ErrorNote>
           )
         ) : (
-          <ActorGrid actors={(actors.data ?? []) as LibraryActor[]} />
+          <ActorGrid actors={(actors.data ?? []) as LibraryActor[]} filtered={gender !== undefined} />
         )}
       </Section>
 

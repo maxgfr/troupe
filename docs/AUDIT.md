@@ -149,42 +149,41 @@ it bound. It now prints the bound port.
 
 ## Deferred to polish
 
-These are UX gaps, not broken flows. They are left for the polish phase.
+These were UX gaps, not broken flows. Phase 7 fixed all of them; each line
+says how.
 
-1. **Project status never moves past "scripting".** The schema has
-   `generating`, `review` and `done`, but nothing writes them, so the
-   dashboard shows "scripting" on a project with completed renders and an
-   export. This needs a decision on what each status means.
-2. **Launch length vs script length.** The script estimates about 6 s and the
-   model offers 6 s, but Launch preselects 8 s (the model's default), while
-   **Compare** picks 6 s for the same script.
-3. **Export page.** The render picker shows the adapter family (`draft · http ·
-   8s`) instead of the model name. After an export, **Download MP4** and the
-   still-enabled **Create export** sit side by side with no gap.
-4. **Platform names** are lowercase strings shown with CSS `capitalize`:
-   "Tiktok", "Youtube", "Linkedin" in the wizard and the export presets.
-5. **Settings sends you to Settings.** Cloud model rows say "Add a Google AI
-   key in Settings." on the Settings page itself; they should point to
-   Provider accounts below.
-6. **Duplicate local model names** are accepted. Two "Example model" entries
-   then look identical in the pickers and the benchmark cards.
-7. **Benchmark video size.** 9:16 renders fill the card width (about 900 px
-   tall), while the project timeline caps the player at 420 px.
-8. **Relaunch stays offered** on a failed render after a successful relaunch,
-   so the same render can be relaunched twice.
-9. **Download names.** Every download is `troupe-video.mp4`; the project title,
-   model or date would tell files apart.
-10. **Script page dead end.** After saving, the only way forward is "← Back to
-    the project"; there is no call to launch. Each emotion change saves a whole
-    new version, so versions pile up quickly.
-11. **Example server housekeeping.** Renders accumulate in the OS temp folder
-    and finished jobs stay in memory. Fine for a demo, worth a sentence in
-    `docs/LOCAL-MODELS.md`.
-12. **Dangling reference.** `src/modules/export/server/disclosure.ts` cites
-    `docs/market/2026-07-12/REPORT.md`, which is not in the repository. The
-    module is pure, but it sits under `server/` and is imported by the client
-    component `export-sections.tsx`, which a "no server code in the bundle"
-    check keyed on `/server/` paths would flag.
+1. **Project status never moves past "scripting".** *Fixed:* the dashboard
+   works the stage out from the renders and exports (`src/modules/studio/stage.ts`,
+   `listProjects` in `src/server/projects.ts`): Script (no finished video),
+   Rendering (one queued or running), To review (a finished video), Exported.
+2. **Launch length vs script length.** *Fixed:* Launch preselects the
+   shortest clip that fits the script, as **Compare** does; the chat still
+   writes for the model's default length before the first render.
+3. **Export page.** *Fixed:* renders are named by model, real length and
+   draft/final; one primary button at a time (**Create export**, then
+   **Download MP4** in its place); the project's own platform is preselected.
+4. **Platform names.** *Fixed:* TikTok, Instagram, YouTube, LinkedIn
+   everywhere (`src/modules/studio/platforms.ts`), server messages included.
+5. **Settings sends you to Settings.** *Fixed:* a cloud model without a key
+   links to **Provider accounts** below, on the same page.
+6. **Duplicate local model names.** *Fixed:* adding or renaming a model to a
+   name another model has (any case) is refused with a sentence that says so.
+7. **Benchmark video size.** *Fixed:* capped at 420 px tall like the project
+   page.
+8. **Relaunch stays offered.** *Fixed:* a relaunch records its failed render
+   (`parentGenerationId`); the timeline shows "Relaunched" instead of the
+   button and the server refuses a second relaunch.
+9. **Download names.** *Fixed:* `<project>-<model>-<YYYY-MM-DD-HHmm>.mp4`
+   from the timeline and the export page; the media route, the demo's service
+   worker and Supabase signed URLs honour the name (`mediaDisposition`).
+10. **Script page dead end.** *Fixed:* **Launch a render →** under the lines
+    opens the project page on its launch panel; trying emotions retags the
+    newest version in place until a render or the chat uses it.
+11. **Example server housekeeping.** *Fixed:* `docs/LOCAL-MODELS.md` says the
+    MP4s pile up in the temp folder and jobs stay in memory.
+12. **Dangling reference.** *Fixed:* the disclosure matrix moved to
+    `src/modules/export/disclosure.ts` (pure, outside `server/`) without the
+    missing report reference.
 
 ## Notes for later phases
 
@@ -257,3 +256,20 @@ Run on 2026-10-05 on the same machine (Apple M5, 16 GB), Ollama 0.35.1 with
   script is given to the model as JSON in the answer's own shape.
 - The Anthropic provider was tested against a fake API server only; no key
   was available for a real call.
+
+## Phase 7: product polish
+
+Run on 2026-10-05 on the same machine, `pnpm dev` + `pnpm renderer`, with the
+Playwright walk above, then the static demo.
+
+| Run | Result |
+|---|---|
+| Regression walk, local renderer | Launch → clip in 9.7 s. The timeline reads `draft · Renderer · 13.2 s` (the script asked for a 10 s clip; the renderer follows the voice); the player's captions track is off (`disabled`) because the renderer reports `captions: "burned"`. Timeline and export downloads are both `spring-drop-…-renderer-…-2026-10-05-1025.mp4`, h264 720×1280 + AAC, 13.17 s. The export marked the render final; the dashboard row moved to **Exported**. No console errors or 5xx. |
+| Progress and relaunch, a test server that reports progress over 20 s and fails its first job | The bar filled 22 % → 44 % → 65 % → 86 % from the model's `progress`; after **Relaunch** the failed row says "Relaunched" and offers no second relaunch. Checked at 390 and 1280 px, light and dark. |
+| Comparison of three local models | Players capped at 420 px; burned-in captions off, the test pattern's track on. |
+| `pnpm site:test` | 4/4, including named downloads from the media service worker. |
+| `pnpm site:test:render` | 2/2 on a fresh origin. On an origin that had kept an older Kokoro cache, the audio and video streams differed by 0.1003 s against the test's 0.1 s bound; main at `952a789` behaved the same way (the second test also failed there on a warm run), so it is not caused by this phase. |
+
+- Phones: the top bar and the demo banner each hold one row at 390 px.
+- A Postgres container in this run was killed once by the OS (exit 137,
+  memory pressure on the 16 GB machine); restarting it kept the data.

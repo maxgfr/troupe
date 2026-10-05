@@ -4,7 +4,7 @@ import { WizardStepper } from "./wizard-stepper";
 import { ActorStep, FormatStep, LanguageStep, PlatformStep, type ActorView, type FormatOptionView } from "./wizard-steps";
 import { initialWizardState, wizardReducer, STEPS } from "./wizard-state";
 import { pickModel, type ModelOptionView } from "../model-choice";
-import { useReducer } from "react";
+import { useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
@@ -17,6 +17,10 @@ export default function NewProjectPage() {
   const router = useRouter();
   const workspace = useWorkspace();
   const [wizard, dispatch] = useReducer(wizardReducer, initialWizardState);
+  // The title is asked first: Continue says so instead of letting the
+  // missing title surface only at the last step.
+  const [titleMissing, setTitleMissing] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   const formatOptions = api.studio.formatOptions.useQuery({ platform: wizard.platform }, { retry: false });
   const chosenFormat = wizard.format ?? formatOptions.data?.find((option) => option.preselected)?.format ?? null;
@@ -76,16 +80,29 @@ export default function NewProjectPage() {
       <WizardStepper current={wizard.step} />
 
       <div className="max-w-2xl space-y-8">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium">Project title</span>
-          <input
-            maxLength={200}
-            value={wizard.title}
-            onChange={(e) => dispatch({ type: "title", title: e.target.value })}
-            placeholder="Spring drop — short video"
-            className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 outline-none transition-colors duration-150 focus:border-primary"
-          />
-        </label>
+        <div className="space-y-1.5">
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">Project title</span>
+            <input
+              ref={titleRef}
+              maxLength={200}
+              value={wizard.title}
+              aria-invalid={titleMissing || undefined}
+              aria-describedby={titleMissing ? "title-missing" : undefined}
+              onChange={(e) => {
+                dispatch({ type: "title", title: e.target.value });
+                if (e.target.value.trim()) setTitleMissing(false);
+              }}
+              placeholder="Spring drop — short video"
+              className={`w-full rounded-lg border bg-bg px-3 py-2 outline-none transition-colors duration-150 focus:border-primary ${titleMissing ? "border-warning" : "border-muted/40"}`}
+            />
+          </label>
+          {titleMissing ? (
+            <p id="title-missing" className="text-xs text-warning">
+              Name the project first. It tells your projects and downloads apart.
+            </p>
+          ) : null}
+        </div>
 
         {wizard.step === 0 ? (
           <PlatformStep
@@ -141,7 +158,14 @@ export default function NewProjectPage() {
           {wizard.step < STEPS.length - 1 ? (
             <button
               type="button"
-              onClick={() => dispatch({ type: "next" })}
+              onClick={() => {
+                if (wizard.step === 0 && !wizard.title.trim()) {
+                  setTitleMissing(true);
+                  titleRef.current?.focus();
+                  return;
+                }
+                dispatch({ type: "next" });
+              }}
               disabled={wizard.step === 1 && !chosenFormat}
               className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
             >

@@ -38,14 +38,32 @@ describe("Dashboard", () => {
     expect(screen.getByRole("link", { name: "New project" })).toBeDefined();
   });
 
-  it("lists projects with their status chip", () => {
+  it("lists projects with the stage each is at, in words, and the platform's own name", () => {
     render(
       <DashboardView
-        projects={[{ id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" }]}
+        projects={[
+          { id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" },
+          { id: "p2", title: "Summer drop", platform: "youtube", format: "16:9", status: "review" },
+          { id: "p3", title: "Autumn drop", platform: "linkedin", format: "1:1", status: "done" },
+        ]}
       />,
     );
     expect(screen.getByText("Spring drop")).toBeDefined();
-    expect(screen.getByText("scripting")).toBeDefined();
+    expect(screen.getByText("Script")).toBeDefined();
+    expect(screen.getByText("To review")).toBeDefined();
+    expect(screen.getByText("Exported")).toBeDefined();
+    expect(screen.getByText(/TikTok · 9:16/)).toBeDefined();
+    expect(screen.getByText(/YouTube · 16:9/)).toBeDefined();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("says when no model can render yet, with or without projects", () => {
+    const { rerender } = render(<DashboardView projects={[]} readiness={{ ready: false }} />);
+    expect(screen.getByRole("status").textContent).toMatch(/No video model can render yet/);
+    expect(screen.getByRole("link", { name: /Add an API key or a local model in Settings/ }).getAttribute("href")).toBe("/settings");
+    expect(screen.getByText("Create your first project")).toBeDefined();
+    rerender(<DashboardView projects={[{ id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" }]} readiness={{ ready: false }} />);
+    expect(screen.getByRole("status").textContent).toMatch(/No video model can render yet/);
   });
 });
 
@@ -92,7 +110,7 @@ describe("Generation monitor", () => {
       />,
     );
     expect(container.querySelector("[aria-live='polite']")).not.toBeNull();
-    expect(screen.getByText("in_progress")).toBeDefined();
+    expect(screen.getByText("rendering")).toBeDefined();
   });
 });
 

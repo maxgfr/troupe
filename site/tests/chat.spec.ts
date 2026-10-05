@@ -69,7 +69,7 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
   await expect(page).toHaveURL(/\/script$/);
   await page.getByLabel(/Write or paste your script/).fill(SCRIPT);
   await page.getByRole("button", { name: "Save as new version" }).click();
-  await expect(page.getByText(/version 1 · origin pasted/)).toBeVisible();
+  await expect(page.getByText(/version 1 · written here/)).toBeVisible();
   const projectUrl = page.url().replace(/\/script$/, "");
   await page.goto(projectUrl);
 
@@ -83,7 +83,7 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
   await chat().getByRole("button", { name: "Apply only" }).last().click();
   await expect(chat().getByText("Applied as version 2")).toBeVisible();
   await page.goto(`${projectUrl}/script`);
-  await expect(page.getByText(/version 2 · origin chat/)).toBeVisible();
+  await expect(page.getByText(/version 2 · from the chat/)).toBeVisible();
 
   // Apply & relaunch: version 3, rendered in this tab.
   await page.goto(projectUrl);
@@ -98,6 +98,6 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
   await page.reload();
   await expect(proposals()).toHaveCount(2);
   await page.goto(`${projectUrl}/script`);
-  await expect(page.getByText(/version 3 · origin chat/)).toBeVisible();
+  await expect(page.getByText(/version 3 · from the chat/)).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -13,12 +13,17 @@ export interface LibraryActor {
 }
 
 // Pure view — the 30-actor grid.
-export function ActorGrid({ actors }: { actors: LibraryActor[] }) {
+export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]; filtered?: boolean }) {
   if (actors.length === 0) {
-    return (
+    return filtered ? (
       <EmptyState
-        title="No actor matches these filters"
-        body="Choose another filter to see more actor presets."
+        title="No actor matches this filter"
+        body="Choose All or another filter to see more actor presets."
+      />
+    ) : (
+      <EmptyState
+        title="The actor library is empty"
+        body="Troupe adds its 30 actor presets when the studio opens. Reload in a moment; if the library stays empty, check that the database is running."
       />
     );
   }

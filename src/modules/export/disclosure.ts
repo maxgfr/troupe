@@ -1,7 +1,7 @@
 // The AI-disclosure requirement differs per platform — a
 // wrong or missing one is a strike (TikTok) or an FTC exposure, so the export
 // screen states the exact obligation for the chosen platform instead of a
-// generic reassurance. Grounded in docs/market/2026-07-12/REPORT.md [S7].
+// generic reassurance. Pure, with no server code: the export page imports it.
 export type DisclosureRequirement = "toggle" | "platform-label" | "upload-disclosure" | "caption";
 
 export interface PlatformDisclosure {

@@ -2,5 +2,5 @@
 export { checkExportSpecs, createExport } from "./server/service";
 export type { ExportPlatform, CreateExportInput } from "./server/service";
 export { exportRecords } from "./server/schema";
-export { disclosureFor } from "./server/disclosure";
-export type { PlatformDisclosure, DisclosureRequirement } from "./server/disclosure";
+export { disclosureFor } from "./disclosure";
+export type { PlatformDisclosure, DisclosureRequirement } from "./disclosure";

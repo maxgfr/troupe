@@ -15,6 +15,18 @@ const NAV = [
   { href: "/benchmark", label: "Benchmark" },
 ] as const;
 
+// Three sliders: the studio's settings, on phones where the name does not fit.
+function SettingsIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="size-[18px] sm:hidden">
+      <path d="M3 5h14M3 10h14M3 15h14" opacity="0.55" />
+      <circle cx="7" cy="5" r="1.9" fill="currentColor" />
+      <circle cx="13" cy="10" r="1.9" fill="currentColor" />
+      <circle cx="9" cy="15" r="1.9" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const workspace = useWorkspace();
@@ -25,10 +37,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">Skip to content</a>
       {edition.kind === "demo" ? <DemoBanner /> : null}
       <header className="sticky top-0 z-20 border-b border-muted/20 bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap items-center gap-3 sm:gap-8">
+        {/* One row down to 360 px: tighter steps and an icon for Settings on phones. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 sm:gap-3 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-8">
             <Wordmark href="/dashboard" />
-            <nav aria-label="Primary" className="flex items-center gap-1">
+            <nav aria-label="Primary" className="flex items-center sm:gap-1">
               {NAV.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
@@ -36,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`rounded-lg px-3 py-1.5 text-sm transition-colors duration-150 ${
+                    className={`flex min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 sm:min-h-0 sm:px-3 sm:py-1.5 ${
                       active
                         ? "bg-primary/15 font-medium text-primary"
                         : "text-muted hover:text-fg"
@@ -48,14 +61,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/settings"
-              className="rounded-lg px-3 py-1.5 text-sm text-muted transition-colors duration-150 hover:text-fg"
-            >
-              {workspace.status === "ready" ? workspace.workspaceName : "Settings"}
-            </Link>
-          </div>
+          <Link
+            href="/settings"
+            aria-current={pathname.startsWith("/settings") ? "page" : undefined}
+            className={`flex size-11 items-center justify-center rounded-lg text-sm transition-colors duration-150 sm:size-auto sm:px-3 sm:py-1.5 ${
+              pathname.startsWith("/settings") ? "bg-primary/15 font-medium text-primary" : "text-muted hover:text-fg"
+            }`}
+          >
+            <SettingsIcon />
+            {/* The name stays the link's accessible name on phones too. */}
+            <span className="sr-only sm:not-sr-only">{workspace.status === "ready" ? workspace.workspaceName : "Settings"}</span>
+          </Link>
         </div>
       </header>
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">

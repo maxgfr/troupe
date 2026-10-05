@@ -96,12 +96,45 @@ const JOB_TONES: Record<string, string> = {
   rejected: "bg-danger/15 text-danger",
 };
 
+// Job states in words: the stored `in_progress` reads as "rendering".
+const JOB_LABELS: Record<string, string> = { in_progress: "rendering" };
+
 export function StatusChip({ status }: { status: string }) {
   const tone = JOB_TONES[status] ?? "bg-surface text-muted";
   return (
-    <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {status}
+    <span className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${tone}`}>
+      {JOB_LABELS[status] ?? status}
     </span>
+  );
+}
+
+// A render's progress: what it is doing, a figure, and the cobalt bar (the
+// only theatrical motion). `fraction` null means the share is unknown: the
+// bar then glows half full. Sits in the timeline's live region, so the
+// figures stay out of it; the progressbar carries them instead.
+export function ProgressBar({ label, figure, fraction }: { label: string; figure?: string | null; fraction: number | null }) {
+  const percent = fraction === null ? null : Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+  return (
+    <div className="w-full space-y-1.5 sm:w-72">
+      <p aria-hidden className="flex items-baseline justify-between gap-3 text-xs">
+        <span className="text-fg">{label}</span>
+        {figure ? <span className="font-mono tabular-nums text-muted">{figure}</span> : null}
+      </p>
+      <div
+        role="progressbar"
+        aria-label="Render progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent ?? undefined}
+        aria-valuetext={figure ? `${label}, ${figure}` : label}
+        className="progress-glow h-1.5 overflow-hidden rounded-full bg-primary/20"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
+          style={{ width: percent === null ? "50%" : `${Math.max(percent, 2)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

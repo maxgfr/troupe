@@ -10,12 +10,20 @@ const createExportMutate = vi.fn();
 
 const COMPLETED_GEN = {
   id: "g1",
-  tier: "final",
+  tier: "draft",
   provider: "veo",
+  modelId: "veo-3.1",
+  modelLabel: "Veo 3.1 Fast",
   durationS: 8,
+  mediaDurationS: 8.25,
   status: "completed",
+  outputAssetUrl: "/api/media/a1",
   createdAt: new Date("2026-07-12T10:00:00Z").toISOString(),
 };
+const OLDER_GEN = { ...COMPLETED_GEN, id: "g0", modelLabel: "Kling 3.0", mediaDurationS: null, createdAt: new Date("2026-07-11T10:00:00Z").toISOString() };
+
+let searchParams = "";
+let exportState: { isSuccess: boolean } = { isSuccess: false };
 
 vi.mock("~/app/_components/workspace-context", () => ({
   useWorkspace: () => ({ status: "ready", workspaceId: "ws1" }),
@@ -23,11 +31,13 @@ vi.mock("~/app/_components/workspace-context", () => ({
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(searchParams),
 }));
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({ generation: { forProject: { invalidate: vi.fn() } } }),
     studio: {
+      getProject: { useQuery: () => ({ isPending: false, data: { id: "p1", title: "Spring drop", platform: "youtube", format: "9:16", language: "en" } }) },
       formatOptions: {
         useQuery: () => ({ isPending: false, data: [{ format: "9:16", preselected: true }, { format: "1:1" }] }),
       },
@@ -58,10 +68,10 @@ vi.mock("~/trpc/react", () => ({
         }),
       },
     },
-    generation: { forProject: { useQuery: () => ({ isPending: false, data: [COMPLETED_GEN] }) } },
+    generation: { forProject: { useQuery: () => ({ isPending: false, data: [COMPLETED_GEN, OLDER_GEN] }) } },
     export: {
       checkSpecs: { useQuery: () => ({ isPending: false, data: { ok: true } }) },
-      create: { useMutation: () => ({ mutate: createExportMutate, isPending: false }) },
+      create: { useMutation: () => ({ mutate: createExportMutate, isPending: false, reset: vi.fn(), ...exportState }) },
     },
   },
 }));
@@ -79,6 +89,8 @@ const params = Object.assign(Promise.resolve({ projectId: "p1" }), {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  searchParams = "";
+  exportState = { isSuccess: false };
 });
 
 describe("wizard multi-step behavior", () => {
@@ -86,6 +98,13 @@ describe("wizard multi-step behavior", () => {
     render(<NewProjectPage />);
     // step 0 — platform; Back disabled at the start
     expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("radio", { name: "TikTok" })).toBeDefined();
+    // The title is asked for on the first step, not discovered missing on the last.
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByText(/Name the project first/)).toBeDefined();
+    expect(screen.getByRole("radio", { name: "TikTok" })).toBeDefined();
+    fireEvent.change(screen.getByPlaceholderText(/Spring drop/), { target: { value: "My ad" } });
+    expect(screen.queryByText(/Name the project first/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     // step 1 — format preselected + model picker
     expect(screen.getByRole("radio", { name: /Kling 3\.0/ })).toBeDefined();
@@ -94,10 +113,9 @@ describe("wizard multi-step behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     // step 2 — language
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    // step 3 — creation stays locked without title+actor
+    // step 3 — creation stays locked without an actor
     const create = screen.getByRole("button", { name: /Create project/ }) as HTMLButtonElement;
     expect(create.disabled).toBe(true);
-    fireEvent.change(screen.getByPlaceholderText(/Spring drop/), { target: { value: "My ad" } });
     fireEvent.click(screen.getByRole("radio", { name: /Léa/ }));
     expect(create.disabled).toBe(false);
     fireEvent.click(create);
@@ -108,6 +126,7 @@ describe("wizard multi-step behavior", () => {
 
   it("an unavailable actor cannot be picked", () => {
     render(<NewProjectPage />);
+    fireEvent.change(screen.getByPlaceholderText(/Spring drop/), { target: { value: "My ad" } });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
@@ -116,11 +135,20 @@ describe("wizard multi-step behavior", () => {
 });
 
 describe("export flow", () => {
-  it("shows the platform-specific disclosure and swaps it with the preset", () => {
+  it("starts on the project's platform and swaps the disclosure with the preset", () => {
     render(<ExportPage params={params} />);
+    expect((screen.getByRole("radio", { name: "YouTube" }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByTestId("disclosure-matrix").textContent).toMatch(/YouTube/);
+    fireEvent.click(screen.getByRole("radio", { name: "TikTok" }));
     expect(screen.getByTestId("disclosure-matrix").textContent).toMatch(/TikTok.*toggle/is);
-    fireEvent.click(screen.getByRole("radio", { name: /linkedin/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "LinkedIn" }));
     expect(screen.getByTestId("disclosure-matrix").textContent).toMatch(/caption/i);
+  });
+
+  it("names each render by its model and real length", () => {
+    render(<ExportPage params={params} />);
+    expect(screen.getByRole("radio", { name: /Veo 3\.1 Fast ?· 8\.3 s · draft/ })).toBeDefined();
+    expect(screen.getByRole("radio", { name: /Kling 3\.0 ?· 8 s · draft/ })).toBeDefined();
   });
 
   it("export stays locked until quality is confirmed, then ships the payload", () => {
@@ -131,7 +159,21 @@ describe("export flow", () => {
     expect(submit.disabled).toBe(false);
     fireEvent.click(submit);
     expect(createExportMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ generationId: "g1", platform: "tiktok", qualityConfirmed: true }),
+      expect.objectContaining({ generationId: "g1", platform: "youtube", qualityConfirmed: true }),
     );
+  });
+
+  it("preselects the render the project page linked to", () => {
+    searchParams = "render=g0";
+    render(<ExportPage params={params} />);
+    expect((screen.getByRole("radio", { name: /Kling 3\.0/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("after the export, the download takes the button's place, named like the timeline's", () => {
+    exportState = { isSuccess: true };
+    render(<ExportPage params={params} />);
+    expect(screen.queryByRole("button", { name: "Create export" })).toBeNull();
+    const download = screen.getByRole("link", { name: "Download MP4" });
+    expect(download.getAttribute("href")).toMatch(/^\/api\/media\/a1\?download=spring-drop-veo-3-1-fast-2026-07-12-\d{4}\.mp4$/);
   });
 });

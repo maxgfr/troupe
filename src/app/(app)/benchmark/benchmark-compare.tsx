@@ -12,6 +12,7 @@ export interface BenchmarkEntryView {
   latencyMs?: number | null;
   outputAssetUrl?: string | null;
   durationS?: number | null;
+  burnedCaptions?: boolean;
   votes?: Record<string, number>;
 }
 
@@ -47,12 +48,14 @@ export function BenchmarkCompare({
             <StatusChip status={entry.status} />
           </div>
           {entry.outputAssetUrl ? (
-            <video controls src={entry.outputAssetUrl} className="mt-3 w-full rounded-lg">
+            // Capped like the project page's player: a 9:16 render must not
+            // fill a column 900 px tall.
+            <video controls src={entry.outputAssetUrl} className="mx-auto mt-3 max-h-[420px] rounded-lg">
               {briefLines?.length || brief ? (
                 <track
                   kind="captions"
                   label="Script"
-                  default
+                  default={!entry.burnedCaptions}
                   src={vttFromLines(briefLines?.length ? briefLines : [brief!], entry.durationS ?? 20)}
                 />
               ) : null}

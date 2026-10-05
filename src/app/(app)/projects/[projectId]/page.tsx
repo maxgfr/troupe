@@ -6,7 +6,7 @@ import { ChatPanel } from "./chat-panel";
 import { ChatDrawer } from "./chat-drawer";
 import { chatLaunchBase } from "./chat-launch";
 import { ProjectActions } from "./project-actions";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,7 @@ import {
 } from "~/app/_components/ui";
 import { pickModel, type ModelOptionView } from "../model-choice";
 import { useMediaQuery } from "~/app/_components/use-media-query";
+import { platformName } from "~/modules/studio/platforms";
 
 export default function ProjectMonitorPage({
   params,
@@ -101,6 +102,12 @@ export default function ProjectMonitorPage({
   const chatBase = chatLaunchBase(options, model, newest ? { modelKey: newest.modelKey, durationS: newest.durationS, resolution: newest.resolution } : null);
   const chatProps = { projectId, versions: history.data ?? [], base: chatBase, currentActorId: project.data?.actorId ?? null };
   const busy = updateModel.isPending || launch.isPending || compare.isPending;
+  // The script page's "Launch a render" lands on #launch, which only exists
+  // once the page has loaded.
+  const launchReady = Boolean(latestScript) && !models.isPending;
+  useEffect(() => {
+    if (launchReady && window.location.hash === "#launch") document.getElementById("launch")?.scrollIntoView({ block: "start" });
+  }, [launchReady]);
   const loadError = project.error ?? generations.error ?? history.error ?? models.error;
 
   return (
@@ -109,7 +116,7 @@ export default function ProjectMonitorPage({
         title={project.data?.title ?? "Project"}
         lede={
           project.data
-            ? `${project.data.platform} · ${project.data.format} · ${project.data.language}`
+            ? `${platformName(project.data.platform)} · ${project.data.format} · ${project.data.language.toUpperCase()}`
             : undefined
         }
         actions={
@@ -155,11 +162,13 @@ export default function ProjectMonitorPage({
         <div className="min-w-0 space-y-8">
           <GenerationTimeline
             generations={(generations.data ?? []) as GenerationRow[]}
+            projectId={projectId}
+            projectTitle={project.data?.title}
             onRelaunch={busy || relaunch.isPending ? undefined : (generationId) => { setLaunchError(null); relaunch.mutate({ projectId, generationId }); }}
           />
 
-          <div className="rounded-xl border border-muted/20 px-5 py-4">
-            <h2 className="text-base font-semibold">Launch</h2>
+          <section id="launch" aria-labelledby="launch-title" className="scroll-mt-24 rounded-xl border border-muted/20 px-5 py-4">
+            <h2 id="launch-title" className="text-base font-semibold">Launch</h2>
             {history.isPending || models.isPending ? <SkeletonRows rows={2} /> : !latestScript ? (
               <p className="mt-2 text-sm text-muted">
                 A script comes first —{" "}
@@ -196,7 +205,7 @@ export default function ProjectMonitorPage({
               </>
             )}
             {launchError ? <div className="mt-3"><ErrorNote>{launchError}</ErrorNote></div> : null}
-          </div>
+          </section>
         </div>
         {wide ? (
           <aside aria-label="Script chat" className="sticky top-24 h-[calc(100dvh-15rem)] min-h-[28rem] border-l border-muted/20 pl-6">

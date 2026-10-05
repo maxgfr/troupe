@@ -47,7 +47,12 @@ set in mono and marked "est." when estimated.
 ## Components
 
 - **Wordmark**: "troupe", Bricolage 700; the "o" carries a gold ring.
-- **App shell**: top bar with Dashboard · Actors · Benchmark and Settings.
+- **App shell**: top bar with Dashboard · Actors · Benchmark and Settings, on
+  one row down to 360 px (Settings becomes a sliders icon on phones; the
+  demo's banner shortens to one line).
+- **Dashboard**: each project shows its stage in words (Script, Rendering,
+  To review, Exported), worked out from its renders and exports; a warning
+  says once when no model can render yet.
 - **Wizard**: platform → format (with the model picker) → language → actor.
   Model limits and language warnings appear inline.
 - **Script**: lines with emotion chips, an editor that opens on the current
@@ -59,7 +64,13 @@ set in mono and marked "est." when estimated.
   on a surface tint, each proposal a card with its lines diffed against the
   current version (added on a success tint, rewritten on a cobalt tint, the
   old text struck through). The newest pending proposal's **Apply & relaunch**
-  is gold: a decision awaits.
+  is gold: a decision awaits. A running render's bar fills with the progress
+  the model reports (half full and glowing when it reports none); a finished
+  one shows the video's real length. Every render is a draft until it is
+  exported, which makes it final.
+- **Export**: one primary action at a time: **Create export**, then
+  **Download MP4** in its place. Downloads are named after the project, the
+  model and the time, from the timeline and the export page alike.
 - **Actor library**: `auto-fit minmax(280px, 1fr)` grid of portraits.
 - **Benchmark lab**: one column per model, cost and latency in mono, the vote
   and "Adopt for project" in gold.

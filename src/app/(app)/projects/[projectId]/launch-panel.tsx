@@ -122,6 +122,9 @@ export function LaunchPanel({
         ) : null}
         <span className="font-mono text-xs text-muted">{inBrowser ? "Runs in this browser." : model?.kind === "local" ? "Runs on your machine." : cost === null ? "Billed by your provider." : `≈ ${formatCost(cost, "estimate")}`}</span>
       </div>
+      <p className="max-w-[72ch] text-pretty text-xs text-muted">
+        Every render is a draft to review here. The one you export becomes final.
+      </p>
     </div>
   );
 }

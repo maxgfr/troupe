@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 
-import { ErrorNote } from "~/app/_components/ui";
+import { ErrorNote, ProviderWarning } from "~/app/_components/ui";
 import { estimateSeconds } from "./estimate";
 
 export function ScriptComposer({
@@ -13,16 +13,22 @@ export function ScriptComposer({
   enabled,
   initialText = "",
   errorMessage,
+  limit,
   onSave,
 }: {
   pending: boolean;
   enabled: boolean;
   initialText?: string;
   errorMessage?: string | null;
+  // The longest clip the project's model renders, to flag a script that
+  // will not fit while it is being written rather than at launch.
+  limit?: { seconds: number; modelLabel: string } | null;
   onSave: (text: string) => void;
 }) {
   const [draft, setDraft] = useState(initialText);
   const changed = draft.trim() !== initialText.trim();
+  const spokenS = estimateSeconds(draft);
+  const tooLong = Boolean(limit && spokenS > limit.seconds);
   return (
     <form
       onSubmit={(e) => {
@@ -44,7 +50,11 @@ export function ScriptComposer({
         className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-primary"
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs text-muted">One line per sentence · ≈{estimateSeconds(draft)}s spoken · unchanged lines keep their emotion</span>
+        <span className="text-xs text-muted">
+          One line per sentence ·{" "}
+          <span className={`font-mono tabular-nums ${tooLong ? "text-warning" : ""}`}>≈{spokenS} s spoken{limit ? ` of ${limit.seconds} s` : ""}</span>
+          {" "}· unchanged lines keep their emotion
+        </span>
         <button
           type="submit"
           disabled={pending || !draft.trim() || !changed || !enabled}
@@ -53,6 +63,11 @@ export function ScriptComposer({
           {pending ? "Saving…" : "Save as new version"}
         </button>
       </div>
+      {tooLong && limit ? (
+        <ProviderWarning>
+          This takes about {spokenS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Cut a few words, or pick another model on the project page.
+        </ProviderWarning>
+      ) : null}
       {errorMessage ? <ErrorNote>{errorMessage}</ErrorNote> : null}
     </form>
   );

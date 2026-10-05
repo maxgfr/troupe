@@ -67,7 +67,7 @@ async function newProject(title: string): Promise<string> {
   await expect(page).toHaveURL(/\/script$/);
   await page.getByLabel(/Write or paste your script/).fill(SCRIPT);
   await page.getByRole("button", { name: "Save as new version" }).click();
-  await expect(page.getByText(/version 1 · origin/)).toBeVisible();
+  await expect(page.getByText(/version 1 · written here/)).toBeVisible();
   const projectUrl = page.url().replace(/\/script$/, "");
   await page.goto(projectUrl);
   return projectUrl;
@@ -134,7 +134,8 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download MP4" }).click();
   const saved = await download;
-  expect(saved.suggestedFilename()).toBe("troupe-video.mp4");
+  // Named after the project, the model and the time of the render.
+  expect(saved.suggestedFilename()).toMatch(/^browser-render-kokoro-voice-captions-\d{4}-\d{2}-\d{2}-\d{4}\.mp4$/);
   const file = join(test.info().outputDir, "render.mp4");
   await saved.saveAs(file);
   expect(readFileSync(file).subarray(4, 8).toString("ascii")).toBe("ftyp");

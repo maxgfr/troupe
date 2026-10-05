@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { DemoRendering } from "~/app/_components/edition";
-import { ProviderWarning } from "~/app/_components/ui";
+import { ProgressBar, ProviderWarning } from "~/app/_components/ui";
 import { BROWSER_MODEL_KEY } from "~/modules/generation";
 import { api } from "~/trpc/react";
 import { overallProgress, type RenderStage } from "./protocol";
@@ -48,30 +48,7 @@ function RenderProgress({ providerJobId }: { providerJobId: string }) {
     [providerJobId, utils],
   );
   const { label, figure, fraction } = describe(stage);
-  const percent = fraction === null ? null : Math.round(Math.min(1, Math.max(0, fraction)) * 100);
-  return (
-    <div className="w-full space-y-1.5 sm:w-72">
-      {/* The row sits in a live region: the figures change too often to read out. */}
-      <p aria-hidden className="flex items-baseline justify-between gap-3 text-xs">
-        <span className="text-fg">{label}</span>
-        {figure ? <span className="font-mono tabular-nums text-muted">{figure}</span> : null}
-      </p>
-      <div
-        role="progressbar"
-        aria-label="Render progress"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent ?? undefined}
-        aria-valuetext={figure ? `${label}, ${figure}` : label}
-        className="progress-glow h-1.5 overflow-hidden rounded-full bg-primary/20"
-      >
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
-          style={{ width: percent === null ? "50%" : `${Math.max(percent, 2)}%` }}
-        />
-      </div>
-    </div>
-  );
+  return <ProgressBar label={label} figure={figure} fraction={fraction} />;
 }
 
 // Said before the first launch: where the render runs, what it downloads

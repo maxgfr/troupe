@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 
-import { DashboardView, type DashboardProject } from "./dashboard-view";
+import { DashboardView, type DashboardProject, type ModelReadiness } from "./dashboard-view";
 import { api } from "~/trpc/react";
+import { useEdition } from "~/app/_components/edition";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import {
   EmptyState,
@@ -20,6 +21,13 @@ export default function DashboardPage() {
     { workspaceId: workspace.workspaceId ?? "" },
     { enabled: workspace.status === "ready", retry: false },
   );
+  // Whether anything can render yet: the empty state and the list say so.
+  const edition = useEdition();
+  const models = api.studio.modelOptions.useQuery({}, { enabled: workspace.status === "ready", retry: false });
+  const own = edition.kind === "demo" ? models.data?.models.find((m) => m.key === edition.rendering?.modelKey) : undefined;
+  const readiness: ModelReadiness = !models.data || models.data.models.some((m) => m.available)
+    ? { ready: true }
+    : { ready: false, reason: own?.unavailableReason ?? null };
 
   return (
     <>
@@ -51,7 +59,7 @@ export default function DashboardPage() {
         ) : projects.error ? (
           <ErrorNote>Projects failed to load: {projects.error.message}</ErrorNote>
         ) : (
-          <DashboardView projects={(projects.data ?? []) as DashboardProject[]} />
+          <DashboardView projects={(projects.data ?? []) as DashboardProject[]} readiness={readiness} />
         )}
       </Section>
     </>

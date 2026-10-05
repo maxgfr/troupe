@@ -19,6 +19,8 @@ export interface CatalogModelView {
   archived: boolean;
   status: string;
   statusDetail: string | null;
+  // The provider account a cloud model needs (null for local models).
+  credential?: "google" | "fal" | null;
   // Local models only: where it lives (never the token).
   connection?: { baseUrl: string; hasToken: boolean };
 }
@@ -28,6 +30,8 @@ export interface ModelPreferencesInput {
   pricePerSecondUsd: number | null;
   timeoutS: number;
 }
+
+const CREDENTIAL_NAMES = { google: "Google AI", fal: "fal.ai" } as const;
 
 const launchable = (m: CatalogModelView) => m.status === "ready" && m.enabled && !m.archived;
 
@@ -82,7 +86,10 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
                 <span className="text-xs text-muted">{m.vendor}</span>
               </p>
               <p className={`mt-0.5 text-xs ${m.status === "ready" ? "text-muted" : "text-warning"}`}>
-                {m.archived ? "Archived" : m.status === "ready" ? (m.enabled ? "Ready" : "Turned off") : m.statusDetail}
+                {m.archived ? "Archived" : m.status === "ready" ? (m.enabled ? "Ready" : "Turned off") : m.status === "missing-credentials" && m.credential ? (
+                  // This page holds the key form: point to it, not to "Settings".
+                  <>Add a {CREDENTIAL_NAMES[m.credential]} key under <a href="#provider-accounts" className="underline underline-offset-2">Provider accounts</a> below.</>
+                ) : m.statusDetail}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

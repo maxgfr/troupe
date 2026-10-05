@@ -69,6 +69,7 @@ export default function SettingsPage() {
         </Section>
       </div>
 
+      <div id="provider-accounts" className="scroll-mt-24">
       <Section title="Provider accounts">
         {demo ? (
           <DemoUnavailable>
@@ -79,6 +80,7 @@ export default function SettingsPage() {
           <ProviderAccounts />
         )}
       </Section>
+      </div>
 
       <Section title="Local models">
         <div className="space-y-4">

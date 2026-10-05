@@ -12,10 +12,11 @@ import {
   EmptyState,
   ErrorNote,
   PageHeader,
+  ProviderWarning,
   SignedOutNotice,
   SkeletonRows,
 } from "~/app/_components/ui";
-
+import { pickModel, type ModelOptionView } from "../../model-choice";
 
 export default function ScriptPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
@@ -27,6 +28,16 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
     { projectId },
     { enabled, retry: false },
   );
+  // The model the project launches on, for its longest clip.
+  const project = api.studio.getProject.useQuery({ projectId }, { enabled, retry: false });
+  const models = api.studio.modelOptions.useQuery(
+    { format: project.data?.format ?? "9:16", language: project.data?.language },
+    { enabled: Boolean(project.data), retry: false },
+  );
+  const model = pickModel((models.data?.models ?? []) as ModelOptionView[], project.data?.modelKey, models.data?.defaultModelKey);
+  const longestS = model ? Math.max(0, ...model.capabilities.durationsS) : 0;
+  const limit = model && longestS > 0 ? { seconds: longestS, modelLabel: model.label } : null;
+
   const paste = api.script.paste.useMutation({
     onSuccess: () => utils.script.history.invalidate(),
   });
@@ -38,13 +49,14 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
   });
 
   const latest = history.data?.[history.data.length - 1];
+  const latestTooLong = Boolean(latest && limit && latest.estimatedDurationS > limit.seconds);
   return (
     <>
       <PageHeader
         title="Script"
-        lede="Write or paste your dialogue and choose each line's emotion. Every save keeps a new version."
+        lede="Write or paste your dialogue and choose each line's emotion. Saving new text keeps a new version."
         actions={
-          <Link href={`/projects/${projectId}`} className="text-sm text-primary hover:underline">
+          <Link href={`/projects/${projectId}`} className="inline-block py-1 text-sm text-primary underline-offset-4 hover:underline">
             ← Back to the project
           </Link>
         }
@@ -59,10 +71,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
       ) : (
         <div className="max-w-2xl space-y-8">
           {latest ? (
-            <>
-              <p className="font-mono text-xs text-muted">
-                version {latest.version} · origin {latest.origin} · ≈{latest.estimatedDurationS}s
-              </p>
+            <div className="space-y-4">
               <ScriptLines
                 lines={latest.lines as ScriptLineView[]}
                 onEmotion={paste.isPending || setEmotion.isPending ? undefined : (lineIndex, emotion) =>
@@ -75,7 +84,25 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
                   })
                 }
               />
-            </>
+              {/* The next step: render this version. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-muted/15 pt-4">
+                <p className="font-mono text-xs tabular-nums text-muted">
+                  version {latest.version} · {latest.origin === "chat" ? "from the chat" : "written here"} ·{" "}
+                  <span className={latestTooLong ? "text-warning" : undefined}>≈{latest.estimatedDurationS} s to say</span>
+                </p>
+                <Link
+                  href={`/projects/${projectId}#launch`}
+                  className="inline-block rounded-lg border border-primary/50 px-4 py-2 text-sm font-medium text-primary transition-colors duration-150 hover:bg-primary/10"
+                >
+                  Launch a render →
+                </Link>
+              </div>
+              {latestTooLong && limit ? (
+                <ProviderWarning>
+                  Version {latest.version} takes about {latest.estimatedDurationS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Shorten it below, or pick another model on the project page.
+                </ProviderWarning>
+              ) : null}
+            </div>
           ) : (
             <EmptyState
               title="No script yet — paste one to begin"
@@ -89,6 +116,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
             enabled={enabled && !setEmotion.isPending && !restore.isPending}
             initialText={latest ? latest.lines.map((l) => l.text).join("\n") : ""}
             errorMessage={paste.error?.message ?? null}
+            limit={limit}
             onSave={(text) => workspace.workspaceId && paste.mutate({ projectId, text })}
           />
           <ScriptVersions

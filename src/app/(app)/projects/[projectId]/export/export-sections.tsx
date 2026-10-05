@@ -1,20 +1,24 @@
 "use client";
 
-import { disclosureFor } from "~/modules/export/server/disclosure";
+import { disclosureFor } from "~/modules/export/disclosure";
+import { PLATFORMS, platformName, type PlatformId } from "~/modules/studio/platforms";
 import { ProviderWarning } from "~/app/_components/ui";
+import { shownLength } from "../generation-timeline";
 
 // The export form's panels, one named component each — the page
 // composes them; presets and disclosure rules evolve here, not in a 200-line
 // JSX block.
 
-export const PLATFORMS = ["tiktok", "instagram", "youtube", "linkedin"] as const;
-export type Platform = (typeof PLATFORMS)[number];
+export { PLATFORMS };
+export type Platform = PlatformId;
 
 export interface CompletedRender {
   id: string;
   tier: string;
   provider: string;
+  modelLabel?: string | null;
   durationS: number;
+  mediaDurationS?: number | null;
   createdAt: string | Date;
 }
 
@@ -34,8 +38,8 @@ export function RenderPicker({
         {completed.map((g) => (
           <label
             key={g.id}
-            className={`flex cursor-pointer items-center justify-between rounded-lg border px-4 py-2.5 font-mono text-xs transition-colors duration-150 ${
-              chosen === g.id ? "border-primary bg-primary/15" : "border-muted/40"
+            className={`flex cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border px-4 py-2.5 text-sm transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
+              chosen === g.id ? "border-primary bg-primary/15" : "border-muted/40 hover:border-muted"
             }`}
           >
             <input
@@ -45,8 +49,11 @@ export function RenderPicker({
               checked={chosen === g.id}
               onChange={() => onChoose(g.id)}
             />
-            {g.tier} · {g.provider} · {g.durationS}s
-            <span className="text-muted">{new Date(g.createdAt).toLocaleString()}</span>
+            <span className="min-w-0">
+              <span className="font-medium">{g.modelLabel ?? g.provider}</span>
+              <span className="font-mono text-xs tabular-nums text-muted">{` · ${shownLength(g)} · ${g.tier === "final" ? "final" : "draft"}`}</span>
+            </span>
+            <span className="font-mono text-xs tabular-nums text-muted"><span className="sr-only">, made </span>{new Date(g.createdAt).toLocaleString()}</span>
           </label>
         ))}
       </div>
@@ -70,7 +77,7 @@ export function PlatformPreset({
         {PLATFORMS.map((p) => (
           <label
             key={p}
-            className={`cursor-pointer rounded-lg border px-4 py-2 text-sm capitalize transition-colors duration-150 ${
+            className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
               platform === p
                 ? "border-primary bg-primary/15 font-medium text-primary"
                 : "border-muted/40 text-muted hover:text-fg"
@@ -83,14 +90,16 @@ export function PlatformPreset({
               checked={platform === p}
               onChange={() => onPick(p)}
             />
-            {p}
+            {platformName(p)}
           </label>
         ))}
       </div>
       {specsMismatch ? (
-        <ProviderWarning>
-          This render has a different format from the {platform} preset. Downloading keeps the original format; crop it in your video editor if needed.
-        </ProviderWarning>
+        <div className="mt-3">
+          <ProviderWarning>
+            This render has a different format from the {platformName(platform)} preset. Downloading keeps the original format; crop it in your video editor if needed.
+          </ProviderWarning>
+        </div>
       ) : null}
     </fieldset>
   );
@@ -137,7 +146,7 @@ export function DisclosurePanel({ platform }: { platform: Platform }) {
   return (
     <div className="rounded-lg bg-surface px-3 py-2 text-xs" data-testid="disclosure-matrix">
       <p className="font-medium">{disclosureFor(platform).headline}</p>
-      <p className="mt-1 text-muted">{disclosureFor(platform).detail}</p>
+      <p className="mt-1 text-pretty text-muted">{disclosureFor(platform).detail}</p>
     </div>
   );
 }

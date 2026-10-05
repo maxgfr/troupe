@@ -193,7 +193,8 @@ stays with the app). It shows the presentation video, the steps of a project
 models and the limits. `troupe:landing-addresses` and `troupe:landing-cast`
 (`site/vite-plugins.ts`) fill in `VITE_SITE_URL`, `VITE_REPO_URL` and the
 base path, and list the cast from the actor catalog with the pictures the
-site serves. `pnpm site:test` checks it too (`site/tests/landing.spec.ts`):
+site serves: the `front-160`/`front-320` thumbnails in a `srcset` when the
+cast folder has them ([ACTORS.md](ACTORS.md)), `front.webp` otherwise. `pnpm site:test` checks it too (`site/tests/landing.spec.ts`):
 the video plays from its poster, the steps jump to their chapters, the quick
 start copies, and every link that stays on the site answers.
 

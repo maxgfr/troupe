@@ -40,6 +40,8 @@ First public release.
   with where they run and what has been tried, the limits and the license
   notes. `VITE_SITE_URL` and `VITE_REPO_URL` point its canonical and social
   links and its docs links at a fork.
+  The cast grid uses 160 and 320 px copies of the front pictures
+  (`scripts/actors/thumbnails.sh`).
 - A one-minute presentation video, recorded from the real browser edition by
   `scripts/demo/record.ts` (Playwright, headed Chrome) and cut by
   `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.

@@ -9,7 +9,8 @@
 # Reads DEMO_OUT (default: <os tmp>/troupe-demo, as record.ts) and writes
 # site/public/demo/troupe-demo.mp4 (H.264 + AAC), troupe-demo.webm (VP9 +
 # Opus), troupe-demo.jpg (the poster) and troupe-demo-chapters.vtt (where
-# each step starts; the landing page's step list jumps there), and copies
+# each step starts; the landing page's step list jumps there),
+# troupe-demo-captions.vtt (what the actor says during the playback), and copies
 # the social preview record.ts drew to site/public/social.png. DEMO_MAX_MB caps each video's size
 # (default 7.5); the bitrate is worked out from the cut's length.
 set -euo pipefail
@@ -32,7 +33,7 @@ STAGE="0x060c13"
 for tool in ffmpeg ffprobe awk; do
   command -v "$tool" >/dev/null || { echo "edit.sh needs $tool on the PATH" >&2; exit 1; }
 done
-for file in frames.txt edl.txt meta.txt captions.tsv render.mp4 cards/open.png cards/close.png cards/social.png cards/poster.png; do
+for file in frames.txt edl.txt meta.txt captions.tsv lines.txt render.mp4 cards/open.png cards/close.png cards/social.png cards/poster.png; do
   [ -e "$IN/$file" ] || { echo "Missing $IN/$file: run pnpm demo:record first." >&2; exit 1; }
 done
 
@@ -60,8 +61,11 @@ echo "Cutting…"
 card "$IN/cards/open.png" "$OPEN_S" "$WORK/000-open.mp4"
 echo "file '000-open.mp4'" > "$WORK/list.txt"
 
-# shellcheck disable=SC1091
-. "$IN/meta.txt"
+# The one value the cut needs from meta.txt, read as data (never sourced).
+PLAY_SEGMENT="$(sed -n 's/^PLAY_SEGMENT=//p' "$IN/meta.txt" | head -n 1)"
+case "$PLAY_SEGMENT" in
+  '' | *[!0-9]*) echo "meta.txt has no valid PLAY_SEGMENT." >&2; exit 1 ;;
+esac
 i=0
 offset="$OPEN_S"     # where the next segment starts in the cut
 play_at=""
@@ -108,7 +112,9 @@ timecode() { awk -v t="$1" 'BEGIN{h=int(t/3600); m=int((t-h*3600)/60); printf "%
     read -r step start <<<"${chapters[$n]}"
     end="$offset"
     [ "$n" -lt "$((${#chapters[@]} - 1))" ] && end="${chapters[$((n + 1))]#* }"
-    printf '\n%s\n%s --> %s\n%s\n' "$step" "$(timecode "$start")" "$(timecode "$end")" "$(awk -F'\t' -v s="$step" '$1==s{print $2}' "$IN/captions.tsv")"
+    # Cue text is WebVTT: &, < and > are escaped.
+    title="$(awk -F'\t' -v s="$step" '$1==s{print $2}' "$IN/captions.tsv" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+    printf '\n%s\n%s --> %s\n%s\n' "$step" "$(timecode "$start")" "$(timecode "$end")" "$title"
   done
 } > "$DEST/troupe-demo-chapters.vtt"
 
@@ -134,13 +140,36 @@ echo "Encoding WebM…"
   ff -i cut.mov -c:v libvpx-vp9 -b:v "${video_k}k" -deadline good -cpu-used 2 -row-mt 1 -pass 2 \
     -pix_fmt yuv420p -c:a libopus -b:a "$((audio_k * 2 / 3))k" "$DEST/troupe-demo.webm")
 
+# Captions for what is said: the render's lines, where its voice says them in
+# the cut. Pauses of 1.2 s or more separate the lines (Kokoro pauses about
+# 1.4 s between lines, under 1 s at commas); if that does not give one stretch
+# of speech per line, one cue carries the whole script.
+{
+  echo "WEBVTT"
+  ffmpeg -nostdin -i "$IN/render.mp4" -vn -af silencedetect=n=-40dB:d=1.2 -f null - 2>&1 |
+    awk -v at="$play_at" -v lines="$IN/lines.txt" -v total="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$IN/render.mp4")" '
+      function tc(t) { h = int(t / 3600); m = int((t - h * 3600) / 60); return sprintf("%02d:%02d:%06.3f", h, m, t - h * 3600 - m * 60) }
+      function esc(s) { gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s); return s }
+      /silence_start/ { s = $0; sub(/.*silence_start: /, "", s); if (s + 0 > 0.05) { ends[++n] = s + 0 } }
+      /silence_end/ { e = $0; sub(/.*silence_end: /, "", e); sub(/ .*/, "", e); starts[++k] = e + 0 }
+      END {
+        while ((getline line < lines) > 0) if (line != "") text[++count] = line
+        # Speech runs from 0 (or the end of a leading silence) to each silence.
+        first = (k > 0 && starts[1] < ends[1]) ? 1 : 0
+        speech_start[1] = first ? starts[1] : 0
+        for (i = 1; i <= n; i++) { speech_end[i] = ends[i]; speech_start[i + 1] = starts[i + first] }
+        if (n != count) { printf "\n%s --> %s\n", tc(at + speech_start[1]), tc(at + total); for (i = 1; i <= count; i++) print esc(text[i]); exit }
+        for (i = 1; i <= count; i++) printf "\n%s --> %s\n%s\n", tc(at + speech_start[i]), tc(at + speech_end[i]), esc(text[i])
+      }'
+} > "$DEST/troupe-demo-captions.vtt"
+
 # The poster, drawn by record.ts.
 ff -i "$IN/cards/poster.png" -vf "scale=1280:720:flags=lanczos" -q:v 3 "$DEST/troupe-demo.jpg"
 
 # The landing page's social preview, drawn by record.ts.
 cp "$IN/cards/social.png" "$DEST/../social.png"
 
-for file in "$DEST"/troupe-demo.{mp4,webm,jpg} "$DEST/troupe-demo-chapters.vtt" "$DEST/../social.png"; do
+for file in "$DEST"/troupe-demo.{mp4,webm,jpg} "$DEST"/troupe-demo-{chapters,captions}.vtt "$DEST/../social.png"; do
   printf '%6.2f MB  %s\n' "$(awk -v b="$(wc -c <"$file")" 'BEGIN{print b/1048576}')" "$file"
 done
 ffprobe -v error -show_entries stream=codec_name,width,height:format=duration -of compact "$DEST/troupe-demo.mp4"

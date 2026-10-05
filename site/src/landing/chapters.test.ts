@@ -25,6 +25,10 @@ describe("video chapters", () => {
     expect(parseChapters("WEBVTT\r\n\r\nplay\r\n01:05.500 --> 01:20.000\r\nThe render\r\n")).toEqual([{ id: "play", start: 65.5, title: "The render" }]);
   });
 
+  it("decodes the character references cue text may carry", () => {
+    expect(parseChapters("WEBVTT\n\napply\n00:27.000 --> 00:30.000\nApply &amp; relaunch &lt;now&gt;\n")).toEqual([{ id: "apply", start: 27, title: "Apply & relaunch <now>" }]);
+  });
+
   it("ignores anything that is not a WebVTT file", () => {
     expect(parseChapters("<!doctype html><title>Not found</title>")).toEqual([]);
   });

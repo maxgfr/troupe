@@ -68,7 +68,9 @@ the local renderer, including its AI video mode.
 
 - Projects with a platform, format, language and one of 30 actor presets,
   each with six pictures of a synthetic person (front, side views, three
-  expressions) that the app and the local renderers show
+  expressions). The app shows the front one; the renderers' actor card shows
+  it too, or the happy, calm or excited one on lines with that emotion (the
+  AI video mode draws no card)
   ([docs/ACTORS.md](docs/ACTORS.md) explains how they were made and how to
   replace them).
 - Versioned scripts with an emotion per line; restore any earlier version.

@@ -112,7 +112,8 @@ programs under other licenses:
     License.
   - Their other dependencies, pinned in `renderer/ltx/uv.lock`, keep their
     own licenses, listed in the installed packages' metadata.
-- **The actors' pictures** (`public/actors/`, 180 WebP files). They show
+- **The actors' pictures** (`public/actors/`, 180 WebP files, plus 60
+  smaller copies of the front pictures made from them with cwebp). They show
   synthetic people: no real person was photographed or described by name,
   and any resemblance to a real person is coincidental. They are released
   under this repository's MIT license. They were generated on a Mac with

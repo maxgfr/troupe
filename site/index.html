@@ -17,12 +17,12 @@
     <meta property="og:image" content="%SITE_URL%social.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="The troupe wordmark beside a row of the studio's actors, with the line: a video studio that runs in your browser." />
+    <meta property="og:image:alt" content="The troupe wordmark and the line “A video studio that runs in your browser”, beside a three-by-two grid of six of the studio’s actors." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Troupe: a video studio that runs in your browser" />
     <meta name="twitter:description" content="Write a script, cast an actor, render an MP4 with a real voice. Open source; runs in your browser or on your own server." />
     <meta name="twitter:image" content="%SITE_URL%social.png" />
-    <meta name="twitter:image:alt" content="The troupe wordmark beside a row of the studio's actors, with the line: a video studio that runs in your browser." />
+    <meta name="twitter:image:alt" content="The troupe wordmark and the line “A video studio that runs in your browser”, beside a three-by-two grid of six of the studio’s actors." />
     <link rel="icon" href="../public/favicon.ico" />
     <link rel="preload" as="image" href="/demo/troupe-demo.jpg" fetchpriority="high" />
     <script type="module" src="/src/landing/main.ts"></script>
@@ -60,11 +60,11 @@
             <h2 id="browser-title">In your browser</h2>
             <ul class="facts">
               <li>The whole studio, its database and your renders live in this tab.</li>
-              <li>Kokoro voices and captions, rendered on your GPU with WebCodecs.</li>
+              <li>Kokoro voices and captions, rendered in the tab: on your GPU when the browser has WebGPU, on the CPU otherwise.</li>
               <li>A script chat that runs on your GPU too: no key, no server.</li>
             </ul>
             <a class="button" href="app/">Open Troupe in your browser</a>
-            <p class="note">Chrome or Edge. The voices download once (326&nbsp;MB) on your first render.</p>
+            <p class="note">Chrome or Edge. The voices download once, on your first render: 326&nbsp;MB with WebGPU, 92&nbsp;MB on the CPU.</p>
           </section>
 
           <figure class="screen rise" id="watch">
@@ -72,6 +72,7 @@
               <video controls preload="none" playsinline poster="/demo/troupe-demo.jpg" width="1920" height="1080" aria-describedby="watch-caption">
                 <source src="/demo/troupe-demo.webm" type="video/webm" />
                 <source src="/demo/troupe-demo.mp4" type="video/mp4" />
+                <track kind="captions" src="%BASE%demo/troupe-demo-captions.vtt" srclang="en" label="English" />
                 <a href="demo/troupe-demo.mp4">Download the video (MP4)</a>
               </video>
               <button type="button" class="screen__play" hidden><span class="sr-only">Play the video</span></button>
@@ -99,13 +100,14 @@
         </div>
         <ol class="axis">
           <li class="cue" data-chapter="project">
+            <span class="cue__dot" aria-hidden="true"></span>
             <div class="cue__head">
               <h3>Start a project</h3>
               <button type="button" class="cue__seek" data-seek="project" hidden><span class="cue__time"></span> Watch</button>
             </div>
             <p>Pick a platform, a format and a language. The model picker only offers what each model can do, and says why before you launch. Then cast an actor.</p>
             <div class="artifact artifact--project" aria-hidden="true">
-              <img src="%BASE%actors/amara-28/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />
+              <img src="%ACTOR_THUMB:amara-28%" alt="" width="160" height="160" loading="lazy" decoding="async" />
               <div>
                 <strong>Cold brew launch</strong>
                 <span class="mono">TikTok · 9:16 · EN · Amara</span>
@@ -113,6 +115,7 @@
             </div>
           </li>
           <li class="cue" data-chapter="script">
+            <span class="cue__dot" aria-hidden="true"></span>
             <div class="cue__head">
               <h3>Write the script</h3>
               <button type="button" class="cue__seek" data-seek="script" hidden><span class="cue__time"></span> Watch</button>
@@ -125,6 +128,7 @@
             </ol>
           </li>
           <li class="cue" data-chapter="chat">
+            <span class="cue__dot" aria-hidden="true"></span>
             <div class="cue__head">
               <h3>Ask the chat</h3>
               <button type="button" class="cue__seek" data-seek="chat" hidden><span class="cue__time"></span> Watch</button>
@@ -132,18 +136,31 @@
             <p>Ask for a change in your own words. The answer is a whole new version, shown line by line against the current one, and nothing changes until you apply it. In the browser a small model answers on your GPU; a self-hosted studio uses Ollama or Claude.</p>
             <div class="artifact artifact--chat">
               <p class="ask">Make the first line punchier. Keep the other lines.</p>
-              <div class="diff">
-                <p class="diff__new">Mornings are hard, but with our cold brew, it’s bearable!</p>
-                <p class="diff__old"><del>Mornings are hard.</del></p>
-                <p class="mono">hook · <del>neutral</del> excited</p>
-              </div>
+              <ol class="diff" aria-label="The proposal, against version 1">
+                <li>
+                  <p>Mornings are hard, but with our cold brew, it’s bearable!</p>
+                  <p class="diff__old"><del>Mornings are hard.</del></p>
+                  <p class="mono">hook · <del>neutral</del> excited</p>
+                </li>
+                <li>
+                  <p>Our cold brew is smooth, strong and ready in your fridge.</p>
+                  <p class="mono">body · <del>neutral</del> calm</p>
+                </li>
+                <li>
+                  <p>Grab a bottle on your way out.</p>
+                  <p class="mono">cta · <del>neutral</del> serious</p>
+                </li>
+              </ol>
+              <p class="diff__note">Longer than the 9 s clip. Ask for a shorter version, or relaunch on a longer clip.</p>
               <span class="spot" aria-hidden="true">Apply &amp; relaunch</span>
             </div>
+            <p class="cue__aside">The proposal as the video shows it: asked to keep the other lines, the model still changed their emotions. You read every proposal before you apply it.</p>
           </li>
           <li class="cue" data-chapter="apply">
+            <span class="cue__dot" aria-hidden="true"></span>
             <div class="cue__head">
               <h3>Render it</h3>
-              <button type="button" class="cue__seek" data-seek="apply" hidden><span class="cue__time"></span> Watch</button>
+              <button type="button" class="cue__seek" data-seek="render" hidden><span class="cue__time"></span> Watch</button>
             </div>
             <p>In the browser edition, Kokoro voices each line and the frames are drawn and encoded in the tab. A self-hosted studio sends the same project to a cloud model, ComfyUI or the local renderer, and follows its progress.</p>
             <div class="artifact artifact--render" aria-hidden="true">
@@ -152,6 +169,7 @@
             </div>
           </li>
           <li class="cue" data-chapter="play">
+            <span class="cue__dot" aria-hidden="true"></span>
             <div class="cue__head">
               <h3>Watch it, then download it</h3>
               <button type="button" class="cue__seek" data-seek="play" hidden><span class="cue__time"></span> Watch</button>
@@ -168,7 +186,7 @@
       <section class="cast wrap" id="cast" aria-labelledby="cast-title">
         <div class="cast__intro">
           <h2 id="cast-title" class="section-title">Thirty actors, six pictures each</h2>
-          <p>Synthetic people, generated for Troupe with FLUX.2 [klein]: nobody was photographed. Each has a voice, a front picture, two profiles and three expressions, which the renderers draw on the actor card. With a cloud video model the actor guides the prompt, and the face changes from one render to the next.</p>
+          <p>Synthetic people, generated for Troupe with FLUX.2 [klein]: nobody was photographed. Each has a voice and six pictures: a front view, two profiles and three expressions. A render’s actor card shows the front picture, or the happy, calm or excited one on lines with that emotion; the AI video mode draws no card. With a cloud video model the actor guides the prompt, and the face changes from one render to the next.</p>
         </div>
         <ul class="cast__grid"><!--troupe:cast--></ul>
       </section>

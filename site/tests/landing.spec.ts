@@ -14,6 +14,8 @@ test("says what Troupe is, opens the browser edition, and calls nothing a demo",
   await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
   // The cast, from the catalog, with the pictures the site serves.
   await expect(page.locator(".cast__grid img")).toHaveCount(30);
+  // Small copies for the grid, the full picture for wide high-density screens.
+  await expect(page.locator(".cast__grid img").first()).toHaveAttribute("srcset", /front-160\.webp 160w, .*front-320\.webp 320w, .*front\.webp 768w$/);
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /^https:\/\/.+\/social\.png$/);
   await page.getByRole("link", { name: "Open Troupe in your browser" }).first().click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
@@ -31,11 +33,24 @@ test("the video plays from its poster, and each step jumps to its chapter", asyn
   expect(meta.duration).toBeGreaterThanOrEqual(45);
   expect(meta.duration).toBeLessThanOrEqual(61);
   expect(meta.width).toBe(1920);
+  // What the actor says has a captions track (the rest of the video is silent).
+  const cues = await video.evaluate(async (v: HTMLVideoElement) => {
+    const track = v.textTracks[0]!;
+    track.mode = "hidden";
+    const el = v.querySelector("track")!;
+    if (el.readyState !== 2) await new Promise((r) => el.addEventListener("load", r, { once: true }));
+    return { kind: track.kind, cues: [...track.cues!].map((c) => (c as VTTCue).text) };
+  });
+  expect(cues.kind).toBe("captions");
+  expect(cues.cues.length).toBeGreaterThan(0);
 
   const chat = page.locator('button[data-seek="chat"]');
   await expect(chat).toBeVisible();
   const label = (await chat.locator(".cue__time").innerText()).trim();
   expect(label).toMatch(/^\d+:\d{2}$/);
+  // The name starts with what the button shows (WCAG 2.5.3), then says where it goes.
+  await expect(chat).toHaveAccessibleName(`${label} Watch: Ask the chat for a punchier hook`);
+  await expect(page.locator('button[data-seek="render"]')).toHaveAccessibleName(/^\d+:\d{2} Watch: Kokoro voices it, WebCodecs encodes it$/);
   await chat.click();
   const [m, s] = label.split(":").map(Number);
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThanOrEqual(m! * 60 + s!);

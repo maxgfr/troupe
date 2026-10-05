@@ -13,6 +13,7 @@
 //   frames/*.jpg, frames.txt  the footage, as an ffmpeg concat list
 //   edl.txt                   the cut: one segment per line (see "The cut")
 //   captions.tsv, meta.txt    the steps' names; the playback segment
+//   lines.txt                 the script as rendered, for the captions track
 //   render.mp4                the video the studio rendered and downloaded
 //   poster.json               the frame and crop the poster is drawn from
 //   cards/*.png               title cards, captions, the poster and the
@@ -29,6 +30,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { type CDPSession, chromium, type Locator, type Page } from "@playwright/test";
+
+import { type Box, type CaptionId, CAPTIONS, captionName, type CardOptions, drawCards } from "./cards.ts";
 
 const REPO = resolve(import.meta.dirname, "..", "..");
 const BASE_URL = process.env.DEMO_URL ?? "http://localhost:4173";
@@ -112,14 +115,8 @@ interface Segment {
   start: number;
   end: number;
   speed: number;
-  caption: string;
+  caption: CaptionId;
   crop?: Box;
-}
-interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 const edl: Segment[] = [];
 let footage: Footage;
@@ -128,7 +125,7 @@ let mark = 0;
 // Closes the segment that began at the last cut. `speed` plays it faster;
 // `fit` squeezes it into that many seconds instead (never slower than real
 // time). A sped-up segment says so in its caption.
-function cut(caption: keyof typeof CAPTIONS, pace: { speed?: number; fit?: number } = {}, crop?: Box) {
+function cut(caption: CaptionId, pace: { speed?: number; fit?: number } = {}, crop?: Box) {
   const now = footage.now();
   const length = now - mark;
   const speed = pace.fit ? Math.max(1, length / pace.fit) : (pace.speed ?? 1);
@@ -210,120 +207,30 @@ async function type(target: Locator, text: string, delay = 38) {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// --- Title cards ----------------------------------------------------------
+// --- Cards ------------------------------------------------------------------
 
-function fontFace(family: string, file: string) {
-  const data = readFileSync(join(REPO, "node_modules", file)).toString("base64");
-  return `@font-face{font-family:"${family}";src:url(data:font/woff2;base64,${data}) format("woff2");font-weight:100 900;}`;
-}
-
-const CARD_CSS = `
-${fontFace("Bricolage", "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2")}
-${fontFace("Geist", "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")}
-${fontFace("Mono", "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")}
-*{margin:0;box-sizing:border-box}
-html,body{width:1920px;height:1080px;background:transparent;-webkit-font-smoothing:antialiased}
-body{font-family:Geist,sans-serif;color:oklch(0.93 0.01 250)}
-.stage{position:absolute;inset:0;background:#060c13;display:flex;flex-direction:column;justify-content:center;padding:0 200px}
-.mark{font-family:Bricolage;font-weight:700;font-size:168px;letter-spacing:-0.03em;line-height:1}
-.ring{position:relative;display:inline-block}
-.ring i{position:absolute;inset:-0.02em -0.08em;border:0.06em solid oklch(0.9 0.06 90);border-radius:999px}
-.lede{margin-top:40px;font-size:52px;line-height:1.2;max-width:24ch;text-wrap:balance}
-.small{margin-top:28px;font-size:30px;color:oklch(0.66 0.02 250)}
-.url{font-family:Mono;color:oklch(0.7 0.14 250)}
-.cap{position:absolute;left:72px;bottom:64px;display:flex;align-items:baseline;gap:20px;padding:22px 34px 24px;border-radius:14px;background:oklch(0.15 0.02 255 / 0.92);box-shadow:0 8px 30px rgba(0,0,0,.35);outline:2px solid oklch(1 0 0 / 0.08)}
-.cap b{font-family:Mono;font-weight:500;font-size:28px;color:oklch(0.7 0.14 250)}
-.cap span{font-size:40px;font-weight:550;letter-spacing:-0.01em}
-.cap em{font-family:Mono;font-style:normal;font-size:28px;color:oklch(0.66 0.02 250)}
-`;
-
-const TITLE = (lede: string, small: string) => `<div class="stage"><div class="mark">tr<span class="ring">o<i></i></span>upe</div><p class="lede">${lede}</p><p class="small">${small}</p></div>`;
-const CARDS: Record<string, string> = {
-  open: TITLE("A video studio that runs in your browser.", "One project, start to finish, recorded in Chrome. Waits are sped up, and say so."),
-  close: TITLE("Open source. In your browser, or on your own server.", `<span class="url">${process.env.DEMO_LINK ?? "github.com/maxgfr/troupe"}</span>`),
+const CARD_OPTIONS: CardOptions = {
+  repo: REPO,
+  out: OUT,
+  link: process.env.DEMO_LINK ?? "github.com/maxgfr/troupe",
+  socialCast: (process.env.DEMO_SOCIAL_CAST ?? "amara-28,marcus-02,aiko-03,ravi-21,elsa-22,malik-10").split(","),
+  pageWidth: VIEWPORT.width,
 };
 
-// The captions: the video's seven steps, numbered.
-const CAPTIONS = {
-  project: [1, "New project: platform, format, actor"],
-  script: [2, "Write the script"],
-  chat: [3, "Ask the chat for a punchier hook"],
-  writing: [3, "A model on this GPU rewrites it"],
-  proposal: [3, "The proposal, against version 1"],
-  apply: [4, "Apply &amp; relaunch"],
-  render: [5, "Kokoro voices it, WebCodecs encodes it"],
-  play: [6, "The render, with its own voice"],
-  download: [7, "Download the MP4"],
-} as const;
-
-// A caption card per caption and speed: "×12" when the footage is sped up.
-function captionCard(segment: Segment) {
-  const [step, text] = CAPTIONS[segment.caption as keyof typeof CAPTIONS];
-  const fast = segment.speed >= 1.5 ? Math.round(segment.speed) : 0;
-  const name = fast ? `cap-${segment.caption}-x${fast}` : `cap-${segment.caption}`;
-  CARDS[name] = `<div class="cap"><b>${step}</b><span>${text}</span>${fast ? `<em>×${fast}</em>` : ""}</div>`;
-  return name;
-}
-
-// The landing page's social preview (1200×630): the wordmark, the line, and
-// six of the cast. edit.sh copies it to site/public/social.png.
-const SOCIAL_CAST = (process.env.DEMO_SOCIAL_CAST ?? "amara-28,marcus-02,aiko-03,ravi-21,elsa-22,malik-10").split(",");
-function socialCard() {
-  const picture = (slug: string) => `data:image/webp;base64,${readFileSync(join(REPO, "public", "actors", slug, "v1", "front.webp")).toString("base64")}`;
-  return `<style>
-html,body{width:1200px;height:630px}
-.social{position:absolute;inset:0;background:#060c13;display:grid;grid-template-columns:1fr 470px;align-items:center;gap:56px;padding:0 64px 0 80px}
-.social .mark{font-size:112px}
-.social .lede{font-size:44px;margin-top:28px;max-width:15ch}
-.social .small{font-size:22px;margin-top:26px}
-.faces{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.faces img{width:100%;aspect-ratio:1;border-radius:14px;outline:1px solid oklch(1 0 0 / .1);outline-offset:-1px;display:block}
-</style><div class="social"><div><div class="mark">tr<span class="ring">o<i></i></span>upe</div><p class="lede">A video studio that runs in your browser.</p><p class="small url">Open source · browser or self-hosted</p></div><div class="faces">${SOCIAL_CAST.map((slug) => `<img src="${picture(slug)}" alt="">`).join("")}</div></div>`;
-}
-
-// The video's poster: the render playing, as the cut frames it, beside what
-// the video is. Drawn from the captured frame named in poster.json.
-interface PosterSource {
-  frame: string;
-  crop: Box;
-}
-function posterCard({ frame, crop }: PosterSource) {
-  const data = readFileSync(join(OUT, frame)).toString("base64");
-  const height = 920;
-  const k = height / crop.height;
-  return `<style>
-.poster{position:absolute;inset:0;background:#060c13;display:grid;grid-template-columns:1fr auto;align-items:center;gap:120px;padding:0 220px 0 200px}
-.poster .mark{font-size:120px}
-.poster .lede{font-size:64px;margin-top:44px;max-width:14ch}
-.poster .small{font-size:30px;margin-top:28px}
-.play{margin-top:64px;display:flex;align-items:center;gap:28px;font-size:36px;font-weight:600}
-.play i{width:112px;height:112px;border-radius:50%;background:oklch(0.7 0.14 250);display:grid;place-items:center;box-shadow:0 10px 40px oklch(0.7 0.14 250 / .35)}
-.shot{width:${Math.round(crop.width * k)}px;height:${height}px;border-radius:24px;background:url(data:image/jpeg;base64,${data}) no-repeat;background-size:${Math.round(VIEWPORT.width * k)}px auto;background-position:${-Math.round(crop.x * k)}px ${-Math.round(crop.y * k)}px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
-</style><div class="poster"><div><div class="mark">tr<span class="ring">o<i></i></span>upe</div><p class="lede">One project, start to finish.</p><p class="small">Recorded in Chrome. Waits are sped up, and say so.</p><div class="play"><i><svg width="44" height="50" viewBox="0 0 44 50"><path d="M6 3.5v43L42 25z" fill="#060c13"/></svg></i>Watch</div></div><div class="shot"></div></div>`;
-}
-
-async function renderCards(cardPage: Page) {
-  mkdirSync(join(OUT, "cards"), { recursive: true });
-  const shoot = async (name: string, body: string, size: { width: number; height: number }) => {
-    await cardPage.setViewportSize(size);
-    await cardPage.setContent(`<!doctype html><html><head><style>${CARD_CSS}</style></head><body>${body}</body></html>`);
-    await cardPage.evaluate(() => document.fonts.ready);
-    await cardPage.screenshot({ path: join(OUT, "cards", `${name}.png`), omitBackground: name !== "social", scale: "css" });
-  };
-  for (const [name, body] of Object.entries(CARDS)) await shoot(name, body, { width: 1920, height: 1080 });
-  await shoot("social", socialCard(), { width: 1200, height: 630 });
-  const poster = join(OUT, "poster.json");
-  if (existsSync(poster)) await shoot("poster", posterCard(JSON.parse(readFileSync(poster, "utf8")) as PosterSource), { width: 1920, height: 1080 });
+// The caption cards an earlier run's cut names (its edl.txt's last column).
+function captionsInCut(): string[] {
+  const file = join(OUT, "edl.txt");
+  return existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").map((line) => line.split(" ")[4]!).filter(Boolean) : [];
 }
 
 // --- The run --------------------------------------------------------------
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  // `--cards`: only the title cards and the social preview, without recording.
+  // `--cards`: only the cards, from what an earlier run left, without recording.
   if (process.argv.includes("--cards")) {
     const browser = await chromium.launch({ channel: process.env.DEMO_CHANNEL ?? "chrome" });
-    await renderCards(await browser.newPage());
+    await drawCards(await browser.newPage(), CARD_OPTIONS, captionsInCut());
     await browser.close();
     console.log(`Cards → ${join(OUT, "cards")}`);
     return;
@@ -470,22 +377,28 @@ async function main() {
 
   await footage.end();
 
+  // Off camera: the script as rendered, for the video's captions track.
+  await page.goto(`${projectUrl}/script`);
+  const rendered = (await page.getByLabel("Edit script").inputValue()).split("\n").map((line) => line.trim()).filter(Boolean);
+  writeFileSync(join(OUT, "lines.txt"), `${rendered.join("\n")}\n`);
+
   // The edit lays the render's own soundtrack under the playback.
   const playSegment = edl.findIndex((s) => s.start === playStart);
+  const captions = edl.map((s) => captionName(s.caption, s.speed));
   writeFileSync(
     join(OUT, "edl.txt"),
-    `${edl.map((s) => [s.start.toFixed(3), s.end.toFixed(3), s.speed, s.crop ? [s.crop.x, s.crop.y, s.crop.width, s.crop.height].map((n) => Math.round(n * SCALE)).join(":") : "-", captionCard(s)].join(" ")).join("\n")}\n`,
+    `${edl.map((s, i) => [s.start.toFixed(3), s.end.toFixed(3), s.speed, s.crop ? [s.crop.x, s.crop.y, s.crop.width, s.crop.height].map((n) => Math.round(n * SCALE)).join(":") : "-", captions[i]].join(" ")).join("\n")}\n`,
   );
-  // The steps' names, for the chapters edit.sh writes.
-  writeFileSync(join(OUT, "captions.tsv"), `${Object.entries(CAPTIONS).map(([id, [, text]]) => `${id}\t${text.replace(/&amp;/g, "&")}`).join("\n")}\n`);
-  writeFileSync(join(OUT, "meta.txt"), `PLAY_SEGMENT=${playSegment}\nRENDER_DURATION=${duration.toFixed(3)}\nNAME=${saved.suggestedFilename()}\n`);
+  // The steps' names, for the chapters edit.sh writes (plain text).
+  writeFileSync(join(OUT, "captions.tsv"), `${Object.entries(CAPTIONS).map(([id, [, text]]) => `${id}\t${text}`).join("\n")}\n`);
+  // key=value lines; edit.sh reads the keys it needs, never sources the file.
+  writeFileSync(join(OUT, "meta.txt"), `PLAY_SEGMENT=${playSegment}\nRENDER_DURATION=${duration.toFixed(3)}\n`);
 
   // The poster's frame: the render four seconds into its playback.
   const posterAt = playStart + 4;
   const posterFrame = footage.frames.reduce((best, f) => (Math.abs(f.at - posterAt) < Math.abs(best.at - posterAt) ? f : best));
   writeFileSync(join(OUT, "poster.json"), JSON.stringify({ frame: posterFrame.file, crop: around(box, 20) }));
-  const cardPage = await context.newPage();
-  await renderCards(cardPage);
+  await drawCards(await context.newPage(), CARD_OPTIONS, captions);
   await context.close();
 
   const probe = execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height:format=duration", "-of", "compact", join(OUT, "render.mp4")], { encoding: "utf8" });

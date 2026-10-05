@@ -14,11 +14,11 @@
   --on-spot: var(--troupe-color-on-secondary);
   --success: var(--troupe-color-success);
   --warning: var(--troupe-color-warning);
-  --line: color-mix(in oklch, var(--fg) 12%, transparent);
-  --line-strong: color-mix(in oklch, var(--fg) 20%, transparent);
+  --line: color-mix(in srgb, var(--fg) 12%, transparent);
+  --line-strong: color-mix(in srgb, var(--fg) 20%, transparent);
   --picture-edge: oklch(1 0 0 / 0.1);
-  --tint-primary: color-mix(in oklch, var(--primary) 14%, transparent);
-  --tint-success: color-mix(in oklch, var(--success) 14%, transparent);
+  --tint-primary: color-mix(in srgb, var(--primary) 14%, transparent);
+  --tint-success: color-mix(in srgb, var(--success) 14%, transparent);
   --shadow-overlay: 0 8px 30px rgb(0 0 0 / 0.32), 0 1px 3px rgb(0 0 0 / 0.2);
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque Variable", "Geist Variable", sans-serif;
@@ -52,7 +52,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  scrollbar-color: color-mix(in oklch, var(--muted) 45%, transparent) var(--bg);
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) var(--bg);
 }
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -71,7 +71,7 @@ body {
 }
 
 ::selection {
-  background: color-mix(in oklch, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
   color: var(--fg);
 }
 
@@ -107,7 +107,7 @@ a {
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
-  text-decoration-color: color-mix(in oklch, var(--primary) 45%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--primary) 45%, transparent);
   transition: text-decoration-color 150ms ease-out, color 150ms ease-out;
 }
 a:hover {
@@ -207,7 +207,7 @@ code {
 }
 .bar__links a:hover {
   color: var(--fg);
-  background: color-mix(in oklch, var(--fg) 6%, transparent);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 @media (max-width: 719px) {
   .bar__hide-sm {
@@ -234,7 +234,7 @@ code {
   transition-property: background-color, transform, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 6px 18px color-mix(in oklch, var(--primary) 24%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 6px 18px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 .button:hover {
   background: color-mix(in oklch, var(--primary) 88%, var(--fg));
@@ -248,7 +248,7 @@ code {
   box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 .button--quiet:hover {
-  background: color-mix(in oklch, var(--fg) 6%, transparent);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 
 /* --- Hero: the two stages around the screen ------------------------------- */
@@ -298,7 +298,7 @@ code {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: color-mix(in oklch, var(--muted) 70%, transparent);
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
 }
 .stage .button {
   margin-top: 22px;
@@ -313,15 +313,13 @@ code {
   margin: 0;
 }
 .screen__frame {
+  position: relative;
   overflow: hidden;
   border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow-overlay);
   outline: 1px solid var(--picture-edge);
   outline-offset: -1px;
-}
-.screen__frame {
-  position: relative;
 }
 .screen__play {
   position: absolute;
@@ -456,28 +454,21 @@ code {
     align-self: start;
   }
 }
+/* The axis is the list's own border; the dots are real (aria-hidden)
+   elements, so nothing painted by a pseudo-element sits behind the text. */
 .axis {
-  position: relative;
   display: grid;
   gap: 48px;
-  padding-left: 28px;
-}
-.axis::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 10px;
-  bottom: 10px;
-  width: 1px;
-  background: var(--line-strong);
+  margin-left: 5px;
+  padding-left: 23px;
+  border-left: 1px solid var(--line-strong);
 }
 .cue {
   position: relative;
 }
-.cue::before {
-  content: "";
+.cue__dot {
   position: absolute;
-  left: -28px;
+  left: -29px;
   top: 9px;
   width: 11px;
   height: 11px;
@@ -520,7 +511,7 @@ code {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.8125rem;
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 40%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent);
   transition: background-color 150ms ease-out;
 }
 .cue__seek:hover .cue__time {
@@ -572,16 +563,30 @@ code {
   justify-self: end;
   padding: 8px 12px;
   border-radius: 12px;
-  background: color-mix(in oklch, var(--fg) 7%, transparent);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
   font-size: 0.9375rem;
 }
 .diff {
   display: grid;
-  gap: 2px;
+  gap: 6px;
   width: 100%;
+}
+.diff li {
+  display: grid;
+  gap: 2px;
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--tint-primary);
+}
+.diff__note {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.cue__aside {
+  margin-top: 10px;
+  max-width: 62ch;
+  font-size: 0.875rem;
+  color: var(--muted);
 }
 .diff__old {
   font-size: 0.8125rem;
@@ -601,7 +606,7 @@ code {
 .meter {
   height: 6px;
   border-radius: 999px;
-  background: color-mix(in oklch, var(--fg) 10%, transparent);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
   overflow: hidden;
 }
 .meter span {
@@ -615,10 +620,10 @@ code {
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 6px color-mix(in oklch, var(--primary) 35%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--primary) 35%, transparent);
   }
   50% {
-    box-shadow: 0 0 14px color-mix(in oklch, var(--primary) 60%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--primary) 60%, transparent);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -707,8 +712,8 @@ code {
 .compare td {
   color: var(--muted);
 }
+/* Unlit: the same muted ink (it carries the reason), set in italics. */
 .compare td.unlit {
-  color: color-mix(in oklch, var(--muted) 62%, transparent);
   font-style: italic;
 }
 .compare tbody tr:last-child th,
@@ -811,7 +816,7 @@ code {
   border: 0;
   /* Concentric with the terminal: 14 px less the bar's 8 px inset. */
   border-radius: 6px;
-  background: color-mix(in oklch, var(--fg) 8%, transparent);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
   color: var(--fg);
   font: 500 0.8125rem/1 var(--font-sans);
   cursor: pointer;
@@ -826,7 +831,7 @@ code {
   inset: -4px;
 }
 .copy:hover {
-  background: color-mix(in oklch, var(--fg) 13%, transparent);
+  background: color-mix(in srgb, var(--fg) 13%, transparent);
 }
 .copy:active {
   transform: scale(0.96);
@@ -901,7 +906,7 @@ code {
 }
 .ticket__stubs li:first-child {
   color: var(--primary);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 45%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 .ticket__status {
   position: relative;

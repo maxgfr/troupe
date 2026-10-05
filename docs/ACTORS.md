@@ -11,6 +11,10 @@ pictures in [`public/actors/<actor>/v1/`](../public/actors):
 | `profile-left.webp`, `profile-right.webp` | side views, looking toward the left or right edge of the picture | 512 × 512 |
 | `happy.webp`, `calm.webp`, `excited.webp` | expressions | 512 × 512 |
 
+Beside them, `front-160.webp` and `front-320.webp` are smaller copies of the
+front picture for the browser edition's landing page, made by
+[`scripts/actors/thumbnails.sh`](../scripts/actors/thumbnails.sh) (cwebp).
+
 The people in them are synthetic: they were generated, nobody was
 photographed or named, and any resemblance to a real person is coincidental.
 They are released under Troupe's MIT license (see
@@ -38,8 +42,10 @@ missing from `public/actors`.
 ## Replacing the cast
 
 **Swap pictures.** Drop your own files in `public/actors/<actor>/v1/` with the
-same names (WebP, square; other sizes are cropped to their centre). Rebuild the
-app and the browser edition; restart the renderer (or rebuild its Docker image).
+same names (WebP, square; other sizes are cropped to their centre), then run
+`scripts/actors/thumbnails.sh` for the landing page's copies (or delete the
+`front-*.webp` files: it falls back to `front.webp`). Rebuild the app and the
+browser edition; restart the renderer (or rebuild its Docker image).
 
 **Point at another folder or host**, without touching the repository:
 

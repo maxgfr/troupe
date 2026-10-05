@@ -9,6 +9,8 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    /* scripts/demo runs on Node's type stripping, which needs .ts in relative imports. */
+    "allowImportingTsExtensions": true,
 
     /* Strictness */
     "strict": true,

@@ -69,7 +69,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       headScript(THEME_SCRIPT),
       pagesFallback({ base: BASE, outDir: OUT }),
       actorPictures({ base: BASE, dir: portraitsDir, outDir: OUT }),
-      landingPage({ base: BASE, ...landing, cast: ACTOR_CATALOG }),
+      landingPage({ base: BASE, ...landing, portraitsDir, cast: ACTOR_CATALOG }),
     ],
     css: {
       postcss: { plugins: [tailwindcss({ base: REPO })] },

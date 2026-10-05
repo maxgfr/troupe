@@ -192,30 +192,52 @@ export function parseLandingConfig(env: Record<string, string | undefined>): Lan
 
 const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// The landing page (the site's root index.html): %SITE_URL%, %REPO_URL% and
-// %BASE% become the configured addresses before Vite reads the page, and
-// <!--troupe:cast--> becomes the cast, one <li> per actor with the picture
-// the site serves at <base>actors/ (added after Vite's asset pass, which
-// would look for those pictures among the sources). Other pages are left
-// alone.
-export function landingPage({ base, siteUrl, repoUrl, cast }: LandingConfig & { base: string; cast: { slug: string; name: string }[] }): Plugin[] {
+// The landing page (the site's root index.html). Before Vite reads the page,
+// %SITE_URL%, %REPO_URL% and %BASE% become the configured addresses and
+// %ACTOR_THUMB:<slug>% that actor's smallest picture. After Vite's asset pass
+// (which would look for the pictures among the sources), <!--troupe:cast-->
+// becomes the cast, one <li> per actor. Pictures come from <base>actors/: the
+// thumbnails (front-160.webp, front-320.webp, made by
+// scripts/actors/thumbnails.sh) when the cast folder has them, the full front
+// picture otherwise. Other pages are left alone.
+const THUMBS = [160, 320] as const;
+// The cast grid's tile width (site/src/landing/landing.css).
+const CAST_SIZES = "(min-width: 1240px) 106px, (min-width: 720px) 14vw, 30vw";
+
+export function landingPage({
+  base,
+  siteUrl,
+  repoUrl,
+  portraitsDir,
+  cast,
+}: LandingConfig & { base: string; portraitsDir: string; cast: { slug: string; name: string }[] }): Plugin[] {
   const isLanding = (path: string) => path === "/index.html";
-  const castHtml = cast
-    .map(({ slug, name }) => `<li><img src="${base}actors/${encodeURIComponent(slug)}/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" /><span>${escapeHtml(name)}</span></li>`)
-    .join("");
+  const url = (slug: string, file: string) => `${base}actors/${encodeURIComponent(slug)}/v1/${file}`;
+  const hasThumbs = (slug: string) => THUMBS.every((w) => existsSync(join(portraitsDir, slug, "v1", `front-${w}.webp`)));
+  const picture = (slug: string) =>
+    hasThumbs(slug)
+      ? `<img src="${url(slug, "front-320.webp")}" srcset="${THUMBS.map((w) => `${url(slug, `front-${w}.webp`)} ${w}w`).join(", ")}, ${url(slug, "front.webp")} 768w" sizes="${CAST_SIZES}" alt="" width="768" height="768" loading="lazy" decoding="async" />`
+      : `<img src="${url(slug, "front.webp")}" alt="" width="768" height="768" loading="lazy" decoding="async" />`;
   return [
     {
       name: "troupe:landing-addresses",
       transformIndexHtml: {
         order: "pre",
-        handler: (html, { path }) => (isLanding(path) ? html.replaceAll("%SITE_URL%", siteUrl).replaceAll("%REPO_URL%", repoUrl).replaceAll("%BASE%", base) : html),
+        handler: (html, { path }) =>
+          isLanding(path)
+            ? html
+                .replaceAll("%SITE_URL%", siteUrl)
+                .replaceAll("%REPO_URL%", repoUrl)
+                .replaceAll("%BASE%", base)
+                .replace(/%ACTOR_THUMB:([a-z0-9-]+)%/g, (_, slug: string) => url(slug, hasThumbs(slug) ? "front-160.webp" : "front.webp"))
+            : html,
       },
     },
     {
       name: "troupe:landing-cast",
       transformIndexHtml: {
         order: "post",
-        handler: (html, { path }) => (isLanding(path) ? html.replace("<!--troupe:cast-->", castHtml) : html),
+        handler: (html, { path }) => (isLanding(path) ? html.replace("<!--troupe:cast-->", cast.map(({ slug, name }) => `<li>${picture(slug)}<span>${escapeHtml(name)}</span></li>`).join("")) : html),
       },
     },
   ];

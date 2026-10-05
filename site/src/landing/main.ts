@@ -82,7 +82,8 @@ async function linkSteps() {
     if (!chapter) continue;
     const time = button.querySelector(".cue__time");
     if (time) time.textContent = clock(chapter.start);
-    button.setAttribute("aria-label", `Watch “${chapter.title}” in the video, at ${clock(chapter.start)}`);
+    // The name starts with the visible text ("0:13 Watch"), then says what.
+    button.setAttribute("aria-label", `${clock(chapter.start)} Watch: ${chapter.title}`);
     button.hidden = false;
     button.addEventListener("click", () => {
       start(chapter.start);

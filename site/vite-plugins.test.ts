@@ -126,6 +126,12 @@ describe("landing page", () => {
     writeFileSync(join(root, "index.html"), html);
     mkdirSync(join(root, "app"));
     writeFileSync(join(root, "app", "index.html"), "<!doctype html><html><head><title>%SITE_URL%</title></head><body><!--troupe:cast--></body></html>");
+    // Léa has thumbnails, Sam only the full picture.
+    const portraits = join(root, "cast");
+    mkdirSync(join(portraits, "lea-01", "v1"), { recursive: true });
+    mkdirSync(join(portraits, "sam-13", "v1"), { recursive: true });
+    for (const file of ["front.webp", "front-160.webp", "front-320.webp"]) writeFileSync(join(portraits, "lea-01", "v1", file), "RIFF");
+    writeFileSync(join(portraits, "sam-13", "v1", "front.webp"), "RIFF");
     const outDir = join(root, "dist");
     await build({
       root,
@@ -137,6 +143,7 @@ describe("landing page", () => {
           base: "/troupe/",
           siteUrl: "https://example.org/troupe/",
           repoUrl: "https://git.example.org/me/troupe",
+          portraitsDir: portraits,
           cast: [
             { slug: "lea-01", name: "Léa" },
             { slug: "sam-13", name: "Sam & <co>" },
@@ -161,12 +168,22 @@ describe("landing page", () => {
 
   it("lists the cast from the catalog, with the pictures the site serves", async () => {
     const { landing, app } = await site("<!doctype html><html><head></head><body><ul><!--troupe:cast--></ul></body></html>");
-    expect(landing).toContain('<img src="/troupe/actors/lea-01/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />');
+    // Thumbnails when the cast folder has them, the full picture otherwise.
+    expect(landing).toContain(
+      '<img src="/troupe/actors/lea-01/v1/front-320.webp" srcset="/troupe/actors/lea-01/v1/front-160.webp 160w, /troupe/actors/lea-01/v1/front-320.webp 320w, /troupe/actors/lea-01/v1/front.webp 768w" sizes="(min-width: 1240px) 106px, (min-width: 720px) 14vw, 30vw" alt="" width="768" height="768" loading="lazy" decoding="async" />',
+    );
+    expect(landing).toContain('<img src="/troupe/actors/sam-13/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />');
     expect(landing).toContain("<span>Léa</span>");
     // Names are text, never markup.
     expect(landing).toContain("<span>Sam &amp; &lt;co&gt;</span>");
     expect(landing.match(/<li>/g)).toHaveLength(2);
     expect(app).toContain("<!--troupe:cast-->");
+  });
+
+  it("points %ACTOR_THUMB:<slug>% at the smallest picture the cast folder has", async () => {
+    const { landing } = await site('<!doctype html><html><head></head><body><img src="%ACTOR_THUMB:lea-01%" alt="" /><img src="%ACTOR_THUMB:sam-13%" alt="" /></body></html>');
+    expect(landing).toContain('<img src="/troupe/actors/lea-01/v1/front-160.webp" alt="" />');
+    expect(landing).toContain('<img src="/troupe/actors/sam-13/v1/front.webp" alt="" />');
   });
 });
 

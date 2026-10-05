@@ -64,7 +64,7 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
   onRelaunch?: (generationId: string) => void;
 }) {
   const edition = useEdition();
-  const rendering = edition.kind === "demo" ? edition.rendering : undefined;
+  const rendering = edition.kind === "browser" ? edition.rendering : undefined;
   if (generations.length === 0) {
     return (
       <EmptyState

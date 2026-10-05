@@ -24,7 +24,7 @@ export default function DashboardPage() {
   // Whether anything can render yet: the empty state and the list say so.
   const edition = useEdition();
   const models = api.studio.modelOptions.useQuery({}, { enabled: workspace.status === "ready", retry: false });
-  const own = edition.kind === "demo" ? models.data?.models.find((m) => m.key === edition.rendering?.modelKey) : undefined;
+  const own = edition.kind === "browser" ? models.data?.models.find((m) => m.key === edition.rendering?.modelKey) : undefined;
   const readiness: ModelReadiness = !models.data || models.data.models.some((m) => m.available)
     ? { ready: true }
     : { ready: false, reason: own?.unavailableReason ?? null };

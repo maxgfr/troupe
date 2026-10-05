@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { actorHue, actorInitials } from "~/modules/scene";
 
 // An actor's portrait: their picture (public/actors/<slug>/v1/front.webp,
-// served by the app or the static site) over a disc of their hue with their
+// served by the app or the browser edition) over a disc of their hue with their
 // initials, the same colors as the rendered videos (src/modules/scene). The
 // initials show while the picture loads and stay when it cannot load. The
 // caller sizes the frame (aspect ratio and width), so nothing shifts.
@@ -61,7 +61,7 @@ export function ActorPortrait({
         )}
       </svg>
       {picture ? (
-        // biome-ignore lint/performance/noImgElement: the static site has no next/image, and the pictures are already sized WebP files.
+        // biome-ignore lint/performance/noImgElement: the browser edition has no next/image, and the pictures are already sized WebP files.
         <img
           key={picture}
           ref={ready}

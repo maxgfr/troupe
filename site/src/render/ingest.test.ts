@@ -12,10 +12,10 @@ import { clearMediaFiles } from "../media";
 import { ingestBrowserRender, keepSettledRenders, settledBrowserJobs } from "./ingest";
 import { clearJobs, jobState, readJob, saveJob } from "./jobs";
 
-// The demo's ingest against a real (PGlite) studio database: inside the
-// reconcile transaction it only records the render, from what the page
-// already read; the file is kept in IndexedDB, and the job forgotten, once
-// that transaction has committed.
+// The browser edition's ingest against a real (PGlite) studio database:
+// inside the reconcile transaction it only records the render, from what the
+// page already read; the file is kept in IndexedDB, and the job forgotten,
+// once that transaction has committed.
 
 let t: TestDb;
 let fx: Fixture;

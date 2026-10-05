@@ -8,7 +8,7 @@ import { parseChatConfig } from "./src/chat/config";
 import { parseRenderConfig } from "./src/render/config";
 import { actorPictures, headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
 
-// The static demo: the studio's own pages and tRPC router, running in the
+// The browser edition: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
 // page at /troupe/, the app at /troupe/app/*.
 const REPO = resolve(import.meta.dirname, "..");
@@ -58,7 +58,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       ],
     },
     plugins: [
-      // Saving secrets needs a key kept on a server: the demo has none.
+      // Saving secrets needs a key kept on a server: the browser edition has
+      // none.
       shimModules({ "src/server/settings/secrets.ts": "site/src/shims/secrets.ts" }),
       guard(),
       react(),

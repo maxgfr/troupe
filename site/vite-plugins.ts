@@ -3,9 +3,9 @@ import { isBuiltin } from "node:module";
 import { extname, join, relative, resolve, sep } from "node:path";
 import type { Connect, Plugin } from "vite";
 
-// Vite plugins for the static demo: keep server code out of the bundle, swap
-// the few Node-only modules for browser stand-ins, and serve deep links the
-// way GitHub Pages does.
+// Vite plugins for the browser edition: keep server code out of the bundle,
+// swap the few Node-only modules for browser stand-ins, and serve deep links
+// the way GitHub Pages does.
 
 const REPO = resolve(import.meta.dirname, "..");
 const ours = (file: string) => file.startsWith(REPO) && !file.includes("/node_modules/");

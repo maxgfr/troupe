@@ -1,6 +1,6 @@
 name: pages
 
-# Builds the static demo (site/) on every pull request and push to main.
+# Builds the browser edition (site/) on every pull request and push to main.
 # Publishing to GitHub Pages is manual for now: run this workflow by hand
 # ("Run workflow") to deploy.
 

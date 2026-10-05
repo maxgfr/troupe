@@ -16,8 +16,8 @@ First public release.
   edit or archive local models.
 - Estimated cost per render, marked "est.".
 - Script chat on the project page: proposals shown against the current
-  version, Apply and Apply & relaunch, with Ollama, Claude or (in the static
-  demo) WebLLM. Settings → Script chat sets the provider, models, house style
+  version, Apply and Apply & relaunch, with Ollama, Claude or (in the
+  browser edition) WebLLM. Settings → Script chat sets the provider, models, house style
   and word budget.
 - Rename and delete projects, restore earlier script versions, relaunch failed
   renders; Compare opens the new comparison.
@@ -29,6 +29,11 @@ First public release.
   the video already shows the captions, so the player keeps its own track
   off. The local renderer and the in-browser renderer send it.
 - Downloads are named after the project, the model and the time.
+- The browser edition: the studio as a static site that runs entirely in the
+  browser, renders with Kokoro voices and captions, and keeps its data on the
+  device. Settings → Your data shows the storage used, asks the browser to
+  keep it, exports and imports a backup of everything (a versioned tar
+  archive) and deletes it all.
 
 ### Changed
 

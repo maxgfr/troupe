@@ -1,8 +1,8 @@
-// What a fork can change about the demo's script chat, read from VITE_*
-// variables when the site is built (site/.env.example). site/vite.config.ts
-// runs this parser too, so a bad value stops the build.
+// What a fork can change about the browser edition's script chat, read from
+// VITE_* variables when the site is built (site/.env.example).
+// site/vite.config.ts runs this parser too, so a bad value stops the build.
 
-export interface DemoChatConfig {
+export interface BrowserChatConfig {
   // A WebLLM prebuilt model id (https://github.com/mlc-ai/web-llm, config.ts).
   model: string;
   // The same model with 32-bit activations, for GPUs without shader-f16.
@@ -22,7 +22,7 @@ export interface DemoChatConfig {
 // Qwen2.5 1.5B Instruct, 4-bit weights with 16-bit activations: small enough
 // for most laptops' GPUs (about 1.6 GB of video memory) and it follows a JSON
 // schema well. Its weights are 880 MB (Hugging Face API, mlc-ai repository).
-export const DEFAULT_CHAT_CONFIG: DemoChatConfig = {
+export const DEFAULT_CHAT_CONFIG: BrowserChatConfig = {
   model: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
   f32Model: "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
   downloadMb: 880,
@@ -39,7 +39,7 @@ type Env = Record<string, string | boolean | undefined>;
 
 // `knownModels` is WebLLM's list of prebuilt models; the build passes it, so
 // an id WebLLM cannot load stops the build instead of a visitor's chat.
-export function parseChatConfig(env: Env, knownModels?: readonly string[]): DemoChatConfig {
+export function parseChatConfig(env: Env, knownModels?: readonly string[]): BrowserChatConfig {
   const problems: string[] = [];
   const read = (name: string) => {
     const value = env[name];

@@ -2,7 +2,7 @@ import { SUPPORTED_EMOTIONS, type DraftLine } from "~/modules/script";
 import type { ChatTurn } from "./model";
 import { wordBudget, type ActorChoice } from "./proposal";
 
-// The conversation sent to the model. Kept short: the browser demo's model
+// The conversation sent to the model. Kept short: the browser edition's model
 // has a 4,096-token context for the prompt, the history and its answer.
 
 const LANGUAGES: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", zh: "Chinese", ja: "Japanese", ko: "Korean", pt: "Portuguese" };

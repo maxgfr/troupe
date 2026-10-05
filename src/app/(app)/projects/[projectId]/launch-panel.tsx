@@ -35,16 +35,16 @@ export function LaunchPanel({
 }) {
   const [choice, setChoice] = useState<{ durationS?: number; resolution?: string; audio?: boolean }>({});
   const edition = useEdition();
-  const rendering = edition.kind === "demo" ? edition.rendering : undefined;
+  const rendering = edition.kind === "browser" ? edition.rendering : undefined;
   const usable = options.filter((o) => o.available && o.compatible);
-  // The demo's own model exists but this browser cannot run it.
+  // The browser edition's own model exists but this browser cannot run it.
   const blocked = rendering ? options.find((o) => o.key === rendering.modelKey && !o.available) : undefined;
   if (usable.length === 0 && blocked) {
     return (
       <div className="mt-3">
         <ProviderWarning>
-          {blocked.unavailableReason} Your project and script are saved in this browser;{" "}
-          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">run Troupe on your machine ↗</a> to render them.
+          {blocked.unavailableReason} Your project and script are saved in this browser; to render them on your machine,{" "}
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">set up the self-hosted studio ↗</a>.
         </ProviderWarning>
       </div>
     );

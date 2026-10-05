@@ -9,17 +9,17 @@ import { appRouter, type AppRouter } from "~/server/api/root";
 import { createTRPCContext } from "~/server/api/trpc";
 import { createQueryClient } from "~/trpc/query-client";
 import { api } from "~/trpc/react";
-import { forgetDemoCatalog, loadDemoCatalog } from "./catalog";
-import { createDemoChat } from "./chat/backend";
-import { demoDatabase } from "./db/client";
-import { demoMedia } from "./media";
+import { forgetBrowserCatalog, loadBrowserCatalog } from "./catalog";
+import { createBrowserChat } from "./chat/backend";
+import { browserDatabase } from "./db/client";
+import { browserMedia } from "./media";
 import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 
 // The studio's own router, called in the page instead of over HTTP: every
 // procedure runs against the PGlite database in this browser.
 async function createContext() {
-  const { db } = await demoDatabase();
-  return createTRPCContext({ headers: new Headers(), db, media: demoMedia, userId: LOCAL_USER_ID, catalog: await loadDemoCatalog(db), ingest: ingestBrowserRender, chat: createDemoChat(db) });
+  const { db } = await browserDatabase();
+  return createTRPCContext({ headers: new Headers(), db, media: browserMedia, userId: LOCAL_USER_ID, catalog: await loadBrowserCatalog(db), ingest: ingestBrowserRender, chat: createBrowserChat(db) });
 }
 
 // The catalog is read once and kept (site/src/catalog.ts); a mutation may
@@ -28,11 +28,11 @@ const forgetCatalogOnMutation: TRPCLink<AppRouter> = () => ({ op, next }) =>
   observable((observer) =>
     next(op).subscribe({
       next(result) {
-        if (op.type === "mutation") forgetDemoCatalog();
+        if (op.type === "mutation") forgetBrowserCatalog();
         observer.next(result);
       },
       error(error) {
-        if (op.type === "mutation") forgetDemoCatalog();
+        if (op.type === "mutation") forgetBrowserCatalog();
         observer.error(error);
       },
       complete: () => observer.complete(),
@@ -46,7 +46,7 @@ const RECONCILING = new Set(["generation.forProject", "benchmark.get"]);
 // forgets their jobs (site/src/render/ingest.ts). Never throws.
 export async function keepRecordedRenders(): Promise<void> {
   try {
-    await keepSettledRenders((await demoDatabase()).db);
+    await keepSettledRenders((await browserDatabase()).db);
   } catch (error) {
     console.warn("Finished renders could not be stored:", error);
   }
@@ -71,7 +71,7 @@ const keepRendersBeforeResults: TRPCLink<AppRouter> = () => ({ op, next }) =>
     });
   });
 
-export function DemoTRPCProvider({ children }: { children: React.ReactNode }) {
+export function BrowserTRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   const [client] = useState(() =>
     api.createClient({

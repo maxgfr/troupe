@@ -5,13 +5,14 @@ import { RENDER_CONFIG } from "./render/env";
 import { browserRenderer } from "./render/runner";
 import { renderSupport } from "./render/support";
 
-// The demo's model catalog. Cloud models need API keys kept on a server and
-// local model servers a studio that can reach them, so neither runs here and
-// each says why. The one model that does is the demo's own: Kokoro voices
-// and the shared scene, rendered in this browser (site/src/render).
+// The browser edition's model catalog. Cloud models need API keys kept on a
+// server and local model servers a studio that can reach them, so neither
+// runs here and each says why. The one model that does is the browser
+// edition's own: Kokoro voices and the shared scene, rendered in this browser
+// (site/src/render).
 
-export const CLOUD_IN_DEMO = "Not available in the browser demo: cloud models need the self-hosted studio to keep your API key.";
-export const LOCAL_IN_DEMO = "Not available in the browser demo: local model servers need the self-hosted studio.";
+export const CLOUD_NEEDS_SELF_HOSTED = "Needs the self-hosted studio, which keeps your API key on your own server.";
+export const LOCAL_NEEDS_SELF_HOSTED = "Needs the self-hosted studio, which reaches model servers on your machine or network.";
 
 // A render stuck for longer than this is failed (a closed tab is caught sooner).
 const BROWSER_TIMEOUT_S = 30 * 60;
@@ -32,10 +33,10 @@ async function buildCatalog(db: Db): Promise<ModelCatalog> {
     rows,
     credentials: { google: "none", fal: "none" },
     checkLocal: (row) => {
-      if (row.family !== "browser") return { status: "unsupported-host", detail: LOCAL_IN_DEMO };
+      if (row.family !== "browser") return { status: "unsupported-host", detail: LOCAL_NEEDS_SELF_HOSTED };
       return support.ok ? null : { status: "unsupported-host", detail: support.detail };
     },
-  }).map((model) => (model.kind === "cloud" ? { ...model, status: "unsupported-host" as const, statusDetail: CLOUD_IN_DEMO } : model));
+  }).map((model) => (model.kind === "cloud" ? { ...model, status: "unsupported-host" as const, statusDetail: CLOUD_NEEDS_SELF_HOSTED } : model));
   // The adapter stays even when the model is off, so renders in flight finish.
   const adapters = new Map([[BROWSER_MODEL_KEY, createBrowserAdapter({ renderer: browserRenderer, fps: RENDER_CONFIG.fps })]]);
   return { models, adapters, defaultModelKey: effectiveDefaultModel(models, savedDefault) };
@@ -49,7 +50,7 @@ channel?.addEventListener("message", () => {
   cached = undefined;
 });
 
-export function loadDemoCatalog(db: Db): Promise<ModelCatalog> {
+export function loadBrowserCatalog(db: Db): Promise<ModelCatalog> {
   if (cached?.db === db) return cached.catalog;
   const catalog = buildCatalog(db);
   cached = { db, catalog };
@@ -59,7 +60,7 @@ export function loadDemoCatalog(db: Db): Promise<ModelCatalog> {
   return catalog;
 }
 
-export function forgetDemoCatalog(): void {
+export function forgetBrowserCatalog(): void {
   cached = undefined;
   channel?.postMessage("changed");
 }

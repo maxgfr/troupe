@@ -92,7 +92,7 @@ instead of waiting for it.
 
 Any server, in any language, can be a Troupe model by answering three
 requests. `examples/http-model/server.mjs` is a working example (it renders a
-test pattern with ffmpeg) to start from. It is a demo, not a service: its
+test pattern with ffmpeg) to start from. It is an example, not a service: its
 MP4s pile up in the OS temp folder (`troupe-example-model`) and finished jobs
 stay in memory until it stops, so restart it or empty that folder now and then.
 

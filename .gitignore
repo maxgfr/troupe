@@ -43,7 +43,7 @@ yarn-error.log*
 .claude/
 .impeccable/
 
-# static demo (site/)
+# browser edition (site/)
 /site/dist
 /site/test-results
 /site/playwright-report

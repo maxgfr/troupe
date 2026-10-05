@@ -45,12 +45,12 @@ The conversation is stored in `troupe_chat_message` (migration
 |---|---|---|---|
 | Self-hosted | [Ollama](https://ollama.com), on your computer or network | `qwen3:4b` (2.5 GB) | `ollama pull qwen3:4b`, then keep `ollama serve` (or the app) running |
 | Self-hosted | Claude, with your Anthropic API key | `claude-opus-5-5` | Settings → Provider accounts, or `ANTHROPIC_API_KEY` |
-| Static demo | [WebLLM](https://github.com/mlc-ai/web-llm), in the visitor's tab on the GPU | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` (880 MB) | nothing: downloaded once per browser on the first request |
+| Browser edition | [WebLLM](https://github.com/mlc-ai/web-llm), in the visitor's tab on the GPU | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` (880 MB) | nothing: downloaded once per browser on the first request |
 
 In the self-hosted studio the chat uses Claude when an Anthropic key is saved
 (or set in the environment) and Ollama otherwise; Settings → Script chat can
-pin either. Each message to Claude is billed by Anthropic. The demo offers
-only WebLLM: a page on the web can neither keep an API key nor reach an Ollama
+pin either. Each message to Claude is billed by Anthropic. The browser edition
+offers only WebLLM: a page on the web can neither keep an API key nor reach an Ollama
 on the visitor's machine. It needs WebGPU (a recent Chrome or Edge on a
 computer with a GPU); elsewhere the chat explains why it is off.
 
@@ -89,11 +89,11 @@ use the defaults below.
 | `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2 for Ollama; Claude takes 0 to 1 (a higher value is sent as 1), and only the models marked below accept one |
 | `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
 
-| Static demo (`site/.env`, at build time) | Default | |
+| Browser edition (`site/.env`, at build time) | Default | |
 |---|---|---|
 | `VITE_WEBLLM_MODEL` | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | a WebLLM prebuilt model id; the build stops on one WebLLM does not know. GPUs without `shader-f16` get the `q4f32` build of the same model when there is one |
 | `VITE_WEBLLM_DOWNLOAD_MB` | `880` for the default model | the size shown before the first request (0 hides it) |
-| `VITE_CHAT_INSTRUCTIONS`, `VITE_CHAT_WORDS_PER_SECOND` | —, `2.5` | defaults for the demo's Settings |
+| `VITE_CHAT_INSTRUCTIONS`, `VITE_CHAT_WORDS_PER_SECOND` | —, `2.5` | defaults for the browser edition's Settings |
 | `VITE_WEBLLM_TEMPERATURE`, `VITE_WEBLLM_MAX_TOKENS`, `VITE_CHAT_HISTORY_TURNS` | `0.4`, `1024`, `6` | sampling temperature (0 to 2), the longest answer in tokens (256 to 3072; the default model's context is 4,096 in all), earlier turns sent |
 
 ### What each Claude model is sent
@@ -123,6 +123,6 @@ could refuse; add it to the table to give it more.
 `chat`, roles and emotions kept, row-level security), the router against a
 fake Ollama over HTTP and the Anthropic SDK against a fake API server: no real
 key or paid call. `pnpm site:test:chat` (after `pnpm site:build`) runs the
-demo's chat for real in headed Chrome: a request, Apply, then Apply &
+browser edition's chat for real in headed Chrome: a request, Apply, then Apply &
 relaunch rendered in the tab. It needs WebGPU and downloads the chat model
 into the render test's browser profile once, so it runs locally, not in CI.

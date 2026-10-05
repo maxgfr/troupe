@@ -27,7 +27,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # The static demo (site/): build it (the build fails on server code in the
+  # The browser edition (site/): build it (the build fails on server code in the
   # bundle), then the Playwright smoke test against the built site.
   site-smoke:
     runs-on: ubuntu-latest

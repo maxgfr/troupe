@@ -45,10 +45,10 @@ export const createTRPCContext = async (opts: {
   catalog?: ModelCatalog;
   ingest?: RenderIngestor;
   // The machine the server runs on, for suggestions such as ComfyUI's
-  // address. Null where there is none to inspect (the browser demo).
+  // address. Null where there is none to inspect (the browser edition).
   machine?: Machine | null;
   // The script chat's model: Ollama or Claude here (src/server/chat), WebLLM
-  // in the browser demo. Null where none is wired (most tests).
+  // in the browser edition. Null where none is wired (most tests).
   chat?: ChatBackend | null;
 }) => {
   return {
@@ -76,7 +76,8 @@ const EMPTY_CATALOG: ModelCatalog = { models: [], adapters: new Map(), defaultMo
  */
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
-  // The static demo (site/) runs this router in the browser, behind a local link.
+  // The browser edition (site/) runs this router in the browser, behind a
+  // local link.
   allowOutsideOfServer: true,
   errorFormatter({ shape, error }) {
     return {

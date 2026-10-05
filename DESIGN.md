@@ -48,8 +48,8 @@ set in mono and marked "est." when estimated.
 
 - **Wordmark**: "troupe", Bricolage 700; the "o" carries a gold ring.
 - **App shell**: top bar with Dashboard · Actors · Benchmark and Settings, on
-  one row down to 360 px (Settings becomes a sliders icon on phones; the
-  demo's banner shortens to one line).
+  one row down to 360 px (Settings becomes a sliders icon on phones). The
+  browser edition adds no banner: it is Troupe, not a preview of it.
 - **Dashboard**: each project shows its stage in words (Script, Rendering,
   To review, Exported), worked out from its renders and exports; a warning
   says once when no model can render yet.
@@ -75,7 +75,14 @@ set in mono and marked "est." when estimated.
 - **Benchmark lab**: one column per model, cost and latency in mono, the vote
   and "Adopt for project" in gold.
 - **Settings**: default model, cloud models, the script chat, provider
-  accounts, local models; every connection has a Test button.
+  accounts, local models; every connection has a Test button. What only the
+  self-hosted studio can do is said once, calmly, where the control would be,
+  with a link to set it up. In the browser edition, **Your data** sits in one
+  hairline-divided panel: storage used (mono figures) and whether the browser
+  keeps it, Export / Import a backup (an import says what the file holds and
+  asks before replacing anything), and **Delete all local data** last, in
+  danger red, with an inline confirmation. A one-line note on where the data
+  lives can be dismissed.
 - Skeletons rather than spinners; empty states that teach the next step.
 
 ## Motion

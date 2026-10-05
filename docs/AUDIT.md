@@ -175,8 +175,8 @@ says how.
    (`parentGenerationId`); the timeline shows "Relaunched" instead of the
    button and the server refuses a second relaunch.
 9. **Download names.** *Fixed:* `<project>-<model>-<YYYY-MM-DD-HHmm>.mp4`
-   from the timeline and the export page; the media route, the demo's service
-   worker and Supabase signed URLs honour the name (`mediaDisposition`).
+   from the timeline and the export page; the media route, the browser edition's
+   service worker and Supabase signed URLs honour the name (`mediaDisposition`).
 10. **Script page dead end.** *Fixed:* **Launch a render →** under the lines
     opens the project page on its launch panel; trying emotions retags the
     newest version in place until a render or the chat uses it.
@@ -239,16 +239,16 @@ video, rendered in 3.7–4.0 s):
 ## Phase 5: script chat
 
 Run on 2026-10-05 on the same machine (Apple M5, 16 GB), Ollama 0.35.1 with
-`qwen3:4b`, Chrome with WebGPU for the demo.
+`qwen3:4b`, Chrome with WebGPU for the browser edition.
 
 | Run | Result |
 |---|---|
 | `pnpm dev` + `pnpm renderer` + Ollama | Settings → Script chat → **Test**: "Ollama answers and has qwen3:4b." New project, three-line script, first render, then two requests: answers in 4–6 s, both valid on the first try. **Apply only** made version 2 (`origin chat`, the model's roles and emotions); **Apply & relaunch** made version 3 and rendered it on the local renderer in 4 s: h264 720×1280 + AAC, 7.5 s. Phone (390 px): the sheet opens from **Chat** and closes again. No console errors or 5xx. |
 | `docker compose --profile renderer up -d --build`, Ollama on the Mac | The app reached `http://host.docker.internal:11434` (Docker Desktop) with no setting. Regression walk (renderer at `http://renderer:8078`): h264 + AAC, 8.375 s, timeline and export. Chat walk: same results, relaunch rendered in 8 s, 7.975 s MP4. No console errors or 5xx. |
-| Static demo, `pnpm site:test:chat` (headed Chrome) | Fresh profile: the first answer came 81–84 s after the request, the 880 MB download included; later ones in a few seconds. Apply, then Apply & relaunch rendered in the tab; the chat survives a reload; migration 0018 applied by the browser migrator on a database from the previous phase. |
-| Static demo without WebGPU (`--disable-features=WebGPU`) | The chat says it needs a GPU through WebGPU and keeps the request field closed; the rest of the studio works. |
+| Browser edition, `pnpm site:test:chat` (headed Chrome) | Fresh profile: the first answer came 81–84 s after the request, the 880 MB download included; later ones in a few seconds. Apply, then Apply & relaunch rendered in the tab; the chat survives a reload; migration 0018 applied by the browser migrator on a database from the previous phase. |
+| Browser edition without WebGPU (`--disable-features=WebGPU`) | The chat says it needs a GPU through WebGPU and keeps the request field closed; the rest of the studio works. |
 
-- qwen3:4b follows the instructions well; Qwen2.5 1.5B (demo) changes what
+- qwen3:4b follows the instructions well; Qwen2.5 1.5B (browser edition) changes what
   was asked most of the time but its one-line summaries are sometimes wrong
   about what it changed, and it tends to overshoot the word budget (the panel
   then shows the length in amber and relaunching picks a longer clip).
@@ -261,7 +261,7 @@ Run on 2026-10-05 on the same machine (Apple M5, 16 GB), Ollama 0.35.1 with
 ## Phase 7: product polish
 
 Run on 2026-10-05 on the same machine, `pnpm dev` + `pnpm renderer`, with the
-Playwright walk above, then the static demo.
+Playwright walk above, then the browser edition.
 
 | Run | Result |
 |---|---|
@@ -271,7 +271,8 @@ Playwright walk above, then the static demo.
 | `pnpm site:test` | 4/4, including named downloads from the media service worker. |
 | `pnpm site:test:render` | 2/2, warm and cold, after the encoder-delay fix below. |
 
-- Phones: the top bar and the demo banner each hold one row at 390 px.
+- Phones: the top bar and the browser edition's banner (removed since) each
+  hold one row at 390 px.
 - A Postgres container in this run was killed once by the OS (exit 137,
   memory pressure on the 16 GB machine); restarting it kept the data.
 - Renderer videos made before this phase have no record of their burned-in
@@ -298,3 +299,18 @@ stream is 6.015 s for 5.958 s of video, and the test passed on two warm and
 two cold origins. Opus measured 12 samples (its pre-skip is already in its
 header). One cold run timed out in the 8-minute wait while the voice model
 downloaded (6.3 min on the next cold run, 1.6 min earlier in the day).
+
+## Task 7c: the browser edition
+
+Run on 2026-10-05 on the same machine. The static site stopped calling itself
+a demo: no banner, "Needs the self-hosted studio" with a link to
+SELF-HOSTING.md where a control would be, and Settings → **Your data**
+(storage, persistence, backup export/import, **Delete all local data**).
+
+| Run | Result |
+|---|---|
+| `pnpm site:test` | 5/5, including export → delete all local data → import, with the script read back, and no "demo" text on the dashboard or Settings. |
+| `pnpm site:test:render` (headed Chrome, fresh profile) | 3/3: the render, the interrupted render, then export → delete all local data → import, after which the first test's video plays again from the media service worker (720 px wide, playhead moving). `tar -tf` lists the backup. |
+| Screens at 390 and 1280 px, light and dark | Landing, dashboard, wizard model step, project page, Settings (Your data, the backup confirmation, the delete confirmation, a refused file), not-found page. No console errors. |
+| Self-hosted regression walk (`pnpm dev`, the example model) | Settings still shows **Your studio**, provider accounts and background checks, and no "demo"; launch → video in 5 s, played 720×1280; timeline and export downloads both h264 720×1280 + AAC, 8.000 s; the dashboard row moved to **Exported**. No console errors or 5xx. |
+

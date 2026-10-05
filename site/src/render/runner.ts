@@ -4,10 +4,10 @@ import { readVideo } from "./probe";
 import { overallProgress, type FromWorker, type RenderStage } from "./protocol";
 import { renderSupport } from "./support";
 
-// The demo's renderer, on the page side: it records each job in IndexedDB,
-// holds the job's lock while this tab renders it, and hands the work to one
-// worker that keeps the voice model loaded between renders. Progress is
-// shared with the studio's other tabs over a BroadcastChannel.
+// The browser edition's renderer, on the page side: it records each job in
+// IndexedDB, holds the job's lock while this tab renders it, and hands the
+// work to one worker that keeps the voice model loaded between renders.
+// Progress is shared with the studio's other tabs over a BroadcastChannel.
 
 type Message = { jobId: string; stage: RenderStage } | { jobId: string; finished: "succeeded" | "failed" };
 

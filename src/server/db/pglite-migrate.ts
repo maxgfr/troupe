@@ -61,7 +61,8 @@ export async function migratePglite(pg: Pg, migrations: readonly Migration[]): P
 }
 
 // Drops every table and applies all the migrations again, in one transaction:
-// queries sent meanwhile wait, then see an empty database ("Reset demo data").
+// queries sent meanwhile wait, then see an empty database ("Delete all local
+// data" in the browser edition).
 export async function rebuildPglite(pg: Pg, migrations: readonly Migration[]): Promise<string[]> {
   const all = byName(migrations);
   await pg.transaction(async (tx) => {
@@ -71,4 +72,78 @@ export async function rebuildPglite(pg: Pg, migrations: readonly Migration[]): P
     await tx.exec(GRANTS);
   });
   return all.map((m) => m.name);
+}
+
+// Everything a database holds, as plain JSON: the migrations it has applied
+// and every table's rows, as Postgres writes them (json_agg). The browser
+// edition's backups carry one.
+export interface PgliteSnapshot {
+  migrations: string[];
+  tables: Record<string, unknown[]>;
+}
+
+// The backup comes from a build with migrations this one does not have.
+export class BackupTooNewError extends Error {
+  constructor(readonly unknownMigrations: string[]) {
+    super("This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.");
+    this.name = "BackupTooNewError";
+  }
+}
+
+const ident = (name: string) => `"${name.replaceAll('"', '""')}"`;
+
+async function publicTables(tx: Tx): Promise<string[]> {
+  const { rows } = await tx.query<{ name: string }>(
+    `select table_name as name from information_schema.tables
+     where table_schema = 'public' and table_type = 'BASE TABLE' and table_name <> 'troupe_static_migrations'
+     order by table_name`,
+  );
+  return rows.map((r) => r.name);
+}
+
+// Reads the whole database in one transaction, so the tables agree.
+export function snapshotPglite(pg: Pg): Promise<PgliteSnapshot> {
+  return pg.transaction(async (tx) => {
+    const migrations = (await tx.query<{ name: string }>("select name from troupe_static_migrations order by name")).rows.map((r) => r.name);
+    const tables: Record<string, unknown[]> = {};
+    for (const name of await publicTables(tx)) {
+      const { rows } = await tx.query<{ rows: unknown[] }>(`select coalesce(json_agg(t), '[]'::json) as rows from ${ident(name)} t`);
+      tables[name] = rows[0]?.rows ?? [];
+    }
+    return { migrations, tables };
+  });
+}
+
+// Replaces everything with a snapshot, in one transaction: the tables are
+// rebuilt at the snapshot's own migrations, its rows go back in, then the
+// migrations it predates run on them, exactly as an upgrade would. A snapshot
+// from a newer build, or rows that do not fit, change nothing. Returns the
+// migrations applied after the rows.
+export async function restorePglite(pg: Pg, migrations: readonly Migration[], snapshot: PgliteSnapshot): Promise<string[]> {
+  const known = new Set(migrations.map((m) => m.name));
+  const unknown = snapshot.migrations.filter((name) => !known.has(name));
+  if (unknown.length > 0) throw new BackupTooNewError(unknown);
+  const recorded = new Set(snapshot.migrations);
+  const all = byName(migrations);
+  const later = all.filter((m) => !recorded.has(m.name));
+  await pg.transaction(async (tx) => {
+    await tx.exec("drop schema public cascade; create schema public;");
+    await tx.exec(AUTH_PREAMBLE);
+    for (const migration of all.filter((m) => recorded.has(m.name))) await apply(tx, migration);
+    const tables = await publicTables(tx);
+    const missing = Object.keys(snapshot.tables).filter((name) => !tables.includes(name));
+    if (missing.length > 0) throw new Error(`This backup does not fit its own database version (unknown tables: ${missing.join(", ")}).`);
+    // Rows go in whatever the order of the tables: foreign keys are checked
+    // by triggers, which a restore skips (they held when the snapshot was taken).
+    if (tables.length > 0) await tx.exec(`truncate ${tables.map(ident).join(", ")}`);
+    await tx.exec("set local session_replication_role = replica");
+    for (const [name, rows] of Object.entries(snapshot.tables)) {
+      if (rows.length === 0) continue;
+      await tx.query(`insert into ${ident(name)} select * from json_populate_recordset(null::${ident(name)}, $1::json)`, [JSON.stringify(rows)]);
+    }
+    await tx.exec("set local session_replication_role = origin");
+    for (const migration of later) await apply(tx, migration);
+    await tx.exec(GRANTS);
+  });
+  return later.map((m) => m.name);
 }

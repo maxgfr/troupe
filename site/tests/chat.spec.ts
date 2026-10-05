@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-// The script chat in the browser demo, for real: WebLLM runs the chat model
+// The script chat in the browser edition, for real: WebLLM runs the chat model
 // on the GPU, the proposal is applied as a new version, then relaunched with
 // the in-browser renderer. Run it with `pnpm site:test:chat` after
-// `pnpm site:build` (docs/STATIC-SITE.md).
+// `pnpm site:build` (docs/BROWSER-EDITION.md).
 //
 // Local only: it needs WebGPU (headed Chrome on a machine with a GPU; CI
 // runners have none) and downloads the chat model (about 880 MB) into the

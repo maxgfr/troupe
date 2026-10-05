@@ -8,7 +8,7 @@ import { buildScene } from "../../src/modules/scene";
 
 // A real render in the browser: Kokoro voices, the shared scene, WebCodecs
 // and mediabunny, then playback through the media service worker. Run it
-// with `pnpm site:test:render` after `pnpm site:build` (docs/STATIC-SITE.md):
+// with `pnpm site:test:render` after `pnpm site:build` (docs/BROWSER-EDITION.md):
 // headed Chrome by default, which voices on the GPU. CI runs it headless in
 // Playwright's Chromium (HEADLESS=1 RENDER_CHANNEL=chromium), where it takes
 // the CPU path and Opus audio.
@@ -28,6 +28,7 @@ test.describe.configure({ mode: "serial" });
 let context: BrowserContext;
 let page: Page;
 let actorPicture = "";
+let renderedProject = "";
 const errors: string[] = [];
 
 // biome-ignore lint/correctness/noEmptyPattern: Playwright wants the fixtures argument destructured, and this hook uses none.
@@ -92,7 +93,7 @@ function probe(file: string) {
 
 test("renders a 6 s clip in the browser, then plays, seeks and downloads it", async () => {
   test.setTimeout(10 * 60_000);
-  await newProject("Browser render");
+  renderedProject = await newProject("Browser render");
   // The player asks the media service worker for byte ranges as it loads and seeks.
   const mediaStatuses: number[] = [];
   page.on("response", (r) => {
@@ -205,5 +206,50 @@ test("a render cut short by closing its tab is marked failed on the next load", 
   await expect(page.getByText("failed", { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("The tab rendering this video was closed before it finished. Relaunch it.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Relaunch" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+// A backup carries the renders: after deleting everything and importing it,
+// the video of the first test plays again, from the media service worker.
+test("a render survives export, deleting all local data and import", async () => {
+  test.setTimeout(5 * 60_000);
+  expect(renderedProject).not.toBe("");
+  await page.goto(`${APP}/settings`);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export data" }).click();
+  const backup = test.info().outputPath("backup.tar");
+  await (await download).saveAs(backup);
+  // The archive lists its contents with any tar tool.
+  const listed = execFileSync("tar", ["-tf", backup], { encoding: "utf8" }).trim().split("\n");
+  expect(listed[0]).toBe("troupe-backup.json");
+  expect(listed.filter((name) => name.startsWith("media/")).length).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Delete all local data" }).click();
+  await page.getByRole("button", { name: "Delete everything" }).click();
+  await expect(page.getByText("Create your first project")).toBeVisible({ timeout: 60_000 });
+
+  await page.goto(`${APP}/settings`);
+  await page.getByLabel("Backup file to import").setInputFiles(backup);
+  await expect(page.getByRole("alertdialog")).toContainText(/projects? and \d+ videos?/, { timeout: 60_000 });
+  await page.getByRole("button", { name: "Replace with backup" }).click();
+  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, { timeout: 60_000 });
+
+  await page.goto(renderedProject);
+  const video = page.locator("video");
+  await expect(video).toBeVisible({ timeout: 60_000 });
+  const played = await video.evaluate(async (v: HTMLVideoElement) => {
+    v.muted = true;
+    if (v.readyState < 1) await new Promise((r) => v.addEventListener("loadedmetadata", r, { once: true }));
+    await v.play();
+    await new Promise<void>((resolve) => {
+      const tick = () => (v.currentTime > 0.5 ? resolve() : requestAnimationFrame(tick));
+      tick();
+    });
+    v.pause();
+    return { duration: v.duration, width: v.videoWidth, at: v.currentTime };
+  });
+  expect(played.width).toBe(720);
+  expect(played.duration).toBeGreaterThan(2);
+  expect(played.at).toBeGreaterThan(0.5);
   expect(errors).toEqual([]);
 });

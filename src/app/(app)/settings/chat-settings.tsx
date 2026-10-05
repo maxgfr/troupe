@@ -27,7 +27,7 @@ const field = "w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 text-sm 
 
 // The script chat: who answers, and the house style it writes in. Blank
 // fields use the default shown as their placeholder (from the environment
-// in the self-hosted studio, from the build in the demo).
+// in the self-hosted studio, from the build in the browser edition).
 export function ChatSettings() {
   const utils = api.useUtils();
   const view = api.settings.chat.get.useQuery();
@@ -121,7 +121,7 @@ export function ChatSettings() {
         </>
       ) : (
         <p className="max-w-[72ch] text-sm text-muted">
-          In this demo the chat runs <span className="font-mono text-xs text-fg">{defaults.webllmModel}</span> in this tab, on your GPU through WebGPU. Ollama and Claude need the self-hosted studio.
+          In your browser the chat runs <span className="font-mono text-xs text-fg">{defaults.webllmModel}</span> in this tab, on your GPU through WebGPU. Ollama and Claude need the self-hosted studio.
         </p>
       )}
 

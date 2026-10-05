@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Smoke test of the built static demo, served the way GitHub Pages serves it
-// (`pnpm site:build` first). Run with `pnpm site:test`. SITE_PORT picks
+// Smoke test of the built browser edition, served the way GitHub Pages serves
+// it (`pnpm site:build` first). Run with `pnpm site:test`. SITE_PORT picks
 // another port, so a second checkout can run it while one preview is up.
 const PORT = Number(process.env.SITE_PORT ?? 4173);
 

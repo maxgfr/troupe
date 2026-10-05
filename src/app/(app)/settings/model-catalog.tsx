@@ -245,7 +245,7 @@ export function ModelCatalogSettings({ kind }: { kind: "cloud" | "local" }) {
 }
 
 export function DefaultModelSettings() {
-  const demo = useEdition().kind === "demo";
+  const browser = useEdition().kind === "browser";
   const utils = api.useUtils();
   const list = api.settings.models.list.useQuery();
   const setDefault = api.settings.models.setDefault.useMutation({
@@ -260,7 +260,7 @@ export function DefaultModelSettings() {
         savedKey={list.data.savedDefaultModelKey}
         effectiveKey={list.data.defaultModelKey}
         busy={setDefault.isPending}
-        noModelHint={demo ? "No model can render in this browser. Kokoro voice + captions, under Local models, says why." : undefined}
+        noModelHint={browser ? "No model can render in this browser. Kokoro voice + captions, under Local models, says why." : undefined}
         onChange={(modelKey) => setDefault.mutate({ modelKey })}
       />
       {setDefault.error ? <ErrorNote>{setDefault.error.message}</ErrorNote> : null}

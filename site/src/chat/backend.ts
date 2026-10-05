@@ -3,14 +3,14 @@ import type { Db } from "~/server/db/types";
 import { CHAT_CONFIG } from "./env";
 import { chatModelCached, chatSupport, webllmChat } from "./webllm";
 
-// The demo's ctx.chat: WebLLM only. API keys need a server to keep them, and
-// a page on the web cannot reach an Ollama on the visitor's machine, so the
-// other providers are not offered. Tone and speaking rate are saved in this
-// browser's database, like the rest of Settings.
+// The browser edition's ctx.chat: WebLLM only. API keys need a server to keep
+// them, and a page on the web cannot reach an Ollama on the visitor's
+// machine, so the other providers are not offered. Tone and speaking rate are
+// saved in this browser's database, like the rest of Settings.
 
 const LABEL = "This browser";
 
-export function createDemoChat(db: Db): ChatBackend {
+export function createBrowserChat(db: Db): ChatBackend {
   async function resolve(): Promise<ChatSetup> {
     const [saved, support] = await Promise.all([getChatSettings(db), chatSupport()]);
     const common = { instructions: saved.instructions ?? CHAT_CONFIG.instructions, wordsPerSecond: saved.wordsPerSecond ?? CHAT_CONFIG.wordsPerSecond, historyTurns: CHAT_CONFIG.historyTurns };

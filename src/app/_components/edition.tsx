@@ -1,25 +1,23 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ComponentType } from "react";
+import { createContext, useContext, type ComponentType } from "react";
 
-import { ErrorNote } from "./ui";
-
-// Which Troupe the pages run in. The self-hosted studio is the default; the
-// static browser demo (site/) runs the same pages with no server behind
-// them, so it can neither keep API keys nor reach model servers, and says so.
-// It renders with its own model, in the page (site/src/render).
+// Which Troupe the pages run in. The self-hosted studio (Docker or a server)
+// is the default. The browser edition (site/) runs the same pages with no
+// server behind them: everything stays in the visitor's browser, so it can
+// neither keep API keys nor reach model servers, and says so where it
+// matters. It renders with its own model, in the page (site/src/render).
 export type Edition =
-  | { kind: "studio" }
+  | { kind: "self-hosted" }
   | {
-      kind: "demo";
-      // Empties this browser's studio: projects, scripts, renders.
-      resetData: () => Promise<void>;
-      rendering?: DemoRendering;
-      chat?: DemoChat;
+      kind: "browser";
+      data: LocalData;
+      rendering?: BrowserRendering;
+      chat?: BrowserChat;
     };
 
-// The demo's in-browser model, as the project page shows it.
-export interface DemoRendering {
+// The browser edition's own model, as the project page shows it.
+export interface BrowserRendering {
   modelKey: string;
   // Under the launch controls, before any launch: what a render here takes.
   LaunchNote: ComponentType;
@@ -27,17 +25,55 @@ export interface DemoRendering {
   Progress: ComponentType<{ providerJobId: string }>;
 }
 
-// The demo's in-browser chat model, as the chat panel shows it.
-export interface DemoChat {
+// The browser edition's chat model, as the chat panel shows it.
+export interface BrowserChat {
   // Above an empty chat: what the first message downloads and where it runs.
   Note: ComponentType;
   // While the model downloads or loads onto the GPU; nothing otherwise.
   Progress: ComponentType;
 }
 
-export const SELF_HOSTING_URL = "https://github.com/maxgfr/troupe#quick-start-docker";
+// What a backup holds, shown before it replaces anything.
+export interface BackupSummary {
+  createdAt: Date;
+  projects: number;
+  videos: number;
+  bytes: number;
+}
 
-const EditionContext = createContext<Edition>({ kind: "studio" });
+export interface BackupFile {
+  summary: BackupSummary;
+  // Replaces everything in this browser with the backup, then reloads.
+  restore: () => Promise<void>;
+}
+
+// How much the browser holds for the studio, and how much it allows.
+export interface StorageReport {
+  usageBytes: number;
+  quotaBytes: number;
+}
+
+// The browser edition's data, all of it on this device (site/src/data).
+export interface LocalData {
+  // Empties this browser's studio: projects, scripts, chat, renders, settings.
+  deleteAll: () => Promise<void>;
+  // Everything in one file to download.
+  exportBackup: () => Promise<{ blob: Blob; filename: string }>;
+  // Reads and checks a backup; nothing changes until `restore`.
+  readBackup: (file: File) => Promise<BackupFile>;
+  storage: {
+    // Null when the browser does not say.
+    estimate: () => Promise<StorageReport | null>;
+    // Whether the browser keeps the data when space runs low; null when it cannot say.
+    persisted: () => Promise<boolean | null>;
+    // Asks the browser to keep the data; null when it cannot be asked.
+    persist: () => Promise<boolean | null>;
+  };
+}
+
+export const SELF_HOSTING_URL = "https://github.com/maxgfr/troupe/blob/main/docs/SELF-HOSTING.md";
+
+const EditionContext = createContext<Edition>({ kind: "self-hosted" });
 
 export const EditionProvider = EditionContext.Provider;
 
@@ -45,8 +81,9 @@ export function useEdition(): Edition {
   return useContext(EditionContext);
 }
 
-// What the demo cannot do, said once, calmly, where the control would be.
-export function DemoUnavailable({ children }: { children: React.ReactNode }) {
+// What only the self-hosted studio can do, said once, calmly, where the
+// control would be, with the way to get it.
+export function NeedsSelfHosted({ children }: { children: React.ReactNode }) {
   return (
     <div className="max-w-2xl rounded-xl border border-muted/25 px-4 py-3 text-sm">
       <p className="text-pretty text-muted">{children}</p>
@@ -56,87 +93,8 @@ export function DemoUnavailable({ children }: { children: React.ReactNode }) {
         rel="noreferrer"
         className="mt-1 inline-block py-1 text-primary underline-offset-4 hover:underline"
       >
-        Run Troupe on your machine ↗
+        Set up the self-hosted studio ↗
       </a>
-    </div>
-  );
-}
-
-// A quiet strip above the studio's top bar: where the visitor is, and that
-// their work never leaves the browser.
-export function DemoBanner() {
-  return (
-    <aside aria-label="Browser demo" className="border-b border-muted/20 bg-bg">
-      {/* One line on a phone: the short wording below the small breakpoint. */}
-      <p className="mx-auto flex max-w-6xl items-baseline justify-between gap-x-2 px-4 py-2 text-xs text-muted sm:justify-start sm:gap-x-3 sm:px-6">
-        <span className="min-w-0 truncate">
-          <span className="font-medium text-fg">Browser demo.</span>{" "}
-          <span className="sm:hidden">Saved in this browser.</span>
-          <span className="hidden sm:inline">Your work is saved in this browser and never leaves it.</span>
-        </span>
-        <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="-my-1 inline-block shrink-0 py-1 text-primary underline-offset-4 hover:underline">
-          <span className="sm:hidden">Run it yourself ↗</span>
-          <span className="hidden sm:inline">Run Troupe on your machine ↗</span>
-        </a>
-      </p>
-    </aside>
-  );
-}
-
-// Empties the demo studio after an explicit confirmation that says what goes,
-// in the same inline pattern as deleting a project.
-export function ResetDemoData({ resetData }: { resetData: () => Promise<void> }) {
-  const [mode, setMode] = useState<"idle" | "confirm" | "busy">("idle");
-  const [error, setError] = useState<string | null>(null);
-  // Keyboard focus follows the question, then returns to the button.
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const resetRef = useRef<HTMLButtonElement>(null);
-  const asked = useRef(false);
-  useEffect(() => {
-    if (mode === "confirm") cancelRef.current?.focus();
-    if (mode === "idle" && asked.current) resetRef.current?.focus();
-    if (mode !== "idle") asked.current = true;
-  }, [mode]);
-  async function reset() {
-    setMode("busy");
-    setError(null);
-    try {
-      await resetData();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The demo data could not be reset.");
-      setMode("confirm");
-    }
-  }
-  return (
-    <div className="space-y-2">
-      {mode === "idle" ? (
-        <button
-          ref={resetRef}
-          type="button"
-          onClick={() => setMode("confirm")}
-          className="rounded-lg border border-danger/40 px-4 py-2 text-sm text-danger transition-colors duration-150 hover:bg-danger/10"
-        >
-          Reset demo data
-        </button>
-      ) : (
-        <div role="alertdialog" aria-labelledby="reset-demo-question" className="flex max-w-2xl flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          <span id="reset-demo-question" className="text-pretty">
-            Delete every project, script and render saved in this browser? This cannot be undone.
-          </span>
-          <button
-            type="button"
-            disabled={mode === "busy"}
-            onClick={() => void reset()}
-            className="rounded-lg bg-danger px-3 py-1 text-sm font-medium text-on-primary disabled:opacity-40"
-          >
-            {mode === "busy" ? "Resetting…" : "Delete everything"}
-          </button>
-          <button ref={cancelRef} type="button" disabled={mode === "busy"} onClick={() => setMode("idle")} className="px-2 py-1 text-sm text-muted hover:text-fg disabled:opacity-40">
-            Cancel
-          </button>
-        </div>
-      )}
-      {error ? <ErrorNote>{error}</ErrorNote> : null}
     </div>
   );
 }

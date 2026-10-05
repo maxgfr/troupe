@@ -178,7 +178,7 @@ export function ActorStep({
   actorId: string | null;
   onActor: (actorId: string) => void;
 }) {
-  const restart = useEdition().kind === "demo" ? "reload this page" : "restart Troupe";
+  const restart = useEdition().kind === "browser" ? "reload this page" : "restart Troupe";
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-medium">Actor</legend>

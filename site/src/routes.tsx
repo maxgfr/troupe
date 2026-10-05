@@ -9,7 +9,7 @@ import ProjectMonitorPage from "~/app/(app)/projects/[projectId]/page";
 import ProjectScriptPage from "~/app/(app)/projects/[projectId]/script/page";
 import NewProjectPage from "~/app/(app)/projects/new/page";
 import SettingsPage from "~/app/(app)/settings/page";
-import { DemoLayout, NotFound } from "./layout";
+import { BrowserLayout, NotFound } from "./layout";
 
 // The same pages as src/app/(app), at the same paths, under /troupe/app.
 
@@ -38,9 +38,9 @@ export const router = createBrowserRouter(
   [
     {
       element: (
-        <DemoLayout>
+        <BrowserLayout>
           <Outlet />
-        </DemoLayout>
+        </BrowserLayout>
       ),
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
@@ -52,7 +52,8 @@ export const router = createBrowserRouter(
         { path: "projects/:projectId", element: <ProjectMonitor /> },
         { path: "projects/:projectId/script", element: <ProjectScript /> },
         { path: "projects/:projectId/export", element: <ProjectExport /> },
-        // No access code in the demo: the studio is this browser's alone.
+        // No access code in the browser edition: the studio is this browser's
+        // alone.
         { path: "access", element: <Navigate to="/dashboard" replace /> },
         { path: "*", element: <NotFound /> },
       ],

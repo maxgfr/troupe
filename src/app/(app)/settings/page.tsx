@@ -7,7 +7,8 @@ import { DefaultModelSettings, ModelCatalogSettings } from "./model-catalog";
 import { AddLocalModel } from "./add-local-model";
 import { ChatSettings } from "./chat-settings";
 import { ThemeToggle } from "~/app/_components/theme-toggle";
-import { DemoUnavailable, ResetDemoData, useEdition } from "~/app/_components/edition";
+import { NeedsSelfHosted, useEdition } from "~/app/_components/edition";
+import { LocalDataSettings } from "~/app/_components/local-data";
 import {
   ErrorNote,
   PageHeader,
@@ -21,16 +22,20 @@ import { describeHeartbeat } from "./heartbeat-age";
 export default function SettingsPage() {
   const workspace = useWorkspace();
   const edition = useEdition();
-  const demo = edition.kind === "demo";
-  // The demo has no background worker: renders would run in the page.
-  const heartbeat = api.ops.reconcileHeartbeat.useQuery(undefined, { refetchInterval: 60_000, enabled: !demo });
+  const browser = edition.kind === "browser";
+  // The browser edition has no background worker: renders run in the page.
+  const heartbeat = api.ops.reconcileHeartbeat.useQuery(undefined, { refetchInterval: 60_000, enabled: !browser });
   const beat = describeHeartbeat(heartbeat.data ?? null, new Date());
 
   return (
     <>
       <PageHeader
         title="Settings"
-        lede="Your personal studio: appearance, video models, the script chat and provider accounts."
+        lede={
+          browser
+            ? "Your personal studio: appearance, your data, video models and the script chat."
+            : "Your personal studio: appearance, video models, the script chat and provider accounts."
+        }
       />
 
       <Section title="Appearance">
@@ -41,19 +46,19 @@ export default function SettingsPage() {
         </p>
       </Section>
 
-      <Section title="Your studio">
-        {workspace.status === "error" ? <ErrorNote>{workspace.message}</ErrorNote> : demo ? (
-          <div className="space-y-3">
-            <p className="max-w-[72ch] text-sm text-muted">
-              Your projects stay in this browser, on this device. No account is needed, and clearing the site&apos;s data
-              in your browser deletes them too.
-            </p>
-            <ResetDemoData resetData={edition.resetData} />
-          </div>
-        ) : (
-          <p className="text-sm text-muted">Your projects stay in this installation. No account is needed.</p>
-        )}
-      </Section>
+      {edition.kind === "browser" ? (
+        <Section title="Your data">
+          {workspace.status === "error" ? <ErrorNote>{workspace.message}</ErrorNote> : <LocalDataSettings data={edition.data} />}
+        </Section>
+      ) : (
+        <Section title="Your studio">
+          {workspace.status === "error" ? (
+            <ErrorNote>{workspace.message}</ErrorNote>
+          ) : (
+            <p className="text-sm text-muted">Your projects stay in this installation. No account is needed.</p>
+          )}
+        </Section>
+      )}
 
       <Section title="Default model">
         <DefaultModelSettings />
@@ -71,11 +76,11 @@ export default function SettingsPage() {
 
       <div id="provider-accounts" className="scroll-mt-24">
       <Section title="Provider accounts">
-        {demo ? (
-          <DemoUnavailable>
+        {browser ? (
+          <NeedsSelfHosted>
             Cloud providers need the self-hosted studio, which keeps your API keys encrypted on your own server and calls
-            the provider from there. The browser demo never asks for a key.
-          </DemoUnavailable>
+            the provider from there. In your browser, Troupe never asks for a key.
+          </NeedsSelfHosted>
         ) : (
           <ProviderAccounts />
         )}
@@ -85,18 +90,18 @@ export default function SettingsPage() {
       <Section title="Local models">
         <div className="space-y-4">
           <ModelCatalogSettings kind="local" />
-          {demo ? (
-            <DemoUnavailable>
+          {browser ? (
+            <NeedsSelfHosted>
               ComfyUI and other model servers on your machine or network are reached by the self-hosted studio. A page
               served from the web cannot connect to them.
-            </DemoUnavailable>
+            </NeedsSelfHosted>
           ) : (
             <AddLocalModel />
           )}
         </div>
       </Section>
 
-      {demo ? null : <Section title="Background checks">
+      {browser ? null : <Section title="Background checks">
         <p className="max-w-[72ch] text-sm text-muted">
           The studio checks running renders every 30 seconds and saves finished videos, even after you
           close the browser. A render that outlives its model&apos;s time limit (cloud models: 30 minutes;

@@ -40,7 +40,7 @@ function canonicalHost(hostname: string) {
 // The IP family of a host taken from a parsed URL (0 for a name). The URL
 // parser has already turned every IPv4 spelling into a dotted quad and
 // bracketed every IPv6 address, the only hosts with a colon. No node:net, so
-// the check also runs in the browser demo.
+// the check also runs in the browser edition.
 function ipFamily(host: string): 0 | 4 | 6 {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return 4;
   return host.includes(":") ? 6 : 0;
@@ -69,7 +69,7 @@ export function checkLocalUrl(raw: string): UrlCheck {
 }
 
 // The machine Troupe's server runs on, as the request context describes it
-// (src/server/api/local-context.ts). The browser demo has none.
+// (src/server/api/local-context.ts). The browser edition has none.
 export interface Machine {
   inContainer: boolean;
   platform: NodeJS.Platform;

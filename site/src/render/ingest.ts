@@ -5,8 +5,9 @@ import type { Db } from "~/server/db/types";
 import { saveMediaFile } from "../media";
 import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 
-// The demo's counterpart of persistProviderRender (src/server/media/storage.ts),
-// in two steps around the reconcile transaction of a database every tab shares.
+// The browser edition's counterpart of persistProviderRender
+// (src/server/media/storage.ts), in two steps around the reconcile
+// transaction of a database every tab shares.
 //
 // Inside it, the ingest only records the render, from what the page found when
 // the render ended (runner.ts read the file back with a <video> and hashed
@@ -16,9 +17,9 @@ import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 // forgets the job. A rolled-back commit leaves no file and keeps the job, so
 // the next poll records it again.
 //
-// The page never points at a render before its file is stored: the demo's
-// tRPC client (site/src/trpc.tsx) runs keepSettledRenders before it hands the
-// result of a reconciling call to the page.
+// The page never points at a render before its file is stored: the browser
+// edition's tRPC client (site/src/trpc.tsx) runs keepSettledRenders before it
+// hands the result of a reconciling call to the page.
 
 export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
   if (gen.outputAssetId) return;

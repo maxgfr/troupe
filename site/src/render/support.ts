@@ -14,7 +14,7 @@ export interface RenderSupport {
 }
 
 const NO_RENDER = "This browser cannot render video";
-const USE = "Open the demo in a recent Chrome or Edge.";
+const USE = "Open Troupe in a recent Chrome or Edge.";
 
 async function hasWebGpu(): Promise<boolean> {
   const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;

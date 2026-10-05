@@ -3,10 +3,10 @@ import type { InitProgressReport, MLCEngineInterface } from "@mlc-ai/web-llm";
 import { ChatProviderError, parseJsonAnswer, type ChatModel } from "~/modules/chat";
 import { CHAT_CONFIG } from "./env";
 
-// The demo's chat model: WebLLM running a small instruct model on the GPU,
-// in a worker, so the page stays responsive while it downloads and thinks.
-// Its weights stay in this browser's Cache Storage after the first load.
-// WebLLM itself is loaded only when the chat is used.
+// The browser edition's chat model: WebLLM running a small instruct model on
+// the GPU, in a worker, so the page stays responsive while it downloads and
+// thinks. Its weights stay in this browser's Cache Storage after the first
+// load. WebLLM itself is loaded only when the chat is used.
 
 export type ChatModelStage =
   | { stage: "idle" }
@@ -43,7 +43,7 @@ export function readProgress(report: InitProgressReport): ChatModelStage {
 
 export type ChatSupport = { ok: true; model: string; gpu: string } | { ok: false; detail: string };
 
-const USE = "Open the demo in a recent Chrome or Edge on a computer with a GPU.";
+const USE = "Open Troupe in a recent Chrome or Edge on a computer with a GPU.";
 
 async function detect(): Promise<ChatSupport> {
   const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ features: ReadonlySet<string>; info?: { vendor?: string } } | null> } }).gpu;

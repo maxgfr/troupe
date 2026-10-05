@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The demo end to end in a real browser: the studio's pages, its tRPC router
-// and Postgres (PGlite in IndexedDB) all running in the page.
+// The browser edition end to end in a real browser: the studio's pages, its
+// tRPC router and Postgres (PGlite in IndexedDB) all running in the page.
 
 const APP = "/troupe/app";
 
@@ -33,14 +33,15 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.goto("/troupe/");
   await page.getByRole("link", { name: "Open the app" }).click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
-  await expect(page.getByText("Browser demo.")).toBeVisible();
   await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
+  // The browser edition is Troupe itself: nothing calls it a demo.
+  await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Project title").fill("Smoke project");
   await page.getByRole("button", { name: "Continue" }).click();
-  // Cloud models cannot run in the demo: each one says why.
-  await expect(page.getByText(/Not available in the browser demo/).first()).toBeVisible();
+  // Cloud models need the self-hosted studio: each one says why.
+  await expect(page.getByText(/Needs the self-hosted studio, which keeps your API key/).first()).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   const actor = page.locator('label:has(input[name="actor"]:not([disabled]))').first();
@@ -124,14 +125,16 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
   });
 });
 
-test("settings says what the demo cannot do, and reset empties the studio", async ({ page }) => {
-  // The database is created twice here (first visit, then the reset).
+test("settings says what needs the self-hosted studio, and deleting all local data empties the studio", async ({ page }) => {
+  // The database is created twice here (first visit, then the deletion).
   test.slow();
   const errors = watchConsole(page);
   await page.goto(`${APP}/settings`);
   await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible(MIGRATING);
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Set up the self-hosted studio ↗" }).first()).toHaveAttribute("href", /docs\/SELF-HOSTING\.md$/);
+  await expect(page.locator("body")).not.toContainText(/\bdemo\b/i);
 
   await page.goto(`${APP}/projects/new`);
   await page.getByLabel("Project title").fill("To be reset");
@@ -156,7 +159,7 @@ test("settings says what the demo cannot do, and reset empties the studio", asyn
     }).observe(document, { childList: true, subtree: true, characterData: true });
   });
   await page.goto(`${APP}/settings`);
-  await page.getByRole("button", { name: "Reset demo data" }).click();
+  await page.getByRole("button", { name: "Delete all local data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();
   // The slow start has done its job; let the next page load at full speed and
   // from the HTTP cache again (an active route bypasses it).
@@ -165,6 +168,46 @@ test("settings says what the demo cannot do, and reset empties the studio", asyn
   // The dashboard is a new page: Postgres starts there again.
   await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
   expect(glimpses).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("exports all local data, deletes it, and imports it back", async ({ page }) => {
+  // The database is created twice here (first visit, then the deletion).
+  test.slow();
+  const errors = watchConsole(page);
+  await page.goto(`${APP}/projects/new`);
+  await page.getByLabel("Project title").fill("Backed up");
+  for (let step = 0; step < 3; step++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.locator('label:has(input[name="actor"]:not([disabled]))').first().click();
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(page).toHaveURL(/\/script$/, MIGRATING);
+  const scriptUrl = page.url();
+  await page.getByLabel(/Write or paste your script/).fill("Kept in the backup.\nRead back after the import.");
+  await page.getByRole("button", { name: "Save as new version" }).click();
+  await expect(page.getByText(/version 1 · written here/)).toBeVisible();
+
+  await page.goto(`${APP}/settings`);
+  await expect(page.getByText(/used, of about/)).toBeVisible(MIGRATING);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export data" }).click();
+  const saved = await download;
+  expect(saved.suggestedFilename()).toMatch(/^troupe-backup-\d{4}-\d{2}-\d{2}-\d{4}\.tar$/);
+  const backup = test.info().outputPath("backup.tar");
+  await saved.saveAs(backup);
+
+  await page.getByRole("button", { name: "Delete all local data" }).click();
+  await page.getByRole("button", { name: "Delete everything" }).click();
+  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, MIGRATING);
+  await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
+
+  await page.goto(`${APP}/settings`);
+  await page.getByLabel("Backup file to import").setInputFiles(backup);
+  await expect(page.getByRole("alertdialog")).toContainText(/It holds 1 project, saved/, MIGRATING);
+  await page.getByRole("button", { name: "Replace with backup" }).click();
+  await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, MIGRATING);
+  await expect(page.getByRole("link", { name: /Backed up/ })).toBeVisible(MIGRATING);
+  await page.goto(scriptUrl);
+  await expect(page.getByText("Read back after the import.", { exact: true })).toBeVisible(MIGRATING);
   expect(errors).toEqual([]);
 });
 

@@ -1,6 +1,6 @@
-// Serves the demo's renders from IndexedDB at <scope>media/<asset id>, the
-// URLs the in-browser media store hands out (site/src/media.ts), with byte
-// ranges so a <video> can seek. Mirrors src/server/media/serve.ts.
+// Serves the browser edition's renders from IndexedDB at <scope>media/<asset
+// id>, the URLs the in-browser media store hands out (site/src/media.ts),
+// with byte ranges so a <video> can seek. Mirrors src/server/media/serve.ts.
 
 const DB_NAME = "troupe-media";
 const STORE = "files";

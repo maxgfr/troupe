@@ -1,7 +1,7 @@
 import { sizeFor } from "~/modules/models/geometry";
 import { AdapterError, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
 
-// The renderer of the static demo (site/src/render): Kokoro voices the
+// The renderer of the browser edition (site/src/render): Kokoro voices the
 // script and the shared scene is drawn and encoded, all in the visitor's
 // browser. The page provides the renderer; this adapter only talks to it.
 

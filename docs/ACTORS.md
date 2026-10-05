@@ -18,7 +18,7 @@ They are released under Troupe's MIT license (see
 
 ## Where they are used
 
-- **The app**, both the self-hosted one and the static site: the actor
+- **The app**, both the self-hosted studio and the browser edition: the actor
   library, the wizard's actor step, the project page and the script chat's
   recast proposals show the front picture, with the actor's initials on their
   colour while it loads or when it is missing.
@@ -39,7 +39,7 @@ missing from `public/actors`.
 
 **Swap pictures.** Drop your own files in `public/actors/<actor>/v1/` with the
 same names (WebP, square; other sizes are cropped to their centre). Rebuild the
-app and the static site; restart the renderer (or rebuild its Docker image).
+app and the browser edition; restart the renderer (or rebuild its Docker image).
 
 **Point at another folder or host**, without touching the repository:
 
@@ -48,7 +48,7 @@ app and the static site; restart the renderer (or rebuild its Docker image).
 | Self-hosted app (browsers load the pictures from here) | `TROUPE_ACTOR_PORTRAITS_URL` | `/actors` (Next serves `public/actors`) |
 | Local renderer, run natively | `PORTRAITS_DIR` (absolute, or relative to the repository root) | `public/actors` in the checkout |
 | Local renderer in Docker Compose | `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors`, mounted read-only |
-| Static site build | `VITE_PORTRAITS_DIR` | `public/actors`, copied to `/troupe/actors/` |
+| Browser edition build | `VITE_PORTRAITS_DIR` | `public/actors`, copied to `/troupe/actors/` |
 
 Each place expects the same layout: `<actor>/v1/front.webp` and so on, where
 `<actor>` is the slug from the catalog (`lea-01`, `marcus-02`, …).

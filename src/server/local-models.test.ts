@@ -176,7 +176,8 @@ describe("local models end to end", () => {
     const on = (machine: Machine | null) => testCaller({ db: t.db, userId: USER, machine }).settings.models.suggestedAddress();
     expect((await on({ inContainer: true, platform: "linux" })).comfyui).toBe("http://host.docker.internal:8188");
     expect((await on({ inContainer: false, platform: "darwin" })).comfyui).toBe("http://127.0.0.1:8000");
-    // Nothing to inspect, as in the browser demo: ComfyUI's command-line port.
+    // Nothing to inspect, as in the browser edition: ComfyUI's command-line
+    // port.
     expect((await on(null)).comfyui).toBe("http://127.0.0.1:8188");
   });
 });

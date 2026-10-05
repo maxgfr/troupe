@@ -10,6 +10,11 @@ ComfyUI or any HTTP server.
 No account, subscription or credits. Cloud providers bill your own account;
 local models cost nothing per clip. MIT licensed.
 
+Troupe also has a browser edition: the same studio as a static site that runs
+entirely in your browser, renders with Kokoro voices and captions, and keeps
+your projects on your device, with a backup you can export and import
+([docs/BROWSER-EDITION.md](docs/BROWSER-EDITION.md)).
+
 ## Quick start (Docker)
 
 ```bash
@@ -43,7 +48,7 @@ from your checkout instead, run `docker compose up -d --build`.
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
 | Local renderer | your CPU ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
 | Local renderer, AI video mode (opt-in) | your Mac's GPU, natively (NVIDIA GPUs should work, not tried) ([`renderer/ltx`](docs/LOCAL-MODELS.md#ai-video-mode-ltx-video)): an LTX-Video 2B clip under the same voice and captions | always | 9:16, 16:9, 1:1 | as long as the script (a 5 s clip, repeated) |
-| Kokoro voice + captions | the visitor's browser, static demo only ([`site/`](docs/STATIC-SITE.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
+| Kokoro voice + captions | the visitor's browser, browser edition only ([`site/`](docs/BROWSER-EDITION.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
 
 Each model can be turned off, given default settings, a price per second (for
@@ -63,7 +68,7 @@ the local renderer, including its AI video mode.
 - A script chat beside each project: ask for a change, read the proposal
   against the current version, apply it or apply and relaunch the render.
   Ollama on your machine by default, Claude with an Anthropic key, WebLLM in
-  the browser demo ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
+  the browser edition ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
 - Launch on any configured model, follow progress, relaunch failures, compare
   two or three models on the same script and vote.
 - Videos are checked with ffprobe before they are kept. Downloads stream with
@@ -88,9 +93,10 @@ end to end.** Reports are welcome.
   reverse proxy, backups, upgrades.
 - [Vercel + Supabase](docs/VERCEL-SUPABASE.md): serverless hosting with
   Supabase for the database, files and scheduled job checks.
-- [Static demo](docs/STATIC-SITE.md): the same studio built as a static site
-  that runs in the browser, with no server; projects stay in that browser,
-  and videos render in it with Kokoro voices and captions.
+- [Browser edition](docs/BROWSER-EDITION.md): the same studio built as a
+  static site that runs in the browser, with no server; projects stay in that
+  browser (export a backup to move them), and videos render in it with Kokoro
+  voices and captions.
 - Development:
 
   ```bash

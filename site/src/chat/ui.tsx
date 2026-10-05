@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import type { DemoChat } from "~/app/_components/edition";
+import type { BrowserChat } from "~/app/_components/edition";
 import { CHAT_CONFIG } from "./env";
 import { chatModelCached, chatModelStage, chatSupport, subscribeToChatModel, type ChatModelStage } from "./webllm";
 
@@ -69,4 +69,4 @@ function ChatModelNote() {
   return note ? <p className="text-pretty text-xs text-muted">{note}</p> : null;
 }
 
-export const browserChat: DemoChat = { Note: ChatModelNote, Progress: ChatModelProgress };
+export const browserChat: BrowserChat = { Note: ChatModelNote, Progress: ChatModelProgress };

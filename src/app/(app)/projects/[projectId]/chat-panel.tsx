@@ -44,7 +44,7 @@ export function ChatPanel({
 }) {
   const fieldId = useId();
   const edition = useEdition();
-  const demoChat = edition.kind === "demo" ? edition.chat : undefined;
+  const browserChat = edition.kind === "browser" ? edition.chat : undefined;
   const utils = api.useUtils();
   const history = api.chat.history.useQuery({ projectId }, { retry: false });
   const messages = history.data?.messages ?? [];
@@ -132,7 +132,7 @@ export function ChatPanel({
               <p className="text-pretty text-muted">
                 Ask for a change in your own words. Each answer proposes a whole new version of the script, shown against the current one; nothing changes until you apply it.
               </p>
-              {demoChat && !unavailable ? <demoChat.Note /> : null}
+              {browserChat && !unavailable ? <browserChat.Note /> : null}
             </div>
           ) : (
             messages.map((m) =>
@@ -191,7 +191,7 @@ export function ChatPanel({
               <p className="ml-8 whitespace-pre-wrap rounded-xl bg-surface px-3 py-2 text-sm">{send.variables?.message}</p>
               <div className="space-y-2" role="status">
                 <p className="text-xs text-muted">{provider?.label ?? "The model"} is writing a new version…</p>
-                {demoChat ? <demoChat.Progress /> : null}
+                {browserChat ? <browserChat.Progress /> : null}
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-20 w-full" />
               </div>
@@ -210,7 +210,7 @@ export function ChatPanel({
             <div className="mb-3">
               <ProviderWarning>
                 {unavailable}{" "}
-                {edition.kind === "studio" ? (
+                {edition.kind === "self-hosted" ? (
                   <Link href="/settings#script-chat" className="underline underline-offset-4">
                     Chat settings
                   </Link>

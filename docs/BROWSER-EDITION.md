@@ -1,8 +1,16 @@
-# Static site
+# Browser edition
 
-`site/` builds the studio as a static site for GitHub Pages: the landing page
-at `/troupe/` and the app at `/troupe/app/`. There is no server. The pages
-from `src/app/(app)` and the full tRPC router run in the browser, on Postgres
+Troupe comes in two editions with the same pages and the same tRPC router:
+
+- the **self-hosted studio**: Docker or a server, with your API keys and
+  model servers ([SELF-HOSTING.md](SELF-HOSTING.md));
+- the **browser edition**: a static site for GitHub Pages
+  (`maxgfr.github.io/troupe` once published), where everything runs and
+  stays in the visitor's browser.
+
+`site/` builds the browser edition for GitHub Pages: the landing page at
+`/troupe/` and the app at `/troupe/app/`. There is no server. The pages from
+`src/app/(app)` and the full tRPC router run in the browser, on Postgres
 compiled to WebAssembly ([PGlite](https://pglite.dev)) and kept in IndexedDB.
 
 ```bash
@@ -23,20 +31,70 @@ The first visit downloads about 20 MB (Postgres and its data files), then
 starts in a few seconds. The first render downloads the voice model too (see
 below).
 
-## What works and what does not
+## What each edition does
 
-| Works in the demo | Needs the self-hosted studio |
+| In the browser edition | Needs the self-hosted studio |
 |---|---|
-| Projects, the wizard, actors, versioned scripts with emotions, the benchmark lab and export pages, light and dark themes | Cloud models: they need an API key kept on a server. Settings and the wizard say so. |
+| Projects, the wizard, actors, versioned scripts with emotions, the benchmark lab and export pages, light and dark themes | Cloud models: they need an API key kept on a server. Settings and the wizard say so, with a link to [SELF-HOSTING.md](SELF-HOSTING.md). |
 | Rendering in the browser with **Kokoro voice + captions**: the same voices and picture as the local renderer, played, seeked and downloaded as MP4 | ComfyUI and other model servers: a web page cannot reach servers on your machine |
-| Data that survives reloads and new deploys (migrations already applied are recorded in `troupe_static_migrations`) | Provider accounts (Settings shows why instead of the form) |
-| **Reset demo data** in Settings, also offered when the studio cannot load | Background render checks: a render runs in the tab that launched it |
+| Data that survives reloads and new deploys, a backup to export and import, and **Delete all local data** (see [Your data](#your-data)) | Provider accounts (Settings says why instead of the form) |
 | The **script chat**, with a small model run by [WebLLM](https://github.com/mlc-ai/web-llm) on the GPU (880 MB, once per browser; needs WebGPU), then Apply & relaunch in the tab ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)) | Ollama and Claude for the chat: no server to keep a key or reach your machine |
+| | Background render checks: a render runs in the tab that launched it |
+
+## Your data
+
+Everything the browser edition makes stays in the visitor's browser, for
+that site only: the database (IndexedDB `/pglite/troupe`), the renders
+(`troupe-media`) and the render jobs in progress (`troupe-render`). Settings →
+**Your data** shows:
+
+- **Storage**: what the browser reports with `navigator.storage.estimate()`
+  (the voice and chat model downloads count too). Browsers may clear a site's
+  data when the device runs low on space; **Keep it on this device** asks
+  `navigator.storage.persist()` not to. Chrome and Edge decide by themselves
+  (they grant it to sites used often or installed), Firefox asks the visitor.
+  A browser without the Storage API shows nothing rather than an error.
+- **Backup**: **Export data** saves one file, `troupe-backup-<date>-<time>.tar`,
+  with every project, script version, chat message, render, actor choice,
+  benchmark and setting. **Import data…** reads one, says what it holds
+  (projects, videos, size, date), and replaces everything in this browser
+  once confirmed. Every open tab of the studio reloads onto the result.
+- **Delete all local data**, after a confirmation, in every open tab. It is
+  also offered when the studio cannot load.
+
+Not in a backup: the theme (a per-device choice) and the downloaded model
+weights, which download again on first use.
+
+### The backup format
+
+A plain tar archive (POSIX ustar, no compression; any `tar` lists it):
+
+| Entry | Contents |
+|---|---|
+| `troupe-backup.json` | `{ format: "troupe-backup", version: 1, createdAt, database: { migrations, tables }, media: [{ id, storagePath, type, size }] }` |
+| `media/<asset id>` | each render, byte for byte |
+
+`database.migrations` are the migrations the studio had applied, and
+`database.tables` every table's rows as Postgres writes them in JSON. An
+import rebuilds the tables at those migrations, puts the rows back, then
+runs the migrations the backup predates, exactly as a new deploy would
+(`restorePglite` in `src/server/db/pglite-migrate.ts`), all in one
+transaction. A backup from a newer build (an unknown migration or format
+version) is refused with a message, and so is a file that is not a backup or
+is incomplete; nothing changes then. The renders are stored first, in one
+IndexedDB transaction, so a device without room for them fails before the
+database is touched.
+
+### Across deploys
+
+Migrations already applied are recorded in `troupe_static_migrations`, so a
+new deploy only applies new ones, on top of the visitor's projects
+(`pglite-migrate.test.ts` checks a build that adds a migration keeps them).
 
 ## Rendering in the browser
 
-The demo's own model, **Kokoro voice + captions**, renders in the tab that
-launches it (`site/src/render/`):
+The browser edition's own model, **Kokoro voice + captions**, renders in the
+tab that launches it (`site/src/render/`):
 
 1. [kokoro-js](https://github.com/hexgrad/kokoro) voices each line with
    Kokoro-82M, cast by `voiceFor` from `src/modules/scene`, like the local
@@ -124,7 +182,9 @@ a machine with a GPU.
   module's types, so `pnpm typecheck` catches drift.
 - The rest goes through seams in `src/`: the tRPC context takes the database,
   the media store and the machine description (`createTRPCContext`), and
-  `src/app/_components/edition.tsx` tells the pages they run in the demo.
+  `src/app/_components/edition.tsx` tells the pages they run in the browser
+  edition, and hands them its data (`site/src/data/`: backups, storage,
+  deletion) and its in-browser renderer and chat.
 - `site/src/db/`: PGlite in a worker (`idb://troupe`), shared by every open tab;
   the Drizzle migrations are bundled with `import.meta.glob`.
 - `troupe:actor-pictures` (`site/vite-plugins.ts`): the cast lives once in
@@ -141,6 +201,7 @@ a machine with a GPU.
 
 ## Publishing
 
-`.github/workflows/pages.yml` builds the site on every pull request and push
-to `main`. Deploying to GitHub Pages is manual for now: run the workflow from
-the Actions tab (enable Pages with "GitHub Actions" as the source first).
+`.github/workflows/pages.yml` builds the browser edition on every pull
+request and push to `main`. Deploying it to GitHub Pages is manual for now:
+run the workflow from the Actions tab (enable Pages with "GitHub Actions" as
+the source first).

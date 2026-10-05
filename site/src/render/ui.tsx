@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import type { DemoRendering } from "~/app/_components/edition";
+import type { BrowserRendering } from "~/app/_components/edition";
 import { ProgressBar, ProviderWarning } from "~/app/_components/ui";
 import { BROWSER_MODEL_KEY } from "~/modules/generation";
 import { api } from "~/trpc/react";
@@ -87,4 +87,4 @@ function LaunchNote() {
   );
 }
 
-export const browserRendering: DemoRendering = { modelKey: BROWSER_MODEL_KEY, LaunchNote, Progress: RenderProgress };
+export const browserRendering: BrowserRendering = { modelKey: BROWSER_MODEL_KEY, LaunchNote, Progress: RenderProgress };

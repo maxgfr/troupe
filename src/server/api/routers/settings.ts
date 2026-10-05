@@ -160,7 +160,7 @@ export const settingsRouter = createTRPCRouter({
       .input(z.object({ modelKey: MODEL_KEY }))
       .mutation(async ({ ctx, input }): Promise<ConnectionReport> => {
         const model = modelOf(ctx.catalog, input.modelKey);
-        // Nothing to reach from here (the browser demo, a refused address).
+        // Nothing to reach from here (the browser edition, a refused address).
         if (model.status === "unsupported-host") return { ok: false, message: model.statusDetail ?? "This model cannot run here." };
         if (model.credential) return testCredential(ctx.catalog, model.credential, ctx.chat);
         const adapter = ctx.catalog.adapters.get(model.key);

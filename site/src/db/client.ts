@@ -3,16 +3,17 @@ import { PGliteWorker } from "@electric-sql/pglite/worker";
 import { drizzle } from "drizzle-orm/pglite";
 
 import { ensureLocalStudio } from "~/modules/identity";
-import { migratePglite, rebuildPglite } from "~/server/db/pglite-migrate";
+import { migratePglite, rebuildPglite, restorePglite, snapshotPglite, type PgliteSnapshot } from "~/server/db/pglite-migrate";
 import * as schema from "~/server/db/schema";
 import type { Db } from "~/server/db/types";
 import { ensureBrowserModel } from "../catalog";
 import { MIGRATIONS } from "./migrations";
 import { INIT_FAILED } from "./protocol";
 
-// The demo's database: Postgres (PGlite) in a worker, kept in IndexedDB so
-// projects survive reloads and deploys. Migrations already applied are
-// recorded in troupe_static_migrations, so a new deploy only runs new ones.
+// The browser edition's database: Postgres (PGlite) in a worker, kept in
+// IndexedDB so projects survive reloads and deploys. Migrations already
+// applied are recorded in troupe_static_migrations, so a new deploy only runs
+// new ones.
 
 const DATA_DIR = "idb://troupe";
 // PGlite keeps an idb:// database in the IndexedDB database of this name.
@@ -20,12 +21,12 @@ const IDB_NAME = "/pglite/troupe";
 // Tabs take turns migrating or resetting, so two tabs never both apply one.
 const SETUP_LOCK = "troupe-db-setup";
 
-export interface DemoDatabase {
+export interface BrowserDatabase {
   pg: PGliteWorker;
   db: Db;
 }
 
-let opening: Promise<DemoDatabase> | undefined;
+let opening: Promise<BrowserDatabase> | undefined;
 
 // The worker's queries wait forever when Postgres cannot start: fail instead,
 // so the studio can show what happened and offer a reset.
@@ -46,7 +47,7 @@ function startFailure(host: Worker): { failed: Promise<never>; settle: () => voi
   return { failed, settle: () => clearTimeout(timer) };
 }
 
-async function connect(host: Worker): Promise<DemoDatabase> {
+async function connect(host: Worker): Promise<BrowserDatabase> {
   const pg = await PGliteWorker.create(host, { dataDir: DATA_DIR });
   await navigator.locks.request(SETUP_LOCK, () => migratePglite(pg, MIGRATIONS));
   // drizzle's PGlite driver only needs query/transaction, which the worker proxy has.
@@ -56,7 +57,7 @@ async function connect(host: Worker): Promise<DemoDatabase> {
   return { pg, db };
 }
 
-async function open(): Promise<DemoDatabase> {
+async function open(): Promise<BrowserDatabase> {
   const host = new Worker(new URL("./pglite.worker.ts", import.meta.url), { type: "module" });
   const start = startFailure(host);
   try {
@@ -69,7 +70,7 @@ async function open(): Promise<DemoDatabase> {
   }
 }
 
-function openOnce(): Promise<DemoDatabase> {
+function openOnce(): Promise<BrowserDatabase> {
   opening ??= open().catch((error: unknown) => {
     opening = undefined;
     throw error;
@@ -77,15 +78,16 @@ function openOnce(): Promise<DemoDatabase> {
   return opening;
 }
 
-// A reset in this tab. Between dropping the tables and seeding the studio
-// again the database holds no workspace, so everyone else waits it out.
+// A reset or a restore in this tab. Between dropping the tables and seeding
+// the studio again the database holds no workspace, so everyone else waits
+// it out.
 let resetting: Promise<void> | undefined;
 
 async function resetDone() {
   while (resetting) await resetting.catch(() => {});
 }
 
-export async function demoDatabase(): Promise<DemoDatabase> {
+export async function browserDatabase(): Promise<BrowserDatabase> {
   // Before the open: a reset that is deleting a database that would not open
   // must not have a new worker reopen it underneath.
   await resetDone();
@@ -96,13 +98,30 @@ export async function demoDatabase(): Promise<DemoDatabase> {
   return database;
 }
 
+// Runs a change that empties the tables for a while; queries from this tab
+// wait for all of it, the studio seeded again included.
+function rebuildWith(change: () => Promise<void>): Promise<void> {
+  const run = change();
+  const pending: Promise<void> = run.finally(() => {
+    if (resetting === pending) resetting = undefined;
+  });
+  // The caller sees a failure through `run`; waiting pages only need the end.
+  pending.catch(() => {});
+  resetting = pending;
+  return run;
+}
+
+async function seed(db: Db) {
+  await ensureLocalStudio(db);
+  await ensureBrowserModel(db);
+}
+
 // Empties the studio: every table is dropped and the migrations run again,
-// in one transaction, then the studio is seeded; queries from this tab wait
-// for all of it. When the database cannot even open, its IndexedDB copy is
-// deleted instead.
+// in one transaction, then the studio is seeded. When the database cannot
+// even open, its IndexedDB copy is deleted instead.
 export function resetDatabase(): Promise<void> {
-  const run = (async () => {
-    let database: DemoDatabase;
+  return rebuildWith(async () => {
+    let database: BrowserDatabase;
     try {
       database = await openOnce();
     } catch {
@@ -111,16 +130,23 @@ export function resetDatabase(): Promise<void> {
     }
     const { pg, db } = database;
     await navigator.locks.request(SETUP_LOCK, () => rebuildPglite(pg, MIGRATIONS));
-    await ensureLocalStudio(db);
-    await ensureBrowserModel(db);
-  })();
-  const pending: Promise<void> = run.finally(() => {
-    if (resetting === pending) resetting = undefined;
+    await seed(db);
   });
-  // The caller sees a failure through `run`; waiting pages only need the end.
-  pending.catch(() => {});
-  resetting = pending;
-  return run;
+}
+
+// Every table's rows, for a backup.
+export async function snapshotDatabase(): Promise<PgliteSnapshot> {
+  return snapshotPglite((await browserDatabase()).pg);
+}
+
+// Replaces the whole database with a backup's, in one transaction: a backup
+// that does not fit changes nothing (restorePglite).
+export function restoreDatabase(snapshot: PgliteSnapshot): Promise<void> {
+  return rebuildWith(async () => {
+    const { pg, db } = await openOnce();
+    await navigator.locks.request(SETUP_LOCK, () => restorePglite(pg, MIGRATIONS, snapshot));
+    await seed(db);
+  });
 }
 
 function deleteIndexedDb(name: string): Promise<void> {

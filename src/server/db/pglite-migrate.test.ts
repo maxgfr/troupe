@@ -1,11 +1,33 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
 
+import { getProject } from "~/modules/studio/server/service";
 import { readMigrations } from "~/test/db";
-import { migratePglite, rebuildPglite } from "./pglite-migrate";
+import { seedFixture } from "~/test/fixture";
+import * as schema from "./schema";
+import type { Db } from "./types";
+import { BackupTooNewError, migratePglite, rebuildPglite, restorePglite, snapshotPglite, type PgliteSnapshot } from "./pglite-migrate";
 
 let pg: PGlite | undefined;
 afterEach(async () => { await pg?.close(); pg = undefined; });
+
+const USER = "11111111-1111-4111-8111-111111111111";
+
+// A studio with one project and its script, at the given migrations.
+async function studioWithProject(migrations = readMigrations()) {
+  pg = new PGlite();
+  await migratePglite(pg, migrations);
+  const db = drizzle(pg, { schema }) as unknown as Db;
+  await pg.exec(`insert into troupe_user (id, email) values ('${USER}', 'a@example.com')`);
+  const fixture = await seedFixture(db, { userId: USER, name: "Kept" });
+  return { pg, db, fixture };
+}
+
+const count = async (db: PGlite, table: string) => (await db.query<{ n: number }>(`select count(*)::int as n from ${table}`)).rows[0]!.n;
+
+// What an archive carries: the snapshot as JSON text, read back.
+const throughJson = (snapshot: PgliteSnapshot): PgliteSnapshot => JSON.parse(JSON.stringify(snapshot)) as PgliteSnapshot;
 
 async function recorded(db: PGlite) {
   return (await db.query<{ name: string }>("select name from troupe_static_migrations order by name")).rows.map((r) => r.name);
@@ -60,5 +82,66 @@ describe("PGlite migrations", () => {
     expect(rebuilt).toEqual(all.map((m) => m.name));
     expect(during.rows[0]!.n).toBe(0);
     expect(await recorded(pg)).toEqual(all.map((m) => m.name));
+  });
+
+  // A browser keeps its database from one deploy to the next: a build that
+  // adds a migration applies only that one, on top of the projects.
+  it("keeps a studio's projects when a later build adds a migration", async () => {
+    const { pg, db, fixture } = await studioWithProject();
+    const added = { name: "9999_upgrade-test.sql", sql: `alter table troupe_project add column "upgradeNote" text not null default 'kept';` };
+    expect(await migratePglite(pg, [...readMigrations(), added])).toEqual([added.name]);
+    expect((await getProject(db, fixture.projectId))?.title).toBe("Kept project");
+    const note = await pg.query<{ upgradeNote: string }>(`select "upgradeNote" from troupe_project where id = $1`, [fixture.projectId]);
+    expect(note.rows).toEqual([{ upgradeNote: "kept" }]);
+    expect(await count(pg, "troupe_script_line")).toBeGreaterThan(0);
+  });
+});
+
+describe("PGlite snapshots (backups of the browser edition)", () => {
+  it("restores every table after the studio was emptied", async () => {
+    const { pg, db, fixture } = await studioWithProject();
+    const before = throughJson(await snapshotPglite(pg));
+    expect(before.migrations).toEqual(readMigrations().map((m) => m.name));
+    expect(before.tables.troupe_project).toHaveLength(1);
+    expect(before.tables).not.toHaveProperty("troupe_static_migrations");
+
+    await rebuildPglite(pg, readMigrations());
+    expect(await count(pg, "troupe_project")).toBe(0);
+
+    expect(await restorePglite(pg, readMigrations(), before)).toEqual([]);
+    expect(throughJson(await snapshotPglite(pg))).toEqual(before);
+    expect((await getProject(db, fixture.projectId))?.title).toBe("Kept project");
+    expect(await recorded(pg)).toEqual(readMigrations().map((m) => m.name));
+  });
+
+  it("brings a snapshot from an earlier build up to date with the migrations it predates", async () => {
+    const all = readMigrations();
+    const { pg: old } = await studioWithProject(all.slice(0, -1));
+    const snapshot = throughJson(await snapshotPglite(old));
+    await old.close();
+
+    pg = new PGlite();
+    await migratePglite(pg, all);
+    expect(await restorePglite(pg, all, snapshot)).toEqual([all.at(-1)!.name]);
+    expect(await count(pg, "troupe_project")).toBe(1);
+    expect(await recorded(pg)).toEqual(all.map((m) => m.name));
+  });
+
+  it("refuses a snapshot from a newer build and changes nothing", async () => {
+    const { pg } = await studioWithProject();
+    const snapshot = throughJson(await snapshotPglite(pg));
+    const newer = { ...snapshot, migrations: [...snapshot.migrations, "9999_from-the-future.sql"] };
+    await expect(restorePglite(pg, readMigrations(), newer)).rejects.toBeInstanceOf(BackupTooNewError);
+    expect(await count(pg, "troupe_project")).toBe(1);
+  });
+
+  it("rolls back entirely when the rows do not fit", async () => {
+    const { pg } = await studioWithProject();
+    const snapshot = throughJson(await snapshotPglite(pg));
+    const broken = { ...snapshot, tables: { ...snapshot.tables, troupe_project: [{ id: "not-a-uuid" }] } };
+    await expect(restorePglite(pg, readMigrations(), broken)).rejects.toThrow();
+    const unknown = { ...snapshot, tables: { ...snapshot.tables, troupe_nothing: [] } };
+    await expect(restorePglite(pg, readMigrations(), unknown)).rejects.toThrow(/troupe_nothing/);
+    expect(throughJson(await snapshotPglite(pg))).toEqual(snapshot);
   });
 });

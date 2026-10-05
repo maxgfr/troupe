@@ -1,7 +1,7 @@
 import type { ProposalJsonSchema } from "./proposal";
 
 // The seam between the chat and whatever model answers it: Ollama or Claude
-// in the self-hosted studio (src/server/chat), WebLLM in the browser demo
+// in the self-hosted studio (src/server/chat), WebLLM in the browser edition
 // (site/src/chat). The router only ever sees ctx.chat.
 
 export interface ChatTurn {
@@ -55,7 +55,7 @@ export interface ChatConnectionReport {
 }
 
 // Studio-wide chat preferences saved in Settings. Unset fields fall back to
-// the environment (self-hosted) or the build's settings (demo).
+// the environment (self-hosted) or the build's settings (browser edition).
 export interface ChatSettings {
   provider?: "auto" | "ollama" | "anthropic";
   ollamaUrl?: string;

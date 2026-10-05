@@ -17,13 +17,13 @@ programs under other licenses:
   carry their own licenses (LTX-2: LTX-2 Community License Agreement, free for
   commercial use under a revenue threshold; Wan 2.2:
   Apache 2.0).
-- **Kokoro-82M voice model.** The in-browser renderer (static demo) and the
+- **Kokoro-82M voice model.** The in-browser renderer (browser edition) and the
   local renderer (`renderer/`) download
   [`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX),
   an ONNX export of [`hexgrad/Kokoro-82M`](https://huggingface.co/hexgrad/Kokoro-82M),
   weights and voice files, from Hugging Face at run time. Both model cards
   declare the Apache License 2.0. Troupe does not distribute the weights.
-- **Speech and video libraries bundled into the static demo** (`site/dist`,
+- **Speech and video libraries bundled into the browser edition** (`site/dist`,
   in the render worker), also used by the local renderer:
   - [kokoro-js](https://github.com/hexgrad/kokoro) 1.2.1: Apache License 2.0.
   - [phonemizer](https://github.com/xenova/phonemizer.js) 1.2.1: published
@@ -39,18 +39,18 @@ programs under other licenses:
   - [Mediabunny](https://github.com/Vanilagy/mediabunny) 1.61: Mozilla Public
     License 2.0. Bundled unmodified; its source is available from that
     repository and npm.
-- **Geist font.** The static demo ships Geist (`@fontsource-variable/geist`)
+- **Geist font.** The browser edition ships Geist (`@fontsource-variable/geist`)
   and draws the video captions with it; the local renderer ships it too
   (`@fontsource/geist-sans`). Geist is licensed under the SIL Open Font
   License 1.1.
 - **Script chat.**
   - [WebLLM](https://github.com/mlc-ai/web-llm) (`@mlc-ai/web-llm`) 0.2.85:
-    Apache License 2.0. Bundled into the static demo (a worker chunk and a
+    Apache License 2.0. Bundled into the browser edition (a worker chunk and a
     chunk loaded when the chat is first used). At run time it fetches the
     model's compiled WebGPU library from
     [mlc-ai/binary-mlc-llm-libs](https://github.com/mlc-ai/binary-mlc-llm-libs)
     (Apache License 2.0).
-  - Qwen2.5-1.5B-Instruct weights, the demo's default chat model, downloaded
+  - Qwen2.5-1.5B-Instruct weights, the browser edition's default chat model, downloaded
     by the visitor's browser from
     [`mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC`](https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC),
     a quantization of [`Qwen/Qwen2.5-1.5B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct),

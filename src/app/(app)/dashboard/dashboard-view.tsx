@@ -14,8 +14,8 @@ export interface DashboardProject {
   createdAt?: string | Date;
 }
 
-// Whether any model can render, and if not, why (the demo's own model says
-// why this browser cannot run it).
+// Whether any model can render, and if not, why (the browser edition's own
+// model says why this browser cannot run it).
 export type ModelReadiness = { ready: true } | { ready: false; reason?: string | null };
 
 // Cobalt while the studio works on it, green once a video is ready, quiet
@@ -39,14 +39,14 @@ export function StageChip({ status }: { status: string }) {
 
 // Said once, above the projects: nothing will render until a model is ready.
 function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
-  const demo = useEdition().kind === "demo";
+  const browser = useEdition().kind === "browser";
   if (readiness.ready) return null;
   return (
     <ProviderWarning>
-      {demo ? (
+      {browser ? (
         <>
-          {readiness.reason ?? "This browser cannot render videos."} You can still write projects and scripts here;{" "}
-          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">run Troupe on your machine ↗</a> to render them.
+          {readiness.reason ?? "This browser cannot render videos."} You can still write projects and scripts here; to render them on your machine,{" "}
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">set up the self-hosted studio ↗</a>.
         </>
       ) : (
         <>
@@ -59,7 +59,7 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
 
 // Pure view — testable without tRPC (screens.test.tsx).
 export function DashboardView({ projects, readiness = { ready: true } }: { projects: DashboardProject[]; readiness?: ModelReadiness }) {
-  const demo = useEdition().kind === "demo";
+  const browser = useEdition().kind === "browser";
   if (projects.length === 0) {
     return (
       <div className="space-y-4">
@@ -67,7 +67,7 @@ export function DashboardView({ projects, readiness = { ready: true } }: { proje
         <EmptyState
           title="Create your first project"
           body={
-            demo
+            browser
               ? "Pick a platform, format, language and actor, write a short script, then render it right here. Everything you make is saved in this browser."
               : "Pick a platform, format, language and actor, then write a short script and render it with your model."
           }

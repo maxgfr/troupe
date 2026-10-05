@@ -61,6 +61,8 @@ async function renderThroughTroupe(baseUrl: string, request: CreateJobRequest) {
     const job = await adapter.getJob!(providerJobId);
     if (job.kind === "completed") {
       if (!job.outputUrl) throw new Error("The job completed without a video URL.");
+      // Every renderer video shows the script's captions in the picture.
+      if (job.captions !== "burned") throw new Error("The job did not say its captions are burned in.");
       return Buffer.from(await adapter.downloadResult!(job.outputUrl));
     }
     if (job.kind === "failed") throw new Error(`The renderer failed the job: ${job.detail}`);

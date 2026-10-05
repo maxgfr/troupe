@@ -106,6 +106,26 @@ describe("job orchestration — Postgres reconciliation queue", () => {
     expect(await watchOf(gen.id)).toBeUndefined();
   });
 
+  it("keeps the progress a model reports while the job runs, and clears it at the end", async () => {
+    const gen = await launchWatched(testAdapter("orch-progress"));
+    await makeDue(gen.id);
+    await reconcileDueJobs(t.db, { adapters: [testAdapter("orch-progress", async () => ({ kind: "pending", progress: 0.42 }))] });
+    expect((await genOf(gen.id)).progress).toBeCloseTo(0.42);
+    await makeDue(gen.id);
+    await reconcileDueJobs(t.db, { adapters: [testAdapter("orch-progress", async () => ({ kind: "pending", progress: 7 }))] });
+    expect((await genOf(gen.id)).progress).toBe(1);
+    await makeDue(gen.id);
+    await reconcileDueJobs(t.db, { adapters: [testAdapter("orch-progress", async () => ({ providerJobId: "orch-progress", kind: "completed", eventType: "done", captions: "burned" }))] });
+    expect(await genOf(gen.id)).toMatchObject({ status: "completed", progress: null, burnedCaptions: true });
+  });
+
+  it("a video without captions of its own keeps the player's captions", async () => {
+    const gen = await launchWatched(testAdapter("orch-plain"));
+    await makeDue(gen.id);
+    await reconcileDueJobs(t.db, { adapters: [testAdapter("orch-plain", async () => ({ providerJobId: "orch-plain", kind: "completed", eventType: "done" }))] });
+    expect(await genOf(gen.id)).toMatchObject({ status: "completed", burnedCaptions: false });
+  });
+
   it("a failed poll records the failure and disarms the watch", async () => {
     const gen = await launchWatched(testAdapter("orch-4"));
     await makeDue(gen.id);

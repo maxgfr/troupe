@@ -155,6 +155,11 @@ export async function reconcileDueJobs(
         continue;
       }
 
+      // What the model said about how far along it is, for the timeline.
+      if (status.kind === "pending" && status.progress !== undefined && Number.isFinite(status.progress)) {
+        await tx.update(generations).set({ progress: Math.min(1, Math.max(0, status.progress)) }).where(eq(generations.id, gen.id));
+      }
+
       const attempts = watch.attempts + 1;
       await tx
         .update(generationWatches)

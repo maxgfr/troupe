@@ -41,12 +41,12 @@ it("retries a failed download without resubmitting, validates a real MP4, persis
   const exported = await caller.export.create({ projectId: fixture.projectId, generationId: gen.id, platform: "tiktok", caption: "A test clip", hashtags: [], qualityConfirmed: true });
   expect(exported.qualityConfirmedBy).toBe("55555555-5555-4555-8555-555555555555");
   expect(exported.downloadUrl).toBe(`/api/media/${asset!.id}?download=1`);
-  const partial = await serveMediaFile(asset!.storagePath, "bytes=0-15", false);
+  const partial = await serveMediaFile(asset!.storagePath, "bytes=0-15", null);
   expect(partial.status).toBe(206);
   expect(Buffer.from(await partial.arrayBuffer())).toEqual(bytes.subarray(0, 16));
-  expect((await serveMediaFile(asset!.storagePath, "bytes=9999999-", false)).status).toBe(416);
-  const full = await serveMediaFile(asset!.storagePath, null, true);
-  expect(full.headers.get("content-disposition")).toContain("attachment");
+  expect((await serveMediaFile(asset!.storagePath, "bytes=9999999-", null)).status).toBe(416);
+  const full = await serveMediaFile(asset!.storagePath, null, "spring-drop-2026-10-05.mp4");
+  expect(full.headers.get("content-disposition")).toBe('attachment; filename="spring-drop-2026-10-05.mp4"');
   expect(Buffer.from(await full.arrayBuffer())).toEqual(bytes);
-  await expect(serveMediaFile("../outside.mp4", null, false)).rejects.toThrow("Invalid media path");
+  await expect(serveMediaFile("../outside.mp4", null, null)).rejects.toThrow("Invalid media path");
 });

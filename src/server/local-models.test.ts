@@ -47,6 +47,21 @@ afterEach(async () => {
 const caps = { aspectRatios: ["9:16" as const], resolutions: ["720p" as const], durationsS: [8], audio: "optional" as const, dialogueLanguages: null };
 const caller = async () => testCaller({ db: t.db, userId: USER, catalog: await loadModelCatalog(t.db) });
 
+describe("local model names", () => {
+  it("refuses a name another model already has, whatever its case", async () => {
+    const draft = { family: "http" as const, label: "Twin box", baseUrl: "http://127.0.0.1:9", capabilities: caps };
+    const { modelKey } = await (await caller()).settings.models.createLocal(draft);
+    await expect((await caller()).settings.models.createLocal({ ...draft, label: "  twin BOX " }))
+      .rejects.toMatchObject({ code: "BAD_REQUEST", message: "A model is already called “Twin box”. Give this one another name so you can tell them apart." });
+    // A built-in model's name is taken too.
+    await expect((await caller()).settings.models.createLocal({ ...draft, label: "Veo 3.1 Fast" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const other = await (await caller()).settings.models.createLocal({ ...draft, label: "Other box" });
+    await expect((await caller()).settings.models.updateLocal({ modelKey: other.modelKey, label: "twin box" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    // Renaming a model to its own name (or its own name in another case) is fine.
+    await (await caller()).settings.models.updateLocal({ modelKey, label: "Twin Box" });
+  });
+});
+
 describe("local models end to end", () => {
   it("adds an HTTP model with a sealed token and renders through it to a stored MP4", async () => {
     const clip = await readFile("src/test/fixtures/clip.mp4");

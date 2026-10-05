@@ -17,8 +17,17 @@ worker.addEventListener("fetch", (/** @type {any} */ event) => {
   const prefix = new URL("media/", worker.registration.scope).pathname;
   if (event.request.method !== "GET" || url.origin !== worker.location.origin || !url.pathname.startsWith(prefix)) return;
   const id = decodeURIComponent(url.pathname.slice(prefix.length));
-  event.respondWith(serve(id, event.request.headers.get("range"), url.searchParams.has("download")));
+  event.respondWith(serve(id, event.request.headers.get("range"), url.searchParams.get("download")));
 });
+
+// Mirrors mediaDisposition in src/server/media/store.ts.
+/** @param {string | null} download @param {string} ext */
+function disposition(download, ext) {
+  if (download === null) return `inline; filename="troupe-video.${ext}"`;
+  const stem = download.replace(/\.(mp4|webm)$/i, "");
+  const safe = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(stem) && stem !== "1" ? stem : "troupe-video";
+  return `attachment; filename="${safe}.${ext}"`;
+}
 
 /** @param {string} id @returns {Promise<{ id: string, storagePath: string, blob: Blob } | undefined>} */
 function readFile(id) {
@@ -38,7 +47,7 @@ function readFile(id) {
 /**
  * @param {string} id
  * @param {string | null} range
- * @param {boolean} download
+ * @param {string | null} download the URL's download query: null plays inline
  */
 async function serve(id, range, download) {
   const file = await readFile(id).catch(() => undefined);
@@ -51,7 +60,7 @@ async function serve(id, range, download) {
     "accept-ranges": "bytes",
     "cache-control": "private, no-store",
     "x-content-type-options": "nosniff",
-    "content-disposition": `${download ? "attachment" : "inline"}; filename="troupe-video.${type.includes("webm") ? "webm" : "mp4"}"`,
+    "content-disposition": disposition(download, type.includes("webm") ? "webm" : "mp4"),
   });
   let start = 0;
   let end = size - 1;

@@ -96,6 +96,13 @@ function normalize(input: LocalInput): { capabilities: ModelCapabilities; connec
   };
 }
 
+// Two models with one name look the same in every picker: refuse it.
+function assertUniqueName(catalog: { models: { key: string; label: string }[] }, label: string, self?: string) {
+  const wanted = label.trim().toLocaleLowerCase();
+  const twin = catalog.models.find((m) => m.key !== self && m.label.trim().toLocaleLowerCase() === wanted);
+  if (twin) bad(`A model is already called “${twin.label}”. Give this one another name so you can tell them apart.`);
+}
+
 function seal(modelKey: string, token: string) {
   try {
     return sealModelToken(modelKey, token);
@@ -130,6 +137,7 @@ export const localModelProcedures = {
   })),
 
   createLocal: protectedProcedure.input(LocalInput).mutation(async ({ ctx, input }) => {
+    assertUniqueName(ctx.catalog, input.label);
     const { capabilities, connection, timeoutS } = normalize(input);
     const id = newLocalModelKey(input.label);
     await createLocalModel(ctx.db, {
@@ -146,6 +154,7 @@ export const localModelProcedures = {
     .mutation(async ({ ctx, input }) => {
       const row = await getModelConfig(ctx.db, input.modelKey);
       if (!row || (row.family !== "http" && row.family !== "comfyui")) throw new TRPCError({ code: "NOT_FOUND", message: "This local model no longer exists." });
+      if (input.label) assertUniqueName(ctx.catalog, input.label, input.modelKey);
       let connection: Record<string, unknown> | undefined;
       let movedOrigin = false;
       if (input.baseUrl !== undefined) {

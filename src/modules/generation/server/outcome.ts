@@ -16,7 +16,7 @@ export async function applyJobOutcome(tx: Db, gen: { id: string; projectId: stri
   if (mapped.kind === "completed") {
     const rows = await tx
       .update(generations)
-      .set({ status: "completed", errorCode: null, errorDetail: null, completedAt: new Date(), ...(mapped.costUsd !== undefined ? { costUsd: String(mapped.costUsd), costSource: "provider" as const } : {}) })
+      .set({ status: "completed", errorCode: null, errorDetail: null, completedAt: new Date(), progress: null, burnedCaptions: mapped.captions === "burned", ...(mapped.costUsd !== undefined ? { costUsd: String(mapped.costUsd), costSource: "provider" as const } : {}) })
       .where(and(eq(generations.id, gen.id), inArray(generations.status, ["queued", "in_progress"])))
       .returning();
     if (rows.length === 0) return "duplicate";
@@ -28,6 +28,7 @@ export async function applyJobOutcome(tx: Db, gen: { id: string; projectId: stri
     .update(generations)
     .set({
       status: "failed",
+      progress: null,
       errorCode: mapped.errorCode ?? "UNKNOWN",
       errorDetail: mapped.detail ?? null,
       // A failure the provider reported is not billed: drop the launch

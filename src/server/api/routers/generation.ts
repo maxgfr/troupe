@@ -20,9 +20,11 @@ export const generationRouter = createTRPCRouter({
     if (ctx.ingest) await reconcileDueJobs(ctx.db, { adapters: ctx.catalog.adapters, ingest: ctx.ingest, limit: 1 });
     const rows = await listGenerationsForProject(ctx.db, input.projectId);
     const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
+    const relaunched = new Set(rows.map((row) => row.parentGenerationId).filter(Boolean));
     return rows.map((row) => ({
       ...row,
       modelLabel: labels.get(row.modelKey) ?? row.modelId,
+      relaunched: relaunched.has(row.id),
       outputAssetUrl: row.outputAssetId ? ctx.media.urlFor(row.outputAssetId) : null,
     }));
   }),
@@ -35,6 +37,10 @@ export const generationRouter = createTRPCRouter({
       const [failed] = await ctx.db.select().from(generations).where(eq(generations.id, input.generationId)).limit(1);
       if (failed?.status !== "failed") throw new TRPCError({ code: "BAD_REQUEST", message: "Only a failed render can be relaunched." });
       if (!failed.scriptId) throw new TRPCError({ code: "BAD_REQUEST", message: "This render has no script to relaunch from." });
+      // One relaunch per failure: a second one would render (and bill) it
+      // twice. When the relaunch fails too, that newer render is the one to retry.
+      const [retry] = await ctx.db.select({ id: generations.id }).from(generations).where(eq(generations.parentGenerationId, failed.id)).limit(1);
+      if (retry) throw new TRPCError({ code: "BAD_REQUEST", message: "This render was already relaunched. Follow the newer render in the timeline." });
       const { adapter, model } = pickLaunchAdapter(ctx.catalog, failed.modelKey);
       return launchGeneration(ctx.db, {
         projectId: input.projectId,
@@ -46,6 +52,7 @@ export const generationRouter = createTRPCRouter({
         language: failed.language ?? undefined,
         timeoutS: model.timeoutS,
         estimatedCostUsd: estimateCostUsd(model, failed.durationS),
+        parentGenerationId: failed.id,
       });
     }),
 

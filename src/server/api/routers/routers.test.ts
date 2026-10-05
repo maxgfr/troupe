@@ -70,6 +70,24 @@ describe("script router", () => {
     expect(updated.lines[0]!.emotion).toBe("excited");
   });
 
+  it("retags the newest version in place until a render or the chat uses it, then adds a version", async () => {
+    const own = await seedFixture(t.db, { userId: MEMBER, name: "Retag" });
+    const versions = async () => (await asMember().script.history({ projectId: own.projectId })).map((v) => v.version);
+    const first = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "excited" });
+    const second = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "calm" });
+    expect([first.id, second.id]).toEqual([own.scriptId, own.scriptId]);
+    expect(await versions()).toEqual([1]);
+
+    // Once rendered, a version stays as it was rendered.
+    await asMember().generation.launchText({ projectId: own.projectId, scriptId: own.scriptId, modelKey: "veo", tier: "draft", durationS: 8, resolution: "720p" });
+    const third = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "happy" });
+    expect(third.id).not.toBe(own.scriptId);
+    expect(await versions()).toEqual([1, 2]);
+    // Retagging an older version always makes a new one.
+    const fourth = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "serious" });
+    expect(fourth.version).toBe(3);
+  });
+
   it("a stranger cannot read the script", async () => {
     await expect(asStranger().script.history({ projectId: fx.projectId })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
@@ -114,6 +132,20 @@ describe("generation router", () => {
     await expect(testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: again.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("relaunches a failed render once, and the timeline says it was relaunched", async () => {
+    const flaky = fakeAdapter({ modelKey: "once", createJob: async () => { throw new Error("busy"); } });
+    const steady = fakeAdapter({ modelKey: "once" });
+    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "once", tier: "draft", durationS: 6, resolution: "720p" });
+    const again = await testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: failed.id });
+    expect(again.parentGenerationId).toBe(failed.id);
+    await expect(testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: failed.id }))
+      .rejects.toMatchObject({ code: "BAD_REQUEST", message: "This render was already relaunched. Follow the newer render in the timeline." });
+    expect(steady.calls).toHaveLength(1);
+    const timeline = await testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.forProject({ projectId: fx.projectId });
+    expect(timeline.find((g) => g.id === failed.id)).toMatchObject({ relaunched: true });
+    expect(timeline.find((g) => g.id === again.id)).toMatchObject({ relaunched: false, mediaDurationS: null, progress: null, burnedCaptions: false });
+  });
+
   it("BAD_REQUEST when the chosen model has no configured key", async () => {
     const noKeys = testCaller({ db: t.db, userId: MEMBER, adapters: [] });
     await expect(
@@ -150,6 +182,14 @@ describe("benchmark router", () => {
     });
     const view = await asMember().benchmark.get({ workspaceId: fx.workspaceId, runId: started!.id });
     expect(view.projectId).toBe(fx.projectId);
+  });
+
+  it("comparison renders are drafts, like every render until it is exported", async () => {
+    const started = await asMember().benchmark.start({ projectId: fx.projectId, scriptId: fx.scriptId, modelKeys: ["veo", "kling"], durationS: 8, resolution: "720p" });
+    const timeline = await asMember().generation.forProject({ projectId: fx.projectId });
+    const entries = await asMember().benchmark.get({ workspaceId: fx.workspaceId, runId: started!.id });
+    const ids = new Set(entries.entries.map((e) => e.generationId));
+    expect(timeline.filter((g) => ids.has(g.id)).map((g) => g.tier)).toEqual(["draft", "draft"]);
   });
 });
 

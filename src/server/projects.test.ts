@@ -8,7 +8,8 @@ import { benchmarkRuns, startBenchmark } from "~/modules/benchmark";
 import { generations, ingestRender, launchGeneration, mediaAssets } from "~/modules/generation";
 import { projects } from "~/modules/studio";
 import { scripts } from "~/modules/script";
-import { deleteProjectData } from "./projects";
+import { testCaller } from "~/test/caller";
+import { deleteProjectData, listProjects } from "./projects";
 
 let t: TestDb;
 beforeAll(async () => { t = await createTestDb(); });
@@ -33,5 +34,36 @@ describe("deleting a project", () => {
     expect(await t.db.select().from(mediaAssets).where(eq(mediaAssets.id, render.id))).toEqual([]);
     expect(await t.db.select().from(benchmarkRuns).where(eq(benchmarkRuns.id, run.id))).toEqual([]);
     expect(await t.db.select().from(generations).where(eq(generations.id, kept.id))).toHaveLength(1);
+  });
+});
+
+describe("project stages on the dashboard", () => {
+  it("move from scripting to rendering, to review once a video is ready, and to done once exported", async () => {
+    const userId = "e3333333-3333-4333-8333-333333333333";
+    const fx = await seedFixture(t.db, { userId, name: "Stages" });
+    const stageOf = async () => (await listProjects(t.db, fx.workspaceId)).find((p) => p.id === fx.projectId)!.status;
+    expect(await stageOf()).toBe("scripting");
+
+    const first = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    expect(await stageOf()).toBe("generating");
+    await finishGeneration(t.db, first.id, { kind: "failed", errorCode: "X" });
+    // A failed render leaves nothing to review.
+    expect(await stageOf()).toBe("scripting");
+
+    const second = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    await finishGeneration(t.db, second.id, { kind: "completed" });
+    expect(await stageOf()).toBe("review");
+
+    // Another render on the way shows first: the studio is busy with it.
+    const third = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    expect(await stageOf()).toBe("generating");
+    await finishGeneration(t.db, third.id, { kind: "completed" });
+
+    await ingestRender(t.db, { generationId: second.id, bytes: 10, checksum: "c", probe: async () => ({ storage: "local" }) });
+    await testCaller({ db: t.db, userId }).export.create({ projectId: fx.projectId, generationId: second.id, platform: "tiktok", caption: "", hashtags: [], qualityConfirmed: true });
+    expect(await stageOf()).toBe("done");
+    // The exported render is the final one; the others stay drafts.
+    const tiers = await t.db.select({ id: generations.id, tier: generations.tier }).from(generations).where(eq(generations.projectId, fx.projectId));
+    expect(tiers.filter((g) => g.tier === "final").map((g) => g.id)).toEqual([second.id]);
   });
 });

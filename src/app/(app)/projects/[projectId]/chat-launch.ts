@@ -19,7 +19,9 @@ export interface ChatLaunchBase {
 export function chatLaunchBase(options: ModelOptionView[], fallback: ModelOptionView | null, previous: PreviousRender | null): ChatLaunchBase | null {
   const again = previous ? options.find((o) => o.key === previous.modelKey && o.available && o.compatible) : undefined;
   if (again && previous) return { model: again, choice: { durationS: previous.durationS, resolution: previous.resolution } };
-  return fallback ? { model: fallback, choice: {} } : null;
+  // Before any render the chat writes for the model's default clip length
+  // (the launch panel would pick the shortest clip the current script needs).
+  return fallback ? { model: fallback, choice: { durationS: fallback.defaults.durationS } } : null;
 }
 
 // The clip length the chat writes for: the plan's length for the current

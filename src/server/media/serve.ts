@@ -2,8 +2,10 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { mediaFilePath } from "./storage";
+import { mediaDisposition } from "./store";
 
-export async function serveMediaFile(storagePath: string, range: string | null, download: boolean) {
+// `download`: the URL's download query (null to play inline), see mediaDisposition.
+export async function serveMediaFile(storagePath: string, range: string | null, download: string | null) {
   const file = mediaFilePath(storagePath);
   const size = (await stat(file)).size;
   const headers = new Headers({
@@ -11,7 +13,7 @@ export async function serveMediaFile(storagePath: string, range: string | null, 
     "accept-ranges": "bytes",
     "cache-control": "private, no-store",
     "x-content-type-options": "nosniff",
-    "content-disposition": `${download ? "attachment" : "inline"}; filename="troupe-video.mp4"`,
+    "content-disposition": mediaDisposition(download),
   });
   let start = 0, end = size - 1;
   if (range) {

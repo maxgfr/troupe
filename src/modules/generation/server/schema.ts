@@ -41,6 +41,13 @@ export const generations = createTable(
     // A readable explanation of a failure, never an upstream body.
     errorDetail: d.text(),
     language: d.text(),
+    // The share of the job done (0–1) as the model last reported it while
+    // the job ran; null when it reports none.
+    progress: d.real(),
+    // The model drew the script's captions into the picture itself, so the
+    // player does not turn its own captions track on.
+    burnedCaptions: d.boolean().notNull().default(false),
+    // The failed render this one relaunched.
     parentGenerationId: d.uuid(),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
     completedAt: d.timestamp({ withTimezone: true }),

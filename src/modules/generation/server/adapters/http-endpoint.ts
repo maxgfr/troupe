@@ -8,7 +8,9 @@ import { videoBytes } from "./download";
 // (docs/LOCAL-MODELS.md):
 //   GET  /health      → { ok, contract: 1, poll_every_s? }
 //   POST /jobs        → { id }   (the body may carry an optional `script`)
-//   GET  /jobs/{id}   → { status: queued|running|succeeded|failed, progress?, error?, video_url? }
+//   GET  /jobs/{id}   → { status: queued|running|succeeded|failed, progress?, error?, video_url?, captions? }
+// `captions: "burned"` on a finished job says the video already shows the
+// script's captions, so the player keeps its own track off.
 export const HTTP_CONTRACT_VERSION = 1;
 export const LOCAL_DOWNLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -32,6 +34,8 @@ const Status = z.object({
   progress: z.number().min(0).max(1).optional(),
   error: z.unknown().optional(),
   video_url: z.string().optional(),
+  // Anything but "burned" (or nothing) means the video has no captions of its own.
+  captions: z.unknown().optional(),
 });
 const Health = z.object({ ok: z.boolean(), contract: z.number().optional(), poll_every_s: z.unknown().optional() });
 
@@ -117,7 +121,7 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
       if (!sameOrigin(outputUrl, model.baseUrl)) {
         return { kind: "failed", providerJobId, eventType: "local.failed", errorCode: "OUTPUT_FOREIGN_ORIGIN", detail: `${model.label} pointed to a video on another server; serve it from ${origin}.` };
       }
-      return { kind: "completed", providerJobId, eventType: "local.completed", outputUrl };
+      return { kind: "completed", providerJobId, eventType: "local.completed", outputUrl, ...(status.captions === "burned" ? { captions: "burned" as const } : {}) };
     },
     async downloadResult(url) {
       if (!sameOrigin(url, model.baseUrl)) throw new Error(`Refusing to download a video from another origin than ${origin}.`);

@@ -4,6 +4,7 @@ import type { Db } from "~/server/db/types";
 import { attachActorToProject } from "~/modules/actors";
 import { canLaunch, type ResolvedModel } from "~/modules/models";
 import { projects } from "./schema";
+import { platformName } from "../platforms";
 
 export type Format = "9:16" | "1:1" | "16:9";
 export type Platform = "instagram" | "youtube" | "tiktok" | "linkedin";
@@ -30,7 +31,7 @@ export function formatOptionsFor(platform: Platform): FormatOption[] {
     preselected: format === preferred,
     ...(format === preferred
       ? {}
-      : { warning: `${platform} prefers ${preferred} — a ${format} video may need cropping or letterboxing in your video editor` }),
+      : { warning: `${platformName(platform)} prefers ${preferred} — a ${format} video may need cropping or letterboxing in your video editor` }),
   }));
 }
 

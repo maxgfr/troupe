@@ -22,6 +22,8 @@ export interface LaunchInput {
   // Defaults to on whenever the model can speak.
   audio?: boolean;
   language?: string;
+  // The failed render this launch tries again.
+  parentGenerationId?: string;
 }
 
 // Validate everything and compile the prompt; nothing is written or sent yet.
@@ -62,6 +64,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
       scriptId: input.scriptId, actorId: actor.id, actorAssetVersion: actor.assetVersion,
       prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution,
       language: input.language,
+      ...(input.parentGenerationId ? { parentGenerationId: input.parentGenerationId } : {}),
       ...(input.estimatedCostUsd != null ? { costUsd: String(input.estimatedCostUsd), costSource: "estimate" as const } : {}),
     },
     request: { prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution, audio, script: jobScript },

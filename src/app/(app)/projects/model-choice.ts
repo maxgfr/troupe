@@ -47,10 +47,12 @@ export function launchSettings(option: ModelOptionView, estimatedS: number, choi
   const caps = option.capabilities;
   const durations = caps.durationsS.filter((d) => d >= estimatedS);
   const longestS = Math.max(0, ...caps.durationsS);
-  const preferredDuration = [choice.durationS, option.defaults.durationS].find((d) => d != null && durations.includes(d));
+  // The script sets the length: the shortest clip that fits it, as a
+  // comparison picks, unless the user chose another one.
+  const chosen = choice.durationS != null && durations.includes(choice.durationS) ? choice.durationS : null;
   return {
     durations,
-    durationS: preferredDuration ?? durations[0] ?? null,
+    durationS: chosen ?? durations[0] ?? null,
     resolution: choice.resolution && caps.resolutions.includes(choice.resolution) ? choice.resolution : option.defaults.resolution,
     audioToggle: caps.audio === "optional",
     audio: caps.audio === "always" ? true : caps.audio === "none" ? false : (choice.audio ?? option.defaults.audio),

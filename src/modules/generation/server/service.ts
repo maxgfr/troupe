@@ -32,11 +32,18 @@ export async function ingestRender(db: Db, input: { generationId: string; bytes:
   return render!;
 }
 
-// The project timeline: every launch with its status and provider, newest first.
+// The project timeline: every launch with its status and provider, newest
+// first, with the saved video's real length once there is one (a model may
+// make it longer or shorter than the clip length asked for).
 export async function listGenerationsForProject(db: Db, projectId: string) {
-  return db
-    .select()
+  const rows = await db
+    .select({ generation: generations, meta: mediaAssets.meta })
     .from(generations)
+    .leftJoin(mediaAssets, eq(mediaAssets.id, generations.outputAssetId))
     .where(eq(generations.projectId, projectId))
     .orderBy(desc(generations.createdAt));
+  return rows.map(({ generation, meta }) => {
+    const probed = Number(meta?.durationS);
+    return { ...generation, mediaDurationS: Number.isFinite(probed) && probed > 0 ? probed : null };
+  });
 }

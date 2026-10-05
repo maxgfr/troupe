@@ -4,6 +4,7 @@ import type { Db } from "~/server/db/types";
 import type { MediaLinks } from "~/server/media/store";
 import { generations, mediaAssets } from "~/modules/generation";
 import { exportRecords } from "./schema";
+import { platformName } from "~/modules/studio";
 
 export type ExportPlatform = "instagram" | "youtube" | "tiktok" | "linkedin";
 
@@ -28,10 +29,10 @@ export async function checkExportSpecs(db: Db, input: { generationId: string; pl
   const spec = PLATFORM_SPECS[input.platform];
   const mismatches: string[] = [];
   if (!spec.formats.includes(gen.aspectRatio)) {
-    mismatches.push(`the video is ${gen.aspectRatio} but ${input.platform} documents ${spec.formats.join(" or ")}`);
+    mismatches.push(`the video is ${gen.aspectRatio} but ${platformName(input.platform)} documents ${spec.formats.join(" or ")}`);
   }
   if (gen.durationS > spec.maxDurationS) {
-    mismatches.push(`the video is ${gen.durationS}s but ${input.platform} caps at ${spec.maxDurationS}s`);
+    mismatches.push(`the video is ${gen.durationS}s but ${platformName(input.platform)} caps at ${spec.maxDurationS}s`);
   }
   return { ok: mismatches.length === 0, mismatches, spec };
 }
@@ -53,7 +54,7 @@ export async function createExport(db: Db, input: CreateExportInput, media: Medi
   }
   const check = await checkExportSpecs(db, { generationId: input.generationId, platform: input.platform });
   if (!check.ok && !input.acknowledgeSpecMismatch) {
-    throw new Error(`This video does not match ${input.platform}'s specs: ${check.mismatches.join("; ")}. Confirm to export anyway.`);
+    throw new Error(`This video does not match ${platformName(input.platform)}'s specs: ${check.mismatches.join("; ")}. Confirm to export anyway.`);
   }
   const [render] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, gen.outputAssetId!)).limit(1);
   const [record] = await db
@@ -69,5 +70,7 @@ export async function createExport(db: Db, input: CreateExportInput, media: Medi
       qualityConfirmedBy: input.qualityConfirmedBy,
     })
     .returning();
+  // A render is a draft until it is exported: the exported one is final.
+  await db.update(generations).set({ tier: "final" }).where(eq(generations.id, gen.id));
   return { ...record!, downloadUrl: media.urlFor(gen.outputAssetId!, { download: true }) };
 }

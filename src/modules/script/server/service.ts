@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
@@ -140,11 +140,18 @@ async function loadScript(db: Db, scriptId: string): Promise<ScriptWithLines> {
   };
 }
 
-// Retagging appends a new immutable version.
-export async function setLineEmotion(db: Db, input: { scriptId: string; lineIndex: number; emotion: Emotion }): Promise<ScriptWithLines> {
+// Retagging appends a new version. `amend` retags the version in place
+// instead: for the newest version while nothing (a render, the chat) refers
+// to it yet, so trying emotions does not pile up versions. The caller decides.
+export async function setLineEmotion(db: Db, input: { scriptId: string; lineIndex: number; emotion: Emotion; amend?: boolean }): Promise<ScriptWithLines> {
   const current = await loadScript(db, input.scriptId);
   const target = current.lines.find((l) => l.index === input.lineIndex);
   if (!target) throw new Error(`line ${input.lineIndex} not found on script ${input.scriptId}`);
+  if (input.amend) {
+    validateLines([{ role: target.role, text: target.text, emotion: input.emotion }]);
+    await db.update(scriptLines).set({ emotion: input.emotion }).where(and(eq(scriptLines.scriptId, input.scriptId), eq(scriptLines.index, input.lineIndex)));
+    return loadScript(db, input.scriptId);
+  }
   const lines: DraftLine[] = current.lines.map((l) => ({
     role: l.role,
     text: l.text,

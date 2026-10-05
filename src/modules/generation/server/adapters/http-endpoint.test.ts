@@ -35,8 +35,19 @@ describe("generic HTTP endpoint adapter", () => {
     expect(await adapter.getJob!(providerJobId)).toEqual({ kind: "pending", progress: 0.4 });
     const done = await adapter.getJob!(providerJobId);
     expect(done).toMatchObject({ kind: "completed", outputUrl: `${server.url}/files/job-1.mp4` });
+    expect(done).not.toHaveProperty("captions");
     const bytes = await adapter.downloadResult!(`${server.url}/files/job-1.mp4`);
     expect(Buffer.from(bytes).equals(clip)).toBe(true);
+  });
+
+  it("passes on a finished job's burned-in captions, and nothing else it says about captions", async () => {
+    let answer: Record<string, unknown> = { status: "succeeded", video_url: "/files/a.mp4", captions: "burned" };
+    const server = await startServer((_r, res) => json(res, 200, answer));
+    close = server.close;
+    const adapter = createHttpEndpointAdapter({ model: model(server.url) });
+    expect(await adapter.getJob!("a")).toMatchObject({ kind: "completed", captions: "burned" });
+    answer = { status: "succeeded", video_url: "/files/a.mp4", captions: "soft" };
+    expect(await adapter.getJob!("a")).not.toHaveProperty("captions");
   });
 
   it("sends the structured script with the job, in the contract's snake_case", async () => {

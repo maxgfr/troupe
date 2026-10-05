@@ -22,3 +22,15 @@ export interface MediaStore extends MediaLinks {
 export const apiMediaLinks: MediaLinks = {
   urlFor: (assetId, opts) => `/api/media/${assetId}${opts?.download ? "?download=1" : ""}`,
 };
+
+export const DEFAULT_DOWNLOAD_NAME = "troupe-video";
+
+// The `download` query of a media URL: absent plays the file inline; "1" or
+// a name that is not a plain file name saves it as troupe-video.<ext>;
+// otherwise the browser saves it under that name. Mirrored in site/public/sw.js.
+export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = "mp4"): string {
+  if (download === null) return `inline; filename="${DEFAULT_DOWNLOAD_NAME}.${ext}"`;
+  const stem = download.replace(/\.(mp4|webm)$/i, "");
+  const safe = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(stem) && stem !== "1" ? stem : DEFAULT_DOWNLOAD_NAME;
+  return `attachment; filename="${safe}.${ext}"`;
+}

@@ -22,11 +22,13 @@ describe("pickModel", () => {
 });
 
 describe("launchSettings", () => {
-  it("offers only clip lengths long enough for the script", () => {
+  it("offers only clip lengths long enough for the script, the shortest first, as a comparison does", () => {
     const s = launchSettings(option("veo"), 5);
     expect(s.durations).toEqual([6, 8]);
-    expect(s.durationS).toBe(8);
-    expect(launchSettings(option("veo"), 5, { durationS: 6 }).durationS).toBe(6);
+    // The model's default (8 s) does not win over the script's own length.
+    expect(s.durationS).toBe(6);
+    expect(s.durationS).toBe(comparisonPlan([option("veo"), option("kling")], 5).ok ? 6 : null);
+    expect(launchSettings(option("veo"), 5, { durationS: 8 }).durationS).toBe(8);
   });
 
   it("flags a script longer than the longest clip", () => {

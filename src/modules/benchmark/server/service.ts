@@ -29,7 +29,7 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
   }
   const prepared = await Promise.all(input.models.map(({ adapter, timeoutS, estimatedCostUsd }) => prepareGeneration(db, {
     projectId: input.projectId, scriptId: input.scriptId, adapter, timeoutS, estimatedCostUsd,
-    tier: "final", durationS: input.durationS, resolution: input.resolution,
+    tier: "draft", durationS: input.durationS, resolution: input.resolution,
   })));
   // Persist the complete comparison first, including failed submissions.
   const { run, jobs } = await db.transaction(async (tx) => {
@@ -72,6 +72,8 @@ export interface BenchmarkEntryView {
   latencyMs: number | null;
   durationS: number;
   outputAssetUrl: string | null;
+  // The model drew the captions into the picture.
+  burnedCaptions: boolean;
   votes: Record<string, number>;
   meanScore: number | null;
 }
@@ -176,6 +178,7 @@ export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) 
       latencyMs: gen.completedAt ? gen.completedAt.getTime() - gen.createdAt.getTime() : null,
       durationS: gen.durationS,
       outputAssetUrl: gen.outputAssetId ? media.urlFor(gen.outputAssetId) : null,
+      burnedCaptions: gen.burnedCaptions,
       votes: e.qualityVotes,
       meanScore: votes.length ? votes.reduce((a, b) => a + b, 0) / votes.length : null,
     });

@@ -11,3 +11,5 @@ export {
 } from "./server/service";
 export type { Format, Platform, FormatOption, ModelOption } from "./server/service";
 export { projects } from "./server/schema";
+export { projectStage, STAGE_LABELS, type ProjectStage } from "./stage";
+export { PLATFORMS, platformName, type PlatformId } from "./platforms";

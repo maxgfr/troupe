@@ -120,7 +120,8 @@ export function createRendererServer(options: RendererOptions): Server {
     if (req.method === "GET" && job) {
       const state = jobs.get(job[1]!);
       if (!state) return send(res, 404, { error: "unknown job" });
-      return send(res, 200, { ...state, ...(state.status === "succeeded" ? { video_url: `/files/${job[1]}.mp4` } : {}) });
+      // Both modes draw the script's captions into the picture.
+      return send(res, 200, { ...state, ...(state.status === "succeeded" ? { video_url: `/files/${job[1]}.mp4`, captions: "burned" } : {}) });
     }
     const file = /^\/files\/([0-9a-f-]+\.mp4)$/.exec(path);
     if (req.method === "GET" && file) {

@@ -43,6 +43,16 @@ describe("script editing with emotion tags", () => {
     expect(history.find((s) => s.id === v1.id)!.lines[0]!.emotion).toBe("neutral");
   });
 
+  it("amending retags the version in place instead of adding one", async () => {
+    const v1 = await pasteScript(t.db, { projectId, text: "Amend me.\nAnd me." });
+    const same = await setLineEmotion(t.db, { scriptId: v1.id, lineIndex: 1, emotion: "calm", amend: true });
+    expect(same).toMatchObject({ id: v1.id, version: v1.version });
+    expect(same.lines.map((l) => l.emotion)).toEqual(["neutral", "calm"]);
+    const history = await getScriptHistory(t.db, projectId);
+    expect(history.at(-1)!.id).toBe(v1.id);
+    expect(history.at(-1)!.lines.map((l) => l.emotion)).toEqual(["neutral", "calm"]);
+  });
+
   it("an unsupported emotion is rejected", async () => {
     const v1 = await pasteScript(t.db, { projectId, text: "x" });
     await expect(setLineEmotion(t.db, { scriptId: v1.id, lineIndex: 0, emotion: "sarcastic" as never })).rejects.toThrowError(/unsupported emotion/i);

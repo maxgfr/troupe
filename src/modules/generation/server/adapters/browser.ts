@@ -69,7 +69,8 @@ export function createBrowserAdapter(deps: { renderer: BrowserRenderer; modelKey
       if (!state) {
         return { kind: "failed", providerJobId, eventType: "browser.failed", errorCode: "BROWSER_JOB_MISSING", detail: "This render is no longer in this browser. Relaunch it." };
       }
-      if (state.status === "succeeded") return { kind: "completed", providerJobId, eventType: "browser.completed", outputUrl: `${OUTPUT_PREFIX}${providerJobId}` };
+      // The scene draws the captions into every frame.
+      if (state.status === "succeeded") return { kind: "completed", providerJobId, eventType: "browser.completed", outputUrl: `${OUTPUT_PREFIX}${providerJobId}`, captions: "burned" };
       if (state.status === "failed") return { kind: "failed", providerJobId, eventType: "browser.failed", errorCode: "BROWSER_RENDER_FAILED", detail: state.detail };
       return { kind: "pending", ...(state.progress !== undefined ? { progress: state.progress } : {}) };
     },

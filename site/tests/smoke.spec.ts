@@ -49,7 +49,7 @@ test("landing → dashboard → new project → script, kept across reloads and 
 
   await page.getByLabel(/Write or paste your script/).fill("Stop scrolling for a second.\nThis studio runs in your browser.\nTry it tonight.");
   await page.getByRole("button", { name: "Save as new version" }).click();
-  await expect(page.getByText(/version 1 · origin/)).toBeVisible();
+  await expect(page.getByText(/version 1 · written here/)).toBeVisible();
 
   // Persistence: the script is read back from IndexedDB after a reload.
   await page.reload();
@@ -89,6 +89,8 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
     const ranged = await fetch("/troupe/app/media/smoke-asset", { headers: { range: "bytes=100-199" } });
     const body = new Uint8Array(await ranged.arrayBuffer());
     const download = await fetch("/troupe/app/media/smoke-asset?download=1");
+    const named = await fetch("/troupe/app/media/smoke-asset?download=smoke-project-kokoro-2026-10-05-0945.mp4");
+    const unsafe = await fetch("/troupe/app/media/smoke-asset?download=..%2Fsecret.mp4");
     const missing = await fetch("/troupe/app/media/nothing-here");
     return {
       status: ranged.status,
@@ -97,6 +99,8 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
       first: body[0],
       downloadStatus: download.status,
       disposition: download.headers.get("content-disposition"),
+      namedDisposition: named.headers.get("content-disposition"),
+      unsafeDisposition: unsafe.headers.get("content-disposition"),
       missing: missing.status,
     };
   });
@@ -107,6 +111,9 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
     first: 100,
     downloadStatus: 200,
     disposition: 'attachment; filename="troupe-video.mp4"',
+    // A link names the file it saves; anything but a plain name falls back.
+    namedDisposition: 'attachment; filename="smoke-project-kokoro-2026-10-05-0945.mp4"',
+    unsafeDisposition: 'attachment; filename="troupe-video.mp4"',
     missing: 404,
   });
 });

@@ -136,6 +136,8 @@ export interface JobOutcome {
   detail?: string;
   costUsd?: number;
   outputUrl?: string;
+  // The video already shows the script's captions, drawn into the picture.
+  captions?: "burned";
 }
 
 export interface PromptLine {

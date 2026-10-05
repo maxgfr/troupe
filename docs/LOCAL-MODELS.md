@@ -92,7 +92,9 @@ instead of waiting for it.
 
 Any server, in any language, can be a Troupe model by answering three
 requests. `examples/http-model/server.mjs` is a working example (it renders a
-test pattern with ffmpeg) to start from.
+test pattern with ffmpeg) to start from. It is a demo, not a service: its
+MP4s pile up in the OS temp folder (`troupe-example-model`) and finished jobs
+stay in memory until it stops, so restart it or empty that folder now and then.
 
 All requests carry `Authorization: Bearer <token>` when a token is set.
 
@@ -169,10 +171,16 @@ Answer with an id:
 
 `status` is `queued`, `running`, `succeeded` or `failed`. On success add
 `video_url`; on failure, `error` (a short message shown to the user).
+`progress` (0 to 1, optional) fills the bar under the render on the project
+page while the job runs.
 
 ```json
-{ "status": "succeeded", "video_url": "/files/job-123.mp4" }
+{ "status": "succeeded", "video_url": "/files/job-123.mp4", "captions": "burned" }
 ```
+
+`captions` is optional: `"burned"` says the video already shows the script's
+captions in the picture, so Troupe's player keeps its own captions track off
+(viewers can still turn it on). Leave it out when the video has no captions.
 
 `video_url` may be relative, and must be on the same origin as the server:
 Troupe refuses to follow it anywhere else and does not follow redirects. The
@@ -193,7 +201,9 @@ draft you can listen to, time and share, not a substitute for a video model.
 The video is as long as the script, not the clip length picked at launch:
 0.3 s of silence, each line as long as Kokoro takes to say it with 0.35 s
 between lines, then 0.6 s. The clip length still caps the script, as for any
-model.
+model, and the project page shows the video's real length once it is saved.
+The captions are drawn into the picture, so the player keeps its own captions
+track off for these videos.
 
 ### Run it
 

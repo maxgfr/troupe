@@ -7,7 +7,7 @@ and is type-checked against the server's router, so the two cannot drift.
 Every command prints a table for people or JSON with `--json`, for scripts
 and agents. A Claude Code skill builds on it: [CLAUDE-SKILL.md](CLAUDE-SKILL.md).
 
-It needs Node.js 22 or later and a studio to talk to (`pnpm dev`, Docker,
+The built CLI needs Node.js 22 or later and a studio to talk to (`pnpm dev`, Docker,
 or any deployment you can reach). It does not work with the browser edition,
 which has no server.
 
@@ -22,18 +22,33 @@ npm install -g ./cli                # puts `troupe` on your PATH
 troupe --version
 ```
 
-Without installing it: `node cli/dist/troupe.mjs <command>`, or
-`pnpm --silent troupe <command>` from the checkout (runs the TypeScript
-source directly; relative paths still mean the folder you typed it in).
-The bundle is a single file: copying `cli/dist/troupe.mjs` anywhere with
-Node.js 22 works too. The package is not published to npm.
+Without installing it:
+
+- `node cli/dist/troupe.mjs <command>`; the bundle is one self-contained file,
+  so a copy of it works anywhere with Node.js 22.
+- `npx ./cli <command>` from the checkout, once built; or pack it
+  (`cd cli && npm pack`) and run the tarball from anywhere:
+  `npx --package ./troupe-cli-0.1.0.tgz troupe <command>`.
+- `pnpm --silent troupe <command>` from the checkout runs the TypeScript
+  source with Node's type stripping, which needs Node.js 22.6 or later;
+  relative paths still mean the folder you typed it in.
+
+The package is not published to npm.
 
 ## Sign in
 
 ```bash
 troupe login --url http://127.0.0.1:3000      # pnpm dev
 troupe login --url http://localhost:3100      # Docker Compose
+troupe login --url studio.example.com         # https://studio.example.com
 ```
+
+An address without a scheme means `https://`, except on this machine
+(`localhost`, `127.x.x.x`, `[::1]`), where studios listen on plain http.
+The CLI refuses `http://` to any other host, because the access code and
+the cookie that stands for it would cross the network unencrypted. On a
+network you trust (a studio on your LAN without TLS), pass `--insecure` or
+set `TROUPE_INSECURE=1`; `login --insecure` remembers it for that profile.
 
 `login` asks for the access code without echoing it, sends it to
 `/api/access` like the access page does, and keeps the cookie the studio
@@ -41,8 +56,9 @@ returns, never the code. A studio started with `pnpm dev` and no
 `TROUPE_ACCESS_CODE` lets in requests from its own machine without a code;
 `login` notices and saves the address only.
 
-For scripts, pipe the code in, or set it in the environment (it is then
-exchanged on every command and nothing is saved):
+For scripts, pipe the code in (on a terminal, `--code-stdin` asks without
+echo instead), or set it in the environment, where it is exchanged on every
+command and nothing is saved. `--code-stdin` wins over `TROUPE_ACCESS_CODE`:
 
 ```bash
 printf %s "$CODE" | troupe login --url https://studio.example.com --code-stdin
@@ -57,7 +73,9 @@ Never pass a code or an API key as a command-line argument: shell history and
 Each studio you sign in to is a profile (`default` unless you pass
 `--profile <name>`). Profiles live in `~/.config/troupe/config.json`
 (`$XDG_CONFIG_HOME/troupe`, or `TROUPE_CONFIG_DIR`), written with mode 0600 in
-a 0700 folder:
+a 0700 folder. Commands that change it take a lock file
+(`config.json.lock`) and write a new file before renaming it over the old
+one, so two commands running at once never lose each other's change:
 
 ```json
 { "profile": "default", "profiles": { "default": { "url": "http://127.0.0.1:3000", "cookie": "…", "project": "3808a42c-…" } } }
@@ -76,6 +94,7 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `TROUPE_PROFILE` | the last profile signed in to | profile to use (`--profile` wins) |
 | `TROUPE_PROJECT` | the profile's current project | project for project commands (`--project` wins) |
 | `TROUPE_CONFIG_DIR` | `$XDG_CONFIG_HOME/troupe` or `~/.config/troupe` | where `config.json` lives |
+| `TROUPE_INSECURE` | unset | `1` allows plain `http://` to another machine, like `--insecure` |
 
 ## Conventions
 
@@ -96,11 +115,11 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | Code | Meaning |
 |---|---|
 | 0 | Done (`render watch`: the render completed) |
-| 1 | The studio refused, or the render failed |
+| 1 | Refused (by the studio, or by the CLI: a file that exists, a script too long for its clip), or the render failed |
 | 2 | Wrong command, option or value |
 | 3 | Not signed in, or a wrong access code |
 | 4 | The studio cannot be reached |
-| 5 | `--timeout` passed while a render was still running |
+| 5 | `--timeout` passed while the render was still running; it goes on in the studio, so watch it again rather than launching another |
 
 ## Commands
 
@@ -151,7 +170,7 @@ differs from your terminal's view when the studio runs in Docker
 | `projects use <project>` | Make it the current project. |
 | `projects delete <project> --yes` | Delete it with its scripts, renders and files. |
 | `script show [--version N] [--text]` | A version as a table, or with `--text` in the file format below. |
-| `script set <file\|->` | Save a file (or stdin) as the newest version. |
+| `script set <file\|->` | Save a file (or stdin) as the newest version, lines and emotions in one call. |
 | `script versions` | Every version, oldest first. |
 | `script restore <version>` | Bring a version back as the newest. |
 
@@ -195,7 +214,7 @@ words per second; a launch refuses a script longer than its clip. The JSON
 Launch options: `--model` (default: the project's model, else the studio
 default), `--duration` (default: the model's, grown to the shortest length it
 offers that fits the script; a `--duration` shorter than the script is
-refused before anything is sent), `--resolution` (the model's default),
+refused before anything is sent, `SCRIPT_TOO_LONG`), `--resolution` (the model's default),
 `--audio` / `--no-audio` (the model's default). Polling the project's
 timeline also moves its jobs along, so `render watch` finishes renders even
 on a studio without a background worker.
@@ -208,8 +227,9 @@ result carries the platform's AI-disclosure rule (`disclosure`).
 
 `download` names the file as the studio does
 (`<project>-<model>-<YYYY-MM-DD-HHMM>.mp4`) in the current folder, or in
-`-o <folder>/`, or as `-o <file>`; it never overwrites a file without
-`--force`.
+`-o <folder>/`, or as `-o <file>`. It writes to a temporary
+`<name>.<random>.part` file and renames it when complete, and never
+overwrites a file without `--force` (exit 1, `FILE_EXISTS`).
 
 ## A whole project
 

@@ -4,7 +4,7 @@ import { CliError } from "../errors.ts";
 import { shortId, table, truncate, when } from "../output.ts";
 import { pick } from "../resolve.ts";
 import { estimateSeconds, wordCount } from "../script-format.ts";
-import { LAUNCH_OPTIONS, launchSettings, renderSummary, WATCH_OPTIONS, watchRender } from "./render.ts";
+import { LAUNCH_OPTIONS, launchSettings, renderSummary, validateWatch, WATCH_OPTIONS, watchRender } from "./render.ts";
 import { scriptText } from "./script.ts";
 
 type Message = Outputs["chat"]["history"]["messages"][number];
@@ -112,6 +112,7 @@ const applyAndLaunch: Command = {
   project: true,
   summary: "Apply a proposal and render the new version at once (refused before anything is saved if the script is too long for the clip).",
   options: { ...LAUNCH_OPTIONS, watch: { type: "boolean", description: "Wait for the render to finish." }, ...WATCH_OPTIONS },
+  validate: validateWatch,
   async run(ctx, { positionals, options }) {
     const project = await ctx.project(str(options, "project"));
     const message = await findProposal(ctx, project.id, positionals[0]);

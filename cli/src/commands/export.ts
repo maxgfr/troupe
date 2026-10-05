@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -122,15 +123,16 @@ const download: Command = {
     const name = renderFileName({ project: project.title, model: render.modelLabel, createdAt: render.createdAt });
     const wanted = resolve(ctx.io.cwd, str(options, "output") ?? ".");
     const target = (await exists(wanted)) === "dir" || /[/\\]$/.test(str(options, "output") ?? "") ? join(wanted, name) : wanted;
-    if ((await exists(target)) === "file" && !flag(options, "force")) throw usageError(`${target} already exists. Pass --force to overwrite it or -o to choose another name.`);
+    if ((await exists(target)) === "file" && !flag(options, "force")) throw new CliError(`${target} already exists. Pass --force to overwrite it or -o to choose another name.`, { code: "FILE_EXISTS" });
 
     const response = await fetchMedia(ctx.connection, path);
     if (response.status === 401 || response.status === 403) throw new CliError(`The studio refused the download (HTTP ${response.status}). Run troupe login.`, { exitCode: EXIT.auth, code: "UNAUTHORIZED" });
     if (!response.ok || !response.body) throw new CliError(`The studio could not send the video (HTTP ${response.status}).`, { code: "DOWNLOAD_FAILED" });
-    const partial = `${target}.part`;
+    // A fresh name each time: an existing .part file is someone else's.
+    const partial = `${target}.${randomBytes(4).toString("hex")}.part`;
     try {
       await mkdir(dirname(target), { recursive: true });
-      await pipeline(Readable.fromWeb(response.body as WebReadableStream<Uint8Array>), createWriteStream(partial));
+      await pipeline(Readable.fromWeb(response.body as WebReadableStream<Uint8Array>), createWriteStream(partial, { flags: "wx" }));
       await rename(partial, target);
     } catch (error) {
       await rm(partial, { force: true });

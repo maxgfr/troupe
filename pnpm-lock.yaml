@@ -143,20 +143,19 @@ importers:
         version: 5.2.0
 
   cli:
-    dependencies:
+    devDependencies:
       '@trpc/client':
         specifier: ^11.0.0
         version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
-      superjson:
-        specifier: ^2.2.1
-        version: 2.2.6
-    devDependencies:
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.18.0(typescript@5.9.3)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      superjson:
+        specifier: ^2.2.1
+        version: 2.2.6
 
   renderer:
     dependencies:

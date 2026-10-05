@@ -11,7 +11,7 @@ export const EXIT = {
   auth: 3,
   // The studio cannot be reached.
   unreachable: 4,
-  // `render watch` gave up waiting.
+  // `render watch` stopped waiting; the render goes on in the studio.
   timeout: 5,
 } as const;
 

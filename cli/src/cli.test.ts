@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -6,7 +6,9 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { mainHelp, runCli } from "./cli.ts";
 import type { Io } from "./command.ts";
-import { readConfig, writeConfig } from "./config.ts";
+import { fetchMedia } from "./client.ts";
+import { assertSecureTransport, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
+import { startServer } from "~/test/local-server";
 import { numberRanges, sentence, table } from "./output.ts";
 import { pick } from "./resolve.ts";
 
@@ -76,11 +78,77 @@ describe("command line", () => {
   });
 
   it("checks option values before calling the studio", async () => {
-    expect((await run(["render", "watch", "--interval", "0"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" })).code).toBe(4);
+    expect(await run(["render", "watch", "--interval", "0"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" })).toMatchObject({ code: 2, stderr: "troupe: --interval takes a number of seconds above 0.\n" });
+    expect((await run(["render", "launch", "--watch", "--timeout", "soon"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" })).code).toBe(2);
     const bad = await run(["models", "add", "http", "--name", "Box", "--base-url", "http://10.0.0.5:8000", "--durations", "4,x"]);
     expect(bad).toMatchObject({ code: 2, stderr: 'troupe: --durations takes whole seconds between 1 and 60, not "x".\n' });
     expect((await run(["models", "add", "http", "--name", "Box", "--base-url", "http://10.0.0.5:8000", "--audio", "loud"])).stderr).toContain("--audio takes one of always, optional, none");
     expect((await run(["projects", "list", "--url", "ftp://x"])).stderr).toContain("Use an http:// or https:// address");
+  });
+});
+
+describe("studio address", () => {
+  it("defaults to https, except on this machine", () => {
+    expect(normalizeUrl("studio.example.com")).toBe("https://studio.example.com");
+    expect(normalizeUrl("studio.example.com:8443/troupe/")).toBe("https://studio.example.com:8443/troupe");
+    expect(normalizeUrl("localhost:3100")).toBe("http://localhost:3100");
+    expect(normalizeUrl("127.0.0.1:3000")).toBe("http://127.0.0.1:3000");
+    expect(normalizeUrl("[::1]:3000")).toBe("http://[::1]:3000");
+    expect(normalizeUrl("http://192.168.1.5:3100")).toBe("http://192.168.1.5:3100");
+  });
+
+  it("refuses plain http to another machine unless told the network is trusted", () => {
+    expect(() => assertSecureTransport("http://studio.example.com", false)).toThrow(/studio\.example\.com would receive the access code and the studio's cookie unencrypted/);
+    expect(() => assertSecureTransport("http://localhost.example.com", false)).toThrow();
+    expect(() => assertSecureTransport("http://192.168.1.5:3100", true)).not.toThrow();
+    for (const url of ["https://studio.example.com", "http://127.0.0.1:3000", "http://127.3.0.1", "http://localhost:3100", "http://[::1]:3000"]) {
+      expect(() => assertSecureTransport(url, false)).not.toThrow();
+    }
+  });
+
+  it("stops before any request to a plain-http remote studio", async () => {
+    const result = await run(["projects", "list", "--url", "http://studio.example.com"]);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("--insecure");
+  });
+});
+
+describe("the access cookie", () => {
+  it("goes only to the studio that issued it", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-scope-"));
+    folders.push(dir);
+    const issuer = await startServer((_r, res) => void res.end("{}"));
+    const other = await startServer((_r, res) => void res.end("{}"));
+    try {
+      const env = { TROUPE_CONFIG_DIR: dir, TROUPE_URL: "" };
+      await writeConfig(env, { profile: "default", profiles: { default: { url: issuer.url, cookie: "abc" } } });
+      await run(["whoami"], env);
+      await run(["whoami", "--url", other.url], env);
+      expect(issuer.requests.length).toBeGreaterThan(0);
+      expect(issuer.requests.every((r) => r.headers.cookie === "troupe-access=abc")).toBe(true);
+      expect(other.requests.length).toBeGreaterThan(0);
+      expect(other.requests.some((r) => r.headers.cookie !== undefined)).toBe(false);
+    } finally {
+      await issuer.close();
+      await other.close();
+    }
+  });
+
+  it("is dropped when a download redirects to another origin", async () => {
+    const storage = await startServer((_r, res) => void res.end("video"));
+    const studio = await startServer((_r, res) => {
+      res.writeHead(302, { location: `${storage.url}/file.mp4` });
+      res.end();
+    });
+    try {
+      const response = await fetchMedia({ url: studio.url, cookie: async () => "abc" }, "/api/media/x?download=1");
+      expect(await response.text()).toBe("video");
+      expect(studio.requests[0]!.headers.cookie).toBe("troupe-access=abc");
+      expect(storage.requests[0]!.headers.cookie).toBeUndefined();
+    } finally {
+      await studio.close();
+      await storage.close();
+    }
   });
 });
 
@@ -94,6 +162,25 @@ describe("config file", () => {
     expect((await stat(join(dir, "troupe", "config.json"))).mode & 0o777).toBe(0o600);
     expect((await stat(join(dir, "troupe"))).mode & 0o777).toBe(0o700);
     expect(JSON.parse(await readFile(join(dir, "troupe", "config.json"), "utf8"))).toEqual({ profile: "home", profiles: { home: { url: "http://127.0.0.1:3000", cookie: "c" } } });
+  });
+
+  it("tightens a folder that already existed with looser permissions", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-config-"));
+    folders.push(dir);
+    await mkdir(join(dir, "troupe"));
+    await chmod(join(dir, "troupe"), 0o755);
+    await writeConfig({ TROUPE_CONFIG_DIR: join(dir, "troupe") }, { profiles: {} });
+    expect((await stat(join(dir, "troupe"))).mode & 0o777).toBe(0o700);
+  });
+
+  it("loses no update when several commands change it at once", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-config-"));
+    folders.push(dir);
+    const env = { TROUPE_CONFIG_DIR: dir };
+    await Promise.all(Array.from({ length: 12 }, (_, i) => updateConfig(env, (config) => {
+      config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
+    })));
+    expect(Object.keys((await readConfig(env)).profiles).sort()).toEqual(Array.from({ length: 12 }, (_, i) => `p${i}`).sort());
   });
 });
 

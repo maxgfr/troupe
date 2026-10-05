@@ -121,7 +121,7 @@ afterAll(async () => {
 });
 
 // One CLI invocation, in process, with its own environment.
-async function troupe(args: string[], opts: { stdin?: string; env?: Record<string, string> } = {}) {
+async function troupe(args: string[], opts: { stdin?: string; env?: Record<string, string>; typed?: string } = {}) {
   const out: string[] = [];
   const err: string[] = [];
   const io: Io = {
@@ -129,11 +129,16 @@ async function troupe(args: string[], opts: { stdin?: string; env?: Record<strin
     cwd: folder,
     stdout: (text) => void out.push(text),
     stderr: (text) => void err.push(text),
-    readStdin: async () => opts.stdin ?? "",
-    stdinIsTTY: false,
+    readStdin: async () => {
+      if (opts.typed !== undefined) throw new Error("stdin is a terminal: it must not be read in clear");
+      return opts.stdin ?? "";
+    },
+    // `typed`: stdin is a terminal and this is what the user types at the hidden prompt.
+    stdinIsTTY: opts.typed !== undefined,
     stderrIsTTY: false,
     promptSecret: async () => {
-      throw new Error("no terminal in tests");
+      if (opts.typed === undefined) throw new Error("no terminal in tests");
+      return opts.typed;
     },
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 100))),
   };
@@ -150,9 +155,12 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(JSON.parse(anonymous.stderr)).toMatchObject({ error: { code: "UNAUTHORIZED", exitCode: 3 } });
 
     expect((await troupe(["login", "--url", studio.url, "--code-stdin"], { stdin: "wrong-code" })).code).toBe(3);
-    const login = await troupe(["login", "--url", studio.url, "--code-stdin", "--json"], { stdin: `${CODE}\n` });
+    // --code-stdin wins over TROUPE_ACCESS_CODE.
+    const login = await troupe(["login", "--url", studio.url, "--code-stdin", "--json"], { stdin: `${CODE}\n`, env: { TROUPE_ACCESS_CODE: "stale-code" } });
     expect(login.code).toBe(0);
     expect(login.data()).toEqual({ profile: "default", url: studio.url, access: "code" });
+    // On a terminal, --code-stdin asks without echo instead of reading stdin.
+    expect((await troupe(["login", "--url", studio.url, "--code-stdin"], { typed: CODE })).code).toBe(0);
     // The cookie is saved for its owner only, and the code never is.
     const configFile = join(folder, "config", "config.json");
     expect((await stat(configFile)).mode & 0o777).toBe(0o600);
@@ -181,6 +189,7 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(set.code).toBe(0);
     expect(set.data()).toMatchObject({ version: 1, lines: [{ role: "hook", emotion: "excited" }, { role: "body", emotion: "neutral" }, { role: "cta", emotion: "calm" }] });
     expect((await troupe(["script", "show", "--text"])).stdout).toContain("[excited] Stop scrolling: this jacket packs into its own pocket.");
+    expect((await troupe(["script", "versions", "--json"])).data()).toHaveLength(1);
 
     const sent = await troupe(["chat", "send", "make", "it", "shorter", "--json"]);
     expect(sent.code).toBe(0);
@@ -203,8 +212,11 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(saved.code).toBe(0);
     expect(saved.data().path).toMatch(/renders\/cli-walk-test-renderer-\d{4}-\d{2}-\d{2}-\d{4}\.mp4$/);
     expect(await readFile(saved.data().path)).toEqual(clip);
-    // An existing file is kept unless --force.
-    expect((await troupe(["download", "-o", saved.data().path])).code).toBe(2);
+    // An existing file is kept unless --force: a refusal, exit 1.
+    const kept = await troupe(["download", "-o", saved.data().path, "--json"]);
+    expect(kept.code).toBe(1);
+    expect(JSON.parse(kept.stderr).error.code).toBe("FILE_EXISTS");
+    expect((await troupe(["download", "-o", saved.data().path, "--force"])).code).toBe(0);
 
     expect((await troupe(["export", "create", "--caption", "Spring"])).code).toBe(2);
     const exported = await troupe(["export", "create", "--caption", "Spring", "--hashtag", "jacket", "--confirm-watched", "--json"]);

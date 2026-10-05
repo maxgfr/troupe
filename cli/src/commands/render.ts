@@ -87,10 +87,17 @@ export function renderSummary(render: Render): string {
 
 // Polls the project's timeline (which also moves the job along when no
 // background worker runs) until the render completes or fails.
-export async function watchRender(ctx: Context, projectId: string, renderId: string, options: OptionValues): Promise<{ render: Render; exitCode: (typeof EXIT)[keyof typeof EXIT] }> {
+export function watchOptions(options: OptionValues): { intervalS: number; timeoutS?: number } {
   const intervalS = Number(str(options, "interval") ?? 2);
   if (!Number.isFinite(intervalS) || intervalS <= 0) throw usageError("--interval takes a number of seconds above 0.");
-  const timeoutS = int(options, "timeout", { min: 1 });
+  return { intervalS, timeoutS: int(options, "timeout", { min: 1 }) };
+}
+
+// For commands that may watch: their options are checked up front.
+export const validateWatch: Command["validate"] = ({ options }) => void watchOptions(options);
+
+export async function watchRender(ctx: Context, projectId: string, renderId: string, options: OptionValues): Promise<{ render: Render; exitCode: (typeof EXIT)[keyof typeof EXIT] }> {
+  const { intervalS, timeoutS } = watchOptions(options);
   const started = Date.now();
   const live = ctx.io.stderrIsTTY && !ctx.json;
   let last = "";
@@ -109,7 +116,7 @@ export async function watchRender(ctx: Context, projectId: string, renderId: str
     }
     if (timeoutS !== undefined && elapsedS >= timeoutS) {
       if (live) ctx.io.stderr("\n");
-      throw new CliError(`Render ${shortId(renderId)} is still ${render.status.replace("_", " ")} after ${timeoutS} s. Keep following it with troupe render watch ${shortId(renderId)}.`, { exitCode: EXIT.timeout, code: "TIMEOUT" });
+      throw new CliError(`Render ${shortId(renderId)} is still ${render.status.replace("_", " ")} after ${timeoutS} s; it keeps running in the studio. Do not launch it again: resume with troupe render watch ${shortId(renderId)} --timeout ${Math.max(timeoutS, 500)}.`, { exitCode: EXIT.timeout, code: "TIMEOUT" });
     }
     await ctx.io.sleep(intervalS * 1000);
   }
@@ -120,7 +127,8 @@ const launch: Command = {
   project: true,
   summary: "Render the newest script version (or --version N) as a draft video.",
   options: { version: { type: "string", value: "<n>", description: "Script version to render (default: the newest)." }, ...LAUNCH_OPTIONS, watch: { type: "boolean", description: "Wait for the render to finish, as troupe render watch does." }, ...WATCH_OPTIONS },
-  examples: ["troupe render launch", "troupe render launch --model local-renderer --duration 10 --watch", "troupe render launch --version 2 --no-audio"],
+  examples: ["troupe render launch", "troupe render launch --model local-renderer --duration 10 --watch --timeout 500", "troupe render launch --version 2 --no-audio"],
+  validate: validateWatch,
   async run(ctx, { options }) {
     const project = await ctx.project(str(options, "project"));
     const script = await scriptVersion(ctx, project.id, int(options, "version", { min: 1 }));
@@ -184,6 +192,7 @@ const watch: Command = {
   project: true,
   summary: "Follow a render (default: the newest) until it completes (exit 0) or fails (exit 1).",
   options: WATCH_OPTIONS,
+  validate: validateWatch,
   async run(ctx, { positionals, options }) {
     const project = await ctx.project(str(options, "project"));
     const target = await findRender(ctx, project.id, positionals[0]);
@@ -199,6 +208,7 @@ const relaunch: Command = {
   project: true,
   summary: "Try a failed render again with the same script, model and settings.",
   options: { watch: { type: "boolean", description: "Wait for the new render to finish." }, ...WATCH_OPTIONS },
+  validate: validateWatch,
   async run(ctx, { positionals, options }) {
     const project = await ctx.project(str(options, "project"));
     const failed = await findRender(ctx, project.id, positionals[0]);

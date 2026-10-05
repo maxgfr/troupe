@@ -52,14 +52,9 @@ const set: Command = {
     }
     const lines = parseScript(input);
     const project = await ctx.project(str(options, "project"));
-    // Pasted as the studio's script page does, then each [emotion] applied:
-    // the new version is retagged in place, so this stays one version.
-    let script: Script = await ctx.api.script.paste.mutate({ projectId: project.id, text: lines.map((l) => l.text).join("\n") });
-    for (const [index, line] of lines.entries()) {
-      if (line.emotion && script.lines[index]?.emotion !== line.emotion) {
-        script = await ctx.api.script.setLineEmotion.mutate({ projectId: project.id, scriptId: script.id, lineIndex: index, emotion: line.emotion });
-      }
-    }
+    // Pasted as the studio's script page does, with the [emotion] tags in
+    // the same call: one version, saved whole or not at all.
+    const script: Script = await ctx.api.script.paste.mutate({ projectId: project.id, text: lines.map((l) => l.text).join("\n"), emotions: lines.map((l) => l.emotion ?? null) });
     return {
       data: script,
       text: `Saved version ${script.version}: ${script.lines.length} lines, ${wordCount(script.lines)} words, about ${script.estimatedDurationS} s to say.\n${scriptText(script)}`,

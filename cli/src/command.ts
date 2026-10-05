@@ -73,6 +73,8 @@ export interface Command {
   // Takes -p/--project.
   project?: boolean;
   examples?: string[];
+  // Checks option values before anything reaches the studio.
+  validate?(input: CommandInput): void;
   run(ctx: Context, input: CommandInput): Promise<Result>;
 }
 

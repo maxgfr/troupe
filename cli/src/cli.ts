@@ -3,7 +3,7 @@ import { type ParseArgsConfig, parseArgs } from "node:util";
 import { createApi, exchangeAccessCode, explainError, type Connection } from "./client.ts";
 import type { Command, Context, Io, OptionSpec, OptionValues, Project } from "./command.ts";
 import { COMMANDS } from "./commands/index.ts";
-import { DEFAULT_PROFILE, DEFAULT_URL, normalizeUrl, readConfig, writeConfig, type Profile } from "./config.ts";
+import { assertSecureTransport, DEFAULT_PROFILE, DEFAULT_URL, normalizeUrl, readConfig, updateConfig, type Profile } from "./config.ts";
 import { CliError, EXIT, usageError } from "./errors.ts";
 import { json } from "./output.ts";
 import { pick } from "./resolve.ts";
@@ -13,7 +13,8 @@ export const VERSION = "0.1.0";
 const GLOBAL_OPTIONS: Record<string, OptionSpec> = {
   json: { type: "boolean", description: "Print the result as JSON on stdout; errors become JSON on stderr." },
   profile: { type: "string", value: "<name>", description: "The studio profile to use (default: TROUPE_PROFILE, or the last one signed in to)." },
-  url: { type: "string", value: "<url>", description: "The studio's address for this command (default: TROUPE_URL, or the profile's)." },
+  url: { type: "string", value: "<url>", description: "The studio's address for this command (default: TROUPE_URL, or the profile's). Without a scheme: https://, or http:// on this machine." },
+  insecure: { type: "boolean", description: "Allow plain http:// to another machine (a trusted LAN); the code and cookie travel unencrypted. Also TROUPE_INSECURE=1." },
   help: { type: "boolean", short: "h", description: "Show help." },
 };
 
@@ -89,8 +90,8 @@ export function mainHelp(): string {
     "Global options:",
     ...optionLines({ ...GLOBAL_OPTIONS, version: { type: "boolean", description: "Print the CLI's version." } }),
     "",
-    "Environment: TROUPE_URL, TROUPE_ACCESS_CODE, TROUPE_PROFILE, TROUPE_PROJECT, TROUPE_CONFIG_DIR.",
-    "Exit status: 0 done, 1 refused or failed, 2 usage, 3 not signed in, 4 studio unreachable, 5 timed out.",
+    "Environment: TROUPE_URL, TROUPE_ACCESS_CODE, TROUPE_PROFILE, TROUPE_PROJECT, TROUPE_CONFIG_DIR, TROUPE_INSECURE.",
+    "Exit status: 0 done, 1 refused or failed, 2 usage, 3 not signed in, 4 studio unreachable, 5 render still running (--timeout passed; do not relaunch, watch it again).",
     "Docs: docs/CLI.md",
   ].join("\n");
 }
@@ -125,6 +126,8 @@ async function createContext(io: Io, options: OptionValues): Promise<Context> {
   const url = normalizeUrl((typeof options.url === "string" && options.url) || env.TROUPE_URL || profile?.url || DEFAULT_URL);
   // The saved cookie goes only to the studio it was issued by.
   const ownProfile = sameStudio(profile?.url, url) ? profile : undefined;
+  const insecure = options.insecure === true || env.TROUPE_INSECURE === "1" || ownProfile?.insecure === true;
+  assertSecureTransport(url, insecure);
 
   let cookie: Promise<string | null> | undefined;
   const connection: Connection = {
@@ -155,21 +158,23 @@ async function createContext(io: Io, options: OptionValues): Promise<Context> {
     api,
     readConfig: () => readConfig(env),
     async updateProfile(change) {
-      const current = await readConfig(env);
-      const next = change(current.profiles[profileName]);
-      if (next) current.profiles[profileName] = next;
-      else delete current.profiles[profileName];
-      await writeConfig(env, current);
+      await updateConfig(env, (current) => {
+        const next = change(current.profiles[profileName]);
+        if (next) current.profiles[profileName] = next;
+        else delete current.profiles[profileName];
+      });
     },
     async rememberProject(projectId) {
-      const current = await readConfig(env);
-      const saved = current.profiles[profileName];
-      if (saved && !sameStudio(saved.url, url)) return false;
-      const { project: _previous, ...rest } = saved ?? { url };
-      current.profiles[profileName] = projectId ? { ...rest, project: projectId } : rest;
-      current.profile ??= profileName;
-      await writeConfig(env, current);
-      return true;
+      let remembered = false;
+      await updateConfig(env, (current) => {
+        const saved = current.profiles[profileName];
+        if (saved && !sameStudio(saved.url, url)) return;
+        const { project: _previous, ...rest } = saved ?? { url };
+        current.profiles[profileName] = projectId ? { ...rest, project: projectId } : rest;
+        current.profile ??= profileName;
+        remembered = true;
+      });
+      return remembered;
     },
     async project(ref) {
       const wanted = ref ?? env.TROUPE_PROJECT ?? ownProfile?.project;
@@ -228,6 +233,7 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     if (input.positionals.length < range.min || input.positionals.length > range.max) {
       throw usageError(`Usage: troupe ${command.path.join(" ")}${command.args ? ` ${command.args}` : ""}. See --help.`);
     }
+    command.validate?.(input);
     const ctx = await createContext(io, input.options);
     url = ctx.url;
     const result = await command.run(ctx, input);

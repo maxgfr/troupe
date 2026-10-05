@@ -2,7 +2,7 @@
   "name": "troupe-cli",
   "version": "0.1.0",
   "private": true,
-  "description": "Drive a self-hosted Troupe studio from the terminal: projects, scripts, the script chat, renders, exports and downloads.",
+  "description": "Drive a self-hosted Troupe studio from the terminal: projects, scripts, the script chat, renders, exports and downloads. The built bin is one self-contained file.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -16,14 +16,12 @@
   ],
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/troupe.mjs --banner:js=\"#!/usr/bin/env node\" --log-level=warning && node -e \"require('node:fs').chmodSync('dist/troupe.mjs', 0o755)\"",
-    "start": "node src/main.ts"
-  },
-  "dependencies": {
-    "@trpc/client": "^11.0.0",
-    "superjson": "^2.2.1"
+    "start": "node --experimental-strip-types --no-warnings=ExperimentalWarning src/main.ts"
   },
   "devDependencies": {
+    "@trpc/client": "^11.0.0",
     "@trpc/server": "^11.0.0",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "superjson": "^2.2.1"
   }
 }

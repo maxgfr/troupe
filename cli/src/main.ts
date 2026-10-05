@@ -28,6 +28,8 @@ function promptSecret(question: string): Promise<string> {
     };
     const onKey = (text: string | undefined, key: { name?: string; ctrl?: boolean } | undefined) => {
       if (key?.ctrl && key.name === "c") return done(new Error("Cancelled."));
+      // Ctrl-D ends the input like Enter; on an empty line it cancels.
+      if (key?.ctrl && key.name === "d") return value ? done() : done(new Error("Cancelled."));
       if (key?.name === "return" || key?.name === "enter") return done();
       if (key?.name === "backspace") value = value.slice(0, -1);
       else if (text && !key?.ctrl) value += text;

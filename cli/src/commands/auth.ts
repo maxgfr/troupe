@@ -1,6 +1,6 @@
 import { createApi, exchangeAccessCode, explainError, studioHealth } from "../client.ts";
 import { type Command, type Context, flag } from "../command.ts";
-import { configPath, readConfig, writeConfig } from "../config.ts";
+import { configPath, isLoopback, updateConfig } from "../config.ts";
 import { CliError, EXIT } from "../errors.ts";
 import { ago, fields, table } from "../output.ts";
 
@@ -16,11 +16,14 @@ async function admitted(url: string, cookie: string | null): Promise<boolean> {
   }
 }
 
+// --code-stdin first (asked without echo when stdin is a terminal), then
+// TROUPE_ACCESS_CODE, then a hidden prompt.
 async function readCode(ctx: Context, fromStdin: boolean): Promise<string> {
   const { io } = ctx;
-  let code = io.env.TROUPE_ACCESS_CODE;
-  if (!code && fromStdin) code = (await io.readStdin()).trim();
-  if (!code && io.stdinIsTTY && !fromStdin) code = (await io.promptSecret(`Access code for ${ctx.url}: `)).trim();
+  const ask = () => io.promptSecret(`Access code for ${ctx.url}: `);
+  let code: string | undefined;
+  if (fromStdin) code = (await (io.stdinIsTTY ? ask() : io.readStdin())).trim();
+  else code = io.env.TROUPE_ACCESS_CODE || (io.stdinIsTTY ? (await ask()).trim() : undefined);
   if (!code) {
     throw new CliError("This studio needs its access code. Pipe it in with --code-stdin, set TROUPE_ACCESS_CODE, or run troupe login in a terminal.", { exitCode: EXIT.auth, code: "UNAUTHORIZED" });
   }
@@ -31,12 +34,13 @@ const login: Command = {
   path: ["login"],
   summary: "Sign in to a studio with its access code and remember it as a profile.",
   options: {
-    "code-stdin": { type: "boolean", description: "Read the access code from stdin instead of TROUPE_ACCESS_CODE or a hidden prompt." },
+    "code-stdin": { type: "boolean", description: "Read the access code from stdin (asked without echo on a terminal); wins over TROUPE_ACCESS_CODE." },
   },
   examples: [
     "troupe login --url http://127.0.0.1:3000",
     "troupe login --url https://studio.example.com --profile home",
     "printf %s \"$TROUPE_CODE\" | troupe login --url http://localhost:3100 --code-stdin",
+    "troupe login --url http://192.168.1.20:3100 --insecure   # a studio on your LAN, without TLS",
   ],
   async run(ctx, { options }) {
     const health = await studioHealth(ctx.url);
@@ -51,16 +55,18 @@ const login: Command = {
       if (!(await admitted(ctx.url, cookie))) throw new CliError("The studio accepted the code but still refuses requests. Try troupe login again.", { exitCode: EXIT.auth, code: "UNAUTHORIZED" });
     }
 
-    const config = await readConfig(ctx.io.env);
-    const previous = config.profiles[ctx.profileName];
-    config.profiles[ctx.profileName] = {
-      url: ctx.url,
-      ...(cookie ? { cookie } : {}),
-      // A project id only means something on the studio it came from.
-      ...(previous?.project && previous.url === ctx.url ? { project: previous.project } : {}),
-    };
-    config.profile = ctx.profileName;
-    await writeConfig(ctx.io.env, config);
+    await updateConfig(ctx.io.env, (config) => {
+      const previous = config.profiles[ctx.profileName];
+      config.profiles[ctx.profileName] = {
+        url: ctx.url,
+        ...(cookie ? { cookie } : {}),
+        // A project id only means something on the studio it came from.
+        ...(previous?.project && previous.url === ctx.url ? { project: previous.project } : {}),
+        // Plain http to another machine passed the check, so --insecure was given.
+        ...(ctx.url.startsWith("http:") && !isLoopback(ctx.url) ? { insecure: true } : {}),
+      };
+      config.profile = ctx.profileName;
+    });
     const access = cookie ? "code" : "open";
     return {
       data: { profile: ctx.profileName, url: ctx.url, access },
@@ -75,7 +81,11 @@ const logout: Command = {
   path: ["logout"],
   summary: "Forget this profile's access cookie (the address and project stay).",
   async run(ctx) {
-    await ctx.updateProfile((profile) => (profile ? { url: profile.url, ...(profile.project ? { project: profile.project } : {}) } : undefined));
+    await ctx.updateProfile((profile) => {
+      if (!profile) return undefined;
+      const { cookie: _cookie, ...rest } = profile;
+      return rest;
+    });
     const envNote = ctx.io.env.TROUPE_ACCESS_CODE ? " TROUPE_ACCESS_CODE is still set in this shell and signs every command in." : "";
     return { data: { profile: ctx.profileName, url: ctx.url, signedOut: true }, text: `Signed out of ${ctx.url} (profile "${ctx.profileName}").${envNote}` };
   },

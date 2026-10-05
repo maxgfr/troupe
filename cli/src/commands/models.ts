@@ -27,7 +27,8 @@ export async function findModel(ctx: Context, ref: string): Promise<Model> {
 
 // Secrets never come from the command line, where shell history and ps see them.
 async function readSecret(ctx: Context, opts: { fromStdin: boolean; what: string; option: string }): Promise<string> {
-  const value = opts.fromStdin ? (await ctx.io.readStdin()).trim() : ctx.io.stdinIsTTY ? (await ctx.io.promptSecret(`${opts.what}: `)).trim() : "";
+  // On a terminal, stdin would echo what is typed: ask without echo instead.
+  const value = ctx.io.stdinIsTTY ? (await ctx.io.promptSecret(`${opts.what}: `)).trim() : opts.fromStdin ? (await ctx.io.readStdin()).trim() : "";
   if (!value) throw usageError(`Pass the ${opts.what.toLowerCase()} on stdin with --${opts.option}, or run the command in a terminal to be asked for it.`);
   return value;
 }

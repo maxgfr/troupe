@@ -25,7 +25,9 @@ pnpm site:test:chat    # the script chat with WebLLM in Chrome, then a relaunch 
 `SITE_PORT=4273 pnpm site:test` (or `pnpm site:test:render`) runs it on
 another port (for a second checkout), and `SITE_CPU_THROTTLE=6` slows the
 page's CPU six times. It does not slow the PGlite worker, so it does not
-reproduce a CI runner's slow start.
+reproduce a CI runner's slow start. With `CI` set, Playwright retries a
+failed test once; a test that only passes on its retry is reported as flaky,
+not hidden.
 
 The first visit downloads about 20 MB (Postgres and its data files), then
 starts in a few seconds. The first render downloads the voice model too (see
@@ -180,7 +182,8 @@ runners have no GPU, so the voices take the WebAssembly path, and Linux
 Chromium has no AAC encoder, so the audio is Opus. The browser profile, whose
 Cache Storage holds the 92 MB of weights, is kept with `actions/cache`
 (`RENDER_PROFILE` points the test at it), so Hugging Face is only asked again
-when the lockfile or the renderer settings change. Locally,
+when the renderer settings (`site/src/render/config.ts`) or the versions of
+kokoro-js, Transformers.js or Playwright change (`scripts/model-cache-key.mjs`). Locally,
 `RENDER_ARGS="--disable-gpu --disable-features=WebGPU"` forces the CPU path on
 a machine with a GPU.
 
@@ -279,10 +282,11 @@ their text), and `pnpm tour:edit` cuts again from the same footage.
 
 ## Publishing
 
-`.github/workflows/pages.yml` builds the browser edition on every pull
-request and push to `main`. Deploying it to GitHub Pages is manual for now:
-run the workflow from the Actions tab (enable Pages with "GitHub Actions" as
-the source first).
+CI (`.github/workflows/ci.yml`, the `site-smoke` job) builds and tests the
+browser edition on every pull request and push to `main`. Deploying it to
+GitHub Pages is manual for now: run `.github/workflows/pages.yml` on `main`
+from the Actions tab ("Run workflow"; enable Pages with "GitHub Actions" as
+the source first). It builds the site again and deploys it.
 
 ### With Docker
 

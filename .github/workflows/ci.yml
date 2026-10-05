@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       SKIP_ENV_VALIDATION: "1"
     steps:
@@ -30,7 +30,7 @@ jobs:
   # The browser edition (site/): build it (the build fails on server code in the
   # bundle), then the Playwright smoke test against the built site.
   site-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,10 +50,12 @@ jobs:
       # of Kokoro weights in its Cache Storage: cached here, it downloads once
       # per Playwright version and renderer settings.
       - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - id: models
+        run: echo "versions=$(node scripts/model-cache-key.mjs)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/troupe-render-profile
-          key: render-profile-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'site/src/render/config.ts') }}
+          key: render-profile-${{ runner.os }}-${{ steps.models.outputs.versions }}-${{ hashFiles('site/src/render/config.ts') }}
       - run: pnpm site:test:render
         env:
           CI: "1"
@@ -75,7 +77,7 @@ jobs:
   # cached by BuildKit in the Actions cache, model downloads by actions/cache.
   # Timings: docs/SELF-HOSTING.md#testing-the-stack.
   docker-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       E2E_OLLAMA_MODEL: qwen2.5:0.5b
@@ -114,13 +116,15 @@ jobs:
             cli.cache-to=type=gha,scope=e2e-cli,mode=max
       # The chat model (about 400 MB), Kokoro's weights for the renderer and
       # for the browser edition's render (about 90 MB each).
+      - id: models
+        run: echo "versions=$(node scripts/model-cache-key.mjs)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: |
             ${{ github.workspace }}/.cache/e2e/ollama
             ${{ github.workspace }}/.cache/e2e/kokoro
             ${{ github.workspace }}/.cache/e2e/render-profile
-          key: e2e-models-${{ env.E2E_OLLAMA_MODEL }}-${{ hashFiles('pnpm-lock.yaml', 'site/src/render/config.ts', 'ollama/Dockerfile') }}
+          key: e2e-models-${{ env.E2E_OLLAMA_MODEL }}-${{ steps.models.outputs.versions }}-${{ hashFiles('site/src/render/config.ts', 'ollama/Dockerfile') }}
           restore-keys: e2e-models-${{ env.E2E_OLLAMA_MODEL }}-
       - run: pnpm e2e:docker
         env:

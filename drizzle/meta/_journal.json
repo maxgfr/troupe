@@ -141,6 +141,13 @@
       "when": 1791186519500,
       "tag": "0019_generation-progress",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791189512271,
+      "tag": "0020_one-relaunch",
+      "breakpoints": true
     }
   ]
 }

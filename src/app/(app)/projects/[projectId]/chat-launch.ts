@@ -19,9 +19,7 @@ export interface ChatLaunchBase {
 export function chatLaunchBase(options: ModelOptionView[], fallback: ModelOptionView | null, previous: PreviousRender | null): ChatLaunchBase | null {
   const again = previous ? options.find((o) => o.key === previous.modelKey && o.available && o.compatible) : undefined;
   if (again && previous) return { model: again, choice: { durationS: previous.durationS, resolution: previous.resolution } };
-  // Before any render the chat writes for the model's default clip length
-  // (the launch panel would pick the shortest clip the current script needs).
-  return fallback ? { model: fallback, choice: { durationS: fallback.defaults.durationS } } : null;
+  return fallback ? { model: fallback, choice: {} } : null;
 }
 
 // The clip length the chat writes for: the plan's length for the current
@@ -33,7 +31,7 @@ export function chatClipSeconds(base: ChatLaunchBase | null, currentEstimateS: n
 }
 
 export type RelaunchPlan =
-  | { ok: true; request: { modelKey: string; tier: "draft"; durationS: number; resolution: string; audio: boolean }; label: string }
+  | { ok: true; request: { modelKey: string; durationS: number; resolution: string; audio: boolean }; label: string }
   | { ok: false; reason: string };
 
 // The launch for a proposal of `estimatedS` seconds: the same model and
@@ -46,7 +44,7 @@ export function relaunchPlan(base: ChatLaunchBase | null, estimatedS: number): R
   }
   return {
     ok: true,
-    request: { modelKey: base.model.key, tier: "draft", durationS: settings.durationS, resolution: settings.resolution, audio: settings.audio },
+    request: { modelKey: base.model.key, durationS: settings.durationS, resolution: settings.resolution, audio: settings.audio },
     label: `${base.model.label} · ${settings.durationS} s · ${settings.resolution}`,
   };
 }

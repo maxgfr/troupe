@@ -1,6 +1,7 @@
 import { ProviderWarning, SpotButton, StatusChip } from "~/app/_components/ui";
 import { vttFromLines } from "~/app/_components/captions";
 import { formatCost } from "../projects/model-choice";
+import { shownLength } from "../projects/[projectId]/generation-timeline";
 
 export interface BenchmarkEntryView {
   id: string;
@@ -12,6 +13,7 @@ export interface BenchmarkEntryView {
   latencyMs?: number | null;
   outputAssetUrl?: string | null;
   durationS?: number | null;
+  mediaDurationS?: number | null;
   burnedCaptions?: boolean;
   votes?: Record<string, number>;
 }
@@ -56,7 +58,7 @@ export function BenchmarkCompare({
                   kind="captions"
                   label="Script"
                   default={!entry.burnedCaptions}
-                  src={vttFromLines(briefLines?.length ? briefLines : [brief!], entry.durationS ?? 20)}
+                  src={vttFromLines(briefLines?.length ? briefLines : [brief!], entry.mediaDurationS ?? entry.durationS ?? 20)}
                 />
               ) : null}
             </video>
@@ -66,6 +68,12 @@ export function BenchmarkCompare({
             </div>
           )}
           <dl className="mt-3 space-y-1 font-mono text-xs tabular-nums text-muted">
+            {entry.mediaDurationS || entry.durationS ? (
+              <div className="flex justify-between">
+                <dt>length</dt>
+                <dd>{shownLength({ durationS: entry.durationS ?? 0, mediaDurationS: entry.mediaDurationS })}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <dt>cost</dt>
               <dd>{formatCost(entry.costUsd, entry.costSource)}</dd>

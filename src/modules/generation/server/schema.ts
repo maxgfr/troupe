@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, pgPolicy } from "drizzle-orm/pg-core";
+import { index, pgPolicy, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { createTable } from "~/server/db/table";
 import { authenticated } from "~/modules/identity/server/schema";
@@ -55,6 +55,8 @@ export const generations = createTable(
   (t) => [
     index("generation_project_idx").on(t.projectId),
     index("generation_provider_job_idx").on(t.provider, t.providerJobId),
+    // One relaunch per failed render, even when two arrive at once.
+    uniqueIndex("generation_one_relaunch_idx").on(t.parentGenerationId).where(sql`${t.parentGenerationId} is not null`),
     pgPolicy("generation_member_select", {
       for: "select",
       to: authenticated,

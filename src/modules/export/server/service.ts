@@ -57,20 +57,24 @@ export async function createExport(db: Db, input: CreateExportInput, media: Medi
     throw new Error(`This video does not match ${platformName(input.platform)}'s specs: ${check.mismatches.join("; ")}. Confirm to export anyway.`);
   }
   const [render] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, gen.outputAssetId!)).limit(1);
-  const [record] = await db
-    .insert(exportRecords)
-    .values({
-      projectId: gen.projectId,
-      generationId: gen.id,
-      platform: input.platform,
-      filePath: render!.storagePath,
-      caption: input.caption,
-      hashtags: input.hashtags,
-      aiDisclosure: true,
-      qualityConfirmedBy: input.qualityConfirmedBy,
-    })
-    .returning();
-  // A render is a draft until it is exported: the exported one is final.
-  await db.update(generations).set({ tier: "final" }).where(eq(generations.id, gen.id));
+  // The export and the render turning final commit together: a render is a
+  // draft until it is exported.
+  const record = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(exportRecords)
+      .values({
+        projectId: gen.projectId,
+        generationId: gen.id,
+        platform: input.platform,
+        filePath: render!.storagePath,
+        caption: input.caption,
+        hashtags: input.hashtags,
+        aiDisclosure: true,
+        qualityConfirmedBy: input.qualityConfirmedBy,
+      })
+      .returning();
+    await tx.update(generations).set({ tier: "final" }).where(eq(generations.id, gen.id));
+    return row;
+  });
   return { ...record!, downloadUrl: media.urlFor(gen.outputAssetId!, { download: true }) };
 }

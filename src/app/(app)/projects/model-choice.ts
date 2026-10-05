@@ -47,12 +47,13 @@ export function launchSettings(option: ModelOptionView, estimatedS: number, choi
   const caps = option.capabilities;
   const durations = caps.durationsS.filter((d) => d >= estimatedS);
   const longestS = Math.max(0, ...caps.durationsS);
-  // The script sets the length: the shortest clip that fits it, as a
-  // comparison picks, unless the user chose another one.
-  const chosen = choice.durationS != null && durations.includes(choice.durationS) ? choice.durationS : null;
+  // The user's pick, else the model's default length (Settings → Launch
+  // defaults) when the script fits it, else the shortest clip that fits.
+  // comparisonPlan applies the same rule.
+  const preferred = [choice.durationS, option.defaults.durationS].find((d) => d != null && durations.includes(d));
   return {
     durations,
-    durationS: chosen ?? durations[0] ?? null,
+    durationS: preferred ?? durations[0] ?? null,
     resolution: choice.resolution && caps.resolutions.includes(choice.resolution) ? choice.resolution : option.defaults.resolution,
     audioToggle: caps.audio === "optional",
     audio: caps.audio === "always" ? true : caps.audio === "none" ? false : (choice.audio ?? option.defaults.audio),
@@ -65,7 +66,8 @@ export type ComparisonPlan =
   | { ok: true; modelKeys: string[]; durationS: number; resolution: string }
   | { ok: false; reason: string };
 
-// Up to three models that share a duration and a resolution fitting the script.
+// Up to three models that share a duration and a resolution fitting the
+// script. The length follows Launch's rule with the first model's default.
 export function comparisonPlan(options: ModelOptionView[], estimatedS: number): ComparisonPlan {
   const candidates = options.filter(usable);
   if (candidates.length < 2) return { ok: false, reason: "Comparing needs at least two available models for this format." };
@@ -74,7 +76,8 @@ export function comparisonPlan(options: ModelOptionView[], estimatedS: number): 
     const durations = group[0]!.capabilities.durationsS.filter((d) => d >= estimatedS && group.every((o) => o.capabilities.durationsS.includes(d)));
     const resolutions = group[0]!.capabilities.resolutions.filter((r) => group.every((o) => o.capabilities.resolutions.includes(r)));
     if (durations.length && resolutions.length) {
-      return { ok: true, modelKeys: group.map((o) => o.key), durationS: durations[0]!, resolution: resolutions.includes("720p") ? "720p" : resolutions[0]! };
+      const preferred = group[0]!.defaults.durationS;
+      return { ok: true, modelKeys: group.map((o) => o.key), durationS: durations.includes(preferred) ? preferred : durations[0]!, resolution: resolutions.includes("720p") ? "720p" : resolutions[0]! };
     }
   }
   return { ok: false, reason: "These models share no clip length and resolution that fits this script." };

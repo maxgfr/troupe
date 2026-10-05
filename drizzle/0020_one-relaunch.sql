@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "generation_one_relaunch_idx" ON "troupe_generation" USING btree ("parentGenerationId") WHERE "troupe_generation"."parentGenerationId" is not null;

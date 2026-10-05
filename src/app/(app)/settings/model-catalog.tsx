@@ -183,6 +183,7 @@ function ModelPreferencesForm({ model, busy, onSave }: { model: CatalogModelView
           <select value={durationS} onChange={(e) => setDurationS(Number(e.target.value))} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
             {model.capabilities.durationsS.map((d) => <option key={d} value={d}>{d} s</option>)}
           </select>
+          <span className="mt-1 block text-xs text-muted">Launch and Compare start on it whenever the script fits; a longer script gets the shortest clip that holds it.</span>
         </label>
         <label className="text-sm">
           <span className="mb-1 block">Price per second (USD)</span>

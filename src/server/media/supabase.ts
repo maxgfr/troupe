@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { mediaDisposition } from "./store";
+import { downloadFileName } from "./store";
 
 export function supabaseStorage() {
   const url = process.env.SUPABASE_URL;
@@ -30,7 +30,7 @@ export async function uploadToSupabase(storagePath: string, bytes: Uint8Array) {
 export async function supabaseDownloadUrl(storagePath: string, download: string | null) {
   const storage = supabaseStorage();
   if (!storage) throw new Error("Supabase storage is not configured.");
-  const name = download === null ? null : /filename="([^"]+)"/.exec(mediaDisposition(download))![1]!;
+  const name = downloadFileName(download);
   const result = await storage.from(bucketName()).createSignedUrl(storagePath, 60, name ? { download: name } : {});
   if (result.error || !result.data) throw new Error("Could not open the stored video.");
   return result.data.signedUrl;

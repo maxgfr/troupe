@@ -68,10 +68,10 @@ export function DemoBanner() {
   return (
     <aside aria-label="Browser demo" className="border-b border-muted/20 bg-bg">
       {/* One line on a phone: the short wording below the small breakpoint. */}
-      <p className="mx-auto flex max-w-6xl items-baseline justify-between gap-x-3 px-4 py-2 text-xs text-muted sm:justify-start sm:px-6">
+      <p className="mx-auto flex max-w-6xl items-baseline justify-between gap-x-2 px-4 py-2 text-xs text-muted sm:justify-start sm:gap-x-3 sm:px-6">
         <span className="min-w-0 truncate">
           <span className="font-medium text-fg">Browser demo.</span>{" "}
-          <span className="sm:hidden">Saved in this browser only.</span>
+          <span className="sm:hidden">Saved in this browser.</span>
           <span className="hidden sm:inline">Your work is saved in this browser and never leaves it.</span>
         </span>
         <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="-my-1 inline-block shrink-0 py-1 text-primary underline-offset-4 hover:underline">

@@ -16,7 +16,7 @@ import {
 } from "~/modules/chat";
 import { estimateDurationS, ScriptTooLongError } from "~/modules/script";
 import { ActorUnavailableError } from "~/modules/actors";
-import { MODEL_KEY, TIER } from "./generation";
+import { MODEL_KEY } from "./generation";
 import { launchText } from "./_launch";
 
 const NO_CHAT = "The script chat is not available in this studio.";
@@ -37,7 +37,6 @@ function asTrpcError(error: unknown): never {
 
 const LAUNCH = z.object({
   modelKey: MODEL_KEY,
-  tier: TIER,
   durationS: z.number().int().positive(),
   resolution: z.string().min(1),
   audio: z.boolean().optional(),

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { createTRPCRouter, projectProcedure } from "~/server/api/trpc";
 import type { Db } from "~/server/db/types";
-import { SUPPORTED_EMOTIONS, getScriptHistory, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
+import { SUPPORTED_EMOTIONS, getScriptHistory, lockScript, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
 import { generations } from "~/modules/generation";
 import { chatMessages } from "~/modules/chat";
 import { assertScriptInProject } from "./_scope";
@@ -43,7 +43,14 @@ export const scriptRouter = createTRPCRouter({
     .input(z.object({ scriptId: z.string().uuid(), lineIndex: z.number().int().min(0), emotion: EMOTION }))
     .mutation(async ({ ctx, input }) => {
       await assertScriptInProject(ctx.db, input.scriptId, input.projectId);
-      const amend = await retaggableInPlace(ctx.db, input.projectId, input.scriptId);
-      return setLineEmotion(ctx.db, { scriptId: input.scriptId, lineIndex: input.lineIndex, emotion: input.emotion, amend });
+      // Decided and done under the version's update lock: a launch recording
+      // this version (share lock) either finishes first, and the retag adds a
+      // version, or waits until the retag is done.
+      return ctx.db.transaction(async (tx) => {
+        const conn = tx as unknown as Db;
+        await lockScript(conn, input.scriptId, "update");
+        const amend = await retaggableInPlace(conn, input.projectId, input.scriptId);
+        return setLineEmotion(conn, { scriptId: input.scriptId, lineIndex: input.lineIndex, emotion: input.emotion, amend });
+      });
     }),
 });

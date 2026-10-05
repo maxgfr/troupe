@@ -23,6 +23,12 @@ First public release.
   renders; Compare opens the new comparison.
 - One-command Docker install: migrations and job checks run inside the app,
   `/api/health`, optional ComfyUI GPU service, multi-arch images on GHCR.
+- Render progress on the project page: the progress a model reports while a
+  job runs is stored with the render (migration 0019) and fills its bar.
+- HTTP contract v1 gains an optional `captions: "burned"` on a finished job:
+  the video already shows the captions, so the player keeps its own track
+  off. The local renderer and the in-browser renderer send it.
+- Downloads are named after the project, the model and the time.
 
 ### Changed
 
@@ -31,6 +37,17 @@ First public release.
 - Production always requires an access code; one is generated on first start
   when none is set. Works behind HTTPS reverse proxies.
 - Pickers offer only what the chosen model accepts; errors read as sentences.
+- A render is a draft until it is exported; the exported one is final.
+  Migration 0019 rewrites existing renders to match, and cannot be undone:
+  every render without an export becomes a draft (comparison renders were
+  stored as final before), every exported one final.
+- The dashboard shows each project's stage (Script, Rendering, To review,
+  Exported), worked out from its renders and exports.
+- A failed render can be relaunched once (migration 0020 enforces it).
+- Launch and Compare start on the model's default length when the script fits
+  it, else on the shortest clip that holds the script.
+- Videos rendered in the browser no longer play the voice 44 ms behind the
+  picture: the AAC encoder's leading silence is trimmed by an edit list.
 
 ### Removed
 

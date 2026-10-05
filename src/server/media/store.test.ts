@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mediaDisposition } from "./store";
+import { downloadFileName, mediaDisposition } from "./store";
 
 describe("mediaDisposition", () => {
   it("plays inline without a download query", () => {
@@ -16,5 +16,14 @@ describe("mediaDisposition", () => {
     for (const value of ["1", "", "../etc/passwd", 'a"b.mp4', "spaced name.mp4", "x".repeat(200)]) {
       expect(mediaDisposition(value)).toBe('attachment; filename="troupe-video.mp4"');
     }
+  });
+});
+
+describe("downloadFileName", () => {
+  it("is the name a download is saved under, or null to play inline", () => {
+    expect(downloadFileName(null)).toBeNull();
+    expect(downloadFileName("clip.mp4")).toBe("clip.mp4");
+    expect(downloadFileName("1")).toBe("troupe-video.mp4");
+    expect(downloadFileName("../x.mp4", "webm")).toBe("troupe-video.webm");
   });
 });

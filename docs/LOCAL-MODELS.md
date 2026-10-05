@@ -203,7 +203,10 @@ The video is as long as the script, not the clip length picked at launch:
 between lines, then 0.6 s. The clip length still caps the script, as for any
 model, and the project page shows the video's real length once it is saved.
 The captions are drawn into the picture, so the player keeps its own captions
-track off for these videos.
+track off for these videos. Videos rendered before Troupe read the
+`captions` field still turn it on: nothing stored says which HTTP model was
+this renderer, so they were left as they were; switch the track off in the
+player's menu.
 
 ### Run it
 

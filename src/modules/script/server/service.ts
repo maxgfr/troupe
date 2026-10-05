@@ -140,6 +140,13 @@ async function loadScript(db: Db, scriptId: string): Promise<ScriptWithLines> {
   };
 }
 
+// A launch reads and records a version under a share lock, an in-place
+// retag changes it under an update lock: a retag never alters a version
+// while a launch is recording what it says. Call inside a transaction.
+export async function lockScript(db: Db, scriptId: string, mode: "share" | "update"): Promise<void> {
+  await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.id, scriptId)).for(mode);
+}
+
 // Retagging appends a new version. `amend` retags the version in place
 // instead: for the newest version while nothing (a render, the chat) refers
 // to it yet, so trying emotions does not pile up versions. The caller decides.

@@ -22,13 +22,14 @@ describe("pickModel", () => {
 });
 
 describe("launchSettings", () => {
-  it("offers only clip lengths long enough for the script, the shortest first, as a comparison does", () => {
+  it("offers only clip lengths long enough for the script, preselecting the model's default when it fits", () => {
     const s = launchSettings(option("veo"), 5);
     expect(s.durations).toEqual([6, 8]);
-    // The model's default (8 s) does not win over the script's own length.
-    expect(s.durationS).toBe(6);
-    expect(s.durationS).toBe(comparisonPlan([option("veo"), option("kling")], 5).ok ? 6 : null);
-    expect(launchSettings(option("veo"), 5, { durationS: 8 }).durationS).toBe(8);
+    // The default saved in Settings (8 s) is honoured whenever the script fits it.
+    expect(s.durationS).toBe(8);
+    expect(launchSettings(option("veo"), 5, { durationS: 6 }).durationS).toBe(6);
+    // A script longer than the default gets the shortest clip that fits.
+    expect(launchSettings(option("veo", { defaults: { resolution: "720p", durationS: 4, audio: true } }), 5).durationS).toBe(6);
   });
 
   it("flags a script longer than the longest clip", () => {
@@ -47,6 +48,14 @@ describe("comparisonPlan", () => {
   it("finds a clip length and resolution every compared model accepts", () => {
     const plan = comparisonPlan([option("veo"), option("kling", {}, { durationsS: [5, 8, 10] }), option("seedance", {}, { resolutions: ["480p", "720p"] })], 6);
     expect(plan).toEqual({ ok: true, modelKeys: ["veo", "kling", "seedance"], durationS: 8, resolution: "720p" });
+  });
+
+  it("picks the first model's default length when every compared model offers it and the script fits, as Launch does", () => {
+    const veo = option("veo");
+    expect(comparisonPlan([veo, option("kling")], 5)).toMatchObject({ ok: true, durationS: launchSettings(veo, 5).durationS });
+    expect(comparisonPlan([veo, option("kling")], 5)).toMatchObject({ durationS: 8 });
+    // A default the others lack falls back to the shortest shared length.
+    expect(comparisonPlan([veo, option("kling", {}, { durationsS: [6, 10] })], 5)).toMatchObject({ durationS: 6 });
   });
 
   it("drops the last model when three share nothing, and explains when nothing fits", () => {

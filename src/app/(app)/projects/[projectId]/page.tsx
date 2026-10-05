@@ -195,7 +195,7 @@ export default function ProjectMonitorPage({
                   }}
                   onLaunch={(request) => {
                     setLaunchError(null);
-                    launch.mutate({ projectId, scriptId: latestScript.id, tier: "draft", ...request });
+                    launch.mutate({ projectId, scriptId: latestScript.id, ...request });
                   }}
                   onCompare={(plan) => {
                     setLaunchError(null);

@@ -156,9 +156,10 @@ says how.
    works the stage out from the renders and exports (`src/modules/studio/stage.ts`,
    `listProjects` in `src/server/projects.ts`): Script (no finished video),
    Rendering (one queued or running), To review (a finished video), Exported.
-2. **Launch length vs script length.** *Fixed:* Launch preselects the
-   shortest clip that fits the script, as **Compare** does; the chat still
-   writes for the model's default length before the first render.
+2. **Launch length vs script length.** *Fixed:* Launch and **Compare** follow
+   one rule: the model's default length (Settings → Launch defaults, the
+   first model's for Compare) when the script fits it, else the shortest clip
+   that holds the script.
 3. **Export page.** *Fixed:* renders are named by model, real length and
    draft/final; one primary button at a time (**Create export**, then
    **Download MP4** in its place); the project's own platform is preselected.
@@ -268,8 +269,32 @@ Playwright walk above, then the static demo.
 | Progress and relaunch, a test server that reports progress over 20 s and fails its first job | The bar filled 22 % → 44 % → 65 % → 86 % from the model's `progress`; after **Relaunch** the failed row says "Relaunched" and offers no second relaunch. Checked at 390 and 1280 px, light and dark. |
 | Comparison of three local models | Players capped at 420 px; burned-in captions off, the test pattern's track on. |
 | `pnpm site:test` | 4/4, including named downloads from the media service worker. |
-| `pnpm site:test:render` | 2/2 on a fresh origin. On an origin that had kept an older Kokoro cache, the audio and video streams differed by 0.1003 s against the test's 0.1 s bound; main at `952a789` behaved the same way (the second test also failed there on a warm run), so it is not caused by this phase. |
+| `pnpm site:test:render` | 2/2, warm and cold, after the encoder-delay fix below. |
 
 - Phones: the top bar and the demo banner each hold one row at 390 px.
 - A Postgres container in this run was killed once by the OS (exit 137,
   memory pressure on the 16 GB machine); restarting it kept the data.
+- Renderer videos made before this phase have no record of their burned-in
+  captions (nothing stored tells which HTTP model was the renderer), so their
+  player track still starts on.
+
+### Audio behind the picture in browser renders
+
+`site:test:render` failed on some runs: the audio stream lasted 0.1003 s
+longer than the video, over the test's 0.1 s bound. ffprobe on the file:
+video 143 frames (5.958 s), AAC 284 frames of 1024 samples (6.059 s), and no
+edit list. Encoding a pulse with Chrome's `AudioEncoder` (AAC, 48 kHz, macOS)
+brought it back 2112 samples (44 ms) late with the first chunk stamped 0:
+the encoder's priming, which WebCodecs does not report, so the MP4 kept it
+and every browser render played its voice 44 ms behind the picture. The rest
+of the gap was the last AAC frame's padding plus the video rounding to whole
+frames, which is why runs passed or failed with the voice's exact length.
+
+`site/src/render/encoder-delay.ts` now measures the delay once per codec
+(encode a pulse, decode it, find it) and `encode.ts` stamps the audio that
+much early, so mediabunny writes an edit list (media time 2112) that trims
+the silence. On the same render: the voice starts 44 ms earlier, the audio
+stream is 6.015 s for 5.958 s of video, and the test passed on two warm and
+two cold origins. Opus measured 12 samples (its pre-skip is already in its
+header). One cold run timed out in the 8-minute wait while the voice model
+downloaded (6.3 min on the next cold run, 1.6 min earlier in the day).

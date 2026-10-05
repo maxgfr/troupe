@@ -10,6 +10,7 @@ export {
   setLineEmotion,
   getScriptHistory,
   getScript,
+  lockScript,
 } from "./server/service";
 export type { Emotion, DraftLine, LineRole, ScriptWithLines } from "./server/service";
 export { scripts, scriptLines } from "./server/schema";

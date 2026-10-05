@@ -25,12 +25,18 @@ export const apiMediaLinks: MediaLinks = {
 
 export const DEFAULT_DOWNLOAD_NAME = "troupe-video";
 
-// The `download` query of a media URL: absent plays the file inline; "1" or
-// a name that is not a plain file name saves it as troupe-video.<ext>;
-// otherwise the browser saves it under that name. Mirrored in site/public/sw.js.
-export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = "mp4"): string {
-  if (download === null) return `inline; filename="${DEFAULT_DOWNLOAD_NAME}.${ext}"`;
+// The name a media URL's `download` query saves the file under: null (no
+// query) plays it inline; "1" or anything that is not a plain file name
+// saves it as troupe-video.<ext>. Mirrored in site/public/sw.js.
+export function downloadFileName(download: string | null, ext: "mp4" | "webm" = "mp4"): string | null {
+  if (download === null) return null;
   const stem = download.replace(/\.(mp4|webm)$/i, "");
   const safe = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(stem) && stem !== "1" ? stem : DEFAULT_DOWNLOAD_NAME;
-  return `attachment; filename="${safe}.${ext}"`;
+  return `${safe}.${ext}`;
+}
+
+// The Content-Disposition for a media URL's `download` query.
+export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = "mp4"): string {
+  const name = downloadFileName(download, ext);
+  return name === null ? `inline; filename="${DEFAULT_DOWNLOAD_NAME}.${ext}"` : `attachment; filename="${name}"`;
 }

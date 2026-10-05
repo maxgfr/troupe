@@ -111,4 +111,10 @@ describe("benchmark", () => {
     expect(container.querySelector("video")!.className).toContain("max-h-[420px]");
     expect(container.querySelector("track")!.hasAttribute("default")).toBe(false);
   });
+
+  it("times the captions on the video's real length and shows that length", () => {
+    const { container } = render(<BenchmarkCompare entries={[{ id: "e", modelKey: "r", status: "completed", outputAssetUrl: "/api/media/x", durationS: 10, mediaDurationS: 13.166667 }]} briefLines={["Hello there."]} />);
+    expect(decodeURIComponent(container.querySelector("track")!.getAttribute("src")!)).toContain("00:00:13.000");
+    expect(screen.getByText("13.2 s")).toBeDefined();
+  });
 });

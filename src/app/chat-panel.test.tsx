@@ -90,7 +90,7 @@ describe("script chat", () => {
     expect(screen.getByText("Relaunches on Renderer · 8 s · 720p")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Apply & relaunch" }));
-    expect(applyAndLaunch).toHaveBeenCalledWith({ projectId: "p1", messageId: "m2", launch: { modelKey: "renderer", tier: "draft", durationS: 8, resolution: "720p", audio: true } });
+    expect(applyAndLaunch).toHaveBeenCalledWith({ projectId: "p1", messageId: "m2", launch: { modelKey: "renderer", durationS: 8, resolution: "720p", audio: true } });
     fireEvent.click(screen.getByRole("button", { name: "Apply only" }));
     expect(apply).toHaveBeenCalledWith({ projectId: "p1", messageId: "m2" });
   });

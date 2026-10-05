@@ -6,6 +6,7 @@ import { testCaller } from "~/test/caller";
 import { seedFixture, type Fixture } from "~/test/fixture";
 import { createWorkspace, workspaces } from "~/modules/identity";
 import { createDraftProject, projects } from "~/modules/studio";
+import { chatMessages } from "~/modules/chat";
 import { catalogOf, fakeAdapter } from "~/test/adapters";
 import type { VideoProviderAdapter } from "~/modules/generation";
 
@@ -79,13 +80,21 @@ describe("script router", () => {
     expect(await versions()).toEqual([1]);
 
     // Once rendered, a version stays as it was rendered.
-    await asMember().generation.launchText({ projectId: own.projectId, scriptId: own.scriptId, modelKey: "veo", tier: "draft", durationS: 8, resolution: "720p" });
+    await asMember().generation.launchText({ projectId: own.projectId, scriptId: own.scriptId, modelKey: "veo", durationS: 8, resolution: "720p" });
     const third = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "happy" });
     expect(third.id).not.toBe(own.scriptId);
     expect(await versions()).toEqual([1, 2]);
     // Retagging an older version always makes a new one.
     const fourth = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "serious" });
     expect(fourth.version).toBe(3);
+  });
+
+  it("adds a version when the chat refers to the newest one", async () => {
+    const own = await seedFixture(t.db, { userId: MEMBER, name: "Retag chat" });
+    await t.db.insert(chatMessages).values({ projectId: own.projectId, role: "user", content: "Sharper", baseScriptId: own.scriptId });
+    const retagged = await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "calm" });
+    expect(retagged.id).not.toBe(own.scriptId);
+    expect(retagged.version).toBe(2);
   });
 
   it("a stranger cannot read the script", async () => {
@@ -104,7 +113,6 @@ describe("generation router", () => {
       projectId: fx.projectId,
       scriptId: fx.scriptId,
       modelKey: "veo",
-      tier: "draft",
       durationS: 8,
       resolution: "720p",
     });
@@ -115,7 +123,7 @@ describe("generation router", () => {
     const veo = fakeAdapter({ modelKey: "veo" });
     const off = testCaller({ db: t.db, userId: MEMBER, catalog: catalogOf([veo], { patch: { veo: { enabled: false, label: "Veo" } } }) });
     await expect(
-      off.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", tier: "draft", durationS: 8, resolution: "720p" }),
+      off.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", durationS: 8, resolution: "720p" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Veo is turned off in Settings." });
     expect(veo.calls).toHaveLength(0);
     await expect(asMember().studio.updateChoices({ projectId: fx.projectId, modelKey: "nonsense" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -124,7 +132,7 @@ describe("generation router", () => {
   it("relaunches a failed render with the same script, model and settings", async () => {
     const flaky = fakeAdapter({ modelKey: "flaky", createJob: async () => { throw new Error("busy"); } });
     const steady = fakeAdapter({ modelKey: "flaky" });
-    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "flaky", tier: "draft", durationS: 6, resolution: "720p" });
+    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "flaky", durationS: 6, resolution: "720p" });
     expect(failed.status).toBe("failed");
     const again = await testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: failed.id });
     expect(again).toMatchObject({ status: "in_progress", modelKey: "flaky", scriptId: fx.scriptId, durationS: 6, resolution: "720p", tier: "draft" });
@@ -132,10 +140,27 @@ describe("generation router", () => {
     await expect(testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: again.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("launches are drafts whatever the client asks: only an export makes a render final", async () => {
+    const launched = await asMember().generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", tier: "final", durationS: 8, resolution: "720p" } as never);
+    expect(launched.tier).toBe("draft");
+  });
+
+  it("two relaunches of one failure at the same moment start one render", async () => {
+    const flaky = fakeAdapter({ modelKey: "race", createJob: async () => { throw new Error("busy"); } });
+    const steady = fakeAdapter({ modelKey: "race" });
+    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "race", durationS: 6, resolution: "720p" });
+    const caller = testCaller({ db: t.db, userId: MEMBER, adapters: [steady] });
+    const results = await Promise.allSettled([caller.generation.relaunch({ projectId: fx.projectId, generationId: failed.id }), caller.generation.relaunch({ projectId: fx.projectId, generationId: failed.id })]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const refused = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(refused.reason).toMatchObject({ code: "BAD_REQUEST", message: "This render was already relaunched. Follow the newer render in the timeline." });
+    expect(steady.calls).toHaveLength(1);
+  });
+
   it("relaunches a failed render once, and the timeline says it was relaunched", async () => {
     const flaky = fakeAdapter({ modelKey: "once", createJob: async () => { throw new Error("busy"); } });
     const steady = fakeAdapter({ modelKey: "once" });
-    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "once", tier: "draft", durationS: 6, resolution: "720p" });
+    const failed = await testCaller({ db: t.db, userId: MEMBER, adapters: [flaky] }).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "once", durationS: 6, resolution: "720p" });
     const again = await testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: failed.id });
     expect(again.parentGenerationId).toBe(failed.id);
     await expect(testCaller({ db: t.db, userId: MEMBER, adapters: [steady] }).generation.relaunch({ projectId: fx.projectId, generationId: failed.id }))
@@ -149,13 +174,13 @@ describe("generation router", () => {
   it("BAD_REQUEST when the chosen model has no configured key", async () => {
     const noKeys = testCaller({ db: t.db, userId: MEMBER, adapters: [] });
     await expect(
-      noKeys.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", tier: "draft", durationS: 8, resolution: "720p" }),
+      noKeys.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", durationS: 8, resolution: "720p" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("a stranger cannot launch a render", async () => {
     await expect(
-      asStranger().generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", tier: "draft", durationS: 8, resolution: "720p" }),
+      asStranger().generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", durationS: 8, resolution: "720p" }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

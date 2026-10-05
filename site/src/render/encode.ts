@@ -6,6 +6,7 @@ import {
 
 import { drawFrame, type Scene, type SceneContext, type Speech } from "~/modules/scene";
 import type { VideoQuality } from "./config";
+import { encoderDelayS } from "./encoder-delay";
 import { RENDER_CONFIG } from "./env";
 
 // Draws every frame of a scene on an OffscreenCanvas and encodes it with
@@ -52,8 +53,12 @@ export async function encodeScene(scene: Scene, track: Speech, onFrame: (frame: 
   output.addAudioTrack(audio);
 
   try {
+    // Stamped early by the encoder's own delay (encoder-delay.ts): the MP4's
+    // edit list then trims the encoder's leading silence, and the voice starts
+    // with the picture.
+    const delayS = await encoderDelayS(codecs.audio, audioBitrate);
     await output.start();
-    const sample = new AudioSample({ data: track.samples, format: "f32", numberOfChannels: 1, sampleRate: track.sampleRate, timestamp: 0 });
+    const sample = new AudioSample({ data: track.samples, format: "f32", numberOfChannels: 1, sampleRate: track.sampleRate, timestamp: -delayS });
     await audio.add(sample);
     sample.close();
     audio.close();

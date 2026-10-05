@@ -87,10 +87,11 @@ describe("chat router with Ollama", () => {
     const adapter = fakeAdapter({ modelKey: "fake" });
     const caller = asMember([adapter]);
     const { assistant } = await caller.chat.send({ projectId: fx.projectId, message: "Relaunch it", durationS: 8 });
-    const launched = await caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", tier: "draft", durationS: 8, resolution: "720p" } });
+    const launched = await caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", tier: "final", durationS: 8, resolution: "720p" } as never });
 
     expect(launched.script.origin).toBe("chat");
-    expect(launched.generation).toMatchObject({ scriptId: launched.script.id, modelKey: "fake", durationS: 8, status: "in_progress" });
+    // A relaunch is a draft whatever the client sends.
+    expect(launched.generation).toMatchObject({ scriptId: launched.script.id, modelKey: "fake", durationS: 8, status: "in_progress", tier: "draft" });
     expect(adapter.calls.at(-1)!.script?.lines).toEqual(PROPOSAL.lines.map(({ role, text, emotion }) => ({ role, text, emotion })));
   });
 
@@ -100,7 +101,7 @@ describe("chat router with Ollama", () => {
     const caller = asMember();
     const { assistant } = await caller.chat.send({ projectId: fx.projectId, message: "Long", durationS: 20 });
     const before = (await caller.script.history({ projectId: fx.projectId })).length;
-    await expect(caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", tier: "draft", durationS: 6, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("12s") });
+    await expect(caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", durationS: 6, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("12s") });
     expect(await caller.script.history({ projectId: fx.projectId })).toHaveLength(before);
   });
 
@@ -141,7 +142,7 @@ describe("failures", () => {
 
   it("treats a stored proposal it cannot read as nothing to apply, for Apply & relaunch too", async () => {
     const [row] = await db.insert(chatMessages).values({ projectId: fx.projectId, role: "assistant", content: "Old", proposal: { bogus: true } as never }).returning();
-    await expect(asMember().chat.applyAndLaunch({ projectId: fx.projectId, messageId: row!.id, launch: { modelKey: "fake", tier: "draft", durationS: 8, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(asMember().chat.applyAndLaunch({ projectId: fx.projectId, messageId: row!.id, launch: { modelKey: "fake", durationS: 8, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(asMember().chat.applyProposal({ projectId: fx.projectId, messageId: row!.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

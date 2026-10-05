@@ -3,8 +3,8 @@ import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Db } from "~/server/db/types";
 import type { MediaLinks } from "~/server/media/store";
 import { projects } from "~/modules/studio/server/schema";
-import { getScript } from "~/modules/script";
-import { generations, prepareGeneration, submitGeneration, type VideoProviderAdapter } from "~/modules/generation";
+import { getScript, lockScript } from "~/modules/script";
+import { generations, mediaAssets, prepareGeneration, submitGeneration, type VideoProviderAdapter } from "~/modules/generation";
 import { tallyWinner } from "../winner";
 import { BENCHMARK_LIST_LIMIT } from "../list-limit";
 import { benchmarkEntries, benchmarkRuns } from "./schema";
@@ -22,17 +22,24 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
   const [project] = await db.select().from(projects).where(eq(projects.id, input.projectId)).limit(1);
   if (!project) throw new Error(`project ${input.projectId} not found`);
 
-  const script = await getScript(db, input.scriptId);
-  const brief = script.lines.map((l) => l.text).join(" ");
   if (input.models.length < 2 || input.models.length > 3 || new Set(input.models.map((m) => m.adapter.modelKey)).size !== input.models.length) {
     throw new Error("Choose two or three different models to compare.");
   }
-  const prepared = await Promise.all(input.models.map(({ adapter, timeoutS, estimatedCostUsd }) => prepareGeneration(db, {
-    projectId: input.projectId, scriptId: input.scriptId, adapter, timeoutS, estimatedCostUsd,
-    tier: "draft", durationS: input.durationS, resolution: input.resolution,
-  })));
-  // Persist the complete comparison first, including failed submissions.
-  const { run, jobs } = await db.transaction(async (tx) => {
+  // Persist the complete comparison first, including failed submissions. The
+  // version is read and recorded under a share lock (see lockScript); a model
+  // that cannot take the request rolls everything back before any call.
+  const { run, brief, jobs } = await db.transaction(async (tx) => {
+    const conn = tx as unknown as Db;
+    await lockScript(conn, input.scriptId, "share");
+    const script = await getScript(conn, input.scriptId);
+    const brief = script.lines.map((l) => l.text).join(" ");
+    const prepared = [];
+    for (const { adapter, timeoutS, estimatedCostUsd } of input.models) {
+      prepared.push(await prepareGeneration(conn, {
+        projectId: input.projectId, scriptId: input.scriptId, adapter, timeoutS, estimatedCostUsd,
+        tier: "draft", durationS: input.durationS, resolution: input.resolution,
+      }));
+    }
     const [run] = await tx.insert(benchmarkRuns).values({ workspaceId: project.workspaceId, brief }).returning();
     if (!run) throw new Error("benchmark run insert returned no row");
     const jobs = [];
@@ -41,7 +48,7 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
       const [entry] = await tx.insert(benchmarkEntries).values({ benchmarkRunId: run.id, generationId: gen!.id }).returning();
       jobs.push({ gen: gen!, entry: entry!, prepared: job });
     }
-    return { run, jobs };
+    return { run, brief, jobs };
   });
   // At most three independent requests, within one provider timeout window.
   const submissions = await Promise.allSettled(jobs.map((job) => submitGeneration(db, job.gen, job.prepared)));
@@ -71,6 +78,8 @@ export interface BenchmarkEntryView {
   costSource: "estimate" | "provider" | null;
   latencyMs: number | null;
   durationS: number;
+  // The saved video's real length, once saved.
+  mediaDurationS: number | null;
   outputAssetUrl: string | null;
   // The model drew the captions into the picture.
   burnedCaptions: boolean;
@@ -141,6 +150,8 @@ export async function listBenchmarkRuns(
   });
 }
 
+const realLength = (seconds: number | undefined) => (seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? seconds : null);
+
 // Side-by-side view — cost, latency, votes, per-model means;
 // failed entries stay visible next to completed ones.
 export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) {
@@ -159,6 +170,10 @@ export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) 
     ? await db.select().from(generations).where(inArray(generations.id, generationIds))
     : [];
   const genById = new Map(gens.map((g) => [g.id, g]));
+  // Each saved video's real length (a model may make it longer than asked).
+  const assetIds = gens.map((g) => g.outputAssetId).filter((id): id is string => Boolean(id));
+  const assets = assetIds.length ? await db.select({ id: mediaAssets.id, meta: mediaAssets.meta }).from(mediaAssets).where(inArray(mediaAssets.id, assetIds)) : [];
+  const lengthByAsset = new Map(assets.map((a) => [a.id, Number(a.meta.durationS)]));
   let projectId: string | null = null;
   let scriptId: string | null = null;
   for (const e of rows) {
@@ -177,6 +192,7 @@ export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) 
       costSource: gen.costSource,
       latencyMs: gen.completedAt ? gen.completedAt.getTime() - gen.createdAt.getTime() : null,
       durationS: gen.durationS,
+      mediaDurationS: realLength(gen.outputAssetId ? lengthByAsset.get(gen.outputAssetId) : undefined),
       outputAssetUrl: gen.outputAssetId ? media.urlFor(gen.outputAssetId) : null,
       burnedCaptions: gen.burnedCaptions,
       votes: e.qualityVotes,

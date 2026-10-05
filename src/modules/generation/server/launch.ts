@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
 import { actors } from "~/modules/actors/server/schema";
-import { assertScriptFitsClip, getScript } from "~/modules/script";
+import { assertScriptFitsClip, getScript, lockScript } from "~/modules/script";
 import { AdapterError, compilePrompt, validateRequest, type JobScript, type VideoProviderAdapter } from "./adapter";
 import { generations } from "./schema";
 import { watchGeneration } from "./orchestrator";
@@ -104,8 +104,14 @@ export async function submitGeneration(db: Db, gen: typeof generations.$inferSel
 }
 
 export async function launchGeneration(db: Db, input: LaunchInput) {
-  const prepared = await prepareGeneration(db, input);
-  const [gen] = await db.insert(generations).values(prepared.record).returning();
-  if (!gen) throw new Error("generation insert returned no row");
+  // The version is read and recorded together, under a share lock.
+  const { prepared, gen } = await db.transaction(async (tx) => {
+    const conn = tx as unknown as Db;
+    await lockScript(conn, input.scriptId, "share");
+    const prepared = await prepareGeneration(conn, input);
+    const [gen] = await tx.insert(generations).values(prepared.record).returning();
+    if (!gen) throw new Error("generation insert returned no row");
+    return { prepared, gen };
+  });
   return submitGeneration(db, gen, prepared);
 }

@@ -85,7 +85,10 @@ it("recovers an ingestion SQL failure without resubmitting the video", async () 
 
 it("retries only persistence when a provider already accepted the job", async () => {
   const provider = adapter("kling");
-  const transaction = vi.spyOn(t.db, "transaction").mockRejectedValueOnce(new Error("Transient write failure"));
+  // The first transaction records the launch; the one after the provider
+  // accepted the job fails once.
+  const real = t.db.transaction.bind(t.db);
+  const transaction = vi.spyOn(t.db, "transaction").mockImplementationOnce(real).mockRejectedValueOnce(new Error("Transient write failure"));
   try {
     const gen = await launchGeneration(t.db, { ...fixture, adapter: provider, tier: "draft", durationS: 8, resolution: "720p" });
     expect(gen.status).toBe("in_progress");

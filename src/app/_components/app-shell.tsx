@@ -37,9 +37,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">Skip to content</a>
       {edition.kind === "demo" ? <DemoBanner /> : null}
       <header className="sticky top-0 z-20 border-b border-muted/20 bg-surface">
-        {/* One row down to 360 px: tighter steps and an icon for Settings on phones. */}
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 sm:gap-3 sm:px-6 sm:py-3">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-8">
+        {/* One row down to 360 px: tighter steps, and an icon for Settings, on phones. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 max-[380px]:gap-1 sm:gap-3 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 max-[380px]:gap-1 sm:gap-8">
             <Wordmark href="/dashboard" />
             <nav aria-label="Primary" className="flex items-center sm:gap-1">
               {NAV.map((item) => {
@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`flex min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 sm:min-h-0 sm:px-3 sm:py-1.5 ${
+                    className={`flex min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 max-[380px]:px-1.5 max-[380px]:text-[13px] sm:min-h-0 sm:px-3 sm:py-1.5 ${
                       active
                         ? "bg-primary/15 font-medium text-primary"
                         : "text-muted hover:text-fg"

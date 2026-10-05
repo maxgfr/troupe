@@ -84,7 +84,7 @@ describe("local models end to end", () => {
 
     const api = await caller();
     expect((await api.settings.models.list()).models.find((m) => m.key === modelKey)).toMatchObject({ kind: "local", status: "ready", timeoutS: 7200, pricePerSecondUsd: 0 });
-    const gen = await api.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey, tier: "draft", durationS: 8, resolution: "720p" });
+    const gen = await api.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey, durationS: 8, resolution: "720p" });
     expect(gen).toMatchObject({ status: "in_progress", costUsd: "0", costSource: "estimate", provider: "http" });
 
     // Archiving does not strand the running job.
@@ -117,7 +117,7 @@ describe("local models end to end", () => {
 
     // The orchestrator polls the launched job at that pace, from the first poll on.
     const before = Date.now();
-    const gen = await (await caller()).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey, tier: "draft", durationS: 8, resolution: "720p" });
+    const gen = await (await caller()).generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey, durationS: 8, resolution: "720p" });
     const [watch] = await t.db.select().from(generationWatches).where(eq(generationWatches.generationId, gen.id));
     expect(watch!.nextPollAt.getTime() - before).toBeLessThan(5_000);
     await t.db.update(generationWatches).set({ nextPollAt: new Date(0) }).where(eq(generationWatches.generationId, gen.id));

@@ -155,7 +155,7 @@ const doctor: Command = {
     providers: { type: "boolean", description: "Check each provider account's key with a free call (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model)." },
     live: { type: "boolean", description: "Render one clip per model at its cheapest settings and ffprobe the download; prints the plan and its cost first." },
     yes: { type: "boolean", description: "With --live: spend the estimate shown and launch." },
-    model: { type: "string", multiple: true, value: "<model>", description: "With --live: only these models (repeatable; default: every model that can launch)." },
+    model: { type: "string", multiple: true, value: "<model>", description: "With --live: only this model (default: every model that can launch)." },
     output: { type: "string", short: "o", value: "<folder>", description: "With --live: where the videos land (default: ./troupe-live-<date>)." },
     ...WATCH_OPTIONS,
   },

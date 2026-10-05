@@ -8,13 +8,15 @@ import { createTable } from "~/server/db/table";
 export const authenticated = pgRole("authenticated").existing();
 
 // Profile row mirroring auth.users. No FK to auth.users so tests and
-// local tooling don't depend on Supabase's internal schema.
+// local tooling don't depend on Supabase's internal schema. Row level
+// security with no policy: Supabase's Data API (anon and authenticated keys)
+// can neither read nor write it; the app's connection owns the table.
 export const users = createTable("user", (d) => ({
   id: d.uuid().primaryKey(),
   email: d.text().notNull(),
   displayName: d.text(),
   createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
-}));
+})).enableRLS();
 
 export const workspaces = createTable(
   "workspace",

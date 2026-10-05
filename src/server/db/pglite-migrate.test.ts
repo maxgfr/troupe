@@ -63,6 +63,18 @@ describe("PGlite migrations", () => {
     await expect(pg.query("select count(*) from troupe_project")).resolves.toBeTruthy();
   });
 
+  // On Supabase every public table is reachable through the Data API with the
+  // anon key unless row level security is on (no policy then means no access).
+  // troupe_static_migrations is this PGlite runner's own ledger.
+  it("turns row level security on for every table, so Supabase's Data API cannot reach them", async () => {
+    pg = new PGlite();
+    await migratePglite(pg, readMigrations());
+    const open = await pg.query<{ relname: string }>(
+      "select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relname like 'troupe\\_%' and c.relname <> 'troupe_static_migrations' and not c.relrowsecurity order by 1",
+    );
+    expect(open.rows.map((r) => r.relname)).toEqual([]);
+  });
+
   it("rolls back a failing migration entirely and does not record it", async () => {
     pg = new PGlite();
     const broken = { name: "9999_broken.sql", sql: "create table half_done (id int);\n--> statement-breakpoint\nselect * from no_such_table;" };

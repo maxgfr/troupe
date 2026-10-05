@@ -10,9 +10,12 @@
 //
 // Settings (all optional):
 //   E2E_PROJECT       Compose project name (troupe-e2e); only its volumes are deleted
+//   E2E_TAG           tag of the images it builds (local); give each checkout its own
+//                     tag, project and ports to run two stacks side by side
 //   E2E_APP_PORT      studio port on 127.0.0.1 (3190)
 //   E2E_WEB_PORT      browser edition port on 127.0.0.1 (3191)
 //   E2E_OLLAMA_MODEL  the chat model (qwen2.5:0.5b, about 400 MB)
+//   E2E_VISION_MODEL  a vision model for the library (off; e.g. qwen3-vl:2b-instruct)
 //   E2E_CACHE_DIR     where model downloads are kept between runs (.cache/e2e)
 //   E2E_WEB_RENDER    0 skips the in-browser render of the browser edition
 //   E2E_WAIT_S        how long the stack may take to become healthy (1800)
@@ -43,6 +46,7 @@ const WITH_CLI = ["--profile", "cli"];
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   E2E_CACHE_DIR: CACHE,
+  E2E_TAG: process.env.E2E_TAG || "local",
   E2E_APP_PORT: APP_PORT,
   E2E_WEB_PORT: WEB_PORT,
   E2E_APP_URL: `http://127.0.0.1:${APP_PORT}`,
@@ -98,7 +102,7 @@ function openUp(path: string) {
 }
 
 async function main(): Promise<number> {
-  for (const dir of ["ollama", "kokoro", "cli"]) {
+  for (const dir of ["ollama", "kokoro", "huggingface", "cli"]) {
     mkdirSync(join(CACHE, dir), { recursive: true });
     openUp(join(CACHE, dir));
   }

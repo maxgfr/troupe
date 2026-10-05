@@ -2,11 +2,14 @@
 # (scripts/e2e-docker.ts), which also sets the variables below. Images are
 # built from this checkout under their own names, ports sit apart from a
 # running stack's, and the chat runs a small model. The models' downloads
-# (Ollama's and Kokoro's) are kept in E2E_CACHE_DIR, outside the volumes the
-# run deletes, so later runs start from them.
+# (Ollama's, Kokoro's and Whisper's) are kept in E2E_CACHE_DIR, outside the
+# volumes the run deletes, so later runs start from them. E2E_TAG names the
+# images, so two checkouts can build and run side by side. The library runs
+# its smallest models: Whisper tiny, all-minilm for search, and no vision
+# model unless E2E_VISION_MODEL names one.
 services:
   app:
-    image: troupe-e2e/app:local
+    image: troupe-e2e/app:${E2E_TAG:-local}
     pull_policy: never
     ports: !override
       - "127.0.0.1:${E2E_APP_PORT:-3190}:3000"
@@ -14,29 +17,40 @@ services:
       OLLAMA_MODEL: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b}
       # Generated on first start, as for anyone: the run reads it back.
       TROUPE_ACCESS_CODE: ""
+      TROUPE_LIBRARY_EMBED_MODEL: all-minilm
+      TROUPE_LIBRARY_VISION_MODEL: ${E2E_VISION_MODEL:-off}
+      # The test's pages and files are served from this computer
+      # (host.docker.internal), a private address the library refuses otherwise.
+      TROUPE_LIBRARY_ALLOW_PRIVATE_URLS: "1"
 
   ollama:
-    image: troupe-e2e/ollama:local
+    image: troupe-e2e/ollama:${E2E_TAG:-local}
     pull_policy: never
     environment:
-      TROUPE_OLLAMA_MODELS: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b}
+      # The search model is waited for too: the library's tests need it.
+      TROUPE_OLLAMA_MODELS: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b},all-minilm
+      TROUPE_LIBRARY_EMBED_MODEL: all-minilm
+      TROUPE_LIBRARY_VISION_MODEL: ${E2E_VISION_MODEL:-off}
     volumes: !override
       - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/ollama:/ollama/models
 
   renderer:
-    image: troupe-e2e/renderer:local
+    image: troupe-e2e/renderer:${E2E_TAG:-local}
     pull_policy: never
+    environment:
+      WHISPER_MODEL: tiny
     volumes:
       - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/kokoro:/data/kokoro
+      - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/huggingface:/data/huggingface
 
   web:
-    image: troupe-e2e/web:local
+    image: troupe-e2e/web:${E2E_TAG:-local}
     pull_policy: never
     ports: !override
       - "127.0.0.1:${E2E_WEB_PORT:-3191}:8080"
 
   cli:
-    image: troupe-e2e/cli:local
+    image: troupe-e2e/cli:${E2E_TAG:-local}
     pull_policy: never
     volumes: !override
       - troupe-cli-access:/run/troupe-access:ro

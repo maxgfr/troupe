@@ -9,6 +9,9 @@ const COMPOSE: string[] = JSON.parse(process.env.E2E_COMPOSE ?? "null") ?? [
   "compose", "-p", "troupe-e2e", "-f", "docker-compose.yml", "-f", "docker-compose.test.yml", "--env-file", "e2e/stack.env", "--profile", "cli",
 ];
 
+// The tag of the stack's images (E2E_TAG, scripts/e2e-docker.ts).
+export const TAG = process.env.E2E_TAG || "local";
+
 // `docker compose <args>` for the test stack, from the repository root.
 export function compose(...args: string[]): string {
   return execFileSync("docker", [...COMPOSE, ...args], { cwd: new URL("..", import.meta.url), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5 * 60_000 });

@@ -2,6 +2,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
+import { TAG } from "./stack";
+
 // What the images and the Compose file do on their own, outside the running
 // stack: the licenses the Ollama image must carry, and the database's
 // first-start password, run from the exact script docker-compose.yml holds.
@@ -10,7 +12,7 @@ const REPO = new URL("..", import.meta.url);
 const docker = (...args: string[]) => execFileSync("docker", args, { cwd: REPO, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5 * 60_000 });
 
 test("the Ollama image carries Ollama's license and the notices for what it bundles", () => {
-  const read = (file: string) => docker("run", "--rm", "--entrypoint", "cat", "troupe-e2e/ollama:local", file);
+  const read = (file: string) => docker("run", "--rm", "--entrypoint", "cat", `troupe-e2e/ollama:${TAG}`, file);
   const license = read("/usr/share/doc/ollama/LICENSE");
   expect(license).toMatch(/^MIT License/);
   expect(license).toContain("Copyright (c) Ollama");
@@ -19,8 +21,13 @@ test("the Ollama image carries Ollama's license and the notices for what it bund
   // Every file the notice points at is in the image.
   const files = [...new Set(notice.match(/\/usr\/[\w/.-]+[\w]/g) ?? [])].filter((f) => !f.endsWith(".so") && !f.endsWith(".so.1"));
   expect(files.length).toBeGreaterThan(5);
-  const missing = docker("run", "--rm", "--entrypoint", "sh", "troupe-e2e/ollama:local", "-c", `for f in ${files.join(" ")}; do test -e "$f" || echo "$f"; done`);
+  const missing = docker("run", "--rm", "--entrypoint", "sh", `troupe-e2e/ollama:${TAG}`, "-c", `for f in ${files.join(" ")}; do test -e "$f" || echo "$f"; done`);
   expect(missing.trim()).toBe("");
+});
+
+test("the app image runs yt-dlp, and the renderer image carries faster-whisper", () => {
+  expect(docker("run", "--rm", "--entrypoint", "yt-dlp", `troupe-e2e/app:${TAG}`, "--version").trim()).toMatch(/^\d{4}\.\d{2}\.\d{2}/);
+  expect(docker("run", "--rm", "--entrypoint", "/app/renderer/whisper/.venv/bin/python", `troupe-e2e/renderer:${TAG}`, "-c", "import faster_whisper; print(faster_whisper.__version__)").trim()).toBe("1.2.1");
 });
 
 test.describe("the database's generated password", () => {

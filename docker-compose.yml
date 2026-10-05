@@ -8,7 +8,8 @@
 # the access code and the encryption key are generated on first start, the
 # local renderer is added as a video model and the script chat uses the
 # stack's Ollama. The first start downloads the chat model (qwen3:4b, 2.5 GB)
-# and the renderer's voices (90 MB). Every setting is optional (.env.example);
+# and the renderer's voices (90 MB); then, in the background, the inspiration
+# library's search and vision models (639 MB and 1.9 GB). Every setting is optional (.env.example);
 # docs/SELF-HOSTING.md covers profiles, volumes, HTTPS, backups and upgrades.
 name: troupe
 
@@ -55,6 +56,23 @@ services:
       TROUPE_RENDERER_TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       TROUPE_RENDERER_LABEL: ${TROUPE_RENDERER_LABEL:-}
       TROUPE_RENDERER_DURATIONS: ${TROUPE_RENDERER_DURATIONS:-}
+      # The inspiration library (docs/LIBRARY.md): transcription on the
+      # renderer, embeddings and vision on the stack's Ollama, which pulls
+      # their models after the chat model. TROUPE_LIBRARY=0 turns it off; a
+      # model set to "off" skips that step.
+      TROUPE_LIBRARY: ${TROUPE_LIBRARY:-1}
+      TROUPE_LIBRARY_EMBED_MODEL: ${TROUPE_LIBRARY_EMBED_MODEL:-qwen3-embedding:0.6b}
+      TROUPE_LIBRARY_VISION_MODEL: ${TROUPE_LIBRARY_VISION_MODEL:-qwen3-vl:2b-instruct}
+      TROUPE_LIBRARY_OLLAMA_URL: ${TROUPE_LIBRARY_OLLAMA_URL:-}
+      TROUPE_LIBRARY_OLLAMA_TIMEOUT_S: ${TROUPE_LIBRARY_OLLAMA_TIMEOUT_S:-}
+      TROUPE_LIBRARY_MAX_UPLOAD_MB: ${TROUPE_LIBRARY_MAX_UPLOAD_MB:-}
+      TROUPE_LIBRARY_MAX_DURATION_S: ${TROUPE_LIBRARY_MAX_DURATION_S:-}
+      TROUPE_LIBRARY_FRAMES: ${TROUPE_LIBRARY_FRAMES:-}
+      TROUPE_LIBRARY_VISION_FRAMES: ${TROUPE_LIBRARY_VISION_FRAMES:-}
+      TROUPE_LIBRARY_FETCH_TIMEOUT_S: ${TROUPE_LIBRARY_FETCH_TIMEOUT_S:-}
+      TROUPE_LIBRARY_ALLOW_PRIVATE_URLS: ${TROUPE_LIBRARY_ALLOW_PRIVATE_URLS:-}
+      TROUPE_TRANSCRIBE_URL: ${TROUPE_TRANSCRIBE_URL:-http://renderer:8078}
+      TROUPE_TRANSCRIBE_TIMEOUT_S: ${TROUPE_TRANSCRIBE_TIMEOUT_S:-}
     volumes:
       - troupe-media:/app/data
       - troupe-secrets:/run/troupe-secrets:ro
@@ -131,6 +149,14 @@ services:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
       KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
+      # Transcription for the library (faster-whisper on the CPU): the model
+      # (tiny, base, small, medium, large-v3, turbo) downloads into the
+      # `renderer` volume on first use; base is about 145 MB.
+      WHISPER_ENABLED: ${TROUPE_TRANSCRIPTION:-1}
+      WHISPER_MODEL: ${TROUPE_WHISPER_MODEL:-base}
+      WHISPER_COMPUTE_TYPE: ${TROUPE_WHISPER_COMPUTE_TYPE:-}
+      WHISPER_LANGUAGE: ${TROUPE_WHISPER_LANGUAGE:-}
+      WHISPER_THREADS: ${TROUPE_WHISPER_THREADS:-}
     volumes:
       - renderer:/data
       # The actors' pictures drawn in the card: the checked-in cast, or your own.
@@ -155,6 +181,13 @@ services:
       TROUPE_OLLAMA_MODELS: ${TROUPE_OLLAMA_MODELS:-${OLLAMA_MODEL:-qwen3:4b}}
       OLLAMA_MODELS: /ollama/models
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      # The library's models, pulled after the ones above and not waited for:
+      # the stack is healthy without them, and the library says what it is
+      # still waiting for (qwen3-embedding:0.6b is 639 MB,
+      # qwen3-vl:2b-instruct 1.9 GB). Nothing is pulled with TROUPE_LIBRARY=0.
+      TROUPE_LIBRARY: ${TROUPE_LIBRARY:-1}
+      TROUPE_LIBRARY_EMBED_MODEL: ${TROUPE_LIBRARY_EMBED_MODEL:-qwen3-embedding:0.6b}
+      TROUPE_LIBRARY_VISION_MODEL: ${TROUPE_LIBRARY_VISION_MODEL:-qwen3-vl:2b-instruct}
     # Downloads each model in the background, retrying with a growing pause
     # (5 s up to 5 min) while the network fails. A name the Ollama library does
     # not know never succeeds: the service then stops with that message, so
@@ -165,21 +198,33 @@ services:
       - |
         (
           until ollama list > /dev/null 2>&1; do sleep 1; done
-          for model in $$(echo "$$TROUPE_OLLAMA_MODELS" | tr ',' ' '); do
+          # pull <model> <required>: a required model the library does not
+          # know stops the service; an optional one is only reported.
+          pull() {
             pause=5
-            until ollama show "$$model" > /dev/null 2>&1; do
-              ollama pull "$$model" 2>&1 | tee /tmp/ollama-pull.log
-              ollama show "$$model" > /dev/null 2>&1 && break
+            until ollama show "$$1" > /dev/null 2>&1; do
+              ollama pull "$$1" 2>&1 | tee /tmp/ollama-pull.log
+              ollama show "$$1" > /dev/null 2>&1 && break
               if grep -qiE "file does not exist|not found" /tmp/ollama-pull.log; then
-                echo "The Ollama library has no model called $$model. Fix OLLAMA_MODEL (or TROUPE_OLLAMA_MODELS) in .env, then run docker compose up -d --wait again." >&2
-                kill -TERM 1
-                exit 1
+                if [ "$$2" = required ]; then
+                  echo "The Ollama library has no model called $$1. Fix OLLAMA_MODEL (or TROUPE_OLLAMA_MODELS) in .env, then run docker compose up -d --wait again." >&2
+                  kill -TERM 1
+                  exit 1
+                fi
+                echo "The Ollama library has no model called $$1; the inspiration library goes on without it. Fix it in .env." >&2
+                return 0
               fi
-              echo "Could not download $$model; trying again in $$pause s." >&2
+              echo "Could not download $$1; trying again in $$pause s." >&2
               sleep "$$pause"
               pause=$$((pause * 2)); [ "$$pause" -gt 300 ] && pause=300
             done
-          done
+          }
+          for model in $$(echo "$$TROUPE_OLLAMA_MODELS" | tr ',' ' '); do pull "$$model" required; done
+          if [ "$$TROUPE_LIBRARY" != 0 ] && [ "$$TROUPE_LIBRARY" != false ]; then
+            for model in "$$TROUPE_LIBRARY_EMBED_MODEL" "$$TROUPE_LIBRARY_VISION_MODEL"; do
+              case "$$model" in ''|off|none) ;; *) pull "$$model" optional ;; esac
+            done
+          fi
         ) &
         exec ollama serve
     volumes:

@@ -25,9 +25,11 @@ export default defineConfig({
     { name: "studio", testDir: ".", testMatch: /studio\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: APP } },
     // After the studio flow: the CLI sees the project it made.
     { name: "cli", testDir: ".", testMatch: /cli\.spec\.ts/, dependencies: ["studio"], use: { baseURL: APP } },
+    // The inspiration library, in the pages and through the CLI.
+    { name: "library", testDir: ".", testMatch: /library\.spec\.ts/, dependencies: ["cli"], use: { ...devices["Desktop Chrome"], baseURL: APP } },
     // Last of the stack's own: it restarts the studio.
-    { name: "stack", testDir: ".", testMatch: /stack\.spec\.ts/, dependencies: ["cli"], use: { baseURL: APP } },
-    { name: "web", testDir: "../site/tests", testMatch: /(smoke|landing)\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: WEB } },
+    { name: "stack", testDir: ".", testMatch: /stack\.spec\.ts/, dependencies: ["library"], use: { baseURL: APP } },
+    { name: "web", testDir: "../site/tests", testMatch: /(smoke|landing|library)\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: WEB } },
     // Real renders in the page, served by nginx; E2E_WEB_RENDER=0 skips them.
     ...(process.env.E2E_WEB_RENDER === "0" ? [] : [{ name: "web-render", testDir: "../site/tests", testMatch: /render\.spec\.ts/, use: { baseURL: WEB } }]),
     // The WebLLM chat needs WebGPU (headed Chrome on a machine with a GPU, not

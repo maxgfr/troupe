@@ -4,6 +4,7 @@ import type { ApiWorkflow, NodeBinding } from "../bindings";
 import type { RequiredFile } from "../adapter";
 import ltx2Workflow from "./ltx2_t2v_fp8.json";
 import wanWorkflow from "./wan2_2_ti2v_5b.json";
+import ltxvWorkflow from "./ltxv_2b_distilled.json";
 
 export interface ComfyTemplate {
   id: string;
@@ -28,10 +29,34 @@ export interface ComfyTemplate {
   timeoutS: number;
 }
 
-// Both workflows are ComfyUI's own templates (comfyui-workflow-templates
+// LTX-2 and Wan 2.2 are ComfyUI's own templates (comfyui-workflow-templates
 // 0.11.76) exported with the frontend's "Export (API)" on ComfyUI 0.38.0;
-// only the inputs Troupe drives were replaced by {{placeholders}}.
+// only the inputs Troupe drives were replaced by {{placeholders}}. LTX-Video
+// 2B is Troupe's own graph of ComfyUI core nodes, the first one offered: it
+// is the one that fits a 16 GB Mac (docs/LOCAL-MODELS.md#comfyui).
 export const COMFY_TEMPLATES: readonly ComfyTemplate[] = [
+  {
+    id: "ltxv-2b-distilled",
+    label: "LTX-Video 2B distilled (silent, small)",
+    description: "Lightricks LTX-Video 2B 0.9.8 distilled, 8 steps, with the T5-XXL text encoder. About 16 GB of model files; renders on a 16 GB Apple Silicon Mac or an 8 GB GPU. Silent video: add the voice in your editor.",
+    workflow: ltxvWorkflow as ApiWorkflow,
+    bindings: [],
+    capabilities: { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["480p"], durationsS: [2, 3, 4, 5], audio: "none", dialogueLanguages: null },
+    fps: 24,
+    // LTX-Video wants frame counts of 8n+1 and sides divisible by 32.
+    frameRule: "8n+1",
+    sizeTable: { "9:16@480p": [480, 832], "16:9@480p": [832, 480], "1:1@480p": [512, 512] },
+    negativePrompt: "low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly",
+    outputNodeId: "14",
+    requiredFiles: [
+      { folder: "checkpoints", filename: "ltxv-2b-0.9.8-distilled.safetensors", url: "https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.8-distilled.safetensors", nodeClass: "CheckpointLoaderSimple", input: "ckpt_name" },
+      { folder: "text_encoders", filename: "t5xxl_fp16.safetensors", url: "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors", nodeClass: "CLIPLoader", input: "clip_name" },
+    ],
+    vramGb: 8,
+    comfyuiVersion: "0.38.0",
+    verification: "rendered",
+    timeoutS: 7200,
+  },
   {
     id: "ltx2-t2v",
     label: "LTX-2 (video + audio)",

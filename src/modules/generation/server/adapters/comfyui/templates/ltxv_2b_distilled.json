@@ -1,0 +1,16 @@
+{
+  "1": { "_meta": { "title": "Load Checkpoint" }, "class_type": "CheckpointLoaderSimple", "inputs": { "ckpt_name": "ltxv-2b-0.9.8-distilled.safetensors" } },
+  "2": { "_meta": { "title": "Load CLIP" }, "class_type": "CLIPLoader", "inputs": { "clip_name": "t5xxl_fp16.safetensors", "type": "ltxv", "device": "default" } },
+  "3": { "_meta": { "title": "CLIP Text Encode (Positive Prompt)" }, "class_type": "CLIPTextEncode", "inputs": { "clip": ["2", 0], "text": "{{prompt}}" } },
+  "4": { "_meta": { "title": "CLIP Text Encode (Negative Prompt)" }, "class_type": "CLIPTextEncode", "inputs": { "clip": ["2", 0], "text": "{{negative_prompt}}" } },
+  "5": { "_meta": { "title": "LTXV Conditioning" }, "class_type": "LTXVConditioning", "inputs": { "positive": ["3", 0], "negative": ["4", 0], "frame_rate": "{{fps}}" } },
+  "6": { "_meta": { "title": "Empty LTXV Latent Video" }, "class_type": "EmptyLTXVLatentVideo", "inputs": { "width": "{{width}}", "height": "{{height}}", "length": "{{frames}}", "batch_size": 1 } },
+  "7": { "_meta": { "title": "Distilled sigmas" }, "class_type": "ManualSigmas", "inputs": { "sigmas": "1.0, 0.993, 0.987, 0.981, 0.975, 0.909, 0.725, 0.03, 0.0" } },
+  "8": { "_meta": { "title": "KSamplerSelect" }, "class_type": "KSamplerSelect", "inputs": { "sampler_name": "euler" } },
+  "9": { "_meta": { "title": "RandomNoise" }, "class_type": "RandomNoise", "inputs": { "noise_seed": "{{seed}}" } },
+  "10": { "_meta": { "title": "CFGGuider" }, "class_type": "CFGGuider", "inputs": { "model": ["1", 0], "positive": ["5", 0], "negative": ["5", 1], "cfg": 1 } },
+  "11": { "_meta": { "title": "SamplerCustomAdvanced" }, "class_type": "SamplerCustomAdvanced", "inputs": { "noise": ["9", 0], "guider": ["10", 0], "sampler": ["8", 0], "sigmas": ["7", 0], "latent_image": ["6", 0] } },
+  "12": { "_meta": { "title": "VAE Decode" }, "class_type": "VAEDecode", "inputs": { "samples": ["11", 0], "vae": ["1", 2] } },
+  "13": { "_meta": { "title": "Create Video" }, "class_type": "CreateVideo", "inputs": { "images": ["12", 0], "fps": "{{fps}}", "bit_depth": "auto", "codec": "none", "color_space": "sRGB" } },
+  "14": { "_meta": { "title": "Save Video" }, "class_type": "SaveVideo", "inputs": { "video": ["13", 0], "filename_prefix": "{{filename_prefix}}", "format": "mp4", "codec": "h264", "format.codec": "h264" } }
+}

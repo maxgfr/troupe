@@ -76,13 +76,14 @@ programs under other licenses:
     license "for any purpose" except that "entities with annual revenues of
     at least $10,000,000" need a paid commercial license, and it binds every
     use to the restrictions of its Attachment A, which anyone redistributing
-    the model must pass on. Among them, not to use the model "to generate or
+    the model must pass on. Among them, not to use the model "To generate or
     disseminate information and/or content … without expressly and
     intelligibly disclaiming that the information and/or content is machine
-    generated", nor "to impersonate or attempt to impersonate (e.g.
-    deepfakes) others without their consent". Earlier 2B checkpoints (0.9.1,
-    0.9.5), which `LTX_MODEL` can select, use Lightricks' OpenRAIL-M license
-    with the same use restrictions.
+    generated", nor "To impersonate or attempt to impersonate (e.g.
+    deepfakes) others without their consent". The 2B 0.9.5 checkpoint, which
+    `LTX_MODEL` can select, uses Lightricks' Open RAIL-M license (March 5,
+    2025) instead: commercial use with no revenue threshold, under much the
+    same use restrictions.
   - T5 v1.1 XXL text encoder and tokenizer, loaded from
     [`Lightricks/LTX-Video-0.9.5`](https://huggingface.co/Lightricks/LTX-Video-0.9.5)
     (a copy of [`google/t5-v1_1-xxl`](https://huggingface.co/google/t5-v1_1-xxl)'s

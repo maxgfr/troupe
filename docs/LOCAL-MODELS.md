@@ -313,8 +313,13 @@ the Hugging Face cache (`~/.cache/huggingface/hub`, or `$HF_HOME/hub`):
 | T5 v1.1 XXL text encoder (stored in fp32) and tokenizer | 19 GB | [`Lightricks/LTX-Video-0.9.5`](https://huggingface.co/Lightricks/LTX-Video-0.9.5) |
 | scheduler and model configs | a few kB | `Lightricks/LTX-Video-0.9.5` |
 
-Skipping the setup works too: the first job installs and downloads all of it,
-which takes far longer than Troupe's progress bar suggests.
+Run the setup before the first job. Until the Python environment exists,
+**Test** on the `/ltx` model fails with "The AI video mode's Python
+environment is not set up yet. Run pnpm renderer:ltx:setup …" (and with "needs
+"uv", which is not installed here" without uv). A job sent anyway would have
+to install PyTorch and download about 25 GB first, which on an ordinary
+connection takes longer than `LTX_TIMEOUT_S` (30 minutes) and would be
+stopped.
 
 ### Run it
 
@@ -327,6 +332,10 @@ root; the AI video mode answers the same contract v1 routes under `/ltx`, so
 Troupe sees two models. Jobs from both run one at a time. A renderer started
 without the mode answers `/ltx` with HTTP 503 and a message saying how to turn
 it on, which **Test** shows.
+
+Each generation runs as its own process group. A timeout, the end of the job
+and stopping the renderer (Ctrl-C, `SIGTERM`) stop the whole group, Python
+included, so no generation is left holding the GPU's memory.
 
 ### Add it to Troupe
 
@@ -368,9 +377,10 @@ All optional; the defaults are the ones measured below.
 | `LTX_TEXT_ENCODER_DEVICE` | `LTX_DEVICE` | where T5 runs; `cpu` leaves the GPU's memory to the video model |
 | `LTX_DTYPE` | `bfloat16` | `bfloat16`, `float16` or `float32` |
 | `LTX_TIMESTEPS` | `1000,993,987,981,975,909,725,0.03` | the distilled model's 8-step schedule; empty to use `LTX_STEPS` evenly spaced steps instead (for a non-distilled `LTX_MODEL`) |
-| `LTX_STEPS` | `8` (the schedule's length) | denoising steps when `LTX_TIMESTEPS` is empty, e.g. `40` |
+| `LTX_STEPS` | the schedule's length (`8`); `40` when `LTX_TIMESTEPS` is empty | denoising steps |
 | `LTX_GUIDANCE` | `1` | classifier-free guidance; the distilled model needs `1`, others about `3` |
-| `LTX_VAE_TILING` | `1` | decode the video in tiles, which keeps the decoder's memory down |
+| `LTX_VAE_TILING` | `1` | decode the video in tiles, across the frame and across time, which keeps the decoder's memory down |
+| `LTX_VAE_TILE_FRAMES` | `16` | frames decoded together, a multiple of 8: `32` decoded the default clip in about 25 % less time on the M5, but free memory fell to 4 % |
 | `LTX_PROMPT_CACHE` | `~/.cache/troupe-renderer/ltx-prompts` | where encoded prompts are kept (a few MB each), so the 9.5 GB text encoder only loads for a new prompt; empty turns it off |
 
 ### Measured on an Apple M5 with 16 GB
@@ -435,7 +445,23 @@ which you accept by downloading it. In short, and read the license itself:
 - Lightricks may restrict use that breaks the license and asks you to use the
   latest version.
 
-The T5 v1.1 XXL text encoder is Google's, under the Apache License 2.0. The
-earlier 2B checkpoints (0.9.1, 0.9.5) use an OpenRAIL-M license with the same
-use restrictions and no revenue threshold; `LTX_MODEL` can point to one, with
-`LTX_TIMESTEPS=` and `LTX_GUIDANCE=3`.
+The T5 v1.1 XXL text encoder is Google's, under the Apache License 2.0.
+
+### The more permissive 0.9.5 checkpoint
+
+LTX-Video 2B 0.9.5 is under Lightricks'
+[OpenRAIL-M license](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.5.license.txt)
+(March 5, 2025): it allows commercial use with no revenue threshold, under
+much the same use restrictions (the machine-generated disclaimer and the
+deepfake ban included). It is not distilled, so it needs about 40 steps with
+guidance:
+
+```bash
+export LTX_MODEL=Lightricks/LTX-Video-0.9.5 LTX_TIMESTEPS= LTX_GUIDANCE=3
+pnpm renderer:ltx:setup   # adds its transformer and VAE (6.3 GB) to the cache
+pnpm renderer:ltx
+```
+
+On the M5 it rendered the default clip in 358 s (5.7 GB max RSS, free memory
+down to 14 %), against about 90 s for the distilled default. Its picture was
+smoother and more airbrushed, and in that run the framing cut the face in half.

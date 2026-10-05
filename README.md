@@ -55,8 +55,10 @@ ComfyUI, the AI video mode), GPUs, volumes, backups and upgrades.
 | Model | Where it runs | Audio | Formats | Lengths |
 |---|---|---|---|---|
 | Veo 3.1 Fast | Google AI (API key) | always | 9:16, 16:9 | 4, 6, 8 s |
+| Veo 3.1 Lite | Google AI (API key) | always | 9:16, 16:9 | 4, 6, 8 s |
 | Kling 3.0 | fal.ai (API key) | optional | 9:16, 16:9, 1:1 | 3–15 s |
 | Seedance 1.5 Pro | fal.ai (API key) | optional | 9:16, 16:9, 1:1 | 4–12 s |
+| LTX-Video 2B distilled | your GPU or a 16 GB Mac, via ComfyUI | silent | 9:16, 16:9, 1:1 | 2–5 s |
 | LTX-2 | your GPU, via ComfyUI | always | 9:16, 16:9, 1:1 | 4–10 s |
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
 | Local renderer | your CPU, in the Docker stack by default ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
@@ -112,14 +114,29 @@ whole process for you, from the brief to the reviewed MP4:
 
 ## Honest status
 
-The cloud adapters are tested against recorded API responses, the local
-adapters against real HTTP servers in the test suite, and the whole Docker
-stack end to end on every push (`pnpm e2e:docker`: the studio's flow in
-Chromium with the stack's renderer and a small Ollama model, the CLI, the
-browser edition). **Paid generations
-with real Google and fal.ai keys have not been run for this release, and the
-bundled ComfyUI workflows were validated by ComfyUI 0.38.0 but not rendered
-end to end.** Reports are welcome.
+What was checked, and how (2026-10-05):
+
+- **Cloud video models (Veo, Kling, Seedance) and Claude:** the adapters
+  follow the providers' API references of that day and are tested against
+  responses recorded from them, including the live error bodies for a bad
+  key. Settings' free key check was run against the live Google and fal.ai
+  APIs with invalid keys. **No paid generation has been run**: no Google,
+  fal.ai or Anthropic key was available. `pnpm verify:live --yes` runs one at
+  each provider's cheapest settings with yours, for about $0.28
+  ([docs/LIVE-CHECKS.md](docs/LIVE-CHECKS.md)).
+- **ComfyUI:** the LTX-Video 2B workflow rendered end to end through Troupe on
+  an Apple M5 with 16 GB. The LTX-2 and Wan 2.2 workflows were validated by
+  ComfyUI 0.38.0 but not rendered ([docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md#bundled-workflows)).
+- **Vercel + Supabase:** run against a local Supabase (Postgres, Storage,
+  `pg_cron`, the session pooler) with a production build, renders included;
+  not on a real Vercel deployment
+  ([docs/VERCEL-SUPABASE.md](docs/VERCEL-SUPABASE.md#what-was-tested)).
+- **Docker stack:** end to end on every push (`pnpm e2e:docker`: the studio's
+  flow in Chromium with the stack's renderer and a small Ollama model, the
+  CLI, the browser edition). The local adapters are tested against real HTTP
+  servers in the test suite.
+
+Reports are welcome.
 
 ## Other ways to run it
 

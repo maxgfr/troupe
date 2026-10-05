@@ -136,7 +136,8 @@ Everything is optional. Put what you change in `.env` next to
 | `TROUPE_SECRET` | generated | Encrypts saved API keys and local model tokens (AES-256-GCM). If empty, a random key is saved as `secret.key` in the data volume. **Back it up**: without it saved keys cannot be read and must be entered again. |
 | `POSTGRES_PASSWORD` | generated | The database password. If empty, `db` generates one on first start and keeps it in the `troupe-secrets` volume, where `app` reads it. Set it only to keep a database created with a password of your own (hex characters, so it fits in a URL). |
 | `DATABASE_URL` | built for `db` | Another PostgreSQL server; the `db` service then sits idle. |
-| `GOOGLE_GENAI_API_KEY`, `FAL_KEY` | — | Optional provider keys. Keys saved in Settings take precedence. |
+| `GOOGLE_GENAI_API_KEY` (or `GEMINI_API_KEY`), `FAL_KEY` | — | Optional provider keys. Keys saved in Settings take precedence; Settings → Provider accounts → Test checks each one for free. |
+| `TROUPE_MODEL_IDS` | — | A newer upstream id for a built-in model, as `key=id` pairs separated by commas, e.g. `veo-3.1-fast=veo-3.1-fast-generate-001,kling-3.0=fal-ai/kling-video/v3/pro/text-to-video`. The model keeps its formats and lengths, so the replacement must accept them. |
 | `OLLAMA_MODEL` | `qwen3:4b` | The chat model: `ollama` downloads it, `app` uses it ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)). Any model that follows a JSON schema. |
 | `TROUPE_OLLAMA_MODELS` | `OLLAMA_MODEL` | Every model `ollama` downloads and waits for, separated by commas. |
 | `OLLAMA_URL` | `http://ollama:11434` | Another Ollama, such as one installed on this computer: `http://host.docker.internal:11434` (on Linux, start it with `OLLAMA_HOST=0.0.0.0`). Then run the stack without its own: `docker compose up -d --wait --scale ollama=0`. |

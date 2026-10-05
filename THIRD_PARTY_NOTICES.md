@@ -53,12 +53,16 @@ programs under other licenses:
   `pnpm e2e:docker` checks them. `docker-compose.gpu.yml` builds the official
   image itself (the `gpu` target, with the same two files added), which also
   carries NVIDIA's CUDA libraries under [NVIDIA's license](https://docs.nvidia.com/cuda/eula/).
-- **ComfyUI workflows.** `src/modules/generation/server/adapters/comfyui/templates/*.json`
-  are derived from [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates)
-  (MIT). The model weights they reference are not distributed with Troupe and
-  carry their own licenses (LTX-2: LTX-2 Community License Agreement, free for
-  commercial use under a revenue threshold; Wan 2.2:
-  Apache 2.0).
+- **ComfyUI workflows.** `ltx2_t2v_fp8.json` and `wan2_2_ti2v_5b.json` in
+  `src/modules/generation/server/adapters/comfyui/templates/` are derived from
+  [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates)
+  (MIT); `ltxv_2b_distilled.json` is Troupe's own (MIT). The model weights they
+  reference are not distributed with Troupe and carry their own licenses
+  (LTX-2: LTX-2 Community License Agreement, free for commercial use under a
+  revenue threshold; Wan 2.2: Apache 2.0; LTX-Video 2B 0.9.8 distilled:
+  [LTXV Open Weights License](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt),
+  a paid license above $10M annual revenue; the T5-XXL text encoder
+  (`t5xxl_fp16.safetensors`, Google's T5 v1.1): Apache 2.0).
 - **Kokoro-82M voice model.** The in-browser renderer (browser edition) and the
   local renderer (`renderer/`) download
   [`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX),

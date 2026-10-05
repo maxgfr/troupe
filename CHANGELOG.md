@@ -73,8 +73,30 @@ First public release.
 - `pnpm e2e:docker`: builds the images, starts the stack under its own
   Compose project and runs the studio's whole flow, the CLI and the browser
   edition against it in Chromium, then deletes it; CI runs it on every push.
+- Veo 3.1 Lite, Google's cheapest Veo, and verified prices per second for
+  every built-in model. `TROUPE_MODEL_IDS` points a built-in at a newer
+  upstream id without a release; `GEMINI_API_KEY` and `GOOGLE_API_KEY` are
+  read for Google too.
+- Free key checks: Settings → Test, `troupe keys test` and
+  `troupe doctor --providers` read the Veo model, the fal endpoint's price or
+  the Claude model, and say whether the key is unknown, lacks access, is in an
+  unsupported region, or has run out of quota or balance. Launches give the
+  same reasons.
+- `pnpm verify:live` and `troupe doctor --live`: one real job per configured
+  provider at its cheapest settings, downloaded and checked with ffprobe,
+  priced first and run only with `--yes` ([docs/LIVE-CHECKS.md](docs/LIVE-CHECKS.md)).
+- A ComfyUI workflow for LTX-Video 2B distilled that renders on a 16 GB Mac,
+  offered first.
 
 ### Changed
+
+- Migration 0021 turns row level security on for the user table, the last
+  one Supabase's Data API could reach with the anon key.
+- On Supabase, use the session pooler: the transaction pooler stalled on the
+  studio's pipelined queries; the studio warns when it is configured. Idle
+  database connections close after 20 s.
+- A finished video that cannot be saved says why in the server log;
+  `FFPROBE_PATH` chooses the ffprobe that checks it.
 
 - Launching a script longer than its clip is refused as a bad request with
   its reason, instead of an internal error.

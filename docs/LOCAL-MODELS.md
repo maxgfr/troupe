@@ -31,24 +31,48 @@ for where Troupe runs: `host.docker.internal:8188` in Docker, port 8000 under
 
 ### Bundled workflows
 
-Both come from ComfyUI's own templates (comfyui-workflow-templates 0.11.76),
-exported with **Workflow → Export (API)** from ComfyUI 0.38.0. Troupe fills in
-the prompt, size, frame count, frame rate, seed and output name.
+Troupe fills in the prompt, size, frame count, frame rate, seed and output
+name. LTX-2 and Wan 2.2 come from ComfyUI's own templates
+(comfyui-workflow-templates 0.11.76), exported with **Workflow → Export (API)**
+from ComfyUI 0.38.0. LTX-Video 2B is Troupe's own graph of ComfyUI core nodes,
+offered first because it is the one that fits a 16 GB Mac.
 
-| | LTX-2 | Wan 2.2 TI2V 5B |
-|---|---|---|
-| Audio | generated with the video (voice and sound) | none: the actor mimes |
-| Formats | 9:16, 16:9, 1:1 at 720p or 1080p | 9:16, 16:9 at 720p |
-| Lengths | 4, 5, 6, 8, 10 s at 24 fps | 3, 4, 5 s at 24 fps |
-| GPU memory | plan on 24 GB | 8–12 GB; runs on Apple Silicon |
-| Model files | about 42 GB | about 17 GB |
-| Status | validated by ComfyUI, not yet rendered end to end | validated by ComfyUI, not yet rendered end to end |
+| | LTX-Video 2B distilled | LTX-2 | Wan 2.2 TI2V 5B |
+|---|---|---|---|
+| Audio | none: the actor mimes | generated with the video (voice and sound) | none: the actor mimes |
+| Formats | 9:16, 16:9, 1:1 at 480p | 9:16, 16:9, 1:1 at 720p or 1080p | 9:16, 16:9 at 720p |
+| Lengths | 2, 3, 4, 5 s at 24 fps | 4, 5, 6, 8, 10 s at 24 fps | 3, 4, 5 s at 24 fps |
+| Memory | 16 GB Apple Silicon, or an 8 GB GPU | plan on 24 GB of GPU memory | 8–12 GB of GPU memory |
+| Model files | about 16 GB | about 42 GB | about 17 GB |
+| Status | rendered end to end | validated by ComfyUI, not rendered | validated by ComfyUI, not rendered |
 
-"Validated" means ComfyUI 0.38.0 accepted the filled-in workflow and only
-reported the missing model files. Please report a full render either way.
+"Rendered end to end" (2026-10-05): ComfyUI 0.38.0 from source on an Apple M5
+with 16 GB (PyTorch 2.14, MPS), added with `troupe models add comfyui
+--template ltxv-2b-distilled`, launched from Troupe at 2 s, 480p, 9:16; Troupe
+polled it, downloaded it and checked it with ffprobe: H.264, 480×832, 49
+frames, 2.04 s, in about four minutes the first time (most of it loading the
+text encoder) and under a minute of sampling. "Validated" means ComfyUI 0.38.0
+accepted the filled-in workflow and only reported the missing model files.
+LTX-2 plans on 24 GB of GPU memory, more than this 16 GB Mac has; Wan 2.2 was
+not tried there, its 17 GB of model files being more than the disk had left.
+Please report a full render either way.
 
 Model files go under ComfyUI's `models/` folder. **Test** lists the ones missing
-with their download links.
+with their download links. Copy or hard-link them there: ComfyUI 0.38.0 did not
+open a checkpoint symlinked to a file outside `models/`.
+
+**LTX-Video 2B distilled** (`Lightricks/LTX-Video`, LTXV Open Weights License;
+T5-XXL, Apache 2.0):
+
+- `checkpoints/ltxv-2b-0.9.8-distilled.safetensors` (6.3 GB, includes the VAE)
+- `text_encoders/t5xxl_fp16.safetensors` (9.5 GB), from
+  `comfyanonymous/flux_text_encoders`. If the local renderer's AI video mode
+  already downloaded `Lightricks/LTX-Video-0.9.5`, its `text_encoder` folder
+  holds the same encoder in four fp32 shards; merging them into one fp16 file
+  avoids a second download.
+
+The checkpoint is the one the [AI video mode](#ai-video-mode-ltx-video) uses,
+with the same license and revenue threshold ([License](#license)).
 
 **LTX-2** (`Lightricks/LTX-2`):
 

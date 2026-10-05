@@ -151,7 +151,8 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `login [--code-stdin]` | Sign in and save the profile. |
 | `logout` | Forget the profile's cookie. |
 | `whoami` | Profile, studio, sign-in state, current project, config file. |
-| `doctor [--skip-tests]` | Checks the studio and its database, the sign-in, which models can launch (local ones are contacted), the background worker and the script chat (contacted). Exit 1 when a check fails. |
+| `doctor [--skip-tests] [--providers]` | Checks the studio and its database, the sign-in, which models can launch (local ones are contacted), the background worker and the script chat (contacted). `--providers` also checks each provider account's key and each cloud model with a free request (rows `account google`, `account fal`, `account anthropic`; `skip` when no key is set). Exit 1 when a check fails. |
+| `doctor --live [--model <model>]… [--yes] [-o <folder>]` | Renders one clip per model that can launch, at its cheapest settings (shortest, lowest resolution, silent where allowed), in a new project; downloads each video, runs `ffprobe` on it and asks the script chat once. Without `--yes` it prints the plan and its cost and exits 2. See [LIVE-CHECKS.md](LIVE-CHECKS.md). |
 | `models list [--all]` | Every model with where it runs, its state, formats, lengths, audio, and the default. `--all` includes archived ones. |
 | `models add http\|comfyui …` | Add a local model, after testing it. See below. |
 | `models test <model>` | Contact a model or check its provider key. Exit 1 when it cannot render. |
@@ -161,7 +162,7 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `keys list` | Which provider keys (google, fal, anthropic) are configured, and from where. |
 | `keys set <provider> [--key-stdin]` | Save a key, encrypted on the server; read from stdin or a hidden prompt. |
 | `keys clear <provider> [--disable]` | Remove the saved key; `--disable` also ignores the server's environment. |
-| `keys test <provider>` | Check a key without rendering. |
+| `keys test <provider>` | Check a key with a free request (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model), and say why it is refused. |
 
 Adding the [local renderer](LOCAL-MODELS.md#local-renderer) (`pnpm renderer`):
 
@@ -274,7 +275,9 @@ troupe download <export-id>
 
 - `login`: `{ profile, url, access: "code" | "open" }`.
 - `whoami`: `{ profile, url, reachable, signedIn, credential, project, configFile }`.
-- `doctor`: `{ ok, url, checks: [{ name, status: "ok" | "warn" | "fail", detail }] }`.
+- `doctor`: `{ ok, url, checks: [{ name, status: "ok" | "warn" | "fail" | "skip", detail }] }`;
+  with `--live`, also `live`: `{ confirmed: false, plans: [{ modelKey, label, kind, durationS, resolution, audio, estimateUsd }] }`
+  before `--yes`, then `{ confirmed: true, projectId, folder, results: [{ …plan, renderId, status, detail, file, probe }], chat: { ok, detail } }`.
 - `models list`: `{ models, defaultModelKey, savedDefaultModelKey }`; each
   model has `key, label, vendor, kind ("cloud" | "local"), capabilities
   { aspectRatios, resolutions, durationsS, audio }, defaults { resolution,

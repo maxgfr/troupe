@@ -117,7 +117,11 @@ export function readInsights(raw: unknown, durationS: number | null): Insights |
   const parsed = Insight.safeParse(raw);
   if (!parsed.success) return null;
   const a = parsed.data;
-  const inside = (s: number | null) => (s === null || durationS === null || s <= durationS ? s : null);
+  // Times all crammed into the first few percent of a long video are not
+  // times (a small model counting lines, or minutes as seconds): dropped.
+  const timed = a.structure.map((p) => p.start_s).filter((s): s is number => s !== null);
+  const implausible = durationS !== null && durationS > 60 && timed.length >= 3 && Math.max(...timed) < durationS * 0.05;
+  const inside = (s: number | null) => (s === null || implausible || (durationS !== null && s > durationS) ? null : s);
   return {
     summary: a.summary,
     hookWhy: a.hook_why,

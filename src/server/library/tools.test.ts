@@ -77,6 +77,12 @@ describe("Ollama for the library", () => {
     expect(sent.messages[0].images).toEqual([Buffer.from([1, 2, 3]).toString("base64")]);
   });
 
+  it("drops on-screen text that only repeats the instructions", async () => {
+    const echo = await startServer((_req, res) => json(res, 200, { message: { content: JSON.stringify({ description: "A runner in an alley.", text: "the people, objects and setting, and how" }) } }));
+    expect(await ollamaVision({ baseUrl: echo.url, timeoutMs: 5000 }, "qwen3-vl:2b-instruct").read({ bytes: new Uint8Array([1]), mimeType: "image/jpeg" }, {})).toEqual({ description: "A runner in an alley.", text: "" });
+    await echo.close();
+  });
+
   it("refuses an Ollama address that is not allowed", async () => {
     await expect(pulledModels({ baseUrl: "http://169.254.169.254", timeoutMs: 1000 })).rejects.toThrow("not allowed");
   });

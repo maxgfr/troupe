@@ -112,7 +112,10 @@ export function ollamaVision(target: OllamaTarget, model: string): Vision {
         return { description: content.trim().slice(0, 500), text: "" };
       }
       const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
-      return { description: clean(parsed.description, 500), text: clean(parsed.text, 500) };
+      const text = clean(parsed.text, 500);
+      // Small models copy a piece of the instructions when nothing is written.
+      const echoed = text.length > 0 && (VISION_PROMPT + JSON.stringify(VISION_SCHEMA)).toLowerCase().includes(text.toLowerCase());
+      return { description: clean(parsed.description, 500), text: echoed ? "" : text };
     },
   };
 }

@@ -52,7 +52,9 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
   }, []);
   // A link with ?t= (a search result, a citation) opens at that moment.
   const seeked = useRef(false);
+  const [loadedShape, setLoadedShape] = useState(false);
   const onLoaded = () => {
+    setLoadedShape(true);
     if (!seeked.current && startAt > 0) seek(startAt);
     seeked.current = true;
   };
@@ -149,7 +151,8 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
                 preload="metadata"
                 onLoadedMetadata={onLoaded}
                 onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)}
-                className="max-h-[60vh] w-full rounded-xl bg-black object-contain"
+                // 16:9 until the video says its own shape.
+                className={`max-h-[60vh] w-full rounded-xl bg-black object-contain ${loadedShape ? "" : "aspect-video"}`}
               />
             ) : null}
             {it.kind === "audio" && it.mediaUrl ? <audio ref={player} src={it.mediaUrl} controls preload="metadata" onLoadedMetadata={onLoaded} onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)} className="w-full" /> : null}

@@ -38,7 +38,7 @@ export const COMFY_TEMPLATES: readonly ComfyTemplate[] = [
   {
     id: "ltxv-2b-distilled",
     label: "LTX-Video 2B distilled (silent, small)",
-    description: "Lightricks LTX-Video 2B 0.9.8 distilled, 8 steps, with the T5-XXL text encoder. About 16 GB of model files; renders on a 16 GB Apple Silicon Mac or an 8 GB GPU. Silent video: add the voice in your editor.",
+    description: "Lightricks LTX-Video 2B 0.9.8 distilled, 8 steps, with the T5-XXL text encoder. About 16 GB of model files; renders on a 16 GB Apple Silicon Mac (an 8 GB GPU should do, not tried). Silent video: add the voice in your editor.",
     workflow: ltxvWorkflow as ApiWorkflow,
     bindings: [],
     capabilities: { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["480p"], durationsS: [2, 3, 4, 5], audio: "none", dialogueLanguages: null },

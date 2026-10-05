@@ -118,11 +118,12 @@ What was checked, and how (2026-10-05):
 
 - **Cloud video models (Veo, Kling, Seedance) and Claude:** the adapters
   follow the providers' API references of that day and are tested against
-  responses recorded from them, including the live error bodies for a bad
-  key. Settings' free key check was run against the live Google and fal.ai
+  error responses recorded from the live APIs and success responses taken
+  from their API references; the Claude chat against a fake server. Settings'
+  free key check was run against the live Google and fal.ai
   APIs with invalid keys. **No paid generation has been run**: no Google,
   fal.ai or Anthropic key was available. `pnpm verify:live --yes` runs one at
-  each provider's cheapest settings with yours, for about $0.28
+  each provider's cheapest settings with yours, for about $0.28–0.35
   ([docs/LIVE-CHECKS.md](docs/LIVE-CHECKS.md)).
 - **ComfyUI:** the LTX-Video 2B workflow rendered end to end through Troupe on
   an Apple M5 with 16 GB. The LTX-2 and Wan 2.2 workflows were validated by

@@ -61,7 +61,10 @@ programs under other licenses:
   (LTX-2: LTX-2 Community License Agreement, free for commercial use under a
   revenue threshold; Wan 2.2: Apache 2.0; LTX-Video 2B 0.9.8 distilled:
   [LTXV Open Weights License](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt),
-  a paid license above $10M annual revenue; the T5-XXL text encoder
+  a paid license for entities with $10M or more in annual revenue, and the
+  use-based restrictions of its Attachment A (section 4), which section 3.1
+  requires you to pass on, with notice, to anyone you distribute the model or
+  its derivatives to; the T5-XXL text encoder
   (`t5xxl_fp16.safetensors`, Google's T5 v1.1): Apache 2.0).
 - **Kokoro-82M voice model.** The in-browser renderer (browser edition) and the
   local renderer (`renderer/`) download

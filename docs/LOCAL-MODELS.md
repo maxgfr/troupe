@@ -42,7 +42,7 @@ offered first because it is the one that fits a 16 GB Mac.
 | Audio | none: the actor mimes | generated with the video (voice and sound) | none: the actor mimes |
 | Formats | 9:16, 16:9, 1:1 at 480p | 9:16, 16:9, 1:1 at 720p or 1080p | 9:16, 16:9 at 720p |
 | Lengths | 2, 3, 4, 5 s at 24 fps | 4, 5, 6, 8, 10 s at 24 fps | 3, 4, 5 s at 24 fps |
-| Memory | 16 GB Apple Silicon, or an 8 GB GPU | plan on 24 GB of GPU memory | 8–12 GB of GPU memory |
+| Memory | 16 GB Apple Silicon (rendered); an 8 GB GPU should do, not tried | plan on 24 GB of GPU memory | 8–12 GB of GPU memory |
 | Model files | about 16 GB | about 42 GB | about 17 GB |
 | Status | rendered end to end | validated by ComfyUI, not rendered | validated by ComfyUI, not rendered |
 

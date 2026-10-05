@@ -64,4 +64,46 @@ programs under other licenses:
   - [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript)
     (`@anthropic-ai/sdk`) 0.131.0: MIT License. Used by the self-hosted
     server only; messages to Claude are billed by Anthropic to the key's owner.
+- **The local renderer's AI video mode** (`renderer/ltx/`, opt-in, never in
+  the Docker images). Troupe distributes none of the following; `uv` installs
+  the Python packages into `renderer/ltx/.venv` and Hugging Face serves the
+  weights when the user runs `pnpm renderer:ltx:setup` or the mode's first job.
+  - LTX-Video 2B 0.9.8 distilled weights
+    (`ltxv-2b-0.9.8-distilled.safetensors` from
+    [`Lightricks/LTX-Video`](https://huggingface.co/Lightricks/LTX-Video)):
+    [LTXV Open Weights License 0.X](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt)
+    by Lightricks Ltd., not an open-source license. It grants a royalty-free
+    license "for any purpose" except that "entities with annual revenues of
+    at least $10,000,000" need a paid commercial license, and it binds every
+    use to the restrictions of its Attachment A, which anyone redistributing
+    the model must pass on. Among them, not to use the model "to generate or
+    disseminate information and/or content … without expressly and
+    intelligibly disclaiming that the information and/or content is machine
+    generated", nor "to impersonate or attempt to impersonate (e.g.
+    deepfakes) others without their consent". Earlier 2B checkpoints (0.9.1,
+    0.9.5), which `LTX_MODEL` can select, use Lightricks' OpenRAIL-M license
+    with the same use restrictions.
+  - T5 v1.1 XXL text encoder and tokenizer, loaded from
+    [`Lightricks/LTX-Video-0.9.5`](https://huggingface.co/Lightricks/LTX-Video-0.9.5)
+    (a copy of [`google/t5-v1_1-xxl`](https://huggingface.co/google/t5-v1_1-xxl)'s
+    encoder, whose model card declares the Apache License 2.0). The LTX-Video
+    0.9.5 scheduler and model configs come from the same repository.
+  - [PyTorch](https://github.com/pytorch/pytorch) 2.14: BSD 3-Clause License;
+    its wheels bundle third-party code under the Apache License 2.0 (some
+    with the LLVM exception), BSD 2-Clause, Boost (BSL-1.0) and MIT licenses.
+  - [Diffusers](https://github.com/huggingface/diffusers) 0.40,
+    [Transformers](https://github.com/huggingface/transformers) 5.18,
+    [Accelerate](https://github.com/huggingface/accelerate) 1.15,
+    [huggingface_hub](https://github.com/huggingface/huggingface_hub) 1.33,
+    [safetensors](https://github.com/huggingface/safetensors) 0.8,
+    [tokenizers](https://github.com/huggingface/tokenizers) 0.23 and
+    [SentencePiece](https://github.com/google/sentencepiece) 0.2: Apache
+    License 2.0.
+  - [NumPy](https://github.com/numpy/numpy) 2.5: BSD 3-Clause License (with
+    bundled code under 0BSD, MIT, Zlib and CC0-1.0).
+  - [Protocol Buffers](https://github.com/protocolbuffers/protobuf) (`protobuf`)
+    7.36, which Transformers needs to read the T5 tokenizer: BSD 3-Clause
+    License.
+  - Their other dependencies, pinned in `renderer/ltx/uv.lock`, keep their
+    own licenses, listed in the installed packages' metadata.
 - Other npm dependencies keep their own licenses, listed in `node_modules`.

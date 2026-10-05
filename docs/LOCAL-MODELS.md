@@ -254,3 +254,183 @@ supported picks the pace up when you press **Test** on it in Settings.
   emotions and the actor's voice profile ("fast", "measured", …) set the pace.
 - Without `script` in the job (another client than Troupe), the renderer reads
   the dialogue back from the compiled prompt and draws a "Narrator" card.
+
+## AI video mode (LTX-Video)
+
+The local renderer has an opt-in second mode that puts a generated person
+behind the captions: [LTX-Video](https://huggingface.co/Lightricks/LTX-Video)
+2B draws a short clip of someone talking to the camera, and the renderer lays
+the same Kokoro voice and karaoke captions over it. It is off unless you start
+it, and nothing (Python, PyTorch, weights) is installed or downloaded before
+you do.
+
+For each job the renderer:
+
+1. voices the lines with Kokoro, like the fast mode;
+2. runs `renderer/ltx/generate.py` (diffusers' `LTXConditionPipeline`) in its
+   own Python environment, managed by [uv](https://docs.astral.sh/uv/), to
+   generate a silent clip: 480×832 for 9:16 (832×480 for 16:9, 640×640 for
+   1:1), 121 frames, about 5 s at 24 fps;
+3. repeats that clip forwards then backwards until the script is said,
+   upscales it to the size Troupe asked for (Lanczos) and lays the captions
+   over it on a soft shade, without the actor card;
+4. muxes the voice: H.264 + AAC, as long as the script.
+
+The picture comes from a text prompt built from the actor's gender and age
+range (`LTX_PROMPT`). The model does not know what is said: lips do not
+follow the voice, and the person changes from one render to the next.
+
+### Where it runs
+
+| Machine | Device | Status |
+|---|---|---|
+| Mac with Apple Silicon, 16 GB or more | `mps` (the GPU, through PyTorch's Metal backend) | rendered end to end on an M5 with 16 GB (below) |
+| Linux or Windows with an NVIDIA GPU | `cuda` | should work (the same diffusers code), not tried |
+| Anything else | `cpu` | works in principle, far too slow to be useful |
+
+It runs natively, not in Docker: containers on macOS have no access to the
+Apple GPU, and the `renderer` Compose profile's image stays as small as
+before, with no Python or PyTorch in it. Troupe itself can still run in
+Docker and use a renderer started on the host
+(`http://host.docker.internal:8078/ltx`).
+
+### Set it up
+
+You need Node.js 22+, ffmpeg and uv (`brew install uv` on a Mac). Then, once:
+
+```bash
+pnpm install
+pnpm renderer:ltx:setup
+```
+
+This creates `renderer/ltx/.venv` (PyTorch, diffusers, transformers: about
+800 MB on a Mac, several GB with CUDA on Linux) and downloads the weights into
+the Hugging Face cache (`~/.cache/huggingface/hub`, or `$HF_HOME/hub`):
+
+| File | Size | From |
+|---|---|---|
+| `ltxv-2b-0.9.8-distilled.safetensors` (transformer and VAE) | 6.3 GB | [`Lightricks/LTX-Video`](https://huggingface.co/Lightricks/LTX-Video) |
+| T5 v1.1 XXL text encoder (stored in fp32) and tokenizer | 19 GB | [`Lightricks/LTX-Video-0.9.5`](https://huggingface.co/Lightricks/LTX-Video-0.9.5) |
+| scheduler and model configs | a few kB | `Lightricks/LTX-Video-0.9.5` |
+
+Skipping the setup works too: the first job installs and downloads all of it,
+which takes far longer than Troupe's progress bar suggests.
+
+### Run it
+
+```bash
+pnpm renderer:ltx       # http://127.0.0.1:8078 and http://127.0.0.1:8078/ltx
+```
+
+(or `LTX_ENABLED=1 pnpm renderer`). The fast mode keeps answering at the
+root; the AI video mode answers the same contract v1 routes under `/ltx`, so
+Troupe sees two models. Jobs from both run one at a time. A renderer started
+without the mode answers `/ltx` with HTTP 503 and a message saying how to turn
+it on, which **Test** shows.
+
+### Add it to Troupe
+
+**Settings → Local models → Add a local model → HTTP endpoint**, as for the
+fast mode, with:
+
+| Field | Value |
+|---|---|
+| Address | `http://127.0.0.1:8078/ltx` under `pnpm dev`; `http://host.docker.internal:8078/ltx` for Troupe in Docker |
+| Formats | 9:16, 16:9, 1:1 |
+| Resolutions | 480p or 720p (the clip is generated at about 480×832 and upscaled) |
+| Clip lengths | e.g. `4, 6, 8, 10` |
+| Audio | Always with audio |
+| Frames per second | 24 |
+
+**Test** reports "It asks Troupe to check on renders every 5 s.".
+
+### Settings
+
+All optional; the defaults are the ones measured below.
+
+| Variable | Default | |
+|---|---|---|
+| `LTX_ENABLED` | off | `1` turns the mode on (what `pnpm renderer:ltx` does with `--ltx`) |
+| `LTX_RESOLUTION` | `480x832` | the generated clip for 9:16, width x height in multiples of 32; other formats keep about the same number of pixels |
+| `LTX_FRAMES` | `121` | frames generated, a multiple of 8 plus 1 (`97` is 4 s, `145` is 6 s at 24 fps) |
+| `LTX_FPS` | `24` | the frame rate the model generates for |
+| `LTX_SEED` | a new one per render | a fixed seed, for repeatable clips |
+| `LTX_PROMPT` | a selfie-style review in a bright living room | the picture prompt; `{person}` ("woman aged 25 to 34"), `{gender}`, `{age}`, `{name}`, `{voice_profile}` and `{orientation}` (vertical, horizontal, square) are filled in |
+| `LTX_NEGATIVE_PROMPT` | blur, distortion, text, watermarks | only used when `LTX_GUIDANCE` is above 1 |
+| `LTX_UPSCALE` | `lanczos` | ffmpeg's scaler to the requested size: `lanczos`, `bicubic`, `bilinear`, `spline` or `neighbor` |
+| `LTX_LOOP` | `pingpong` | how a clip shorter than the script fills it: `pingpong` (forwards, then backwards) or `loop` (from the start again, with a visible jump) |
+| `LTX_TIMEOUT_S` | `1800` | a generation that takes longer is stopped |
+| `LTX_COMMAND` | `uv run --project renderer/ltx python renderer/ltx/generate.py` | the program that runs the script, split on spaces, e.g. `/opt/ltx/.venv/bin/python /opt/troupe/renderer/ltx/generate.py` |
+| `LTX_MODEL` | the 0.9.8 2B distilled checkpoint above | transformer and VAE: a `.safetensors` file (Hugging Face URL or local path) or a diffusers repo |
+| `LTX_BASE_MODEL` | `Lightricks/LTX-Video-0.9.5` | the diffusers repo the configs, tokenizer, text encoder and scheduler come from |
+| `LTX_TEXT_ENCODER` | the base model's | another T5 v1.1 XXL encoder repo, e.g. a bfloat16 copy to halve the 19 GB download |
+| `LTX_DEVICE` | the best available: `cuda`, `mps`, then `cpu` | where the model runs |
+| `LTX_TEXT_ENCODER_DEVICE` | `LTX_DEVICE` | where T5 runs; `cpu` leaves the GPU's memory to the video model |
+| `LTX_DTYPE` | `bfloat16` | `bfloat16`, `float16` or `float32` |
+| `LTX_TIMESTEPS` | `1000,993,987,981,975,909,725,0.03` | the distilled model's 8-step schedule; empty to use `LTX_STEPS` evenly spaced steps instead (for a non-distilled `LTX_MODEL`) |
+| `LTX_STEPS` | `8` (the schedule's length) | denoising steps when `LTX_TIMESTEPS` is empty, e.g. `40` |
+| `LTX_GUIDANCE` | `1` | classifier-free guidance; the distilled model needs `1`, others about `3` |
+| `LTX_VAE_TILING` | `1` | decode the video in tiles, which keeps the decoder's memory down |
+| `LTX_PROMPT_CACHE` | `~/.cache/troupe-renderer/ltx-prompts` | where encoded prompts are kept (a few MB each), so the 9.5 GB text encoder only loads for a new prompt; empty turns it off |
+
+### Measured on an Apple M5 with 16 GB
+
+Apple M5, 16 GB of unified memory, macOS; PyTorch 2.14.1, diffusers 0.40.0,
+Python 3.13; default settings (480×832, 121 frames at 24 fps, the 8-step
+distilled schedule, guidance 1, bfloat16 on `mps`, tiled decoding).
+
+| Run | Wall time | Peak memory | Notes |
+|---|---|---|---|
+| Through Troupe, first render for this actor (2-line script, 9:16, 720p) | 128.6 s for the clip, 132.7 s for the job; the video appeared on the project page 137 s after **Launch draft** | 8.1 GB max RSS for the Python process; the system's free memory bottomed at 18 % | about 40 s of it loads T5 and encodes the prompt |
+| `generate.py` alone, prompt already encoded | 82.3 s (`/usr/bin/time -l`) | 2.5 GB max RSS; free memory bottomed at 15 %, swap unchanged | loading 6 s, 8 denoising steps 3 s, decoding 121 frames about 70 s |
+| `generate.py` alone, decoding all frames at once (tiled across the frame only) | 98.8 s | 5.6 GB max RSS; free memory fell to 1 % and swap grew from 6 GB to 16 GB while decoding | why decoding is now also tiled across time |
+
+Max RSS undercounts what the GPU holds (Metal buffers live in the same
+memory), so the system-wide free memory reported by `memory_pressure` is the
+better guide: with the defaults the Mac stays responsive, but there is little
+room left for other large apps.
+
+The result: a 6.35 s H.264 + AAC MP4 at 720×1280, the 5 s clip played
+forwards then backwards under the captions. Looking at the frames, the clip
+is convincing at phone size: a photoreal woman in a bright room, the same
+face through the clip, natural head movement and blinking, her mouth moving
+as if she were talking (not in sync with the voice). Upscaled from 480×832
+it is soft, the framing is sometimes off-centre, and the turn of the
+forwards-backwards loop shows as a brief reversal of motion. Captions read
+on the shade over a light shirt.
+
+### Limits
+
+- It is slow and heavy: minutes per clip, most of the machine's memory, and
+  the fans. Close other large apps first.
+- About 5 seconds of picture, repeated: a 10 s script shows the clip forwards
+  then backwards. Longer clips (`LTX_FRAMES`) need more memory and time.
+- Generated at 480×832 and upscaled: soft at 720p, blurry at 1080p.
+- No lip sync, no consistent face from one render to the next, hands and
+  faces sometimes distorted: a mood shot to put captions on, not an actor.
+- English prompts only; the voice is Kokoro's, as in the fast mode.
+
+### License
+
+The renderer's code is MIT, like Troupe. The weights are not: the default
+checkpoint (LTX-Video 2B 0.9.8 distilled) is under the
+[LTXV Open Weights License 0.X](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt),
+which you accept by downloading it. In short, and read the license itself:
+
+- Free to use, modify and redistribute for any purpose, but **entities with
+  annual revenues of at least $10,000,000** need a paid commercial license
+  from Lightricks.
+- **Use restrictions** (Attachment A) bind every user and must be passed on
+  to anyone you share the model with. Among them: no use that breaks the law,
+  harms minors, defames or harasses, no impersonating people without their
+  consent (deepfakes), and no publishing generated content **without
+  expressly and intelligibly disclaiming that it is machine generated**.
+  Troupe's export presets say how each platform wants AI content disclosed;
+  follow them.
+- Lightricks may restrict use that breaks the license and asks you to use the
+  latest version.
+
+The T5 v1.1 XXL text encoder is Google's, under the Apache License 2.0. The
+earlier 2B checkpoints (0.9.1, 0.9.5) use an OpenRAIL-M license with the same
+use restrictions and no revenue threshold; `LTX_MODEL` can point to one, with
+`LTX_TIMESTEPS=` and `LTX_GUIDANCE=3`.

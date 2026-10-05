@@ -42,6 +42,7 @@ from your checkout instead, run `docker compose up -d --build`.
 | LTX-2 | your GPU, via ComfyUI | always | 9:16, 16:9, 1:1 | 4–10 s |
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
 | Local renderer | your CPU ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
+| Local renderer, AI video mode (opt-in) | your Mac's GPU or an NVIDIA GPU, natively ([`renderer/ltx`](docs/LOCAL-MODELS.md#ai-video-mode-ltx-video)): an LTX-Video 2B clip under the same voice and captions | always | 9:16, 16:9, 1:1 | as long as the script (a 5 s clip, repeated) |
 | Kokoro voice + captions | the visitor's browser, static demo only ([`site/`](docs/STATIC-SITE.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
 
@@ -49,7 +50,7 @@ Each model can be turned off, given default settings, a price per second (for
 cost estimates) and a time limit. Pickers only offer what the chosen model
 accepts, and warn when a model has only been tried in another language or makes
 silent video. See [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md) for ComfyUI and
-the local renderer.
+the local renderer, including its AI video mode.
 
 ## What it does
 

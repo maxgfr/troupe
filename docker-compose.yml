@@ -80,6 +80,8 @@ services:
   #   docker compose --profile renderer up -d --build
   # then add an HTTP endpoint model in Settings with the address
   # http://renderer:8078. Kokoro's weights (about 90 MB) download on first start.
+  # Its AI video mode (LTX-Video, /ltx) needs the host's GPU and is not in this
+  # image: run it natively with `pnpm renderer:ltx` (docs/LOCAL-MODELS.md).
   renderer:
     profiles: ["renderer"]
     build:

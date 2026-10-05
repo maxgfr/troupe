@@ -384,6 +384,7 @@ distilled schedule, guidance 1, bfloat16 on `mps`, tiled decoding).
 | Through Troupe, first render for this actor (2-line script, 9:16, 720p) | 128.6 s for the clip, 132.7 s for the job; the video appeared on the project page 137 s after **Launch draft** | 8.1 GB max RSS for the Python process; the system's free memory bottomed at 18 % | about 40 s of it loads T5 and encodes the prompt |
 | Through Troupe again, same actor (prompt already encoded) | 90.9 s for the clip, 94.7 s for the job, on the page after 98 s | 2.2 GB max RSS; free memory touched 1 % for a few seconds while the checkpoint loaded and swap grew from 3.7 GB to 14 GB, with the browser, `pnpm dev` and other apps open | the Mac stayed usable, but slow while it swapped |
 | `generate.py` alone, prompt already encoded | 82.3 s (`/usr/bin/time -l`) | 2.5 GB max RSS; free memory bottomed at 15 %, swap unchanged | loading 6 s, 8 denoising steps 3 s, decoding 121 frames about 70 s |
+| `generate.py` alone, `384x672` and 97 frames (4 s), prompt already encoded | 43.1 s | 1.4 GB max RSS; free memory bottomed at 18 % | the lighter setting |
 | `generate.py` alone, decoding all frames at once (tiled across the frame only) | 98.8 s | 5.6 GB max RSS; free memory fell to 1 % and swap grew from 6 GB to 16 GB while decoding | why decoding is now also tiled across time |
 
 Max RSS undercounts what the GPU holds (Metal buffers live in the same

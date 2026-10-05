@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, migrateTestDb, setAuthUser } from "~/test/db";
-import { clearProviderKey, credentialStatus, effectiveProviderKeys, readCredentials, saveProviderKey } from "./providers";
+import { clearProviderKey, credentialStatus, effectiveProviderKeys, environmentKey, readCredentials, saveProviderKey } from "./providers";
 import { resetSecretBoxCache } from "./secrets";
 
 beforeEach(() => {
@@ -12,6 +12,15 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   resetSecretBoxCache();
+});
+
+describe("environment keys", () => {
+  it("reads Google's key under the names Google's SDKs use too, the first set winning", () => {
+    expect(environmentKey("google", { GEMINI_API_KEY: "gemini", GOOGLE_API_KEY: "google" })).toBe("gemini");
+    expect(environmentKey("google", { GOOGLE_GENAI_API_KEY: " genai ", GEMINI_API_KEY: "gemini" })).toBe("genai");
+    expect(environmentKey("google", { GOOGLE_GENAI_API_KEY: "", GOOGLE_API_KEY: "google" })).toBe("google");
+    expect(environmentKey("fal", { GEMINI_API_KEY: "gemini" })).toBeUndefined();
+  });
 });
 
 describe("private provider settings", () => {

@@ -41,20 +41,19 @@ function modelOf(catalog: ModelCatalog, modelKey: string) {
   return model;
 }
 
-async function testCredential(catalog: ModelCatalog, credential: CredentialId, chat: ChatBackend | null): Promise<ConnectionReport> {
+// A provider account's free check: the key reaches the given model (default:
+// the account's first built-in), without generating anything.
+async function testCredential(catalog: ModelCatalog, credential: CredentialId, chat: ChatBackend | null, modelKey?: string): Promise<ConnectionReport> {
   // The chat's key: no video model uses it.
   if (credential === "anthropic") return chat ? chat.test("anthropic") : { ok: false, message: "The script chat is not available in this studio." };
-  const model = BUILTIN_MODELS.find((m) => m.credential === credential)!;
-  const adapter = catalog.adapters.get(model.key);
+  const key = modelKey ?? BUILTIN_MODELS.find((m) => m.credential === credential)!.key;
+  const adapter = catalog.adapters.get(key);
   if (!adapter) return { ok: false, message: "No key is configured for this account." };
-  if (!adapter.testConnection) {
-    // fal.ai has no free endpoint that proves a key can render.
-    return { ok: null, message: "fal.ai keys cannot be checked without running a job. Launch a short draft to confirm." };
-  }
+  if (!adapter.testConnection) return { ok: null, message: "This provider has no free check. Launch a short draft to confirm the key." };
   try {
     return await adapter.testConnection();
   } catch {
-    return { ok: false, message: "The provider could not be reached. Check your network and try again." };
+    return { ok: false, message: "The provider could not be reached. Check this server's network and try again." };
   }
 }
 
@@ -162,7 +161,7 @@ export const settingsRouter = createTRPCRouter({
         const model = modelOf(ctx.catalog, input.modelKey);
         // Nothing to reach from here (the browser edition, a refused address).
         if (model.status === "unsupported-host") return { ok: false, message: model.statusDetail ?? "This model cannot run here." };
-        if (model.credential) return testCredential(ctx.catalog, model.credential, ctx.chat);
+        if (model.credential) return testCredential(ctx.catalog, model.credential, ctx.chat, model.key);
         const adapter = ctx.catalog.adapters.get(model.key);
         if (!adapter) return { ok: false, message: model.statusDetail ?? "This model is not configured." };
         if (!adapter.testConnection) return { ok: null, message: "This model has no connection check." };

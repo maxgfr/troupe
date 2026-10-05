@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { BUILTIN_MODELS, builtinModels } from "./builtins";
 import { effectiveDefaultModel, estimateCostUsd, resolveCatalog, type ModelConfigRow } from "./resolve";
 
 const none = { google: "none", fal: "none" } as const;
@@ -15,6 +16,7 @@ describe("resolveCatalog", () => {
     const models = resolveCatalog({ rows: [], credentials: { google: "saved", fal: "undecryptable" } });
     expect(models.map((m) => [m.key, m.status])).toEqual([
       ["veo-3.1-fast", "ready"],
+      ["veo-3.1-lite", "ready"],
       ["kling-3.0", "undecryptable"],
       ["seedance-1.5-pro", "undecryptable"],
     ]);
@@ -53,8 +55,8 @@ describe("effectiveDefaultModel", () => {
   });
 
   it("falls back to the first launchable model otherwise", () => {
-    expect(effectiveDefaultModel(models, "veo-3.1-fast")).toBe("kling-3.0");
-    expect(effectiveDefaultModel(models, null)).toBe("kling-3.0");
+    expect(effectiveDefaultModel(models, "veo-3.1-fast")).toBe("veo-3.1-lite");
+    expect(effectiveDefaultModel(models, null)).toBe("veo-3.1-lite");
     expect(effectiveDefaultModel(resolveCatalog({ rows: [], credentials: none }), null)).toBeNull();
   });
 });
@@ -64,5 +66,23 @@ describe("estimateCostUsd", () => {
     expect(estimateCostUsd({ kind: "cloud", pricePerSecondUsd: 0.15 }, 8)).toBe(1.2);
     expect(estimateCostUsd({ kind: "local", pricePerSecondUsd: null }, 8)).toBe(0);
     expect(estimateCostUsd({ kind: "cloud", pricePerSecondUsd: null }, 8)).toBeNull();
+  });
+});
+
+describe("builtinModels", () => {
+  it("takes newer upstream ids from TROUPE_MODEL_IDS and ignores what does not fit", () => {
+    const models = builtinModels({ TROUPE_MODEL_IDS: "veo-3.1-fast=veo-3.1-fast-generate-001, kling-3.0=fal-ai/kling-video/v3/pro/text-to-video, seedance-1.5-pro=no-slash, nope=x, veo-3.1-lite=bad id" });
+    const id = (key: string) => models.find((m) => m.key === key)!.modelId;
+    expect(id("veo-3.1-fast")).toBe("veo-3.1-fast-generate-001");
+    expect(id("kling-3.0")).toBe("fal-ai/kling-video/v3/pro/text-to-video");
+    // A fal model needs an endpoint path; a malformed id is dropped.
+    expect(id("seedance-1.5-pro")).toBe("fal-ai/bytedance/seedance/v1.5/pro/text-to-video");
+    expect(id("veo-3.1-lite")).toBe("veo-3.1-lite-generate-preview");
+    expect(builtinModels({})).toEqual(BUILTIN_MODELS);
+  });
+
+  it("shows the overridden id in the catalog", () => {
+    const [veo] = resolveCatalog({ rows: [], credentials: none, builtins: builtinModels({ TROUPE_MODEL_IDS: "veo-3.1-fast=veo-3.1-fast-generate-001" }) });
+    expect(veo).toMatchObject({ key: "veo-3.1-fast", modelId: "veo-3.1-fast-generate-001" });
   });
 });

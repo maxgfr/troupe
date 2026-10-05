@@ -1,5 +1,5 @@
 // Public barrel of the `models` module — the catalog of video models.
-export { BUILTIN_MODELS, LEGACY_PROVIDER_MODEL_KEYS } from "./builtins";
+export { BUILTIN_MODELS, LEGACY_PROVIDER_MODEL_KEYS, builtinModels, parseModelIdOverrides } from "./builtins";
 export type { BuiltinModel, CredentialId } from "./builtins";
 export { resolveCatalog, effectiveDefaultModel, estimateCostUsd, canLaunch, sanitizeDefaults, LOCAL_TIMEOUT_S } from "./resolve";
 export type { ResolvedModel, ModelStatus, ModelDefaults, ModelConfigRow, CredentialSource, ModelCatalog } from "./resolve";

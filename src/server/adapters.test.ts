@@ -22,7 +22,7 @@ describe("model catalog loading", () => {
     try {
       vi.stubEnv("GOOGLE_GENAI_API_KEY", "test-key");
       const catalog = await loadModelCatalog(t.db);
-      expect([...catalog.adapters.keys()]).toEqual(["veo-3.1-fast"]);
+      expect([...catalog.adapters.keys()]).toEqual(["veo-3.1-fast", "veo-3.1-lite"]);
       expect(catalog.defaultModelKey).toBe("veo-3.1-fast");
       expect(catalog.models.find((m) => m.key === "kling-3.0")?.status).toBe("missing-credentials");
     } finally { await t.pg.close(); }

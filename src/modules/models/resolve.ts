@@ -1,5 +1,5 @@
 import type { ModelCapabilities, ModelFamily, VideoProviderAdapter } from "~/modules/generation";
-import { BUILTIN_MODELS, type CredentialId } from "./builtins";
+import { BUILTIN_MODELS, type BuiltinModel, type CredentialId } from "./builtins";
 
 export type ModelStatus = "ready" | "missing-credentials" | "undecryptable" | "invalid" | "unsupported-host";
 export type CredentialSource = "saved" | "environment" | "disabled" | "none" | "undecryptable";
@@ -84,9 +84,11 @@ export function resolveCatalog(input: {
   rows: ModelConfigRow[];
   credentials: Record<CredentialId, CredentialSource>;
   checkLocal?: (row: ModelConfigRow) => { status: ModelStatus; detail: string } | null;
+  // The built-ins with this installation's upstream ids (builtinModels()).
+  builtins?: readonly BuiltinModel[];
 }): ResolvedModel[] {
   const byId = new Map(input.rows.map((r) => [r.id, r]));
-  const builtins = BUILTIN_MODELS.map((b): ResolvedModel => {
+  const builtins = (input.builtins ?? BUILTIN_MODELS).map((b): ResolvedModel => {
     const r = byId.get(b.key);
     const status = credentialStatus(input.credentials[b.credential]);
     return {

@@ -16,7 +16,11 @@ export const env = createEnv({
       .default("development"),
     // Optional provider keys; a key saved in Settings takes precedence.
     GOOGLE_GENAI_API_KEY: z.string().optional(),
+    GEMINI_API_KEY: z.string().optional(),
+    GOOGLE_API_KEY: z.string().optional(),
     FAL_KEY: z.string().optional(),
+    // Newer upstream ids for built-in models: key=id, separated by commas.
+    TROUPE_MODEL_IDS: z.string().regex(/^\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*(,\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*)*$/, "TROUPE_MODEL_IDS: key=id pairs separated by commas, e.g. veo-3.1-fast=veo-3.1-fast-generate-001").optional(),
     // The script chat (src/server/chat): Ollama by default, Claude when an
     // Anthropic key is set. Values saved in Settings take precedence.
     ANTHROPIC_API_KEY: z.string().optional(),
@@ -36,6 +40,8 @@ export const env = createEnv({
     TROUPE_ACCESS_CODE: z.string().min(12, "TROUPE_ACCESS_CODE must be at least 12 characters").optional(),
     TROUPE_SECRET: z.string().min(16, "TROUPE_SECRET must be at least 16 characters").optional(),
     TROUPE_DATA_DIR: z.string().optional(),
+    // The ffprobe that checks each downloaded video (src/server/media/storage.ts).
+    FFPROBE_PATH: z.string().optional(),
     TROUPE_INPROCESS_WORKER: z.enum(["0", "1", "true", "false"]).optional(),
     TROUPE_AUTO_MIGRATE: z.enum(["0", "1", "true", "false"]).optional(),
     // Where a copy of the generated access code goes for the Docker CLI (access-code.ts).
@@ -72,6 +78,9 @@ export const env = createEnv({
     FAL_KEY: process.env.FAL_KEY,
     NODE_ENV: process.env.NODE_ENV,
     GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    TROUPE_MODEL_IDS: process.env.TROUPE_MODEL_IDS,
     RECONCILE_SECRET: process.env.RECONCILE_SECRET,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
@@ -86,6 +95,7 @@ export const env = createEnv({
     TROUPE_ACCESS_CODE: process.env.TROUPE_ACCESS_CODE,
     TROUPE_SECRET: process.env.TROUPE_SECRET,
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,
+    FFPROBE_PATH: process.env.FFPROBE_PATH,
     TROUPE_INPROCESS_WORKER: process.env.TROUPE_INPROCESS_WORKER,
     TROUPE_AUTO_MIGRATE: process.env.TROUPE_AUTO_MIGRATE,
     TROUPE_ACCESS_CODE_SHARE_DIR: process.env.TROUPE_ACCESS_CODE_SHARE_DIR,

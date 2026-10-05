@@ -8,7 +8,21 @@ import { SecretUnavailableError, loadSecretBox, type SecretBox } from "./secrets
 export const CREDENTIAL_IDS = ["google", "fal", "anthropic"] as const;
 export type CredentialId = (typeof CREDENTIAL_IDS)[number];
 
-const ENV_KEYS: Record<CredentialId, string> = { google: "GOOGLE_GENAI_API_KEY", fal: "FAL_KEY", anthropic: "ANTHROPIC_API_KEY" };
+// The first one set wins. GEMINI_API_KEY and GOOGLE_API_KEY are the names
+// Google's own SDKs read.
+export const ENV_KEYS: Record<CredentialId, readonly string[]> = {
+  google: ["GOOGLE_GENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"],
+  fal: ["FAL_KEY"],
+  anthropic: ["ANTHROPIC_API_KEY"],
+};
+
+export function environmentKey(id: CredentialId, env: Record<string, string | undefined>): string | undefined {
+  for (const name of ENV_KEYS[id]) {
+    const value = env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
 
 export type CredentialState =
   | { source: "saved"; key: string }
@@ -37,7 +51,7 @@ export async function readCredentials(db: Db, env: Record<string, string | undef
   const out = {} as Record<CredentialId, CredentialState>;
   for (const id of CREDENTIAL_IDS) {
     const row = rows.find((r) => r.provider === id);
-    const fromEnv = env[ENV_KEYS[id]];
+    const fromEnv = environmentKey(id, env);
     if (!row) {
       out[id] = fromEnv ? { source: "environment", key: fromEnv } : { source: "none" };
       continue;

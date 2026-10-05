@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { videoBytes } from "./download";
+import { googleError, PROBLEM_CODE } from "./provider-errors";
 import { AdapterError, validateRequest, type HttpLike, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -41,9 +42,10 @@ export function createVeoTextAdapter(deps: { model: VeoModel; http: HttpLike; ap
           parameters: { aspectRatio: req.aspectRatio, durationSeconds: req.durationS, resolution: req.resolution },
         }),
       });
-      if (res.status === 401 || res.status === 403) throw new AdapterError("PROVIDER_AUTH", "Google rejected the API key, or this model is not enabled for it.");
-      if (res.status === 429) throw new AdapterError("PROVIDER_QUOTA", "Google's quota for this key is exhausted. Try again later.");
-      if (!res.ok) throw new AdapterError("PROVIDER_HTTP", `Google returned HTTP ${res.status}. Check your API key and quota.`);
+      if (!res.ok) {
+        const error = googleError(res.status, await res.json().catch(() => null));
+        throw new AdapterError(PROBLEM_CODE[error.problem], error.message);
+      }
       const operation = Operation.parse(await res.json());
       return { providerJobId: operation.name };
     },
@@ -84,13 +86,14 @@ export function createVeoTextAdapter(deps: { model: VeoModel; http: HttpLike; ap
       return videoBytes(response);
     },
     async testConnection() {
-      // Reading the model's metadata proves the key works and can see the
-      // model, without generating anything.
+      // Reading the model's metadata is free: it proves the key works and
+      // that Google offers it this model, without generating anything.
       const res = await deps.http(`${BASE}/models/${model.modelId}`, { headers: { "x-goog-api-key": deps.apiKey } });
-      if (res.ok) return { ok: true, message: `The key can reach ${model.modelId}.` };
-      if (res.status === 400 || res.status === 401 || res.status === 403) return { ok: false, message: "Google rejected this API key." };
-      if (res.status === 404) return { ok: false, message: `${model.modelId} is not available to this key.` };
-      return { ok: false, message: `Google returned HTTP ${res.status}. Try again later.` };
+      if (res.ok) {
+        return { ok: true, message: `The key works and can use ${model.modelId}. Veo bills each second of video and needs a paid (billing-enabled) Gemini API project.` };
+      }
+      const error = googleError(res.status, await res.json().catch(() => null));
+      return { ok: false, message: error.problem === "not-found" ? `The key works, but Google does not offer ${model.modelId} to it.` : error.message };
     },
   };
 }

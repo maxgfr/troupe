@@ -2,7 +2,7 @@ import "server-only";
 
 import { createFalAdapter, createVeoTextAdapter, type HttpLike, type VideoProviderAdapter } from "~/modules/generation";
 import {
-  BUILTIN_MODELS,
+  builtinModels,
   effectiveDefaultModel,
   getDefaultModelKey,
   listModelConfigs,
@@ -26,7 +26,7 @@ export function builtinAdapter(model: BuiltinModel, apiKey: string, http: HttpLi
     return createVeoTextAdapter({ model: { modelKey: model.key, modelId: model.modelId, capabilities: model.capabilities }, http, apiKey });
   }
   return createFalAdapter({
-    model: { modelKey: model.key, endpoint: model.modelId, capabilities: model.capabilities, sendsResolution: model.sendsResolution ?? false },
+    model: { modelKey: model.key, endpoint: model.modelId, capabilities: model.capabilities, sendsResolution: model.sendsResolution ?? false, promptMaxChars: model.promptMaxChars },
     http,
     apiKey,
   });
@@ -35,11 +35,12 @@ export function builtinAdapter(model: BuiltinModel, apiKey: string, http: HttpLi
 export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog> {
   const [credentials, rows, savedDefault] = await Promise.all([readCredentials(db), listModelConfigs(db), getDefaultModelKey(db)]);
   const adapters = new Map<string, VideoProviderAdapter>();
-  for (const model of BUILTIN_MODELS) {
+  const builtins = builtinModels(process.env);
+  for (const model of builtins) {
     const credential = credentials[model.credential];
     if (credential.source === "saved" || credential.source === "environment") adapters.set(model.key, builtinAdapter(model, credential.key));
   }
-  const builtinKeys = new Set(BUILTIN_MODELS.map((m) => m.key));
+  const builtinKeys = new Set(builtins.map((m) => m.key));
   const vetoes = new Map<string, { status: ModelStatus; detail: string }>();
   for (const row of rows) {
     if (builtinKeys.has(row.id)) continue;
@@ -52,6 +53,7 @@ export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog
     rows,
     credentials: { google: credentials.google.source, fal: credentials.fal.source },
     checkLocal: (row) => vetoes.get(row.id) ?? null,
+    builtins,
   });
   return { models, adapters, defaultModelKey: effectiveDefaultModel(models, savedDefault) };
 }

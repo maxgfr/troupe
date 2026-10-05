@@ -94,7 +94,7 @@ export default function LibraryPage() {
                       onKeyDown={(e) => {
                         if (e.key === "Escape") setQuery("");
                       }}
-                      placeholder="Search by meaning: hooks that ask a question…"
+                      placeholder="Search by meaning…"
                       className="min-h-10 w-full rounded-lg border border-muted/30 bg-bg py-2 pr-3 pl-9 text-sm placeholder:text-muted/80"
                     />
                   </div>

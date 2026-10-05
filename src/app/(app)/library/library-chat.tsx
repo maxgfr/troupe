@@ -199,7 +199,7 @@ export function LibraryChat({
             <ErrorNote>{error}</ErrorNote>
           </div>
         ) : null}
-        {messages.length === 0 && !send.isPending && !unavailable ? (
+        {history.data && messages.length === 0 && !send.isPending && !unavailable ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {(itemId ? ITEM_SUGGESTIONS : LIBRARY_SUGGESTIONS).map((s) => (
               <button key={s} type="button" onClick={() => submit(s)} className="min-h-9 rounded-md border border-muted/25 px-2.5 text-left text-xs text-muted transition-colors duration-150 hover:border-muted/50 hover:text-fg max-lg:min-h-11">

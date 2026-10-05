@@ -128,17 +128,21 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await expect(page.getByRole("link", { name: /cold brew/i }).first()).toBeVisible();
   await page.getByLabel("Search your library").fill("");
 
-  // Ask the library: the answer cites what it used.
+  // Ask the library: the answer cites what it used. The test stack's 0.5B
+  // model sometimes answers without citing; a person asks again.
   const chat = page.getByRole("complementary", { name: "Ask your library" });
-  await untilDone(
-    async () => {
-      await chat.getByLabel("Ask your library").fill("Which saved piece talks about cold brew, and how does it open?");
-      await chat.getByRole("button", { name: "Ask" }).click();
-      await expect(chat.getByText(/is reading your library/)).toBeHidden({ timeout: 10 * 60_000 });
-    },
-    chat.getByRole("list", { name: "Sources" }).last(),
-    chat.getByRole("alert").last(),
-  );
+  const sources = chat.getByRole("list", { name: "Sources" });
+  for (let i = 0; i < 3 && (await sources.count()) === 0; i++) {
+    const answers = await chat.locator("p.whitespace-pre-wrap").count();
+    await chat.getByLabel("Ask your library").fill("Which saved piece talks about cold brew, and how does it open?");
+    await chat.getByRole("button", { name: "Ask" }).click();
+    await expect(chat.locator("p.whitespace-pre-wrap")).toHaveCount(answers + 2, { timeout: 10 * 60_000 });
+    await expect(chat.getByText(/is reading your library/)).toBeHidden();
+    await expect(chat.getByRole("alert")).toHaveCount(0);
+  }
+  await expect(sources.first()).toBeVisible();
+  // A citation opens the item it cites.
+  await expect(sources.first().getByRole("link").first()).toHaveAttribute("href", /\/library\/[0-9a-f-]{36}/);
   await shot("03-chat");
 
   // Ideas in the style of the video, one made into a project.

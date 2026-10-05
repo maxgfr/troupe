@@ -122,7 +122,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
               void save();
             }
           }}
-          placeholder={canFetchLinks ? "Paste a link to a video or a page, or paste text" : "Paste a text, or upload a file"}
+          placeholder={canFetchLinks ? "Paste a link or a text" : "Paste a text, or upload a file"}
           className="min-h-10 w-full flex-1 resize-y rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm placeholder:text-muted/80"
         />
         <div className="flex gap-2">
@@ -153,7 +153,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
           It is my own content
         </label>
         <p id={hintId} className="text-xs text-muted">
-          {canFetchLinks ? "Videos, sound, pictures, PDFs and text; drop files here." : "Videos, sound, pictures, PDFs and text; drop files here. Links need the self-hosted studio."}
+          {canFetchLinks ? "Links to videos and pages; videos, sound, pictures, PDFs and text files, dropped here or uploaded." : "Videos, sound, pictures, PDFs and text files, dropped here or uploaded. Links need the self-hosted studio."}
           {maxUploadBytes ? <span className="font-mono tabular-nums"> · up to {sizeLabel(maxUploadBytes)}</span> : null}
         </p>
       </div>

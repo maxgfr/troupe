@@ -25,7 +25,9 @@ version; the same proposal applied twice returns the version it already made.
 
 `src/modules/chat` builds a short prompt: the project, the actor, the current
 lines, the emotions and roles allowed, the other actors, the studio's house
-style, the last few turns, and a **word budget**: the clip's seconds times the
+style (followed by your style profile when items in the
+[inspiration library](LIBRARY.md) are marked as your own: the hooks you open
+with, your tone, pace and sentence length), the last few turns, and a **word budget**: the clip's seconds times the
 speaking rate (2.5 words a second by default, the same rate as the script's
 duration estimate). The model must answer with a JSON object that follows a
 schema (`summary`, every `lines` entry with its `role`, `text` and

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { downloadFileName, mediaDisposition } from "./store";
+import { downloadFileName, libraryMediaHeaders, mediaDisposition } from "./store";
 
 describe("mediaDisposition", () => {
   it("plays inline without a download query", () => {
@@ -25,5 +25,15 @@ describe("downloadFileName", () => {
     expect(downloadFileName("clip.mp4")).toBe("clip.mp4");
     expect(downloadFileName("1")).toBe("troupe-video.mp4");
     expect(downloadFileName("../x.mp4", "webm")).toBe("troupe-video.webm");
+  });
+});
+
+describe("libraryMediaHeaders", () => {
+  it("serves media and pictures inline, a PDF and anything else as a download", () => {
+    expect(libraryMediaHeaders("image/jpeg", null)).toEqual({ contentType: "image/jpeg", disposition: 'inline; filename="troupe-library.jpeg"' });
+    expect(libraryMediaHeaders("video/mp4", "1")).toEqual({ contentType: "video/mp4", disposition: 'attachment; filename="troupe-library.mp4"' });
+    expect(libraryMediaHeaders("application/pdf", null)).toEqual({ contentType: "application/pdf", disposition: 'attachment; filename="troupe-library.pdf"' });
+    expect(libraryMediaHeaders("text/html", null)).toEqual({ contentType: "application/octet-stream", disposition: 'attachment; filename="troupe-library.html"' });
+    expect(libraryMediaHeaders("image/svg+xml", null).contentType).toBe("application/octet-stream");
   });
 });

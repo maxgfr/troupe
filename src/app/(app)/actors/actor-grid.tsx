@@ -10,6 +10,8 @@ export interface LibraryActor {
   style: string;
   voiceProfile: string;
   status: "active" | "unavailable";
+  // The front portrait; null shows the initials.
+  portraitUrl?: string | null;
 }
 
 // Pure view — the 30-actor grid.
@@ -39,6 +41,7 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
           <ActorPortrait
             id={actor.id}
             name={actor.name}
+            src={actor.portraitUrl}
             label={`${actor.name} — ${actor.style}, ${actor.ageRange}, ${actor.voiceProfile} voice`}
             className="aspect-[4/3] w-full"
           />

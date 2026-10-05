@@ -51,6 +51,20 @@
   --color-danger: var(--troupe-color-danger);
 }
 
+/* The hairline around small pictures (actor avatars): white on the dark
+   stage, black in the light theme, never tinted. */
+:root {
+  --picture-edge: oklch(1 0 0 / 0.1);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --picture-edge: oklch(0 0 0 / 0.1);
+  }
+}
+:root[data-theme="light"] {
+  --picture-edge: oklch(0 0 0 / 0.1);
+}
+
 body {
   background-color: var(--troupe-color-background);
   color: var(--troupe-color-foreground);

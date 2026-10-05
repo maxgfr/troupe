@@ -54,7 +54,11 @@ the local renderer, including its AI video mode.
 
 ## What it does
 
-- Projects with a platform, format, language and one of 30 actor presets.
+- Projects with a platform, format, language and one of 30 actor presets,
+  each with six pictures of a synthetic person (front, side views, three
+  expressions) that the app and the local renderers show
+  ([docs/ACTORS.md](docs/ACTORS.md) explains how they were made and how to
+  replace them).
 - Versioned scripts with an emotion per line; restore any earlier version.
 - A script chat beside each project: ask for a change, read the proposal
   against the current version, apply it or apply and relaunch the render.
@@ -66,8 +70,8 @@ the local renderer, including its AI video mode.
   range requests.
 - Export presets per platform with the AI-disclosure rule each one applies.
 
-Actor presets describe a voice and a look in the prompt; they do not keep the
-same face from one render to the next.
+With a video model, actor presets describe a voice and a look in the prompt;
+they do not keep the same face from one render to the next.
 
 ## Honest status
 

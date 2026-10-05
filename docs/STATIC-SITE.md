@@ -45,7 +45,9 @@ launches it (`site/src/render/`):
    share memory between threads), several times slower.
 2. The shared scene (`buildScene`, `drawFrame`) is laid out on the measured
    speech and drawn on an `OffscreenCanvas` in Geist, the font the local
-   renderer draws with.
+   renderer draws with. The actor card shows the actor's pictures, fetched
+   from the site's copy of the cast (`/troupe/actors/`) and decoded with
+   `createImageBitmap`.
 3. WebCodecs encodes H.264 video and AAC audio, or Opus where the browser has
    no AAC encoder (Chromium on Linux); [mediabunny](https://mediabunny.dev)
    writes the MP4.
@@ -86,6 +88,7 @@ environment). The build checks them and stops on a bad value.
 | `VITE_RENDER_KEYFRAME_S` | `1` | seconds between key frames (seeking) |
 | `VITE_RENDER_AUDIO_BITRATE` | `128000` | bits per second |
 | `VITE_RENDER_AUDIO_CODECS` | `aac,opus` | audio codecs to try, in order |
+| `VITE_PORTRAITS_DIR` | `public/actors` | the actors' pictures copied to `/troupe/actors/`, a folder laid out like `public/actors` ([ACTORS.md](ACTORS.md)) |
 
 ### Testing a render
 
@@ -124,6 +127,9 @@ a machine with a GPU.
   `src/app/_components/edition.tsx` tells the pages they run in the demo.
 - `site/src/db/`: PGlite in a worker (`idb://troupe`), shared by every open tab;
   the Drizzle migrations are bundled with `import.meta.glob`.
+- `troupe:actor-pictures` (`site/vite-plugins.ts`): the cast lives once in
+  the repository, in `public/actors`; `vite dev` serves it and the build
+  copies it to `/troupe/actors/`, the same paths the self-hosted app serves.
 - `site/public/sw.js`: a service worker that serves renders stored in
   IndexedDB at `/troupe/app/media/<id>`, with byte ranges for seeking.
 - `site/src/render/`: the in-browser renderer (above). Its model is a

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
+import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import {
   ErrorNote,
@@ -58,6 +59,9 @@ export default function ProjectMonitorPage({
     { enabled, retry: false },
   );
   const latestScript = history.data?.[history.data.length - 1];
+  // The project's actor, pictured in the header.
+  const actors = api.actors.list.useQuery(undefined, { enabled: Boolean(project.data?.actorId), retry: false, staleTime: 5 * 60_000 });
+  const actor = actors.data?.find((a) => a.id === project.data?.actorId);
 
   const models = api.studio.modelOptions.useQuery(
     { format: project.data?.format ?? "9:16", language: project.data?.language },
@@ -115,9 +119,24 @@ export default function ProjectMonitorPage({
       <PageHeader
         title={project.data?.title ?? "Project"}
         lede={
-          project.data
-            ? `${platformName(project.data.platform)} · ${project.data.format} · ${project.data.language.toUpperCase()}`
-            : undefined
+          project.data ? (
+            <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              {`${platformName(project.data.platform)} · ${project.data.format} · ${project.data.language.toUpperCase()}`}
+              {actor ? (
+                <span data-testid="project-actor" className="inline-flex items-center gap-1.5">
+                  <span aria-hidden="true">·</span>
+                  <ActorPortrait
+                    id={actor.id}
+                    name={actor.name}
+                    src={actor.portraitUrl}
+                    label=""
+                    className="size-5 shrink-0 rounded-full outline-1 -outline-offset-1 outline-(--picture-edge)"
+                  />
+                  {actor.name}
+                </span>
+              ) : null}
+            </span>
+          ) : undefined
         }
         actions={
           <nav className="flex flex-wrap items-center gap-3 text-sm">

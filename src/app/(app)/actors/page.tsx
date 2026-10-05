@@ -22,7 +22,7 @@ export default function ActorsPage() {
     <>
       <PageHeader
         title="Actor presets"
-        lede="Choose a voice and appearance profile for your script. These are text presets; faces can vary between generations."
+        lede="Each preset is a voice and a look. The local renderers show these pictures; video models get a description of the look, so faces can vary between generations."
       />
 
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by gender">

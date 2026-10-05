@@ -132,7 +132,15 @@ minutes; leave it out for jobs that take an hour.
       "name": "Léa",
       "gender": "female",
       "age_range": "18-24",
-      "voice_profile": "warm and enthusiastic, mid-tempo"
+      "voice_profile": "warm and enthusiastic, mid-tempo",
+      "portraits": {
+        "front": "actors/lea-01/v1/front.webp",
+        "happy": "actors/lea-01/v1/happy.webp",
+        "calm": "actors/lea-01/v1/calm.webp",
+        "excited": "actors/lea-01/v1/excited.webp",
+        "profile-left": "actors/lea-01/v1/profile-left.webp",
+        "profile-right": "actors/lea-01/v1/profile-right.webp"
+      }
     },
     "lines": [
       { "role": "hook", "text": "This ended my search for good coffee.", "emotion": "excited" },
@@ -153,7 +161,12 @@ server that only reads `prompt` can ignore it.
 - `actor`: who speaks. `id` is stable for a given actor, so it can key a
   voice or a portrait. `gender` is `female`, `male` or `nonbinary`;
   `age_range` is a range such as `25-34` or `55+`; `voice_profile` describes
-  the delivery in a few words.
+  the delivery in a few words. `portraits`, when the actor has pictures, maps
+  each shot (`front`, `profile-left`, `profile-right`, `happy`, `calm`,
+  `excited`) to its path in Troupe's cast, such as
+  `actors/lea-01/v1/front.webp`: the file `public/actors/lea-01/v1/front.webp`
+  in this repository ([ACTORS.md](ACTORS.md)), or the same path under
+  `/actors/` on Troupe's own address. Paths only, never the picture itself.
 - `lines`: in speaking order. `role` is `hook`, `body` or `cta`; `emotion` is
   `neutral`, `excited`, `calm`, `serious`, `happy` or `disappointed`.
 
@@ -193,10 +206,12 @@ settings). The project page also checks while it is open, every 4 seconds.
 ## Local renderer
 
 `renderer/` voices the script and stages it, on the CPU, in seconds: a Kokoro
-voice per actor, the actor card (the same colors and initials as the actor's
-portrait in Troupe), word-by-word captions and a slowly moving background,
-encoded as H.264 + AAC. There is no generated picture of a person: it is a
-draft you can listen to, time and share, not a substitute for a video model.
+voice per actor, the actor card (the actor's portrait from Troupe's cast,
+switching to their happy, calm or excited picture on lines with that emotion,
+or their initials when they have no picture), word-by-word captions and a
+slowly moving background, encoded as H.264 + AAC. Nobody moves or speaks on
+screen: it is a draft you can listen to, time and share, not a substitute for
+a video model.
 
 The video is as long as the script, not the clip length picked at launch:
 0.3 s of silence, each line as long as Kokoro takes to say it with 0.35 s
@@ -235,8 +250,10 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | `KOKORO_VOICES` | the built-in casting | the Kokoro voices actors are cast from, e.g. `female=af_heart,af_bella;male=am_michael`; both pools are required |
 | `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
 | `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
+| `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a missing picture falls back to the front one, then to the initials |
 | `TROUPE_RENDERER_PORT` | `8078` | Compose only: the port published on `127.0.0.1` |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
+| `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | Compose only: the host folder mounted, read-only, as the container's pictures |
 
 ### Add it to Troupe
 
@@ -266,7 +283,8 @@ supported picks the pace up when you press **Test** on it in Settings.
 - The voice follows the actor's gender, and each actor keeps the same voice;
   emotions and the actor's voice profile ("fast", "measured", …) set the pace.
 - Without `script` in the job (another client than Troupe), the renderer reads
-  the dialogue back from the compiled prompt and draws a "Narrator" card.
+  the dialogue back from the compiled prompt and draws a "Narrator" card with
+  initials.
 
 ## AI video mode (LTX-Video)
 

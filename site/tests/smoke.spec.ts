@@ -43,7 +43,13 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await expect(page.getByText(/Not available in the browser demo/).first()).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.locator('label:has(input[name="actor"]:not([disabled]))').first().click();
+  const actor = page.locator('label:has(input[name="actor"]:not([disabled]))').first();
+  // Every actor has a real picture, served by the site itself.
+  const picture = actor.locator("img");
+  await expect(picture).toHaveAttribute("src", /^\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front\.webp$/);
+  await picture.scrollIntoViewIfNeeded();
+  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(768);
+  await actor.click();
   await page.getByRole("button", { name: /Create project/ }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}\/script$/);
 

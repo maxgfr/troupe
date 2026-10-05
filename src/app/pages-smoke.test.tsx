@@ -18,6 +18,7 @@ vi.mock("~/trpc/react", () => ({
     identity: {
       myWorkspaces: { useQuery: () => ({ isPending: true }) },
     },
+    actors: { list: { useQuery: () => ({ isPending: true }) } },
     studio: {
       updateChoices: { useMutation: () => ({}) },
       getProject: { useQuery: () => ({ isPending: true }) },

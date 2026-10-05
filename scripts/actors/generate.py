@@ -27,6 +27,8 @@ Options (all optional):
     --out DIR         where the WebP files go (default: public/actors)
     --raw DIR         where full-size PNGs are kept for review and as edit
                       references (default: scripts/actors/raw, not committed)
+    --resume          skip shots already made from the current front
+                      portrait (an interrupted run picks up where it stopped)
     --sheet           only build raw/contact-sheet.jpg from the WebP files
 
 Environment:
@@ -47,6 +49,7 @@ import argparse
 import gc
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -64,6 +67,7 @@ WEBP_SIDE_OTHERS = 512
 WEBP_QUALITY = 80
 
 AGES = {"18-24": 22, "25-34": 30, "35-44": 40, "45-54": 50, "55+": 62}
+# The word each catalog gender must appear as in the cast's look.
 PEOPLE = {"female": "woman", "male": "man", "nonbinary": "person"}
 WARDROBE = {
     "casual": "a plain crew-neck t-shirt under an open denim jacket",
@@ -126,6 +130,9 @@ def load_cast() -> list[dict]:
     for actor in json.loads(out):
         if actor["slug"] not in looks:
             sys.exit(f"scripts/actors/cast.json has no entry for {actor['slug']}.")
+        noun = PEOPLE[actor["gender"]]
+        if not re.search(rf"\b{noun}\b", looks[actor["slug"]]["look"]):
+            sys.exit(f"The look of {actor['slug']} in cast.json must describe a {noun}: the catalog says {actor['gender']}.")
         cast.append({**actor, **looks[actor["slug"]]})
     return cast
 
@@ -182,6 +189,7 @@ def main() -> None:
     parser.add_argument("--strength", type=float, default=0.45)
     parser.add_argument("--out", type=Path, default=ROOT / "public/actors")
     parser.add_argument("--raw", type=Path, default=HERE / "raw")
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--sheet", action="store_true")
     args = parser.parse_args()
 
@@ -208,6 +216,10 @@ def main() -> None:
     steps = int(env("ACTOR_IMAGE_STEPS", "4"))
     size = int(env("ACTOR_IMAGE_SIZE", "1024"))
     edit_size = int(env("ACTOR_IMAGE_EDIT_SIZE", "768"))
+
+    # MLX keeps freed buffers for reuse; capped at 1 GB (as MFLUX's --low-ram
+    # does), the run stays out of swap on a 16 GB Mac.
+    mx.set_cache_limit(1 << 30)
 
     def load(pipeline):
         return pipeline(model_config=ModelConfig.flux2_klein_4b(), model_path=model_path)
@@ -246,6 +258,9 @@ def main() -> None:
             front = args.raw / actor["slug"] / f"front-{edit_size}.png"
             Image.open(args.raw / actor["slug"] / "front.png").convert("RGB").resize((edit_size, edit_size), Image.LANCZOS).save(front)
             for shot in derived:
+                done = args.raw / actor["slug"] / f"{shot}.png"
+                if args.resume and done.exists() and done.stat().st_mtime > (args.raw / actor["slug"] / "front.png").stat().st_mtime:
+                    continue
                 started, seed = time.monotonic(), seed_for(actor, shot)
                 if args.derive == "img2img":
                     image = model.generate_image(

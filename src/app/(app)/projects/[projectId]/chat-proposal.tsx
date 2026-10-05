@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { diffLines, type LineChange } from "~/modules/chat/diff";
 import type { Proposal } from "~/modules/chat";
+import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { ProviderWarning, SpotButton } from "~/app/_components/ui";
 import { estimateSeconds } from "./script/estimate";
 import type { RelaunchPlan } from "./chat-launch";
@@ -85,7 +86,9 @@ export function ProposalCard({
   current: readonly Line[];
   state: ProposalState;
   clipS: number;
-  actorChange: { from: string; to: string } | null;
+  // The recast a proposal asks for; `toId` and `toPortrait` picture the actor
+  // proposed.
+  actorChange: { from: string; to: string; toId?: string; toPortrait?: string | null } | null;
   relaunch: RelaunchPlan;
   busy: boolean;
   onApply: () => void;
@@ -110,8 +113,20 @@ export function ProposalCard({
       <div className="space-y-2 p-2">
         <ProposalDiff current={current} proposed={proposal.lines} />
         {actorChange ? (
-          <p className="px-2 text-sm">
-            <span className="text-muted">Actor:</span> <s className="text-muted">{actorChange.from}</s> {actorChange.to}
+          <p className="flex items-center gap-2 px-2 text-sm">
+            <span className="text-muted">Actor:</span> <s className="text-muted">{actorChange.from}</s>
+            <span className="inline-flex items-center gap-1.5">
+              {actorChange.toId ? (
+                <ActorPortrait
+                  id={actorChange.toId}
+                  name={actorChange.to}
+                  src={actorChange.toPortrait}
+                  label=""
+                  className="size-6 shrink-0 rounded-full outline-1 -outline-offset-1 outline-(--picture-edge)"
+                />
+              ) : null}
+              {actorChange.to}
+            </span>
           </p>
         ) : null}
         {applied ? (

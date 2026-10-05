@@ -107,4 +107,23 @@ programs under other licenses:
     License.
   - Their other dependencies, pinned in `renderer/ltx/uv.lock`, keep their
     own licenses, listed in the installed packages' metadata.
+- **The actors' pictures** (`public/actors/`, 180 WebP files). They show
+  synthetic people: no real person was photographed or described by name,
+  and any resemblance to a real person is coincidental. They are released
+  under this repository's MIT license. They were generated on a Mac with
+  `scripts/actors/generate.py`, which Troupe does not run; `uv` installs its
+  Python packages and Hugging Face serves the weights when someone runs it:
+  - FLUX.2 [klein] 4B by Black Forest Labs
+    ([`black-forest-labs/FLUX.2-klein-4B`](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B)),
+    Apache License 2.0, including its Qwen3 text encoder; used as the
+    8-bit MLX conversion
+    [`mflux-community/flux2-klein-4b-mflux-q8`](https://huggingface.co/mflux-community/flux2-klein-4b-mflux-q8),
+    which keeps that license. The model card places no restriction on the
+    images it makes. (FLUX.2 [klein] 9B uses Black Forest Labs' non-commercial
+    license and is not used.)
+  - [MFLUX](https://github.com/filipstrand/mflux) 0.21.0 (MIT License) on
+    [MLX](https://github.com/ml-explore/mlx) 0.32 (MIT License), and
+    [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU License) for
+    the WebP files. Their other dependencies, pinned in
+    `scripts/actors/uv.lock`, keep their own licenses.
 - Other npm dependencies keep their own licenses, listed in `node_modules`.

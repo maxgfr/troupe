@@ -162,6 +162,7 @@ export interface ActorView {
   style: string;
   ageRange: string;
   status: string;
+  portraitUrl?: string | null;
 }
 
 export function ActorStep({
@@ -214,6 +215,7 @@ export function ActorStep({
               <ActorPortrait
                 id={actor.id}
                 name={actor.name}
+                src={actor.portraitUrl}
                 label={`${actor.name} — ${actor.style}, ${actor.ageRange}`}
                 className="aspect-square w-full"
               />

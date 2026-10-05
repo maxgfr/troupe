@@ -156,7 +156,7 @@ export function ChatPanel({
                           newest: m.id === newestPendingId,
                         }}
                         clipS={clipS}
-                        actorChange={m.proposal.actorId && m.proposal.actorId !== currentActorId && !m.appliedScriptId ? { from: actorName(currentActorId), to: actorName(m.proposal.actorId) } : null}
+                        actorChange={m.proposal.actorId && m.proposal.actorId !== currentActorId && !m.appliedScriptId ? { from: actorName(currentActorId), to: actorName(m.proposal.actorId), toId: m.proposal.actorId, toPortrait: actors.data?.find((a) => a.id === m.proposal?.actorId)?.portraitUrl } : null}
                         relaunch={relaunchPlan(base, estimateSeconds(m.proposal.lines.map((l) => l.text).join(" ")))}
                         busy={busy}
                         onApply={() => {

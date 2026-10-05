@@ -26,23 +26,29 @@ on the site's landing page.
 
 ```bash
 git clone https://github.com/maxgfr/troupe.git && cd troupe
-cp .env.example .env && sed -i.bak "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=\"$(openssl rand -hex 24)\"/" .env
-docker compose up -d
+docker compose up -d --wait
 ```
 
-Open <http://localhost:3100>. On first start the app generates an access code and
-prints it in its logs:
+Nothing to set first. The stack runs the studio and its database, the local
+renderer (Kokoro voices and captions, on the CPU), an Ollama server for the
+script chat and the browser edition. The first start downloads the chat model
+(`qwen3:4b`, 2.5 GB) and the voices (90 MB); `--wait` returns once they are
+there. Open <http://localhost:3100> with the access code the studio generated:
 
 ```bash
 docker compose logs app | grep -A1 "access code"
 ```
 
-Then go to **Settings** to add an API key or a local model. The database, your
-videos, the access code and the key that encrypts saved API keys live in two
-Docker volumes; see [backups](docs/SELF-HOSTING.md#backups).
+The local renderer is already the default model and the chat already answers:
+write a script, ask the chat for a change, render, play, export, without
+opening Settings. Add API keys or GPU models there when you want them. The
+browser edition is at <http://localhost:3101/troupe/>, and the CLI runs in the
+stack: `docker compose run --rm cli doctor`.
 
-`docker compose up` pulls the published image (`ghcr.io/maxgfr/troupe`). To build
-from your checkout instead, run `docker compose up -d --build`.
+`docker compose up` pulls the published images (`ghcr.io/maxgfr/troupe*`); to
+build them from your checkout, add `--build`. The
+[self-hosting guide](docs/SELF-HOSTING.md) covers the services, profiles (CLI,
+ComfyUI, the AI video mode), GPUs, volumes, backups and upgrades.
 
 ## Models
 
@@ -53,7 +59,7 @@ from your checkout instead, run `docker compose up -d --build`.
 | Seedance 1.5 Pro | fal.ai (API key) | optional | 9:16, 16:9, 1:1 | 4–12 s |
 | LTX-2 | your GPU, via ComfyUI | always | 9:16, 16:9, 1:1 | 4–10 s |
 | Wan 2.2 TI2V 5B | your GPU, via ComfyUI | silent | 9:16, 16:9 | 3–5 s |
-| Local renderer | your CPU ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
+| Local renderer | your CPU, in the Docker stack by default ([`renderer/`](docs/LOCAL-MODELS.md#local-renderer)): Kokoro voice, actor card, captions | always | 9:16, 16:9, 1:1 | as long as the script |
 | Local renderer, AI video mode (opt-in) | your Mac's GPU, natively (NVIDIA GPUs should work, not tried) ([`renderer/ltx`](docs/LOCAL-MODELS.md#ai-video-mode-ltx-video)): an LTX-Video 2B clip under the same voice and captions | always | 9:16, 16:9, 1:1 | as long as the script (a 5 s clip, repeated) |
 | Kokoro voice + captions | the visitor's browser, browser edition only ([`site/`](docs/BROWSER-EDITION.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
@@ -76,8 +82,8 @@ the local renderer, including its AI video mode.
 - Versioned scripts with an emotion per line; restore any earlier version.
 - A script chat beside each project: ask for a change, read the proposal
   against the current version, apply it or apply and relaunch the render.
-  Ollama on your machine by default, Claude with an Anthropic key, WebLLM in
-  the browser edition ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
+  Ollama by default (the Docker stack runs its own), Claude with an
+  Anthropic key, WebLLM in the browser edition ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
 - Launch on any configured model, follow progress, relaunch failures, compare
   two or three models on the same script and vote.
 - Videos are checked with ffprobe before they are kept. Downloads stream with
@@ -107,16 +113,18 @@ whole process for you, from the brief to the reviewed MP4:
 ## Honest status
 
 The cloud adapters are tested against recorded API responses, the local
-adapters against real HTTP servers in the test suite, and the Docker image end
-to end with the [example model server](examples/http-model). **Paid generations
+adapters against real HTTP servers in the test suite, and the whole Docker
+stack end to end on every push (`pnpm e2e:docker`: the studio's flow in
+Chromium with the stack's renderer and a small Ollama model, the CLI, the
+browser edition). **Paid generations
 with real Google and fal.ai keys have not been run for this release, and the
 bundled ComfyUI workflows were validated by ComfyUI 0.38.0 but not rendered
 end to end.** Reports are welcome.
 
 ## Other ways to run it
 
-- [Self-hosting guide](docs/SELF-HOSTING.md): configuration, HTTPS behind a
-  reverse proxy, backups, upgrades.
+- [Self-hosting guide](docs/SELF-HOSTING.md): services and profiles,
+  configuration, GPUs, HTTPS behind a reverse proxy, backups, upgrades.
 - [Vercel + Supabase](docs/VERCEL-SUPABASE.md): serverless hosting with
   Supabase for the database, files and scheduled job checks.
 - [Browser edition](docs/BROWSER-EDITION.md): the same studio built as a

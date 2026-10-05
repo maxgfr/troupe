@@ -68,30 +68,74 @@ jobs:
             site/playwright-report
             site/test-results
 
-  docker-smoke:
+  # The whole product in Docker (pnpm e2e:docker): every image built from this
+  # checkout, the stack started, then the studio's full flow in Chromium (chat
+  # on a small Ollama model, render, export, download), the CLI in its
+  # container and the browser edition served by the `web` service. Images are
+  # cached by BuildKit in the Actions cache, model downloads by actions/cache.
+  # Timings: docs/SELF-HOSTING.md#testing-the-stack.
+  docker-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      E2E_OLLAMA_MODEL: qwen2.5:0.5b
+      # Ignored by git and by every image's build context.
+      E2E_CACHE_DIR: ${{ github.workspace }}/.cache/e2e
     steps:
       - uses: actions/checkout@v4
-      - name: Start the stack from this checkout
-        run: |
-          printf 'POSTGRES_PASSWORD=%s\nTROUPE_VERSION=ci\n' "$(openssl rand -hex 16)" > .env
-          docker compose up -d --build --wait --wait-timeout 300
-      - name: Health check answers
-        run: curl --fail --silent http://127.0.0.1:3100/api/health | grep -q '"ok":true'
-      - name: An access code was generated and printed
-        run: docker compose logs app | grep -q "protected by an access code"
-      - name: A spoofed localhost Host header gets nothing
-        run: |
-          status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: localhost:3100' 'http://127.0.0.1:3100/api/trpc/identity.myWorkspaces')
-          echo "status=$status"
-          test "$status" = "401"
-      - name: Data survives a restart
-        run: |
-          code=$(docker compose exec -T app cat /app/data/access-code)
-          docker compose restart app
-          docker compose up -d --wait --wait-timeout 120
-          test "$(docker compose exec -T app cat /app/data/access-code)" = "$code"
-      - if: failure()
-        run: docker compose logs
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the images
+        uses: docker/bake-action@v6
+        with:
+          source: .
+          files: |
+            docker-compose.yml
+            docker-compose.test.yml
+          targets: app,renderer,ollama,web,cli
+          load: true
+          set: |
+            app.cache-from=type=gha,scope=e2e-app
+            app.cache-to=type=gha,scope=e2e-app,mode=max
+            renderer.cache-from=type=gha,scope=e2e-renderer
+            renderer.cache-to=type=gha,scope=e2e-renderer,mode=max
+            ollama.cache-from=type=gha,scope=e2e-ollama
+            ollama.cache-to=type=gha,scope=e2e-ollama,mode=max
+            web.cache-from=type=gha,scope=e2e-web
+            web.cache-to=type=gha,scope=e2e-web,mode=max
+            cli.cache-from=type=gha,scope=e2e-cli
+            cli.cache-to=type=gha,scope=e2e-cli,mode=max
+      # The chat model (about 400 MB), Kokoro's weights for the renderer and
+      # for the browser edition's render (about 90 MB each).
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.cache/e2e/ollama
+            ${{ github.workspace }}/.cache/e2e/kokoro
+            ${{ github.workspace }}/.cache/e2e/render-profile
+          key: e2e-models-${{ env.E2E_OLLAMA_MODEL }}-${{ hashFiles('pnpm-lock.yaml', 'site/src/render/config.ts', 'ollama/Dockerfile') }}
+          restore-keys: e2e-models-${{ env.E2E_OLLAMA_MODEL }}-
+      - run: pnpm e2e:docker
+        env:
+          CI: "1"
+          E2E_SKIP_BUILD: "1"
+          HEADLESS: "1"
+          RENDER_CHANNEL: chromium
+          RENDER_PROFILE: ${{ github.workspace }}/.cache/e2e/render-profile
+      # Containers wrote some of the cached files as their own users.
       - if: always()
-        run: docker compose down -v
+        run: sudo chown -R "$(id -u):$(id -g)" "$E2E_CACHE_DIR"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-e2e-report
+          path: |
+            e2e/test-results
+            e2e/playwright-report

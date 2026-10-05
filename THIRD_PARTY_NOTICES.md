@@ -3,14 +3,38 @@
 Troupe's own code is MIT licensed. Some distributions include third-party
 programs under other licenses:
 
-- **FFmpeg / FFprobe.** The Docker image installs Alpine Linux's `ffmpeg`
-  package; Vercel builds bundle the static `ffprobe` binary from
+- **FFmpeg / FFprobe.** The studio's Docker image installs Alpine Linux's
+  `ffmpeg` package and the renderer's image (`troupe-renderer`) Debian's;
+  Vercel builds bundle the static `ffprobe` binary from
   [`@ffprobe-installer/linux-x64`](https://www.npmjs.com/package/@ffprobe-installer/linux-x64).
-  Both are built from [FFmpeg](https://ffmpeg.org) and licensed under the GNU
+  All are built from [FFmpeg](https://ffmpeg.org) and licensed under the GNU
   GPL (version 2 or later, or version 3 for some builds). Troupe runs them as
   separate programs. Their source is available from
-  [ffmpeg.org](https://ffmpeg.org/download.html) and the
-  [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) repository.
+  [ffmpeg.org](https://ffmpeg.org/download.html), the
+  [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) repository and
+  [Debian's sources](https://sources.debian.org/src/ffmpeg/).
+- **The Docker images' base systems.** The published images
+  (`ghcr.io/maxgfr/troupe`, `troupe-renderer`, `troupe-ollama`, `troupe-web`,
+  `troupe-cli`) are built on the official [Node.js](https://github.com/nodejs/docker-node)
+  images (Node.js: MIT License; Alpine Linux 3 or Debian 12), on
+  [Ubuntu](https://ubuntu.com/legal/intellectual-property-policy) 24.04
+  (`troupe-ollama`) and on [nginx-unprivileged](https://github.com/nginx/docker-nginx-unprivileged)
+  (Alpine Linux with [nginx](https://nginx.org/LICENSE), BSD 2-Clause License;
+  `troupe-web`). Each system package keeps its own license, listed in the
+  image (`/usr/share/doc`, `/usr/share/licenses` or `apk info`). The stack
+  also runs the official [PostgreSQL](https://www.postgresql.org/about/licence/)
+  image (`postgres:16-alpine`, PostgreSQL License), which Troupe does not
+  rebuild.
+- **Ollama** (`troupe-ollama`, the stack's chat server). The image copies the
+  `ollama` program and its CPU libraries from the official
+  [`ollama/ollama`](https://hub.docker.com/r/ollama/ollama) image, unmodified,
+  leaving out its GPU libraries: [Ollama](https://github.com/ollama/ollama)
+  is under the MIT License, and it bundles [llama.cpp and ggml](https://github.com/ggml-org/llama.cpp)
+  (MIT License), [cpp-httplib](https://github.com/yhirose/cpp-httplib) (MIT
+  License) and the Go runtime (BSD 3-Clause License); their license files
+  stay in the image, under `/usr/lib/ollama`. `docker-compose.gpu.yml` runs
+  the official image instead, which also carries NVIDIA's CUDA libraries
+  under [NVIDIA's license](https://docs.nvidia.com/cuda/eula/).
 - **ComfyUI workflows.** `src/modules/generation/server/adapters/comfyui/templates/*.json`
   are derived from [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates)
   (MIT). The model weights they reference are not distributed with Troupe and
@@ -64,15 +88,23 @@ programs under other licenses:
     weights.
   - The self-hosted chat's default Ollama model, `qwen3:4b`
     ([Qwen/Qwen3-4B](https://huggingface.co/Qwen/Qwen3-4B), Apache License
-    2.0), is pulled by the user with Ollama ([MIT](https://github.com/ollama/ollama/blob/main/LICENSE)),
-    which Troupe neither bundles nor installs.
+    2.0), downloaded from the Ollama library by the stack's `ollama` service
+    on its first start (or pulled by the user into their own Ollama). The
+    Docker end-to-end tests (`pnpm e2e:docker`, CI) download `qwen2.5:0.5b`
+    ([Qwen/Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct),
+    Apache License 2.0) instead. Troupe does not distribute either model's
+    weights.
   - [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript)
     (`@anthropic-ai/sdk`) 0.131.0: MIT License. Used by the self-hosted
     server only; messages to Claude are billed by Anthropic to the key's owner.
-- **The local renderer's AI video mode** (`renderer/ltx/`, opt-in, never in
-  the Docker images). Troupe distributes none of the following; `uv` installs
-  the Python packages into `renderer/ltx/.venv` and Hugging Face serves the
-  weights when the user runs `pnpm renderer:ltx:setup` or the mode's first job.
+- **The local renderer's AI video mode** (`renderer/ltx/`, opt-in, in none of
+  the published images). Troupe distributes none of the following; `uv`
+  installs the Python packages into `renderer/ltx/.venv` (or, for the `ltx`
+  Compose profile, into an image built on the user's machine from
+  `renderer/Dockerfile`, with Debian's Python 3.11 and the
+  [uv](https://github.com/astral-sh/uv) binary from its official image, MIT
+  License or Apache License 2.0) and Hugging Face serves the weights when the
+  user runs `pnpm renderer:ltx:setup` or the mode's first job.
   - LTX-Video 2B 0.9.8 distilled weights
     (`ltxv-2b-0.9.8-distilled.safetensors` from
     [`Lightricks/LTX-Video`](https://huggingface.co/Lightricks/LTX-Video)):
@@ -97,6 +129,8 @@ programs under other licenses:
   - [PyTorch](https://github.com/pytorch/pytorch) 2.14: BSD 3-Clause License;
     its wheels bundle third-party code under the Apache License 2.0 (some
     with the LLVM exception), BSD 2-Clause, Boost (BSL-1.0) and MIT licenses.
+    On Linux (x86-64 and ARM64) its wheels depend on NVIDIA's CUDA libraries (the
+    `nvidia-*` packages), under [NVIDIA's license](https://docs.nvidia.com/cuda/eula/).
   - [Diffusers](https://github.com/huggingface/diffusers) 0.40,
     [Transformers](https://github.com/huggingface/transformers) 5.18,
     [Accelerate](https://github.com/huggingface/accelerate) 1.15,

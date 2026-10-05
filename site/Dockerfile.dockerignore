@@ -1,0 +1,28 @@
+# Build context for site/Dockerfile (the repository root). Replaces the root
+# .dockerignore for this build: the site bundles code and files from all over
+# the repository (src/, drizzle/, public/), so only what it never reads is
+# left out.
+node_modules
+**/node_modules
+.next
+.git
+.github
+.superpowers
+.claude
+.cache
+.vercel
+data
+coverage
+docs
+e2e
+cli
+renderer
+ollama
+supabase
+scripts/actors
+site/dist
+site/test-results
+site/playwright-report
+.env
+.env.*
+!site/.env

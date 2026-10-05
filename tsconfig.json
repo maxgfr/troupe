@@ -40,5 +40,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "generated", "site/dist"]
+  "exclude": ["node_modules", "generated", "site/dist", ".cache", "e2e/test-results"]
 }

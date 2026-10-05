@@ -6,6 +6,9 @@
 !pnpm-workspace.yaml
 !renderer/package.json
 !renderer/src
+!renderer/ltx/pyproject.toml
+!renderer/ltx/uv.lock
+!renderer/ltx/generate.py
 !src/modules/scene
 !public/actors
 **/*.test.ts

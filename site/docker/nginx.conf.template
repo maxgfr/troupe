@@ -1,0 +1,73 @@
+# The browser edition behind nginx (site/Dockerfile). ${TROUPE_WEB_BASE} is
+# filled in when the container starts; nginx's own $variables are left alone.
+
+# Hashed bundles never change; pages, the service worker and the app's
+# entry are checked on every load so an update shows up at once; pictures and
+# the presentation video for an hour.
+map $uri $troupe_cache_control {
+    default                                  "public, max-age=3600";
+    ~^${TROUPE_WEB_BASE}assets/              "public, max-age=31536000, immutable";
+    ~(\.html|/|sw\.js)$                      "no-cache";
+}
+
+# The media service worker controls ${TROUPE_WEB_BASE}app/ (site/src/media.ts).
+map $uri $troupe_sw_allowed {
+    default                                  "";
+    ${TROUPE_WEB_BASE}sw.js                  "${TROUPE_WEB_BASE}";
+}
+
+server {
+    listen 8080;
+    listen [::]:8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+    absolute_redirect off;
+    charset utf-8;
+    charset_types text/css text/plain text/vtt application/javascript application/json application/manifest+json;
+
+    # nginx's list misses a few the site serves.
+    include /etc/nginx/mime.types;
+    types {
+        text/vtt                  vtt;
+        application/manifest+json webmanifest;
+        text/javascript           mjs;
+    }
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/css text/plain text/vtt application/javascript text/javascript application/json application/manifest+json application/wasm image/svg+xml;
+
+    add_header Cache-Control $troupe_cache_control always;
+    add_header Service-Worker-Allowed $troupe_sw_allowed always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # The site's root, or a redirect to it when it lives under a path.
+    location = / {
+        try_files /index.html @base;
+    }
+    location @base {
+        return 302 ${TROUPE_WEB_BASE};
+    }
+
+    # The app is one page: its routes (projects/<id>, settings, …) all load it.
+    location ${TROUPE_WEB_BASE}app/ {
+        try_files $uri $uri/ ${TROUPE_WEB_BASE}app/index.html;
+    }
+
+    # Byte ranges (video seeking) are nginx's default for files.
+    location ${TROUPE_WEB_BASE} {
+        try_files $uri $uri/ =404;
+    }
+
+    # As on GitHub Pages: an unknown address gets the app's not-found page.
+    error_page 404 ${TROUPE_WEB_BASE}404.html;
+}

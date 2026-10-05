@@ -17,6 +17,7 @@
     "demo:edit": "bash scripts/demo/edit.sh",
     "demo:record": "node scripts/demo/record.ts",
     "dev": "next dev --turbo --hostname 127.0.0.1",
+    "e2e:docker": "node scripts/e2e-docker.ts",
     "lint": "biome lint .",
     "preview": "next build && next start",
     "renderer": "pnpm --filter @troupe/renderer start",

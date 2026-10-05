@@ -35,6 +35,26 @@ Without installing it:
 
 The package is not published to npm.
 
+### In the Docker stack
+
+The Compose stack ships the CLI as an image (`ghcr.io/maxgfr/troupe-cli`,
+the bundle on Node.js 24) behind the `cli` profile, already signed in:
+
+```bash
+docker compose run --rm cli doctor
+docker compose run --rm cli projects list
+docker compose run --rm cli --json render list --project "Spring drop"
+docker compose run --rm cli download --project "Spring drop"
+```
+
+It reaches the studio at `http://app:3000`, inside the stack's network
+(`TROUPE_INSECURE=1` there), and reads the access code the studio saved in
+its data volume, mounted read-only, unless `TROUPE_ACCESS_CODE` is set in
+`.env`. Profiles and the chosen project persist in the `cli-config` volume;
+downloads land in the folder with `docker-compose.yml` (`TROUPE_CLI_DIR`
+moves them). In the container, `--base-url` for `models add` is the address
+the studio reaches, such as `http://renderer:8078`.
+
 ## Sign in
 
 ```bash

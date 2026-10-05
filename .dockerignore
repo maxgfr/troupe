@@ -19,5 +19,8 @@ supabase
 renderer
 # The CLI talks to a running studio; it is not part of the image.
 cli
+# The end-to-end tests and their model downloads (pnpm e2e:docker).
+e2e
+.cache
 # The portrait generator and its full-size working copies.
 scripts/actors

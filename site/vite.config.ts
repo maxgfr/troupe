@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/postcss";
 import react from "@vitejs/plugin-react";
@@ -7,14 +8,13 @@ import { THEME_SCRIPT } from "../src/app/theme-script";
 import { ACTOR_CATALOG } from "../src/modules/actors/server/catalog";
 import { parseChatConfig } from "./src/chat/config";
 import { parseRenderConfig } from "./src/render/config";
-import { actorPictures, headScript, landingPage, pagesFallback, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
+import { actorPictures, headScript, landingPage, pagesFallback, parseBasePath, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
 
 // The browser edition: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
-// page at /troupe/, the app at /troupe/app/*.
+// page at /troupe/, the app at /troupe/app/* (another path with VITE_BASE).
 const REPO = resolve(import.meta.dirname, "..");
 const SITE = import.meta.dirname;
-const BASE = "/troupe/";
 const OUT = resolve(SITE, "dist");
 
 // The browser bundle may not pull in Node built-ins, server code or Next
@@ -36,7 +36,11 @@ const guard = () =>
 export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // The renderer's VITE_* settings (site/.env.example): a bad value stops
   // the build here rather than a render in a visitor's browser.
+  // The studio's tables come from drizzle/*.sql (src/db/migrations.ts): a
+  // build without them would ship a studio that cannot start.
+  if (!readdirSync(resolve(REPO, "drizzle")).some((file) => file.endsWith(".sql"))) throw new Error("drizzle/*.sql is missing: the browser edition needs the migrations.");
   const env = loadEnv(mode, SITE, "VITE_");
+  const BASE = parseBasePath(env.VITE_BASE);
   parseRenderConfig(env);
   // WebLLM's model list, read here so the page never loads WebLLM just to
   // check the build's model id.

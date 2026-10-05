@@ -231,10 +231,13 @@ player's menu.
 
 ### Run it
 
-With Docker (the image is built from this checkout):
+With Docker it runs by default: `docker compose up -d --wait` starts it as
+the `renderer` service, and the studio adds it as a model on first start
+([Add it to Troupe](#add-it-to-troupe)). To run only the renderer, for a
+studio started with `pnpm dev`:
 
 ```bash
-docker compose --profile renderer up -d --build
+docker compose up -d --wait renderer   # http://127.0.0.1:8078
 ```
 
 On a Mac or any machine with Node.js 22+ and ffmpeg:
@@ -263,7 +266,12 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 
 ### Add it to Troupe
 
-**Settings → Local models → Add a local model → HTTP endpoint**:
+In the Docker stack there is nothing to do: on first start the studio adds
+the `renderer` service as **Local renderer**, with the settings below, and
+makes it the default model if none was chosen
+([SELF-HOSTING.md](SELF-HOSTING.md#first-start-wiring)). Otherwise, or for
+another renderer, **Settings → Local models → Add a local model → HTTP
+endpoint**:
 
 | Field | Value |
 |---|---|
@@ -325,11 +333,39 @@ follow the voice, and the person changes from one render to the next.
 | Linux or Windows with an NVIDIA GPU | `cuda` | should work (the same diffusers code), not tried |
 | Anything else | `cpu` | works in principle, far too slow to be useful |
 
-It runs natively, not in Docker: containers on macOS have no access to the
-Apple GPU, and the `renderer` Compose profile's image stays as small as
-before, with no Python or PyTorch in it. Troupe itself can still run in
-Docker and use a renderer started on the host
-(`http://host.docker.internal:8078/ltx`).
+On a Mac it runs natively, not in Docker: containers on macOS have no access
+to the Apple GPU (Docker's Linux virtual machine has no Metal). Troupe itself
+can still run in Docker and use a renderer started on the host
+(`http://host.docker.internal:8078/ltx`). On Linux with an NVIDIA GPU it also
+runs in Docker ([below](#in-docker)). The `renderer` service's image has no
+Python or PyTorch in it.
+
+### In Docker
+
+The `ltx` Compose profile builds the renderer's `ltx` image from this
+checkout (Debian's Python 3.11, uv and the environment locked in
+`renderer/ltx/uv.lock`: PyTorch's Linux build, which carries NVIDIA's CUDA
+libraries on amd64 and arm64 alike; the image built on an Apple Silicon Mac
+weighs 10 GB) and runs it as `renderer-ltx` on the NVIDIA GPU (the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)
+must be installed). The image is not published: you build it, and accept the
+weights' license when they download. Download the weights first (about
+25 GB, into the `renderer-ltx` volume), then start it:
+
+```bash
+docker compose --profile ltx build renderer-ltx
+docker compose --profile ltx run --rm renderer-ltx /app/renderer/ltx/.venv/bin/python /app/renderer/ltx/generate.py --download
+docker compose --profile ltx up -d --wait
+```
+
+and add the model `http://renderer-ltx:8078/ltx` as below (the fast mode
+answers at `http://renderer-ltx:8078` too). The `LTX_*` settings in `.env`
+are passed on. `--profile ltx-cpu` runs the same image as `renderer-ltx-cpu`
+without a GPU (`LTX_DEVICE=cpu`, float32): it works, but a clip takes minutes
+to hours; it is there for trying the pipeline, not for use. On an Apple Silicon Mac
+the image built in 19 minutes and `renderer-ltx-cpu` started healthy, with
+`/ltx/health` ready (PyTorch 2.14.1, diffusers 0.40.0); no clip was generated
+there, and it has not been run on an NVIDIA GPU.
 
 ### Set it up
 
@@ -381,7 +417,7 @@ fast mode, with:
 
 | Field | Value |
 |---|---|
-| Address | `http://127.0.0.1:8078/ltx` under `pnpm dev`; `http://host.docker.internal:8078/ltx` for Troupe in Docker |
+| Address | `http://127.0.0.1:8078/ltx` under `pnpm dev`; `http://host.docker.internal:8078/ltx` for Troupe in Docker and the renderer on the host; `http://renderer-ltx:8078/ltx` with the `ltx` profile |
 | Formats | 9:16, 16:9, 1:1 |
 | Resolutions | 480p or 720p (the clip is generated at about 480×832 and upscaled) |
 | Clip lengths | e.g. `4, 6, 8, 10` |

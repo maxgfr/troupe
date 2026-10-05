@@ -1,0 +1,12 @@
+# Build context for cli/Dockerfile (the repository root): the CLI alone.
+# Replaces the root .dockerignore for this build.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!cli/package.json
+!cli/src
+!cli/docker-entrypoint.sh
+!src/app/_components/download-name.ts
+!src/modules/export/disclosure.ts
+**/*.test.ts

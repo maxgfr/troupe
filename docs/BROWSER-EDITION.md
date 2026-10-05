@@ -283,3 +283,18 @@ their text), and `pnpm demo:edit` cuts again from the same footage.
 request and push to `main`. Deploying it to GitHub Pages is manual for now:
 run the workflow from the Actions tab (enable Pages with "GitHub Actions" as
 the source first).
+
+### With Docker
+
+The Docker stack serves it too: the `web` service (`ghcr.io/maxgfr/troupe-web`,
+[site/Dockerfile](../site/Dockerfile)) is the built site behind nginx, at
+<http://localhost:3101/troupe/> after `docker compose up -d --wait`
+([SELF-HOSTING.md](SELF-HOSTING.md)). nginx sends what the site needs: the
+app's routes all load the app (an unknown address gets its not-found page,
+as on GitHub Pages), byte ranges for the videos, `text/vtt` captions,
+`application/wasm`, the service worker checked on every load, and hashed
+bundles cached for a year. To serve it under another path, set
+`TROUPE_WEB_BASE` (`/` for a domain of its own) and rebuild:
+`docker compose up -d --build web`. Outside Docker the same setting is
+`VITE_BASE` ([site/.env.example](../site/.env.example)). The image reads
+`site/.env` when it is built, for the renderer and chat settings above.

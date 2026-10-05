@@ -165,6 +165,19 @@ export function actorPictures({ base, dir, outDir }: { base: string; dir: string
   };
 }
 
+// Where the site is served from: /troupe/ on GitHub Pages, anything else
+// when self-hosted (VITE_BASE, site/.env.example; the `web` Docker image's
+// TROUPE_WEB_BASE). Always starts and ends with a slash.
+export function parseBasePath(raw: string | undefined): string {
+  const value = raw?.trim();
+  if (!value) return "/troupe/";
+  const path = `/${value.replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");
+  if (!/^\/([A-Za-z0-9._~-]+\/)*$/.test(path) || path.split("/").some((part) => part === "." || part === "..")) {
+    throw new Error(`VITE_BASE must be a URL path such as /troupe/ or /, got "${raw}".`);
+  }
+  return path;
+}
+
 // The landing page's addresses: where the site is published (canonical link,
 // social preview) and the repository its docs links point at. A fork sets
 // VITE_SITE_URL and VITE_REPO_URL (site/.env.example).

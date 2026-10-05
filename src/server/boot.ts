@@ -53,4 +53,12 @@ export async function boot() {
     startLoop("jobs.reconcile", () => reconcileOnce(), 30_000);
     console.info(JSON.stringify({ event: "jobs.worker.started", everyS: 30 }));
   }
+
+  // The Docker stack's own renderer, added as a local model on first start
+  // (TROUPE_AUTOCONFIGURE, src/server/autoconfigure.ts). In the background: it
+  // waits for the renderer without holding up the studio.
+  if (url && flag("TROUPE_AUTOCONFIGURE", false)) {
+    const [{ startAutoconfigure }, { db }] = await Promise.all([import("./autoconfigure"), import("./db")]);
+    void startAutoconfigure(db);
+  }
 }

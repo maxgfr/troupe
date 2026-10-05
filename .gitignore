@@ -44,6 +44,11 @@ yarn-error.log*
 .claude/
 .impeccable/
 
+# the Docker end-to-end run (pnpm e2e:docker): results and model downloads
+/e2e/test-results
+/e2e/playwright-report
+/.cache/
+
 # browser edition (site/)
 /site/dist
 /site/test-results

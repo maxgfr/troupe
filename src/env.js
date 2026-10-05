@@ -41,6 +41,12 @@ export const env = createEnv({
     // Where browsers load the actors' pictures (read by src/server/media/store.ts):
     // a path or URL laid out like public/actors. Default: /actors.
     TROUPE_ACTOR_PORTRAITS_URL: z.string().optional(),
+    // First-boot wiring of the Docker stack's renderer (src/server/autoconfigure.ts).
+    TROUPE_AUTOCONFIGURE: z.enum(["0", "1", "true", "false"]).optional(),
+    TROUPE_RENDERER_URL: z.string().url().optional(),
+    TROUPE_RENDERER_TOKEN: z.string().optional(),
+    TROUPE_RENDERER_LABEL: z.string().max(80).optional(),
+    TROUPE_RENDERER_DURATIONS: z.string().regex(/^\s*\d+\s*(,\s*\d+\s*)*$/, "TROUPE_RENDERER_DURATIONS: whole seconds separated by commas, e.g. 4,6,8,10,15").optional(),
   },
 
   /**
@@ -81,6 +87,11 @@ export const env = createEnv({
     TROUPE_INPROCESS_WORKER: process.env.TROUPE_INPROCESS_WORKER,
     TROUPE_AUTO_MIGRATE: process.env.TROUPE_AUTO_MIGRATE,
     TROUPE_ACTOR_PORTRAITS_URL: process.env.TROUPE_ACTOR_PORTRAITS_URL,
+    TROUPE_AUTOCONFIGURE: process.env.TROUPE_AUTOCONFIGURE,
+    TROUPE_RENDERER_URL: process.env.TROUPE_RENDERER_URL,
+    TROUPE_RENDERER_TOKEN: process.env.TROUPE_RENDERER_TOKEN,
+    TROUPE_RENDERER_LABEL: process.env.TROUPE_RENDERER_LABEL,
+    TROUPE_RENDERER_DURATIONS: process.env.TROUPE_RENDERER_DURATIONS,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

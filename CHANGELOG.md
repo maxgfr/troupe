@@ -57,6 +57,22 @@ First public release.
 - A one-minute presentation video, recorded from the real browser edition by
   `scripts/demo/record.ts` (Playwright, headed Chrome) and cut by
   `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.
+- The whole product in one `docker compose up -d --wait`, with nothing to set
+  first: next to the studio and its database, the local renderer, an Ollama
+  server for the script chat (`troupe-ollama`, the official build without its
+  GPU libraries; it downloads `OLLAMA_MODEL` on first start) and the browser
+  edition behind nginx (`web`, on port 3101, base path `TROUPE_WEB_BASE`).
+  The database password is generated on first start, and the studio adds the
+  stack's renderer as its default video model, once
+  (`TROUPE_AUTOCONFIGURE`). Profiles add the CLI (`docker compose run --rm cli
+  doctor`, signed in with the studio's access code), ComfyUI and the
+  renderer's AI video mode on an NVIDIA GPU (`ltx`, or `ltx-cpu`);
+  `docker-compose.gpu.yml` runs the chat on an NVIDIA GPU. Every image is
+  published on GHCR for amd64 and arm64
+  ([docs/SELF-HOSTING.md](docs/SELF-HOSTING.md)).
+- `pnpm e2e:docker`: builds the images, starts the stack under its own
+  Compose project and runs the studio's whole flow, the CLI and the browser
+  edition against it in Chromium, then deletes it; CI runs it on every push.
 
 ### Changed
 
@@ -85,3 +101,5 @@ First public release.
 - Unused SaaS-era code: Sora 2 and Omni Flash adapters, webhooks, billing,
   dubbing, photo and video remakes, custom actors, team review.
 - Separate `migrate` and `worker` Docker services.
+- `POSTGRES_PASSWORD` is no longer required (an existing database keeps
+  using it), and the `renderer` Compose profile: the renderer runs by default.

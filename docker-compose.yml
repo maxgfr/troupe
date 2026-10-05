@@ -1,30 +1,41 @@
 # Troupe — self-hosted in one command:
 #
-#   cp .env.example .env    # then set POSTGRES_PASSWORD
-#   docker compose up -d
-#   docker compose logs app # prints the access code on first start
+#   docker compose up -d --wait
 #
-# Open http://localhost:3100. See docs/SELF-HOSTING.md for HTTPS, backups and
-# upgrades, and docs/LOCAL-MODELS.md for the optional ComfyUI service.
+# Open http://localhost:3100 with the access code that
+# `docker compose logs app` prints on first start. The browser edition is at
+# http://localhost:3101/troupe/. Nothing to set first: the database password,
+# the access code and the encryption key are generated on first start, the
+# local renderer is added as a video model and the script chat uses the
+# stack's Ollama. The first start downloads the chat model (qwen3:4b, 2.5 GB)
+# and the renderer's voices (90 MB). Every setting is optional (.env.example);
+# docs/SELF-HOSTING.md covers profiles, volumes, HTTPS, backups and upgrades.
 name: troupe
+
+x-restart: &restart
+  restart: unless-stopped
 
 services:
   app:
+    <<: *restart
     image: ghcr.io/maxgfr/troupe:${TROUPE_VERSION:-latest}
     # `docker compose up --build` builds from this checkout instead.
     build: .
-    restart: unless-stopped
     ports:
       - "${TROUPE_BIND:-127.0.0.1}:${TROUPE_PORT:-3100}:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/troupe
+      # Empty: the image builds it for the `db` service, from POSTGRES_PASSWORD
+      # or the password `db` generated (scripts/docker/app-entrypoint.sh).
+      DATABASE_URL: ${DATABASE_URL:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_PASSWORD_FILE: /run/troupe-secrets/postgres-password
       TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
       TROUPE_SECRET: ${TROUPE_SECRET:-}
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
       FAL_KEY: ${FAL_KEY:-}
-      # The script chat: Ollama on this computer by default, Claude with a key.
-      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      # The script chat: the stack's Ollama by default, Claude with a key.
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
       TROUPE_CHAT_PROVIDER: ${TROUPE_CHAT_PROVIDER:-}
@@ -33,61 +44,76 @@ services:
       TROUPE_CHAT_TIMEOUT_S: ${TROUPE_CHAT_TIMEOUT_S:-}
       TROUPE_CHAT_TEMPERATURE: ${TROUPE_CHAT_TEMPERATURE:-}
       TROUPE_CHAT_HISTORY_TURNS: ${TROUPE_CHAT_HISTORY_TURNS:-}
+      # First start: add the `renderer` service as a video model and make it
+      # the default (src/server/autoconfigure.ts). Never changes it afterwards.
+      TROUPE_AUTOCONFIGURE: ${TROUPE_AUTOCONFIGURE:-1}
+      TROUPE_RENDERER_URL: ${TROUPE_RENDERER_URL:-http://renderer:8078}
+      TROUPE_RENDERER_TOKEN: ${TROUPE_RENDERER_TOKEN:-}
+      TROUPE_RENDERER_LABEL: ${TROUPE_RENDERER_LABEL:-}
+      TROUPE_RENDERER_DURATIONS: ${TROUPE_RENDERER_DURATIONS:-}
     volumes:
       - troupe-media:/app/data
+      - troupe-secrets:/run/troupe-secrets:ro
     extra_hosts:
       # Reach a ComfyUI or model server running on this computer.
       - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${TROUPE_APP_MEMORY:-2g}
 
   db:
+    <<: *restart
     image: postgres:16-alpine
-    restart: unless-stopped
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      # Empty: a random password is generated on first start and kept in the
+      # troupe-secrets volume.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: troupe
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        secret=/run/troupe-secrets/postgres-password
+        if [ -z "$$POSTGRES_PASSWORD" ]; then
+          if [ ! -s "$$secret" ]; then
+            umask 022
+            head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$$secret.tmp"
+            mv "$$secret.tmp" "$$secret"
+          fi
+          POSTGRES_PASSWORD="$$(cat "$$secret")"
+          export POSTGRES_PASSWORD
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - db-entrypoint
+    command: ["postgres"]
     volumes:
       - troupe-pgdata:/var/lib/postgresql/data
+      - troupe-secrets:/run/troupe-secrets
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d troupe"]
       interval: 2s
       timeout: 3s
       retries: 30
-
-  # Optional local video models on an NVIDIA GPU:
-  #   docker compose --profile comfyui up -d
-  # then add a ComfyUI model in Settings with the address http://comfyui:8188.
-  # Model files go in the comfyui volume under ComfyUI/models/.
-  comfyui:
-    profiles: ["comfyui"]
-    # https://github.com/YanWenKun/ComfyUI-Docker (CUDA 12.8, ComfyUI on port 8188)
-    image: ${COMFYUI_IMAGE:-yanwk/comfyui-boot:cu128-slim}
-    restart: unless-stopped
-    volumes:
-      - comfyui:/root
     deploy:
       resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+        limits:
+          memory: ${TROUPE_DB_MEMORY:-1g}
 
-  # Optional local renderer, on the CPU: Kokoro voices, the actor card and
-  # captions, encoded with ffmpeg (docs/LOCAL-MODELS.md):
-  #   docker compose --profile renderer up -d --build
-  # then add an HTTP endpoint model in Settings with the address
-  # http://renderer:8078. Kokoro's weights (about 90 MB) download on first start.
-  # Its AI video mode (LTX-Video, /ltx) needs the host's GPU and is not in this
-  # image: run it natively with `pnpm renderer:ltx` (docs/LOCAL-MODELS.md).
+  # The local renderer, on the CPU: Kokoro voices, the actor card and
+  # captions, encoded with ffmpeg (docs/LOCAL-MODELS.md). The app adds it as a
+  # video model on first start. Kokoro's weights (about 90 MB) download into
+  # the `renderer` volume on its first start.
   renderer:
-    profiles: ["renderer"]
+    <<: *restart
+    image: ghcr.io/maxgfr/troupe-renderer:${TROUPE_VERSION:-latest}
     build:
       context: .
       dockerfile: renderer/Dockerfile
-    restart: unless-stopped
+      target: renderer
     environment:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
@@ -99,9 +125,186 @@ services:
       - renderer:/data
       # The actors' pictures drawn in the card: the checked-in cast, or your own.
       - ${TROUPE_RENDERER_PORTRAITS_DIR:-./public/actors}:/app/public/actors:ro
+    deploy:
+      resources:
+        limits:
+          memory: ${TROUPE_RENDERER_MEMORY:-2g}
+
+  # The script chat's model server, on the CPU (ollama/Dockerfile; with an
+  # NVIDIA GPU, add docker-compose.gpu.yml). On first start it downloads
+  # OLLAMA_MODEL (and TROUPE_OLLAMA_MODELS) into the `ollama` volume; it reports
+  # healthy once they are all there. No port on the host, so it never clashes
+  # with an Ollama installed on this computer:
+  #   docker compose exec ollama ollama list
+  ollama:
+    <<: *restart
+    image: ghcr.io/maxgfr/troupe-ollama:${TROUPE_VERSION:-latest}
+    build:
+      context: ollama
+    environment:
+      TROUPE_OLLAMA_MODELS: ${TROUPE_OLLAMA_MODELS:-${OLLAMA_MODEL:-qwen3:4b}}
+      OLLAMA_MODELS: /ollama/models
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        (
+          until ollama list > /dev/null 2>&1; do sleep 1; done
+          for model in $$(echo "$$TROUPE_OLLAMA_MODELS" | tr ',' ' '); do
+            ollama show "$$model" > /dev/null 2>&1 || ollama pull "$$model" || echo "Could not download $$model; the chat will say so."
+          done
+        ) &
+        exec ollama serve
+    volumes:
+      - ollama:/ollama/models
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - for m in $$(echo "$$TROUPE_OLLAMA_MODELS" | tr ',' ' '); do ollama show "$$m" > /dev/null 2>&1 || exit 1; done
+      interval: 5s
+      timeout: 10s
+      retries: 6
+      # The first download takes minutes; it is not a failure.
+      start_period: 30m
+      start_interval: 5s
+    deploy:
+      resources:
+        limits:
+          memory: ${TROUPE_OLLAMA_MEMORY:-8g}
+
+  # The browser edition and its landing page (site/), served by nginx:
+  # http://localhost:3101/troupe/. Everything runs in the visitor's browser;
+  # this only serves files.
+  web:
+    <<: *restart
+    image: ghcr.io/maxgfr/troupe-web:${TROUPE_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: site/Dockerfile
+      args:
+        # Written into the bundle: changing it needs `--build`.
+        TROUPE_WEB_BASE: ${TROUPE_WEB_BASE:-/troupe/}
+    ports:
+      - "${TROUPE_BIND:-127.0.0.1}:${TROUPE_WEB_PORT:-3101}:8080"
+    deploy:
+      resources:
+        limits:
+          memory: ${TROUPE_WEB_MEMORY:-128m}
+
+  # The troupe CLI (docs/CLI.md), signed in with the studio's access code:
+  #   docker compose run --rm cli doctor
+  #   docker compose run --rm cli projects list
+  # Files it downloads land in TROUPE_CLI_DIR (this folder by default).
+  cli:
+    profiles: ["cli"]
+    image: ghcr.io/maxgfr/troupe-cli:${TROUPE_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: cli/Dockerfile
+    environment:
+      TROUPE_URL: http://app:3000
+      # Plain http inside the stack's own network.
+      TROUPE_INSECURE: "1"
+      TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
+      TROUPE_PROJECT: ${TROUPE_PROJECT:-}
+    volumes:
+      # Read for its access-code file only.
+      - troupe-media:/studio:ro
+      - cli-config:/home/node/.config/troupe
+      - ${TROUPE_CLI_DIR:-.}:/work
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Optional local video models on an NVIDIA GPU:
+  #   docker compose --profile comfyui up -d
+  # then add a ComfyUI model in Settings with the address http://comfyui:8188.
+  # Model files go in the comfyui volume under ComfyUI/models/.
+  comfyui:
+    profiles: ["comfyui"]
+    # https://github.com/YanWenKun/ComfyUI-Docker (CUDA 12.8, ComfyUI on port 8188)
+    image: ${COMFYUI_IMAGE:-yanwk/comfyui-boot:cu128-slim}
+    <<: *restart
+    volumes:
+      - comfyui:/root
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # The renderer's AI video mode (LTX-Video) on an NVIDIA GPU, built from this
+  # checkout (docs/LOCAL-MODELS.md#in-docker):
+  #   docker compose --profile ltx up -d --build
+  # then add an HTTP model in Settings with the address
+  # http://renderer-ltx:8078/ltx. The weights (about 25 GB) download into the
+  # renderer-ltx volume. Containers on a Mac cannot use the Apple GPU: run the
+  # mode natively there (pnpm renderer:ltx). `--profile ltx-cpu` runs the same
+  # image without a GPU, minutes to hours per clip.
+  renderer-ltx: &renderer-ltx
+    profiles: ["ltx"]
+    <<: *restart
+    image: troupe-renderer-ltx:local
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: renderer/Dockerfile
+      target: ltx
+    environment: &ltx-environment
+      TOKEN: ${TROUPE_RENDERER_TOKEN:-}
+      KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
+      KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
+      LTX_RESOLUTION: ${LTX_RESOLUTION:-}
+      LTX_FRAMES: ${LTX_FRAMES:-}
+      LTX_FPS: ${LTX_FPS:-}
+      LTX_SEED: ${LTX_SEED:-}
+      LTX_PROMPT: ${LTX_PROMPT:-}
+      LTX_NEGATIVE_PROMPT: ${LTX_NEGATIVE_PROMPT:-}
+      LTX_UPSCALE: ${LTX_UPSCALE:-}
+      LTX_LOOP: ${LTX_LOOP:-}
+      LTX_TIMEOUT_S: ${LTX_TIMEOUT_S:-}
+      LTX_MODEL: ${LTX_MODEL:-}
+      LTX_BASE_MODEL: ${LTX_BASE_MODEL:-}
+      LTX_TEXT_ENCODER: ${LTX_TEXT_ENCODER:-}
+      LTX_DEVICE: ${LTX_DEVICE:-}
+      LTX_TEXT_ENCODER_DEVICE: ${LTX_TEXT_ENCODER_DEVICE:-}
+      LTX_DTYPE: ${LTX_DTYPE:-}
+      # Empty means LTX_STEPS evenly spaced steps, so only an unset one gets
+      # the distilled model's schedule.
+      LTX_TIMESTEPS: ${LTX_TIMESTEPS-1000,993,987,981,975,909,725,0.03}
+      LTX_STEPS: ${LTX_STEPS:-}
+      LTX_GUIDANCE: ${LTX_GUIDANCE:-}
+      LTX_VAE_TILING: ${LTX_VAE_TILING:-}
+      LTX_VAE_TILE_FRAMES: ${LTX_VAE_TILE_FRAMES:-}
+    volumes:
+      - renderer-ltx:/data
+      - ${TROUPE_RENDERER_PORTRAITS_DIR:-./public/actors}:/app/public/actors:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  renderer-ltx-cpu:
+    <<: *renderer-ltx
+    profiles: ["ltx-cpu"]
+    environment:
+      <<: *ltx-environment
+      LTX_DEVICE: cpu
+      LTX_DTYPE: ${LTX_DTYPE:-float32}
+    deploy: {}
 
 volumes:
   troupe-media:
   troupe-pgdata:
-  comfyui:
+  troupe-secrets:
   renderer:
+  ollama:
+  cli-config:
+  comfyui:
+  renderer-ltx:

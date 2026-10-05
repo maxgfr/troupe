@@ -43,7 +43,7 @@ The conversation is stored in `troupe_chat_message` (migration
 
 | Where | Provider | Default model | Set up |
 |---|---|---|---|
-| Self-hosted | [Ollama](https://ollama.com), on your computer or network | `qwen3:4b` (2.5 GB) | `ollama pull qwen3:4b`, then keep `ollama serve` (or the app) running |
+| Self-hosted | [Ollama](https://ollama.com): the Docker stack's own, or one on your computer or network | `qwen3:4b` (2.5 GB) | in Docker, nothing: the `ollama` service downloads it on first start; otherwise `ollama pull qwen3:4b`, then keep `ollama serve` (or the app) running |
 | Self-hosted | Claude, with your Anthropic API key | `claude-opus-5-5` | Settings → Provider accounts, or `ANTHROPIC_API_KEY` |
 | Browser edition | [WebLLM](https://github.com/mlc-ai/web-llm), in the visitor's tab on the GPU | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` (880 MB) | nothing: downloaded once per browser on the first request |
 
@@ -56,12 +56,22 @@ computer with a GPU); elsewhere the chat explains why it is off.
 
 ### Ollama from Docker
 
-The Compose file points the app at `http://host.docker.internal:11434`, the
-Ollama on the computer running Docker. Docker Desktop (macOS, Windows) reaches
-it as it is. On Linux, Ollama listens on 127.0.0.1 only: start it with
-`OLLAMA_HOST=0.0.0.0` (or set its systemd service's environment) so the
-container can reach it, and keep the port closed to your network otherwise.
-Under `pnpm dev` the default `http://127.0.0.1:11434` works.
+The Compose stack runs its own Ollama (the `ollama` service, on the CPU) and
+points the app at it, `http://ollama:11434`. On first start the service
+downloads `OLLAMA_MODEL` into the `ollama` volume and reports healthy once it
+is there; until then the chat says the model is missing. Change the model with
+`OLLAMA_MODEL` in `.env` (the service downloads the new one on its next
+start), or add more with `TROUPE_OLLAMA_MODELS`. With an NVIDIA GPU, lay
+`docker-compose.gpu.yml` over the stack ([SELF-HOSTING.md](SELF-HOSTING.md#gpus)).
+
+To use the Ollama on the computer running Docker instead (on a Mac, the
+native app runs on the Apple GPU, which containers cannot reach), set
+`OLLAMA_URL=http://host.docker.internal:11434` and start the stack with
+`--scale ollama=0`. Docker Desktop (macOS, Windows) reaches it as it is. On
+Linux, Ollama listens on 127.0.0.1 only: start it with `OLLAMA_HOST=0.0.0.0`
+(or set its systemd service's environment) so the container can reach it,
+and keep the port closed to your network otherwise. Under `pnpm dev` the
+default `http://127.0.0.1:11434` works.
 
 Troupe never follows a redirect from the Ollama address: it could lead past
 the address checks to a cloud metadata service. Point it at the address Ollama
@@ -79,7 +89,7 @@ use the defaults below.
 | Self-hosted (`.env`) | Default | |
 |---|---|---|
 | `TROUPE_CHAT_PROVIDER` | `auto` | `auto`, `ollama` or `anthropic` |
-| `OLLAMA_URL` | `http://127.0.0.1:11434` (Compose: `http://host.docker.internal:11434`) | private and loopback addresses are fine; cloud metadata and link-local ones are refused |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` (Compose: `http://ollama:11434`) | private and loopback addresses are fine; cloud metadata and link-local ones are refused |
 | `OLLAMA_MODEL` | `qwen3:4b` | |
 | `ANTHROPIC_API_KEY` | — | a key saved in Settings takes precedence |
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | what each model is sent comes from a table of its capabilities (`src/server/chat/claude-models.ts`, below) |

@@ -1,0 +1,45 @@
+# The end-to-end test stack, laid over docker-compose.yml by `pnpm e2e:docker`
+# (scripts/e2e-docker.mjs), which also sets the variables below. Images are
+# built from this checkout under their own names, ports sit apart from a
+# running stack's, and the chat runs a small model. The models' downloads
+# (Ollama's and Kokoro's) are kept in E2E_CACHE_DIR, outside the volumes the
+# run deletes, so later runs start from them.
+services:
+  app:
+    image: troupe-e2e/app:local
+    pull_policy: never
+    ports: !override
+      - "127.0.0.1:${E2E_APP_PORT:-3190}:3000"
+    environment:
+      OLLAMA_MODEL: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b}
+      # Generated on first start, as for anyone: the run reads it back.
+      TROUPE_ACCESS_CODE: ""
+
+  ollama:
+    image: troupe-e2e/ollama:local
+    pull_policy: never
+    environment:
+      TROUPE_OLLAMA_MODELS: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b}
+    volumes: !override
+      - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/ollama:/ollama/models
+
+  renderer:
+    image: troupe-e2e/renderer:local
+    pull_policy: never
+    ports: !reset []
+    volumes:
+      - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/kokoro:/data/kokoro
+
+  web:
+    image: troupe-e2e/web:local
+    pull_policy: never
+    ports: !override
+      - "127.0.0.1:${E2E_WEB_PORT:-3191}:8080"
+
+  cli:
+    image: troupe-e2e/cli:local
+    pull_policy: never
+    volumes: !override
+      - troupe-media:/studio:ro
+      - cli-config:/home/node/.config/troupe
+      - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/cli:/work

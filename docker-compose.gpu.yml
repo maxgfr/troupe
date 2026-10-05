@@ -1,0 +1,20 @@
+# The script chat's Ollama on an NVIDIA GPU (the NVIDIA Container Toolkit must
+# be installed). Laid over docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --wait
+#
+# It swaps the stack's CPU image (ollama/Dockerfile) for the official one,
+# which carries the CUDA libraries (about 7 GB). The models stay in the same
+# volume. Docker on a Mac has no GPU: there, run Ollama natively and point
+# OLLAMA_URL at http://host.docker.internal:11434 (docs/SELF-HOSTING.md).
+services:
+  ollama:
+    image: ${OLLAMA_GPU_IMAGE:-ollama/ollama:0.35.1}
+    build: !reset null
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

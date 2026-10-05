@@ -101,7 +101,7 @@ test("the quick start copies its commands", async ({ page, context }) => {
   await page.getByRole("button", { name: "Copy" }).click();
   await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied).toMatch(/^git clone https:\/\/.+\.git && cd troupe\n.*\ndocker compose up -d$/s);
+  expect(copied).toMatch(/^git clone https:\/\/.+\.git && cd troupe\ndocker compose up -d --wait$/);
 });
 
 test("every link and file the landing page points at on this site exists", async ({ page, request }) => {

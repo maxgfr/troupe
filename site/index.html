@@ -217,7 +217,7 @@
               <tr>
                 <th scope="row">Your data</th>
                 <td data-edition="In your browser">On this device only. Export a backup to move it; clearing the site’s data deletes it.</td>
-                <td data-edition="On your server">Two Docker volumes: the database, the videos and the key that encrypts saved API keys.</td>
+                <td data-edition="On your server">Docker volumes on the server: the database, the videos and the key that encrypts saved API keys.</td>
               </tr>
               <tr>
                 <th scope="row">Video models</th>
@@ -232,7 +232,7 @@
               <tr>
                 <th scope="row">Script chat</th>
                 <td data-edition="In your browser">Qwen2.5 1.5B through WebLLM, on your GPU (880&nbsp;MB, once).</td>
-                <td data-edition="On your server">Ollama on your machine by default, or Claude with an Anthropic key.</td>
+                <td data-edition="On your server">Ollama, running in the Docker stack, or Claude with an Anthropic key.</td>
               </tr>
               <tr>
                 <th scope="row">Model servers on your machine</th>
@@ -256,7 +256,7 @@
         <div class="self-host" id="self-host">
           <div>
             <h3>Self-host with Docker</h3>
-            <p>Three commands on a machine with Docker. The app prints an access code in its logs on first start; then add an API key or a local model in Settings.</p>
+            <p>One command on a machine with Docker, nothing to configure. The first start downloads the chat model and the voices (about 2.6&nbsp;GB), then the studio opens with the local renderer and the chat ready. Its access code is in <code>docker compose logs app</code>.</p>
             <p><a href="%REPO_URL%/blob/main/docs/SELF-HOSTING.md">Self-hosting guide</a> · <a href="%REPO_URL%/blob/main/docs/VERCEL-SUPABASE.md">Vercel + Supabase</a></p>
           </div>
           <div class="terminal">
@@ -269,8 +269,7 @@
               </button>
             </div>
             <pre id="quick-start"><code>git clone %REPO_URL%.git &amp;&amp; cd troupe
-cp .env.example .env &amp;&amp; sed -i.bak "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=\"$(openssl rand -hex 24)\"/" .env
-docker compose up -d</code></pre>
+docker compose up -d --wait</code></pre>
             <p class="copy__status" role="status"></p>
           </div>
         </div>

@@ -1,7 +1,8 @@
 name: release
 
-# Publishes ghcr.io/<owner>/troupe for every version tag (v1.2.3), for
-# amd64 and arm64.
+# Publishes the stack's images for every version tag (v1.2.3), for amd64 and
+# arm64: ghcr.io/<owner>/troupe (the studio) and troupe-renderer,
+# troupe-ollama, troupe-web and troupe-cli, the images docker-compose.yml runs.
 on:
   push:
     tags: ["v*"]
@@ -13,6 +14,30 @@ permissions:
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: troupe
+            file: Dockerfile
+            context: .
+            target: ""
+          - name: troupe-renderer
+            file: renderer/Dockerfile
+            context: .
+            target: renderer
+          - name: troupe-ollama
+            file: ollama/Dockerfile
+            context: ollama
+            target: ""
+          - name: troupe-web
+            file: site/Dockerfile
+            context: .
+            target: ""
+          - name: troupe-cli
+            file: cli/Dockerfile
+            context: .
+            target: ""
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -25,17 +50,19 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/troupe
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
       - uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,scope=release-${{ matrix.name }},mode=max

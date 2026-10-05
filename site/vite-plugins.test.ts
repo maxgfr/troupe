@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, actorPicturesMiddleware, landingPage, parseLandingConfig, serverGuard } from "./vite-plugins";
+import { actorPictures, actorPicturesMiddleware, landingPage, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -202,5 +202,24 @@ describe("landing page settings", () => {
   it("refuses an address that is not an absolute http(s) URL", () => {
     expect(() => parseLandingConfig({ VITE_SITE_URL: "/troupe/" })).toThrow(/VITE_SITE_URL/);
     expect(() => parseLandingConfig({ VITE_REPO_URL: "javascript:alert(1)" })).toThrow(/VITE_REPO_URL/);
+  });
+});
+
+describe("base path", () => {
+  it("serves the site under /troupe/ unless told otherwise", () => {
+    expect(parseBasePath(undefined)).toBe("/troupe/");
+    expect(parseBasePath("")).toBe("/troupe/");
+  });
+
+  it("takes another path, with the slashes it needs", () => {
+    expect(parseBasePath("/")).toBe("/");
+    expect(parseBasePath("studio")).toBe("/studio/");
+    expect(parseBasePath("/my-studio/web/")).toBe("/my-studio/web/");
+  });
+
+  it("refuses anything but a plain path", () => {
+    for (const bad of ["https://example.com/", "/a b/", "/../", "/a//b/", "/a?b/", "/$x/"]) {
+      expect(() => parseBasePath(bad)).toThrow(/VITE_BASE/);
+    }
   });
 });

@@ -36,7 +36,8 @@ export function databaseTls(url) {
 }
 
 // Supabase's transaction pooler: the shared pooler's hostname, port 6543.
-// The studio pipelines queries, which it stalled on in testing; boot.ts warns.
+// The studio pipelines queries, which it stalled on in local testing
+// (Supavisor 2.9.13; the hosted pooler not verified); boot.ts warns.
 /** @param {string} url */
 export function isTransactionPooler(url) {
   try {

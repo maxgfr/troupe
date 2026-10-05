@@ -92,9 +92,10 @@ First public release.
 
 - Migration 0021 turns row level security on for the user table, the last
   one Supabase's Data API could reach with the anon key.
-- On Supabase, use the session pooler: the transaction pooler stalled on the
-  studio's pipelined queries; the studio warns when it is configured. Idle
-  database connections close after 20 s.
+- On Supabase, use the session pooler: the transaction pooler stalled for good
+  on the studio's pipelined queries in local testing (Supavisor 2.9.13; the
+  hosted pooler not verified), and the studio warns when it is configured.
+  Idle database connections close after 20 s.
 - A finished video that cannot be saved says why in the server log;
   `FFPROBE_PATH` chooses the ffprobe that checks it.
 

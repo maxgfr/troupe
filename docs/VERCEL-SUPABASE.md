@@ -17,10 +17,18 @@ key: the chat then prefers Claude), or an Ollama server reachable over HTTPS
    Session pooler: `aws-0-<region>.pooler.supabase.com`, port 5432, user
    `postgres.<project-ref>`, password URL-encoded) as `DATABASE_URL`. Not the
    transaction pooler (port 6543): the studio sends several queries at once on
-   a connection, and the transaction pooler stalled on that in testing (see
+   a connection, and the transaction pooler stalled for good on that in local
+   testing (Supavisor 2.9.13; Supabase's hosted pooler was not tried, see
    [What was tested](#what-was-tested)); the studio warns in its logs when
-   `DATABASE_URL` points at it. Each Vercel instance keeps at most three
-   connections and closes idle ones after 20 s.
+   `DATABASE_URL` points at it.
+
+   The session pooler gives each connection of the studio its own database
+   connection, up to the pool size set in the project's database settings
+   (small on the smallest compute sizes). Each Vercel instance opens at most
+   three and closes idle ones after 20 s, so a personal studio stays well
+   under it; if many instances run at once, connections beyond the pool size
+   are refused until others close. Raise the pool size, or use a dedicated
+   pooler, if that happens.
 2. Note `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY`.
 3. Generate three different secrets:
 
@@ -114,10 +122,11 @@ plain http, the only way to reach a local studio); `pg_cron` then called the
 job check every minute and a ComfyUI render launched from the CLI completed,
 was stored in the bucket, played on the project page and downloaded through a
 signed URL; `troupe doctor --live --yes` did the same and asked the chat
-(Ollama) once. Through the **transaction** pooler the studio hung within a
-minute of opening Settings (Postgres backends waiting mid-protocol, the client
-seeing `invalid frontend message type`); through the **session** pooler the
-same pages and a stress of pipelined queries ran without a stall. Not tested:
+(Ollama) once. Through the **transaction** pooler the studio hung for good
+within a minute of opening Settings (Postgres backends waiting mid-protocol);
+outside the studio, the same pipelined queries through it hung or made
+Postgres close the connection (`invalid frontend message type`). Through the
+**session** pooler the same pages and that stress ran without a stall. Not tested:
 a real Vercel deployment, Supabase's hosted pooler and TLS, and the static
 `ffprobe` on Vercel's Linux.
 

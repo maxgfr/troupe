@@ -51,6 +51,25 @@ it("retries a failed download without resubmitting, validates a real MP4, persis
   await expect(serveMediaFile("../outside.mp4", null, null)).rejects.toThrow("Invalid media path");
 });
 
+it("checks each downloaded video with the ffprobe FFPROBE_PATH names", async () => {
+  const fixture = await seedFixture(t.db, { userId: "66666666-6666-4666-8666-666666666666", name: "ffprobe path" });
+  const bytes = await readFile("src/test/fixtures/clip.mp4");
+  const adapter: VideoProviderAdapter = {
+    modelKey: "veo-ffprobe", family: "veo", modelId: "test", capabilities: () => ({ ...TEST_CAPS, aspectRatios: ["9:16"] }),
+    createJob: async () => ({ providerJobId: "operations/ffprobe-path" }),
+    downloadResult: async () => bytes,
+  };
+  const launched = await launchGeneration(t.db, { projectId: fixture.projectId, scriptId: fixture.scriptId, adapter, durationS: 8, resolution: "720p", tier: "draft" });
+  const [gen] = await t.db.select().from(generations).where(eq(generations.id, launched.id));
+  const done = { kind: "completed" as const, providerJobId: "operations/ffprobe-path", eventType: "operation.completed", outputUrl: "https://provider.example/clip.mp4" };
+  vi.stubEnv("FFPROBE_PATH", join(folder, "no-such-ffprobe"));
+  await expect(persistProviderRender(t.db, gen!, done, adapter)).rejects.toThrow(/ENOENT/);
+  vi.stubEnv("FFPROBE_PATH", "");
+  await persistProviderRender(t.db, gen!, done, adapter);
+  const [saved] = await t.db.select().from(generations).where(eq(generations.id, launched.id));
+  expect(saved!.outputAssetId).not.toBeNull();
+});
+
 it("checks videos with FFPROBE_PATH, else the build bundled for Vercel, else the PATH's", () => {
   expect(ffprobePath({ FFPROBE_PATH: "/opt/ffmpeg/bin/ffprobe", VERCEL: "1" })).toBe("/opt/ffmpeg/bin/ffprobe");
   expect(ffprobePath({ VERCEL: "1" })).toBe(join(process.cwd(), "node_modules/@ffprobe-installer/linux-x64/ffprobe"));

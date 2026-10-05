@@ -17,7 +17,8 @@ const globalForDb = globalThis as unknown as {
 // connections close after 20 s, so serverless instances give their pooler
 // slots back. Queries are pipelined: on Supabase use the session pooler
 // (port 5432), not the transaction pooler (port 6543), which stalled for good
-// on pipelined queries in testing (Supavisor 2.9.13, docs/VERCEL-SUPABASE.md).
+// on pipelined queries in local testing (Supavisor 2.9.13; Supabase's hosted
+// pooler not verified; docs/VERCEL-SUPABASE.md).
 export function connectionOptions(url: string) {
   return { prepare: false, max: 3, idle_timeout: 20, ssl: databaseTls(url) } as const;
 }

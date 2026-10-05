@@ -268,7 +268,7 @@ const doctor: Command = {
       const total = planTotal(plans);
       const plan = table(["MODEL", "CLIP", "COST"], plans.map((p) => [p.label, `${p.durationS} s, ${p.resolution}, ${p.audio ? "with audio" : "silent"}`, money(p.estimateUsd)]));
       const unknown = total.unknown.length ? `, plus ${total.unknown.join(", ")} (no price set)` : "";
-      const spend = `${total.usd > 0 ? `${money(total.usd)}, billed by each provider` : "nothing on video models"}${unknown}, and one script chat answer (Claude bills it; Ollama is free)`;
+      const spend = `${total.usd > 0 ? `${money(total.usd)}, billed by each provider` : "nothing on video models"}${unknown}, and one script chat answer (Claude: about $0.03–0.10; Ollama: free)`;
       if (!flag(options, "yes")) {
         extra = { data: { live: { plans, confirmed: false } }, text: `${plan}\n\nNothing was launched. This would spend ${spend}. Run again with --yes to launch.`, failed: false, exitCode: EXIT.usage };
         return finish();

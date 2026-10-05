@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { promisify } from "node:util";
 
+import { listPriceUsd } from "../../../src/modules/models/list-price.ts";
 import { fetchMedia, type Outputs } from "../client.ts";
 import { type Context, type OptionValues, str, strings } from "../command.ts";
 import { usageError } from "../errors.ts";
@@ -39,19 +40,21 @@ export interface LivePlan {
   estimateUsd: number | null;
 }
 
-// The shortest clip at the lowest resolution, silent where the model allows.
+// The shortest clip at the lowest resolution, silent where the model allows,
+// priced at the provider's list price for exactly those settings (the same
+// estimate pnpm verify:live prints).
 export function cheapestPlan(model: Pick<Model, "key" | "label" | "kind" | "capabilities" | "pricePerSecondUsd">): LivePlan {
   const durationS = Math.min(...model.capabilities.durationsS);
   const resolution = [...model.capabilities.resolutions].sort((a, b) => rank(a) - rank(b))[0]!;
-  const price = model.pricePerSecondUsd;
+  const audio = model.capabilities.audio === "always";
   return {
     modelKey: model.key,
     label: model.label,
     kind: model.kind,
     durationS,
     resolution,
-    audio: model.capabilities.audio === "always",
-    estimateUsd: price === null ? (model.kind === "local" ? 0 : null) : Math.round(price * durationS * 100) / 100,
+    audio,
+    estimateUsd: listPriceUsd(model, { durationS, resolution, audio }),
   };
 }
 

@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { fal, google } from "~/test/provider-fixtures";
 import { json, startServer } from "~/test/local-server";
-import { falEstimate, freeCheck, paidTotal, planChecks, planTable, runCheck, type Deps } from "./checks";
+import { describeCost, freeCheck, paidTotal, planChecks, planTable, runCheck, runsNow, type Deps } from "./checks";
 import { builtinModels } from "~/modules/models";
 
 // pnpm verify:live's checks against local fakes of each provider: the same
@@ -45,23 +45,46 @@ describe("the plan", () => {
       ["supabase", "no SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"],
       ["studio", "no TROUPE_LIVE_STUDIO_URL and RECONCILE_SECRET"],
     ]);
-    expect(paidTotal(checks)).toBe(0);
+    expect(paidTotal(checks)).toEqual({ lowUsd: 0, highUsd: 0, unknown: [] });
   });
 
   it("picks the cheapest model and settings per provider and prices them, never showing a key", () => {
     const env = { GEMINI_API_KEY: KEY, FAL_KEY: "fal-secret:1234", ANTHROPIC_API_KEY: "sk-ant-secret" };
     const checks = planChecks(env);
-    expect(checks.slice(0, 3).map((c) => [c.id, c.job, c.estimateUsd, c.skip])).toEqual([
-      ["google", "Veo 3.1 Lite (veo-3.1-lite-generate-preview), one 4 s 720p 9:16 clip", 0.2, null],
-      ["fal", "Seedance 1.5 Pro (fal-ai/bytedance/seedance/v1.5/pro/text-to-video), one 4 s 480p 9:16 clip, silent", 0.05, null],
-      ["anthropic", "claude-opus-5-5, one script chat answer", 0.03, null],
+    expect(checks.slice(0, 3).map((c) => [c.id, c.job, describeCost(c), c.skip])).toEqual([
+      ["google", "Veo 3.1 Lite (veo-3.1-lite-generate-preview), one 4 s 720p 9:16 clip", "about $0.20", null],
+      ["fal", "Seedance 1.5 Pro (fal-ai/bytedance/seedance/v1.5/pro/text-to-video), one 4 s 480p 9:16 clip, silent", "about $0.05", null],
+      // Adaptive thinking is billed as output: a range, not a point.
+      ["anthropic", "claude-opus-5-5, one script chat answer", "about $0.03–0.10", null],
     ]);
-    expect(paidTotal(checks)).toBe(0.28);
+    expect(paidTotal(checks)).toEqual({ lowUsd: 0.28, highUsd: 0.35, unknown: [] });
     const table = planTable(checks);
     for (const secret of Object.values(env)) expect(table).not.toContain(secret);
-    // Another fal model is priced per second from the catalog.
-    expect(falEstimate(builtinModels({}).find((m) => m.key === "kling-3.0")!, 3)).toBe(0.38);
-    expect(planChecks({ ...env, TROUPE_LIVE_VEO_MODEL: "veo-3.1-fast" })[0]).toMatchObject({ estimateUsd: 0.4 });
+    expect(describeCost(planChecks({ ...env, TROUPE_LIVE_FAL_MODEL: "kling-3.0" })[1]!)).toBe("about $0.25");
+    expect(describeCost(planChecks({ ...env, TROUPE_LIVE_VEO_MODEL: "veo-3.1-fast" })[0]!)).toBe("about $0.40");
+  });
+
+  it("never runs a paid provider without --yes, even when its price is unknown", () => {
+    // A newer Veo with no list price yet.
+    const env = { GEMINI_API_KEY: KEY, TROUPE_LIVE_COMFYUI_URL: "http://127.0.0.1:8188", TROUPE_LIVE_VEO_MODEL: "veo-next" };
+    const veo = builtinModels({}).find((m) => m.key === "veo-3.1-lite")!;
+    const unpriced = [...builtinModels({}), { ...veo, key: "veo-next", modelId: "veo-next-generate-preview", pricePerSecondUsd: null }];
+    const [google] = planChecks(env, unpriced);
+    expect(google).toMatchObject({ paid: true, estimate: null });
+    expect(describeCost(google!)).toBe("price unknown");
+    expect(planTable([google!])).toContain("price unknown");
+    expect(paidTotal([google!])).toEqual({ lowUsd: 0, highUsd: 0, unknown: ["Google Gemini API"] });
+    expect(runsNow(google!, false)).toBe(false);
+    expect(runsNow(google!, true)).toBe(true);
+    // A free job (a local render) runs without --yes.
+    const comfy = planChecks(env, unpriced).find((c) => c.id === "comfyui")!;
+    expect([comfy.paid, describeCost(comfy), runsNow(comfy, false)]).toEqual([false, "free", true]);
+  });
+
+  it("refuses a model of the wrong provider for TROUPE_LIVE_VEO_MODEL or TROUPE_LIVE_FAL_MODEL", () => {
+    expect(() => planChecks({ TROUPE_LIVE_VEO_MODEL: "kling-3.0" })).toThrow('TROUPE_LIVE_VEO_MODEL must name a Google model (veo-3.1-fast, veo-3.1-lite), not "kling-3.0".');
+    expect(() => planChecks({ TROUPE_LIVE_FAL_MODEL: "veo-3.1-lite" })).toThrow('TROUPE_LIVE_FAL_MODEL must name a fal.ai model (kling-3.0, seedance-1.5-pro), not "veo-3.1-lite".');
+    expect(() => planChecks({ TROUPE_LIVE_FAL_MODEL: "nope" })).toThrow(/TROUPE_LIVE_FAL_MODEL must name a fal.ai model/);
   });
 });
 

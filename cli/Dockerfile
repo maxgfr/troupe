@@ -20,9 +20,11 @@ COPY cli/package.json cli/
 RUN node -e 'const fs = require("fs"); const p = JSON.parse(fs.readFileSync("package.json")); fs.writeFileSync("package.json", JSON.stringify({ name: p.name, private: true, type: p.type, packageManager: p.packageManager, pnpm: p.pnpm }))' \
  && pnpm install --filter troupe-cli
 COPY cli/src cli/src
-# The two studio modules the CLI shares (export file names and AI labels).
+# The studio modules the CLI shares (export file names, AI labels and the
+# providers' list prices for doctor --live).
 COPY src/app/_components/download-name.ts src/app/_components/
 COPY src/modules/export/disclosure.ts src/modules/export/
+COPY src/modules/models/list-price.ts src/modules/models/
 RUN pnpm --filter troupe-cli build
 
 FROM node:24-alpine

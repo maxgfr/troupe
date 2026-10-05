@@ -11,6 +11,7 @@ import { createVeoTextAdapter } from "~/modules/generation/server/adapters/veo-t
 import type { HttpLike, VideoProviderAdapter } from "~/modules/generation";
 import { buildChatPrompt, proposalJsonSchema, type ChatModel } from "~/modules/chat";
 import { builtinModels, type BuiltinModel } from "~/modules/models";
+import { listPriceUsd } from "~/modules/models/list-price";
 import { createAnthropicChat, DEFAULT_ANTHROPIC_MODEL, testAnthropic } from "~/server/chat/anthropic";
 import { createOllamaChat, testOllama } from "~/server/chat/ollama";
 import { claudeCapabilities } from "~/server/chat/claude-models";
@@ -18,8 +19,9 @@ import { environmentKey } from "~/server/settings/providers";
 
 // pnpm verify:live: one real job per provider whose key or address is in the
 // environment, through the same adapters the studio runs, at the cheapest
-// settings each provider offers. Free checks always run; paid jobs only with
-// --yes (TROUPE_LIVE_YES=1). Keys are never printed.
+// settings each provider offers. Free checks and free jobs always run; jobs
+// a provider bills (Google, fal.ai, Anthropic) only with --yes
+// (TROUPE_LIVE_YES=1). Keys are never printed.
 
 type Env = Record<string, string | undefined>;
 
@@ -28,31 +30,49 @@ export interface LiveCheck {
   name: string;
   // What runs, e.g. "Veo 3.1 Lite, one 4 s 720p clip".
   job: string;
-  // Null: free.
-  estimateUsd: number | null;
+  // Billed by the provider: runs only with --yes, whatever its estimate.
+  paid: boolean;
+  // The estimated cost, as a range; null when the price is unknown.
+  estimate: { lowUsd: number; highUsd: number } | null;
   // Why it does not run; null when it does.
   skip: string | null;
 }
 
-const money = (usd: number | null) => (usd === null ? "free" : `about $${usd.toFixed(2)}`);
-export const describeCost = money;
+// The providers that bill each job. Decided by the provider, never by the
+// price: a paid model without a known price still waits for --yes.
+const PAID: ReadonlySet<LiveCheck["id"]> = new Set(["google", "fal", "anthropic"]);
 
-function builtin(env: Env, key: string): BuiltinModel {
-  const model = builtinModels(env).find((m) => m.key === key);
-  if (!model) throw new Error(`Unknown built-in model "${key}".`);
+const usd = (n: number) => `$${n.toFixed(2)}`;
+
+export function describeCost(check: Pick<LiveCheck, "paid" | "estimate">): string {
+  if (!check.paid) return "free";
+  if (!check.estimate) return "price unknown";
+  const { lowUsd, highUsd } = check.estimate;
+  return lowUsd === highUsd ? `about ${usd(lowUsd)}` : `about ${usd(lowUsd)}–${highUsd.toFixed(2)}`;
+}
+
+// A paid job runs only once confirmed; free checks and free jobs always do.
+export function runsNow(check: Pick<LiveCheck, "paid" | "skip">, confirmed: boolean): boolean {
+  return !check.skip && (!check.paid || confirmed);
+}
+
+const FAMILY_NAME = { veo: "a Google", fal: "a fal.ai" } as const;
+
+// TROUPE_LIVE_VEO_MODEL / TROUPE_LIVE_FAL_MODEL, which must name a built-in
+// of that provider.
+function builtin(models: readonly BuiltinModel[], variable: string, key: string, family: "veo" | "fal"): BuiltinModel {
+  const model = models.find((m) => m.key === key);
+  if (!model || model.family !== family) {
+    const choices = models.filter((m) => m.family === family).map((m) => m.key).join(", ");
+    throw new Error(`${variable} must name ${FAMILY_NAME[family]} model (${choices}), not "${key}".`);
+  }
   return model;
 }
 
-// Seedance bills video tokens: width x height x fps x seconds / 1024, at
-// $1.20 per million without audio (fal.ai model page, 2026-10-05).
-const SEEDANCE_480P_9_16 = { width: 480, height: 864, fps: 24 };
-export function falEstimate(model: BuiltinModel, durationS: number): number | null {
-  if (model.key === "seedance-1.5-pro") {
-    const tokens = (SEEDANCE_480P_9_16.width * SEEDANCE_480P_9_16.height * SEEDANCE_480P_9_16.fps * durationS) / 1024;
-    return Math.round((tokens / 1_000_000) * 1.2 * 100) / 100;
-  }
-  return model.pricePerSecondUsd === null ? null : Math.round(model.pricePerSecondUsd * durationS * 100) / 100;
-}
+const veoModel = (env: Env, models: readonly BuiltinModel[] = builtinModels(env)) =>
+  builtin(models, "TROUPE_LIVE_VEO_MODEL", env.TROUPE_LIVE_VEO_MODEL?.trim() || "veo-3.1-lite", "veo");
+const falModel = (env: Env, models: readonly BuiltinModel[] = builtinModels(env)) =>
+  builtin(models, "TROUPE_LIVE_FAL_MODEL", env.TROUPE_LIVE_FAL_MODEL?.trim() || "seedance-1.5-pro", "fal");
 
 const cheapest = (m: BuiltinModel) => ({
   durationS: Math.min(...m.capabilities.durationsS),
@@ -61,71 +81,79 @@ const cheapest = (m: BuiltinModel) => ({
   audio: m.capabilities.audio === "always",
 });
 
+const point = (value: number | null) => (value === null ? null : { lowUsd: value, highUsd: value });
+
 export function comfyUrl(env: Env) {
   return env.TROUPE_LIVE_COMFYUI_URL?.trim() || env.COMFYUI_URL?.trim() || "";
 }
 
-export function planChecks(env: Env): LiveCheck[] {
-  const veo = builtin(env, env.TROUPE_LIVE_VEO_MODEL?.trim() || "veo-3.1-lite");
-  const fal = builtin(env, env.TROUPE_LIVE_FAL_MODEL?.trim() || "seedance-1.5-pro");
+export function planChecks(env: Env, models: readonly BuiltinModel[] = builtinModels(env)): LiveCheck[] {
+  const veo = veoModel(env, models);
+  const fal = falModel(env, models);
   const v = cheapest(veo);
-  const f = cheapest(fal);
+  // fal's audio is optional on both built-ins: the check renders silent.
+  const f = { ...cheapest(fal), audio: false };
   const claude = env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
-  return [
+  const checks: Omit<LiveCheck, "paid">[] = [
     {
       id: "google", name: "Google Gemini API",
       job: `${veo.label} (${veo.modelId}), one ${v.durationS} s ${v.resolution} 9:16 clip`,
-      estimateUsd: veo.pricePerSecondUsd === null ? null : Math.round(veo.pricePerSecondUsd * v.durationS * 100) / 100,
+      estimate: point(listPriceUsd({ key: veo.key, kind: "cloud", pricePerSecondUsd: veo.pricePerSecondUsd }, v)),
       skip: environmentKey("google", env) ? null : "no GEMINI_API_KEY, GOOGLE_API_KEY or GOOGLE_GENAI_API_KEY",
     },
     {
       id: "fal", name: "fal.ai",
-      job: `${fal.label} (${fal.modelId}), one ${f.durationS} s ${f.resolution} 9:16 clip, ${f.audio ? "with audio" : "silent"}`,
-      estimateUsd: falEstimate(fal, f.durationS),
+      job: `${fal.label} (${fal.modelId}), one ${f.durationS} s ${f.resolution} 9:16 clip, silent`,
+      estimate: point(listPriceUsd({ key: fal.key, kind: "cloud", pricePerSecondUsd: fal.pricePerSecondUsd }, f)),
       skip: environmentKey("fal", env) ? null : "no FAL_KEY",
     },
     {
       id: "anthropic", name: "Anthropic",
       job: `${claude}, one script chat answer`,
-      // About 2,000 tokens in and 1,000 out at the default model's price.
-      estimateUsd: 0.03,
+      // About 2,000 tokens in and 1,000 to 4,500 out at Claude Opus 5.5's
+      // $4 / $20 per million: adaptive thinking is billed as output.
+      estimate: { lowUsd: 0.03, highUsd: 0.1 },
       skip: environmentKey("anthropic", env) ? null : "no ANTHROPIC_API_KEY",
     },
     {
       id: "ollama", name: "Ollama",
       job: `${env.OLLAMA_MODEL?.trim() || "qwen3:4b"}, one script chat answer`,
-      estimateUsd: null,
+      estimate: null,
       skip: env.OLLAMA_URL?.trim() ? null : "no OLLAMA_URL",
     },
     {
       id: "comfyui", name: "ComfyUI",
       job: `the ${env.TROUPE_LIVE_COMFYUI_TEMPLATE?.trim() || "ltxv-2b-distilled"} template, one shortest clip`,
-      estimateUsd: null,
+      estimate: null,
       skip: comfyUrl(env) ? null : "no TROUPE_LIVE_COMFYUI_URL (or COMFYUI_URL)",
     },
     {
       id: "supabase", name: "Supabase",
       job: "Storage: upload, signed download and delete of a small MP4; Postgres: migrations applied and row level security, when DATABASE_URL is set",
-      estimateUsd: null,
+      estimate: null,
       skip: env.SUPABASE_URL?.trim() && env.SUPABASE_SERVICE_ROLE_KEY?.trim() ? null : "no SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
     },
     {
       id: "studio", name: "Deployed studio (Vercel)",
       job: "GET /api/health, then POST /api/jobs/reconcile with RECONCILE_SECRET",
-      estimateUsd: null,
+      estimate: null,
       skip: env.TROUPE_LIVE_STUDIO_URL?.trim() && env.RECONCILE_SECRET?.trim() ? null : "no TROUPE_LIVE_STUDIO_URL and RECONCILE_SECRET",
     },
   ];
+  return checks.map((c) => ({ ...c, paid: PAID.has(c.id) }));
 }
 
 export function planTable(checks: LiveCheck[]): string {
-  const rows = checks.map((c) => [c.skip ? "skip" : c.estimateUsd === null ? "free" : "paid", c.name, c.job, c.skip ? `skipped: ${c.skip}` : money(c.estimateUsd)]);
+  const rows = checks.map((c) => [c.skip ? "skip" : c.paid ? "paid" : "free", c.name, c.job, c.skip ? `skipped: ${c.skip}` : describeCost(c)]);
   const widths = [0, 1, 2].map((i) => Math.max(...rows.map((r) => r[i]!.length)));
   return rows.map((r) => r.map((cell, i) => (i < 3 ? cell.padEnd(widths[i]!) : cell)).join("  ")).join("\n");
 }
 
-export function paidTotal(checks: LiveCheck[]): number {
-  return Math.round(checks.filter((c) => !c.skip && c.estimateUsd !== null).reduce((sum, c) => sum + c.estimateUsd!, 0) * 100) / 100;
+// What the paid jobs that will run cost in all, and which have no price.
+export function paidTotal(checks: LiveCheck[]): { lowUsd: number; highUsd: number; unknown: string[] } {
+  const paid = checks.filter((c) => c.paid && !c.skip);
+  const sum = (pick: (e: { lowUsd: number; highUsd: number }) => number) => Math.round(paid.reduce((s, c) => s + (c.estimate ? pick(c.estimate) : 0), 0) * 100) / 100;
+  return { lowUsd: sum((e) => e.lowUsd), highUsd: sum((e) => e.highUsd), unknown: paid.filter((c) => !c.estimate).map((c) => c.name) };
 }
 
 // ---------------------------------------------------------------------------
@@ -190,11 +218,11 @@ export async function freeCheck(check: LiveCheck, deps: Deps): Promise<{ ok: boo
   const { env } = deps;
   switch (check.id) {
     case "google": {
-      const m = builtin(env, env.TROUPE_LIVE_VEO_MODEL?.trim() || "veo-3.1-lite");
+      const m = veoModel(env);
       return createVeoTextAdapter({ model: { modelKey: m.key, modelId: m.modelId, capabilities: m.capabilities }, http: deps.http, apiKey: environmentKey("google", env)! }).testConnection!();
     }
     case "fal": {
-      const m = builtin(env, env.TROUPE_LIVE_FAL_MODEL?.trim() || "seedance-1.5-pro");
+      const m = falModel(env);
       return createFalAdapter({ model: { modelKey: m.key, endpoint: m.modelId, capabilities: m.capabilities, sendsResolution: m.sendsResolution ?? false, promptMaxChars: m.promptMaxChars }, http: deps.http, apiKey: environmentKey("fal", env)! }).testConnection!();
     }
     case "anthropic":
@@ -241,13 +269,13 @@ export async function runCheck(check: LiveCheck, deps: Deps): Promise<string> {
   const { env } = deps;
   switch (check.id) {
     case "google": {
-      const m = builtin(env, env.TROUPE_LIVE_VEO_MODEL?.trim() || "veo-3.1-lite");
+      const m = veoModel(env);
       const adapter = createVeoTextAdapter({ model: { modelKey: m.key, modelId: m.modelId, capabilities: m.capabilities }, http: deps.http, apiKey: environmentKey("google", env)! });
       const out = await renderOnce(adapter, { aspectRatio: "9:16", ...cheapest(m) }, deps, { pollMs: 10_000, timeoutMs: 15 * 60_000 });
       return report(out);
     }
     case "fal": {
-      const m = builtin(env, env.TROUPE_LIVE_FAL_MODEL?.trim() || "seedance-1.5-pro");
+      const m = falModel(env);
       const adapter = createFalAdapter({ model: { modelKey: m.key, endpoint: m.modelId, capabilities: m.capabilities, sendsResolution: m.sendsResolution ?? false, promptMaxChars: m.promptMaxChars }, http: deps.http, apiKey: environmentKey("fal", env)! });
       const out = await renderOnce(adapter, { aspectRatio: "9:16", ...cheapest(m), audio: false }, deps, { pollMs: 10_000, timeoutMs: 15 * 60_000 });
       return report(out);

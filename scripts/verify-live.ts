@@ -1,6 +1,8 @@
 // pnpm verify:live [--yes] [--only google,fal,...] [--output <folder>]
 // Real calls to every provider configured in the environment, through
-// Troupe's adapters: free key checks always, paid jobs only with --yes.
+// Troupe's adapters: free checks and free jobs (Ollama, a ComfyUI render, a
+// Supabase upload and delete, a deployed studio's job check) always, paid
+// jobs (Google, fal.ai, Anthropic) only with --yes.
 // Prints the plan and its cost first; never prints a key. Not run in CI.
 // docs/LIVE-CHECKS.md lists the variables each provider reads.
 import { spawn } from "node:child_process";
@@ -21,8 +23,10 @@ const { values } = parseArgs({
 if (values.help) {
   console.log(`Usage: pnpm verify:live [--yes] [--only ${IDS.join(",")}] [--output <folder>]
 
-Without --yes only free calls are made (list or read a model, read a price).
-With --yes, one real job per configured provider at its cheapest settings,
+Without --yes: the free checks (read a model, read a price) and the free
+jobs: an Ollama answer, a ComfyUI render, a Supabase upload, signed download
+and delete, a deployed studio's health and job check. With --yes, also one
+job per paid provider (Google, fal.ai, Anthropic) at its cheapest settings,
 billed to your accounts. See docs/LIVE-CHECKS.md.`);
   process.exit(0);
 }
@@ -44,6 +48,6 @@ const child = spawn("pnpm", ["exec", "vitest", "run", "--config", "scripts/live/
   },
 });
 child.on("close", (code) => {
-  if (!values.yes) console.log("\nPaid jobs were skipped. Add --yes to run them; the plan above shows what they cost.");
+  if (!values.yes) console.log("\nPaid jobs (Google, fal.ai, Anthropic) were skipped. Add --yes to run them; the plan above shows what they cost.");
   process.exit(code ?? 1);
 });

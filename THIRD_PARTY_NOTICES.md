@@ -43,6 +43,11 @@ programs under other licenses:
   and draws the video captions with it; the local renderer ships it too
   (`@fontsource/geist-sans`). Geist is licensed under the SIL Open Font
   License 1.1.
+- **Bricolage Grotesque and JetBrains Mono fonts.** The browser edition and
+  its landing page ship them (`@fontsource-variable/bricolage-grotesque`,
+  `@fontsource-variable/jetbrains-mono`), and the presentation video's title
+  cards are drawn with them. Both are licensed under the SIL Open Font License
+  1.1.
 - **Script chat.**
   - [WebLLM](https://github.com/mlc-ai/web-llm) (`@mlc-ai/web-llm`) 0.2.85:
     Apache License 2.0. Bundled into the browser edition (a worker chunk and a

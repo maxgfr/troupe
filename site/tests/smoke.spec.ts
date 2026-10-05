@@ -31,7 +31,7 @@ test("landing → dashboard → new project → script, kept across reloads and 
   const errors = watchConsole(page);
 
   await page.goto("/troupe/");
-  await page.getByRole("link", { name: "Open the app" }).click();
+  await page.getByRole("link", { name: "Open Troupe in your browser" }).first().click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
   await expect(page.getByText("Create your first project")).toBeVisible(MIGRATING);
   // The browser edition is Troupe itself: nothing calls it a demo.

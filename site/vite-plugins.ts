@@ -164,3 +164,59 @@ export function actorPictures({ base, dir, outDir }: { base: string; dir: string
     },
   };
 }
+
+// The landing page's addresses: where the site is published (canonical link,
+// social preview) and the repository its docs links point at. A fork sets
+// VITE_SITE_URL and VITE_REPO_URL (site/.env.example).
+export interface LandingConfig {
+  siteUrl: string;
+  repoUrl: string;
+}
+
+function absoluteUrl(name: string, value: string): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an absolute http(s) URL, got "${value}".`);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error(`${name} must be an absolute http(s) URL, got "${value}".`);
+  return url;
+}
+
+export function parseLandingConfig(env: Record<string, string | undefined>): LandingConfig {
+  const site = absoluteUrl("VITE_SITE_URL", env.VITE_SITE_URL || "https://maxgfr.github.io/troupe/");
+  const repo = absoluteUrl("VITE_REPO_URL", env.VITE_REPO_URL || "https://github.com/maxgfr/troupe");
+  return { siteUrl: site.href.endsWith("/") ? site.href : `${site.href}/`, repoUrl: repo.href.replace(/\/+$/, "") };
+}
+
+const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// The landing page (the site's root index.html): %SITE_URL%, %REPO_URL% and
+// %BASE% become the configured addresses before Vite reads the page, and
+// <!--troupe:cast--> becomes the cast, one <li> per actor with the picture
+// the site serves at <base>actors/ (added after Vite's asset pass, which
+// would look for those pictures among the sources). Other pages are left
+// alone.
+export function landingPage({ base, siteUrl, repoUrl, cast }: LandingConfig & { base: string; cast: { slug: string; name: string }[] }): Plugin[] {
+  const isLanding = (path: string) => path === "/index.html";
+  const castHtml = cast
+    .map(({ slug, name }) => `<li><img src="${base}actors/${encodeURIComponent(slug)}/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" /><span>${escapeHtml(name)}</span></li>`)
+    .join("");
+  return [
+    {
+      name: "troupe:landing-addresses",
+      transformIndexHtml: {
+        order: "pre",
+        handler: (html, { path }) => (isLanding(path) ? html.replaceAll("%SITE_URL%", siteUrl).replaceAll("%REPO_URL%", repoUrl).replaceAll("%BASE%", base) : html),
+      },
+    },
+    {
+      name: "troupe:landing-cast",
+      transformIndexHtml: {
+        order: "post",
+        handler: (html, { path }) => (isLanding(path) ? html.replace("<!--troupe:cast-->", castHtml) : html),
+      },
+    },
+  ];
+}

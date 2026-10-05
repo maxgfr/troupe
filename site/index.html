@@ -3,28 +3,356 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Troupe — open-source video studio</title>
-    <meta name="description" content="A personal, open-source studio for short AI videos: write the script, cast an actor, pick a model, render. Try it in your browser." />
+    <title>Troupe: a video studio that runs in your browser</title>
+    <meta name="description" content="Troupe is an open-source studio for short talking videos: write a script, cast one of 30 actors, ask the chat for a sharper hook, and render an MP4 with a real voice, in your browser or on your own server." />
+    <link rel="canonical" href="%SITE_URL%" />
+    <meta name="theme-color" content="#060c13" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Troupe" />
+    <meta property="og:title" content="Troupe: a video studio that runs in your browser" />
+    <meta property="og:description" content="Write a script, cast an actor, render an MP4 with a real voice. Open source; runs in your browser or on your own server." />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:image" content="%SITE_URL%social.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The troupe wordmark beside a row of the studio's actors, with the line: a video studio that runs in your browser." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Troupe: a video studio that runs in your browser" />
+    <meta name="twitter:description" content="Write a script, cast an actor, render an MP4 with a real voice. Open source; runs in your browser or on your own server." />
+    <meta name="twitter:image" content="%SITE_URL%social.png" />
+    <meta name="twitter:image:alt" content="The troupe wordmark beside a row of the studio's actors, with the line: a video studio that runs in your browser." />
     <link rel="icon" href="../public/favicon.ico" />
-    <script type="module" src="/src/landing.ts"></script>
+    <link rel="preload" as="image" href="/demo/troupe-demo.jpg" fetchpriority="high" />
+    <script type="module" src="/src/landing/main.ts"></script>
   </head>
-  <body class="min-h-dvh">
-    <main class="hero-rise mx-auto flex min-h-dvh max-w-3xl flex-col justify-center px-6 py-16 sm:px-8">
-      <h1 class="font-display text-[clamp(3.5rem,14vw,6rem)] font-bold lowercase leading-none tracking-[-0.03em]">
-        tr<span class="relative inline-block">o<span aria-hidden="true" class="absolute -inset-x-[0.08em] -inset-y-[0.02em] rounded-full border-[0.06em] border-spot"></span></span>upe
-      </h1>
-      <p class="mt-6 max-w-[34ch] text-pretty text-xl leading-snug text-fg sm:text-2xl">
-        A personal studio for short AI videos: write the script, cast an actor, choose a model, render.
-      </p>
-      <p class="mt-3 max-w-[60ch] text-pretty text-sm text-muted">
-        Open source. The studio runs entirely in your browser and keeps everything on this device;
-        <a href="https://github.com/maxgfr/troupe/blob/main/docs/SELF-HOSTING.md" class="underline underline-offset-4 transition-colors duration-150 hover:text-fg">host it yourself</a>
-        to use cloud models and your own GPU.
-      </p>
-      <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
-        <a href="./app/" class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90">Open the app</a>
-        <a href="https://github.com/maxgfr/troupe" class="inline-block py-2.5 text-sm text-muted underline-offset-4 transition-colors duration-150 hover:text-fg hover:underline">Source on GitHub ↗</a>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="bar">
+      <div class="wrap bar__inner">
+        <a class="wordmark" href="./" aria-label="Troupe, home">tr<span class="wordmark__o">o<span aria-hidden="true"></span></span>upe</a>
+        <nav aria-label="Sections">
+          <ul class="bar__links">
+            <li class="bar__hide-sm"><a href="#how">How it works</a></li>
+            <li class="bar__hide-sm"><a href="#editions">Editions</a></li>
+            <li class="bar__hide-sm"><a href="#models">Models</a></li>
+            <li>
+              <a href="%REPO_URL%" class="bar__gh">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z" /></svg>
+                <span>Source</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
       </div>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <div class="hero__copy rise">
+          <h1 id="hero-title">A video studio that runs in your browser.</h1>
+          <p class="lede">Write a short script, cast one of 30 actors, ask the chat for a sharper hook, then render an MP4 with a real voice. Open source, with no account, and your projects stay on your device.</p>
+        </div>
+
+        <div class="stages">
+          <section class="stage stage--browser rise" aria-labelledby="browser-title">
+            <h2 id="browser-title">In your browser</h2>
+            <ul class="facts">
+              <li>The whole studio, its database and your renders live in this tab.</li>
+              <li>Kokoro voices and captions, rendered on your GPU with WebCodecs.</li>
+              <li>A script chat that runs on your GPU too: no key, no server.</li>
+            </ul>
+            <a class="button" href="app/">Open Troupe in your browser</a>
+            <p class="note">Chrome or Edge. The voices download once (326&nbsp;MB) on your first render.</p>
+          </section>
+
+          <figure class="screen rise" id="watch">
+            <div class="screen__frame">
+              <video controls preload="none" playsinline poster="/demo/troupe-demo.jpg" width="1920" height="1080" aria-describedby="watch-caption">
+                <source src="/demo/troupe-demo.webm" type="video/webm" />
+                <source src="/demo/troupe-demo.mp4" type="video/mp4" />
+                <a href="demo/troupe-demo.mp4">Download the video (MP4)</a>
+              </video>
+              <button type="button" class="screen__play" hidden><span class="sr-only">Play the video</span></button>
+            </div>
+            <figcaption id="watch-caption">One project, from an empty studio to the downloaded MP4, recorded in Chrome. Waits are sped up, and the video says so.</figcaption>
+          </figure>
+
+          <section class="stage stage--server rise" aria-labelledby="server-title">
+            <h2 id="server-title">On your server</h2>
+            <ul class="facts">
+              <li>Cloud video models with your own keys: Veo, Kling, Seedance.</li>
+              <li>Your own GPU through ComfyUI, or the local renderer.</li>
+              <li>Keys stay on your server, encrypted at rest.</li>
+            </ul>
+            <a class="button button--quiet" href="#self-host">Self-host with Docker</a>
+            <p class="note">One <code>docker compose up</code>. Cloud providers bill your own account.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="how wrap" id="how" aria-labelledby="how-title">
+        <div class="how__intro">
+          <h2 id="how-title" class="section-title">From a script to an MP4</h2>
+          <p>The project in the video, step by step. Each step is a page of the studio, the same in both editions; the times jump the video to it.</p>
+        </div>
+        <ol class="axis">
+          <li class="cue" data-chapter="project">
+            <div class="cue__head">
+              <h3>Start a project</h3>
+              <button type="button" class="cue__seek" data-seek="project" hidden><span class="cue__time"></span> Watch</button>
+            </div>
+            <p>Pick a platform, a format and a language. The model picker only offers what each model can do, and says why before you launch. Then cast an actor.</p>
+            <div class="artifact artifact--project" aria-hidden="true">
+              <img src="%BASE%actors/amara-28/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />
+              <div>
+                <strong>Cold brew launch</strong>
+                <span class="mono">TikTok · 9:16 · EN · Amara</span>
+              </div>
+            </div>
+          </li>
+          <li class="cue" data-chapter="script">
+            <div class="cue__head">
+              <h3>Write the script</h3>
+              <button type="button" class="cue__seek" data-seek="script" hidden><span class="cue__time"></span> Watch</button>
+            </div>
+            <p>A line per sentence, each with an emotion that sets the delivery. Every save is a version you can restore.</p>
+            <ol class="artifact artifact--script" aria-label="The script, version 1">
+              <li>Mornings are hard.<span class="mono">hook · neutral</span></li>
+              <li>Our cold brew is smooth, strong and ready in your fridge.<span class="mono">body · neutral</span></li>
+              <li>Grab a bottle on your way out.<span class="mono">cta · neutral</span></li>
+            </ol>
+          </li>
+          <li class="cue" data-chapter="chat">
+            <div class="cue__head">
+              <h3>Ask the chat</h3>
+              <button type="button" class="cue__seek" data-seek="chat" hidden><span class="cue__time"></span> Watch</button>
+            </div>
+            <p>Ask for a change in your own words. The answer is a whole new version, shown line by line against the current one, and nothing changes until you apply it. In the browser a small model answers on your GPU; a self-hosted studio uses Ollama or Claude.</p>
+            <div class="artifact artifact--chat">
+              <p class="ask">Make the first line punchier. Keep the other lines.</p>
+              <div class="diff">
+                <p class="diff__new">Mornings are hard, but with our cold brew, it’s bearable!</p>
+                <p class="diff__old"><del>Mornings are hard.</del></p>
+                <p class="mono">hook · <del>neutral</del> excited</p>
+              </div>
+              <span class="spot" aria-hidden="true">Apply &amp; relaunch</span>
+            </div>
+          </li>
+          <li class="cue" data-chapter="apply">
+            <div class="cue__head">
+              <h3>Render it</h3>
+              <button type="button" class="cue__seek" data-seek="apply" hidden><span class="cue__time"></span> Watch</button>
+            </div>
+            <p>In the browser edition, Kokoro voices each line and the frames are drawn and encoded in the tab. A self-hosted studio sends the same project to a cloud model, ComfyUI or the local renderer, and follows its progress.</p>
+            <div class="artifact artifact--render" aria-hidden="true">
+              <div class="meter"><span></span></div>
+              <p class="mono">Voicing the script · line 2 of 3</p>
+            </div>
+          </li>
+          <li class="cue" data-chapter="play">
+            <div class="cue__head">
+              <h3>Watch it, then download it</h3>
+              <button type="button" class="cue__seek" data-seek="play" hidden><span class="cue__time"></span> Watch</button>
+            </div>
+            <p>The render plays on the project page with its voice. Every render is a draft until you export it; the MP4 is named after the project, the model and the time.</p>
+            <dl class="artifact artifact--file">
+              <dt class="mono">cold-brew-launch-kokoro-voice-captions-2026-10-05-1646.mp4</dt>
+              <dd class="mono">720×1280 · H.264 + AAC · 17.0 s</dd>
+            </dl>
+          </li>
+        </ol>
+      </section>
+
+      <section class="cast wrap" id="cast" aria-labelledby="cast-title">
+        <div class="cast__intro">
+          <h2 id="cast-title" class="section-title">Thirty actors, six pictures each</h2>
+          <p>Synthetic people, generated for Troupe with FLUX.2 [klein]: nobody was photographed. Each has a voice, a front picture, two profiles and three expressions, which the renderers draw on the actor card. With a cloud video model the actor guides the prompt, and the face changes from one render to the next.</p>
+        </div>
+        <ul class="cast__grid"><!--troupe:cast--></ul>
+      </section>
+
+      <section class="editions wrap" id="editions" aria-labelledby="editions-title">
+        <h2 id="editions-title" class="section-title">Two editions, the same studio</h2>
+        <p class="section-lede">The same pages and the same router. What one edition cannot do is marked where it would be, with the reason.</p>
+        <div class="table-scroll">
+          <table class="compare">
+            <colgroup>
+              <col class="compare__label" />
+              <col />
+              <col />
+            </colgroup>
+            <thead>
+              <tr>
+                <td></td>
+                <th scope="col">In your browser</th>
+                <th scope="col">On your server</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Where it runs</th>
+                <td data-edition="In your browser">This tab: Postgres compiled to WebAssembly, kept in the browser’s storage.</td>
+                <td data-edition="On your server">Docker on your machine or a server, with PostgreSQL. Vercel and Supabase work too.</td>
+              </tr>
+              <tr>
+                <th scope="row">Your data</th>
+                <td data-edition="In your browser">On this device only. Export a backup to move it; clearing the site’s data deletes it.</td>
+                <td data-edition="On your server">Two Docker volumes: the database, the videos and the key that encrypts saved API keys.</td>
+              </tr>
+              <tr>
+                <th scope="row">Video models</th>
+                <td data-edition="In your browser">Kokoro voice + captions, rendered in the tab.</td>
+                <td data-edition="On your server">Veo, Kling and Seedance with your keys; LTX-2 and Wan through ComfyUI; the local renderer, with an opt-in AI video mode; any HTTP model server.</td>
+              </tr>
+              <tr>
+                <th scope="row">Cloud models</th>
+                <td data-edition="In your browser" class="unlit">Not here: an API key needs a server to keep it.</td>
+                <td data-edition="On your server">Billed by the provider to your own account.</td>
+              </tr>
+              <tr>
+                <th scope="row">Script chat</th>
+                <td data-edition="In your browser">Qwen2.5 1.5B through WebLLM, on your GPU (880&nbsp;MB, once).</td>
+                <td data-edition="On your server">Ollama on your machine by default, or Claude with an Anthropic key.</td>
+              </tr>
+              <tr>
+                <th scope="row">Model servers on your machine</th>
+                <td data-edition="In your browser" class="unlit">Not here: a page from the web cannot reach them.</td>
+                <td data-edition="On your server">ComfyUI, the local renderer, Ollama, or your own.</td>
+              </tr>
+              <tr>
+                <th scope="row">While it renders</th>
+                <td data-edition="In your browser">Keep the tab open: the render runs in it.</td>
+                <td data-edition="On your server">Close the page; the server checks on the job.</td>
+              </tr>
+              <tr>
+                <th scope="row">To start</th>
+                <td data-edition="In your browser"><a href="app/">Open Troupe in your browser</a></td>
+                <td data-edition="On your server"><a href="#self-host">Self-host with Docker</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="self-host" id="self-host">
+          <div>
+            <h3>Self-host with Docker</h3>
+            <p>Three commands on a machine with Docker. The app prints an access code in its logs on first start; then add an API key or a local model in Settings.</p>
+            <p><a href="%REPO_URL%/blob/main/docs/SELF-HOSTING.md">Self-hosting guide</a> · <a href="%REPO_URL%/blob/main/docs/VERCEL-SUPABASE.md">Vercel + Supabase</a></p>
+          </div>
+          <div class="terminal">
+            <div class="terminal__bar">
+              <span class="mono">Quick start</span>
+              <button type="button" class="copy" data-copy="quick-start" hidden>
+                <svg class="copy__icon copy__icon--idle" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
+                <svg class="copy__icon copy__icon--done" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                <span class="copy__label">Copy</span>
+              </button>
+            </div>
+            <pre id="quick-start"><code>git clone %REPO_URL%.git &amp;&amp; cd troupe
+cp .env.example .env &amp;&amp; sed -i.bak "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=\"$(openssl rand -hex 24)\"/" .env
+docker compose up -d</code></pre>
+            <p class="copy__status" role="status"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="models wrap" id="models" aria-labelledby="models-title">
+        <h2 id="models-title" class="section-title">Models, and where they run</h2>
+        <p class="section-lede">Each model declares its formats, lengths and audio; the studio only offers those, and says what it has and has not been tried on.</p>
+        <ul class="tickets">
+          <li class="ticket">
+            <div class="ticket__name"><h3>Kokoro voice + captions</h3><span>browser edition</span></div>
+            <ul class="ticket__stubs mono"><li>your browser</li><li>voice</li><li>9:16 · 16:9 · 1:1</li><li>6–30 s</li></ul>
+            <p class="ticket__status ticket__status--ok">Rendered end to end in Chrome: the video above.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>Local renderer</h3><span>self-hosted</span></div>
+            <ul class="ticket__stubs mono"><li>your CPU</li><li>voice</li><li>9:16 · 16:9 · 1:1</li><li>as long as the script</li></ul>
+            <p class="ticket__status ticket__status--ok">The same Kokoro voice, actor card and captions. An 8&nbsp;s 720p clip takes under 4&nbsp;s on an Apple M5.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>Local renderer, AI video mode</h3><span>self-hosted, opt-in</span></div>
+            <ul class="ticket__stubs mono"><li>your Mac’s GPU</li><li>voice</li><li>LTX-Video 2B</li><li>5&nbsp;s clip, looped</li></ul>
+            <p class="ticket__status ticket__status--ok">Rendered end to end on an M5 with 16&nbsp;GB, about two minutes a clip. Lips do not follow the voice. NVIDIA should work; not tried.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>LTX-2 · Wan 2.2 TI2V 5B</h3><span>self-hosted, ComfyUI</span></div>
+            <ul class="ticket__stubs mono"><li>your GPU</li><li>audio / silent</li><li>4–10 s · 3–5 s</li></ul>
+            <p class="ticket__status ticket__status--todo">Workflows validated by ComfyUI 0.38.0, not yet rendered end to end. They target 24&nbsp;GB NVIDIA cards.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>Veo 3.1 Fast · Kling 3.0 · Seedance 1.5 Pro</h3><span>self-hosted, your keys</span></div>
+            <ul class="ticket__stubs mono"><li>Google AI · fal.ai</li><li>audio</li><li>3–15 s</li></ul>
+            <p class="ticket__status ticket__status--todo">Tested against recorded API responses. Not yet run with paid keys for this release.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>Your own model</h3><span>self-hosted</span></div>
+            <ul class="ticket__stubs mono"><li>any HTTP server</li><li>you say</li></ul>
+            <p class="ticket__status">Speak the <a href="%REPO_URL%/blob/main/docs/LOCAL-MODELS.md#http-endpoint">HTTP contract</a> and declare what it can do.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="limits wrap" id="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title" class="section-title">Limits, plainly</h2>
+        <ul class="limits__list">
+          <li><strong>Chrome or Edge.</strong> Rendering needs WebCodecs, OffscreenCanvas and Web Locks. Other browsers open your projects and say why they cannot render.</li>
+          <li><strong>Downloads, once per browser.</strong> The voices are 326&nbsp;MB on WebGPU (92&nbsp;MB on the CPU, several times slower). The chat model is 880&nbsp;MB and needs WebGPU.</li>
+          <li><strong>English voices.</strong> Kokoro speaks English; other languages are read with English pronunciation.</li>
+          <li><strong>Your projects live in one browser.</strong> Export a backup to keep them or move them; clearing the site’s data deletes them.</li>
+          <li><strong>No fixed face.</strong> Actors guide the voice and the prompt. Troupe does not promise the same face from a video model, dubbing or lip sync.</li>
+          <li><strong>Small chat model.</strong> In the browser, a 1.5B model rewrites short scripts well and long ones less so; you read every proposal before applying it.</li>
+        </ul>
+      </section>
+
+      <section class="open wrap" id="open-source" aria-labelledby="open-title">
+        <h2 id="open-title" class="section-title">Open source</h2>
+        <div class="open__body">
+          <p class="open__lead">Troupe is MIT licensed, actors’ pictures included. Some parts it uses carry other terms:</p>
+          <dl class="notices">
+            <dt>eSpeak NG, in the browser edition</dt>
+            <dd>The render worker bundles phonemizer, which embeds eSpeak NG compiled to WebAssembly. eSpeak NG is GPL-3.0-or-later, so the built site combines MIT code with GPL code; its source is on <a href="https://github.com/espeak-ng/espeak-ng">GitHub</a>.</dd>
+            <dt>Model weights</dt>
+            <dd>Kokoro-82M and Qwen2.5-1.5B-Instruct are Apache 2.0. Your browser downloads them from Hugging Face; Troupe does not distribute them.</dd>
+            <dt>LTX-Video, in the opt-in AI video mode</dt>
+            <dd>The weights use the LTXV Open Weights License, which is not an open-source license: free under $10M of annual revenue, and bound to use restrictions, among them saying that content is machine generated and not impersonating anyone.</dd>
+            <dt>FFmpeg, in the Docker image</dt>
+            <dd>GPL, run as a separate program.</dd>
+          </dl>
+          <p><a href="%REPO_URL%/blob/main/THIRD_PARTY_NOTICES.md">Every third-party notice</a></p>
+        </div>
+      </section>
     </main>
+
+    <footer class="foot">
+      <div class="wrap foot__inner">
+        <div class="foot__brand">
+          <a class="wordmark" href="./" aria-label="Troupe, home">tr<span class="wordmark__o">o<span aria-hidden="true"></span></span>upe</a>
+          <p>A personal, open-source studio for short videos. Videos made with AI should say so: the export presets add each platform’s disclosure.</p>
+        </div>
+        <nav class="foot__nav" aria-label="Documentation">
+          <h2>Docs</h2>
+          <ul>
+            <li><a href="%REPO_URL%/blob/main/docs/BROWSER-EDITION.md">Browser edition</a></li>
+            <li><a href="%REPO_URL%/blob/main/docs/SELF-HOSTING.md">Self-hosting</a></li>
+            <li><a href="%REPO_URL%/blob/main/docs/LOCAL-MODELS.md">Local models</a></li>
+            <li><a href="%REPO_URL%/blob/main/docs/SCRIPT-CHAT.md">Script chat</a></li>
+            <li><a href="%REPO_URL%/blob/main/docs/ACTORS.md">Actors</a></li>
+          </ul>
+        </nav>
+        <nav class="foot__nav" aria-label="Project">
+          <h2>Project</h2>
+          <ul>
+            <li><a href="%REPO_URL%">Source</a></li>
+            <li><a href="%REPO_URL%/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="%REPO_URL%/blob/main/SECURITY.md">Security</a></li>
+            <li><a href="%REPO_URL%/blob/main/LICENSE">MIT license</a></li>
+            <li><a href="demo/troupe-demo.mp4" download>Download the video</a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
   </body>
 </html>

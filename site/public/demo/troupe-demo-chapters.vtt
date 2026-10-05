@@ -1,0 +1,37 @@
+WEBVTT
+
+project
+00:00:03.000 --> 00:00:09.250
+New project: platform, format, actor
+
+script
+00:00:09.250 --> 00:00:13.934
+Write the script
+
+chat
+00:00:13.934 --> 00:00:17.852
+Ask the chat for a punchier hook
+
+writing
+00:00:17.852 --> 00:00:21.853
+A model on this GPU rewrites it
+
+proposal
+00:00:21.853 --> 00:00:27.369
+The proposal, against version 1
+
+apply
+00:00:27.369 --> 00:00:30.960
+Apply & relaunch
+
+render
+00:00:30.960 --> 00:00:35.375
+Kokoro voices it, WebCodecs encodes it
+
+play
+00:00:35.375 --> 00:00:52.902
+The render, with its own voice
+
+download
+00:00:52.902 --> 00:00:56.204
+Download the MP4

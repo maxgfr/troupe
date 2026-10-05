@@ -34,6 +34,15 @@ First public release.
   device. Settings → Your data shows the storage used, asks the browser to
   keep it, exports and imports a backup of everything (a versioned tar
   archive) and deletes it all.
+- A landing page in front of the browser edition (`/troupe/`): the
+  presentation video, how a project goes from script to MP4 (each step jumps
+  the video to it), the 30 actors, the two editions side by side, the models
+  with where they run and what has been tried, the limits and the license
+  notes. `VITE_SITE_URL` and `VITE_REPO_URL` point its canonical and social
+  links and its docs links at a fork.
+- A one-minute presentation video, recorded from the real browser edition by
+  `scripts/demo/record.ts` (Playwright, headed Chrome) and cut by
+  `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.
 
 ### Changed
 

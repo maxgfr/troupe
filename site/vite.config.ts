@@ -4,9 +4,10 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type UserConfig } from "vite";
 
 import { THEME_SCRIPT } from "../src/app/theme-script";
+import { ACTOR_CATALOG } from "../src/modules/actors/server/catalog";
 import { parseChatConfig } from "./src/chat/config";
 import { parseRenderConfig } from "./src/render/config";
-import { actorPictures, headScript, pagesFallback, serverGuard, shimModules } from "./vite-plugins";
+import { actorPictures, headScript, landingPage, pagesFallback, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
 
 // The browser edition: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
@@ -44,6 +45,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // The actors' pictures: the cast checked in for the self-hosted app, or
   // another folder laid out the same way (<slug>/v1/front.webp, …).
   const portraitsDir = resolve(REPO, env.VITE_PORTRAITS_DIR || "public/actors");
+  // Where the site is published and the repository its links point at.
+  const landing = parseLandingConfig(env);
   return {
     root: SITE,
     base: BASE,
@@ -66,6 +69,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       headScript(THEME_SCRIPT),
       pagesFallback({ base: BASE, outDir: OUT }),
       actorPictures({ base: BASE, dir: portraitsDir, outDir: OUT }),
+      landingPage({ base: BASE, ...landing, cast: ACTOR_CATALOG }),
     ],
     css: {
       postcss: { plugins: [tailwindcss({ base: REPO })] },

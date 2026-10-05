@@ -83,6 +83,18 @@ set in mono and marked "est." when estimated.
   asks before replacing anything), and **Delete all local data** last, in
   danger red, with an inline confirmation. A one-line note on where the data
   lives can be dismissed.
+- **Landing page** (`/troupe/`, browser edition): the headline left-aligned in
+  Bricolage, then the two editions on either side of the presentation video
+  (a triptych on wide screens; browser edition, video, server on phones). The
+  browser edition's "Open Troupe in your browser" is the one cobalt button;
+  "Self-host with Docker" is outlined. Below: the steps of a project on one
+  hairline axis, each with a piece of the studio and a mono time that jumps
+  the video there; the cast uncropped and named; the editions as a table where
+  what one cannot do is unlit (dim italic) with its reason; each model as a
+  row with mono stubs (where it runs first, in cobalt) and a status dot that
+  is filled only when it was rendered end to end. Hairlines, no cards. The
+  video's poster carries its play button; the browser's controls appear on
+  the first play.
 - Skeletons rather than spinners; empty states that teach the next step.
 
 ## Motion

@@ -162,6 +162,8 @@ environment). The build checks them and stops on a bad value.
 | `VITE_RENDER_AUDIO_BITRATE` | `128000` | bits per second |
 | `VITE_RENDER_AUDIO_CODECS` | `aac,opus` | audio codecs to try, in order |
 | `VITE_PORTRAITS_DIR` | `public/actors` | the actors' pictures copied to `/troupe/actors/`, a folder laid out like `public/actors` ([ACTORS.md](ACTORS.md)) |
+| `VITE_SITE_URL` | `https://maxgfr.github.io/troupe/` | where the site is published: the landing page's canonical link and social preview |
+| `VITE_REPO_URL` | `https://github.com/maxgfr/troupe` | the repository the landing page's docs and source links point at |
 
 ### Testing a render
 
@@ -181,6 +183,59 @@ Cache Storage holds the 92 MB of weights, is kept with `actions/cache`
 when the lockfile or the renderer settings change. Locally,
 `RENDER_ARGS="--disable-gpu --disable-features=WebGPU"` forces the CPU path on
 a machine with a GPU.
+
+## The landing page
+
+`site/index.html` is the page at `/troupe/`, with its own small stylesheet
+and script in `site/src/landing/` (the studio's Tailwind and HeroUI bundle
+stays with the app). It shows the presentation video, the steps of a project
+(each one jumps the video to its chapter), the cast, the two editions, the
+models and the limits. `troupe:landing-addresses` and `troupe:landing-cast`
+(`site/vite-plugins.ts`) fill in `VITE_SITE_URL`, `VITE_REPO_URL` and the
+base path, and list the cast from the actor catalog with the pictures the
+site serves. `pnpm site:test` checks it too (`site/tests/landing.spec.ts`):
+the video plays from its poster, the steps jump to their chapters, the quick
+start copies, and every link that stays on the site answers.
+
+### The presentation video
+
+`site/public/demo/` holds the video (`troupe-demo.mp4`, H.264 + AAC;
+`troupe-demo.webm`, VP9 + Opus; both under 8 MB), its poster and its
+chapters, and `site/public/social.png` the social preview. They are made from
+the real browser edition, never staged:
+
+```bash
+pnpm site:build && pnpm site:preview   # in another terminal
+pnpm demo:record                       # headed Chrome drives one project
+pnpm demo:edit                         # ffmpeg cuts it into site/public/demo/
+```
+
+`scripts/demo/record.ts` creates a project, writes the script, asks the chat
+for a punchier hook, applies and relaunches it, lets the tab render, plays the
+result and downloads it. It captures Chrome's screencast at twice the page's
+size, notes where each step starts and how fast to play it, saves the render
+it downloaded, and draws the title cards, captions, poster and social preview
+in the site's fonts. The browser profile keeps the voice and chat models
+(about 1.2 GB the first time); the site's local data is deleted first. The
+chat model is small and its answer changes from one run to the next: watch the
+take before keeping it. Keep the real mouse off the Chrome window while it
+records (the drawn pointer ignores it, but the page still sees it hover).
+`scripts/demo/edit.sh` speeds up the waits (the caption says by how much),
+punches in on the chat's proposal and the player, lays the render's own
+soundtrack under its playback, and encodes both files to fit `DEMO_MAX_MB`.
+
+| Variable | Default | |
+|---|---|---|
+| `DEMO_URL` | `http://localhost:4173` | the preview to record |
+| `DEMO_OUT` | `<os tmp>/troupe-demo` | footage, cut list, render and cards (record and edit) |
+| `DEMO_PROFILE` | `<os tmp>/troupe-demo-profile` | the Chrome profile that keeps the models |
+| `DEMO_CHANNEL`, `DEMO_ARGS` | `chrome`, none | the browser and extra Chrome flags |
+| `DEMO_PROJECT`, `DEMO_ACTOR`, `DEMO_SCRIPT`, `DEMO_REQUEST` | the cold brew project | the story (`DEMO_SCRIPT` takes `\n` between lines) |
+| `DEMO_LINK`, `DEMO_SOCIAL_CAST` | the repository, six actors | the closing card's link and the social preview's faces |
+| `DEMO_DEST`, `DEMO_MAX_MB` | `site/public/demo`, `7.5` | where the cut goes and the size cap per file |
+
+`node scripts/demo/record.ts --cards` redraws only the cards (after changing
+their text), and `pnpm demo:edit` cuts again from the same footage.
 
 ## How it is put together
 

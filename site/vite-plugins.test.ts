@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, actorPicturesMiddleware, serverGuard } from "./vite-plugins";
+import { actorPictures, actorPicturesMiddleware, landingPage, parseLandingConfig, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -114,5 +114,76 @@ describe("actor pictures in vite dev", () => {
     for (const url of ["/troupe/app/", "/troupe/actors/secret.txt", "/troupe/actors/..%2F..%2Fetc%2Fpasswd.webp", "/troupe/actors/%E0%A4%A.webp"]) {
       expect(serve(url), url).toEqual({ next: true });
     }
+  });
+});
+
+describe("landing page", () => {
+  // A landing page and another page, built the way the site builds them.
+  async function site(html: string) {
+    // The real path: Vite names pages from it (macOS's tmpdir is a symlink).
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "troupe-landing-")));
+    dirs.push(root);
+    writeFileSync(join(root, "index.html"), html);
+    mkdirSync(join(root, "app"));
+    writeFileSync(join(root, "app", "index.html"), "<!doctype html><html><head><title>%SITE_URL%</title></head><body><!--troupe:cast--></body></html>");
+    const outDir = join(root, "dist");
+    await build({
+      root,
+      base: "/troupe/",
+      configFile: false,
+      logLevel: "silent",
+      plugins: [
+        landingPage({
+          base: "/troupe/",
+          siteUrl: "https://example.org/troupe/",
+          repoUrl: "https://git.example.org/me/troupe",
+          cast: [
+            { slug: "lea-01", name: "Léa" },
+            { slug: "sam-13", name: "Sam & <co>" },
+          ],
+        }),
+      ],
+      build: { outDir, rollupOptions: { input: { landing: join(root, "index.html"), app: join(root, "app", "index.html") } } },
+    });
+    return { landing: readFileSync(join(outDir, "index.html"), "utf8"), app: readFileSync(join(outDir, "app", "index.html"), "utf8") };
+  }
+
+  it("fills in the site's address and the repository's, on the landing page only", async () => {
+    const { landing, app } = await site(
+      '<!doctype html><html><head><meta property="og:image" content="%SITE_URL%social.png" /><link rel="canonical" href="%SITE_URL%" /></head><body><a href="%REPO_URL%/blob/main/docs/SELF-HOSTING.md">Guide</a><a href="%BASE%app/">App</a></body></html>',
+    );
+    expect(landing).toContain('<meta property="og:image" content="https://example.org/troupe/social.png" />');
+    expect(landing).toContain('<link rel="canonical" href="https://example.org/troupe/" />');
+    expect(landing).toContain('href="https://git.example.org/me/troupe/blob/main/docs/SELF-HOSTING.md"');
+    expect(landing).toContain('href="/troupe/app/"');
+    expect(app).toContain("<title>%SITE_URL%</title>");
+  });
+
+  it("lists the cast from the catalog, with the pictures the site serves", async () => {
+    const { landing, app } = await site("<!doctype html><html><head></head><body><ul><!--troupe:cast--></ul></body></html>");
+    expect(landing).toContain('<img src="/troupe/actors/lea-01/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />');
+    expect(landing).toContain("<span>Léa</span>");
+    // Names are text, never markup.
+    expect(landing).toContain("<span>Sam &amp; &lt;co&gt;</span>");
+    expect(landing.match(/<li>/g)).toHaveLength(2);
+    expect(app).toContain("<!--troupe:cast-->");
+  });
+});
+
+describe("landing page settings", () => {
+  it("defaults to the project's own addresses", () => {
+    expect(parseLandingConfig({})).toEqual({ siteUrl: "https://maxgfr.github.io/troupe/", repoUrl: "https://github.com/maxgfr/troupe" });
+  });
+
+  it("takes a fork's addresses, normalised", () => {
+    expect(parseLandingConfig({ VITE_SITE_URL: "https://me.github.io/studio", VITE_REPO_URL: "https://github.com/me/studio/" })).toEqual({
+      siteUrl: "https://me.github.io/studio/",
+      repoUrl: "https://github.com/me/studio",
+    });
+  });
+
+  it("refuses an address that is not an absolute http(s) URL", () => {
+    expect(() => parseLandingConfig({ VITE_SITE_URL: "/troupe/" })).toThrow(/VITE_SITE_URL/);
+    expect(() => parseLandingConfig({ VITE_REPO_URL: "javascript:alert(1)" })).toThrow(/VITE_REPO_URL/);
   });
 });

@@ -10,12 +10,14 @@ import { pruneUnreferencedMedia } from "./data/local-data";
 import { registerMediaWorker } from "./media";
 import { failInterruptedRenders } from "./render/runner";
 import { router } from "./routes";
-import { keepRecordedRenders } from "./trpc";
+import { createBrowserContext, keepRecordedRenders } from "./trpc";
 
 registerMediaWorker();
 failInterruptedRenders();
 void keepRecordedRenders();
 void pruneUnreferencedMedia();
+// Analyses left waiting (or cut short by a closed tab) resume.
+void createBrowserContext().then((ctx) => ctx.library?.schedule(), () => {});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

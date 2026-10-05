@@ -29,3 +29,4 @@ export * from "./model";
 export { IDEA_KINDS, languageName, cleanTags } from "./prompts";
 export type { IdeaKind } from "./prompts";
 export { formatTimestamp, chunkText, chunkTranscript, cosine, rankByCosine, keywordScore, hookFromText, hookFromTranscript, pacingOf, styleProfile, keywordTags } from "./text";
+export { frameTimes, cutsFromDifferences } from "./frames";

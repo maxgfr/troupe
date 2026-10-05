@@ -150,7 +150,7 @@ const ACCOUNTS = [
 
 const doctor: Command = {
   path: ["doctor"],
-  summary: "Check the studio, the sign-in, the video models (local ones are contacted), the job worker and the script chat; --providers checks each API key for free, --live renders for real.",
+  summary: "Check the studio, the sign-in, the video models (local ones are contacted), the job worker, the script chat and the library's tools (transcription, vision, search, yt-dlp); --providers checks each API key for free, --live renders for real.",
   options: {
     "skip-tests": { type: "boolean", description: "Do not contact local models or the chat provider; only read their status." },
     providers: { type: "boolean", description: "Check each provider account's key with a free call (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model)." },
@@ -258,6 +258,14 @@ const doctor: Command = {
       }
     } catch (error) {
       add("chat", "warn", explainError(error, ctx.url).message);
+    }
+
+    // The inspiration library's tools: optional, so a missing one warns.
+    try {
+      const library = await ctx.api.library.status.query();
+      for (const tool of library.tools) add(`library ${tool.name}`, tool.ready ? "ok" : "warn", `${tool.label}${tool.model ? ` (${tool.model})` : ""}: ${tool.detail}`);
+    } catch (error) {
+      add("library", "warn", explainError(error, ctx.url).message);
     }
 
     if (live) {

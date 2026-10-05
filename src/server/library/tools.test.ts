@@ -11,7 +11,8 @@ import { mediaFilePath } from "~/server/media/storage";
 import { libraryEnvironment } from "./config";
 import { fetchSource } from "./fetch";
 import { receiveUpload } from "./files";
-import { cutTimes, frameTimes, serverMediaReader } from "./media";
+import { frameTimes, cutsFromDifferences } from "~/modules/library";
+import { cutTimes, serverMediaReader } from "./media";
 import { embeddingPrefixes, ollamaEmbedder, ollamaVision, pulledModels } from "./ollama";
 import { rendererTranscriber, transcriberHealth } from "./transcribe";
 
@@ -136,6 +137,7 @@ describe("frame times", () => {
     expect(frameTimes([0.4, 2, 5], 10, 12)).toEqual([0.5, 2.2, 5.2]);
     expect(frameTimes([], 20, 12)).toEqual([0.5, 5, 10, 15]);
     expect(frameTimes(Array.from({ length: 50 }, (_, i) => i + 1), 60, 4)).toHaveLength(4);
+    expect(cutsFromDifferences([0.01, 0.4, 0.02, 0.3], 0.5)).toEqual([1, 2]);
   });
 });
 

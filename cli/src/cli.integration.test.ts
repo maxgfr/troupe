@@ -16,6 +16,7 @@ vi.mock("~/server/db", async () => {
 import type { NextRequest } from "next/server";
 import { POST as accessPost } from "~/app/api/access/route";
 import { GET as healthGet } from "~/app/api/health/route";
+import { POST as libraryUploadPost } from "~/app/api/library/upload/route";
 import { GET as mediaGet } from "~/app/api/media/[assetId]/route";
 import { POST as trpcPost, GET as trpcGet } from "~/app/api/trpc/[trpc]/route";
 import { json, startServer } from "~/test/local-server";
@@ -57,6 +58,7 @@ async function startStudio(): Promise<{ url: string; server: Server }> {
       if (path === "/api/access" && request.method === "POST") return reply(res, await accessPost(request));
       if (path.startsWith("/api/trpc/")) return reply(res, await (request.method === "GET" ? trpcGet : trpcPost)(request as NextRequest));
       if (media) return reply(res, await mediaGet(request, { params: Promise.resolve({ assetId: media[1]! }) }));
+      if (path === "/api/library/upload" && request.method === "POST") return reply(res, await libraryUploadPost(request));
       res.statusCode = 404;
       res.end("not found");
     })().catch((error: unknown) => {
@@ -101,16 +103,35 @@ beforeAll(async () => {
     }
     json(res, 404, {});
   });
-  // Ollama, answering every request with the same shorter script.
+  // Ollama, answering each request in the shape its schema asks for: the
+  // same shorter script, the library's analysis, answers and ideas, and
+  // bag-of-words embeddings.
   ollama = await startServer((r, res) => {
-    if (r.path === "/api/tags") return json(res, 200, { models: [{ name: "qwen3:4b" }] });
+    if (r.path === "/api/tags") return json(res, 200, { models: [{ name: "qwen3:4b" }, { name: "all-minilm:latest" }] });
+    if (r.path === "/api/embed") {
+      const input = (JSON.parse(r.body) as { input: string[] }).input;
+      return json(res, 200, { embeddings: input.map((t) => ["coffee", "jacket", "hook", "pocket", "follow"].map((w) => (t.toLowerCase().includes(w) ? 1 : 0.01))) });
+    }
     if (r.path === "/api/chat") {
-      const proposal = { summary: "A shorter hook.", lines: [{ role: "hook", text: "Stop scrolling.", emotion: "excited" }, { role: "cta", text: "Follow for more.", emotion: "calm" }], actor: null };
-      return json(res, 200, { message: { role: "assistant", content: JSON.stringify(proposal) } });
+      const required = ((JSON.parse(r.body) as { format?: { required?: string[] } }).format?.required ?? []).join(",");
+      const answer = required.includes("hook_why")
+        ? { summary: "A packable jacket, shown in one move.", hook_why: "It dares the viewer to keep scrolling.", structure: [{ part: "hook", start_s: 0, summary: "The dare" }], tone: ["direct"], tags: ["jacket", "travel"] }
+        : required.includes("answer")
+          ? { answer: "It opens on a dare about the pocket [1].", sources: [1] }
+          : required.includes("ideas")
+            ? { ideas: [{ title: "Pocket test", hook: "Can your jacket do this?", lines: [{ role: "hook", text: "Can your jacket do this?", emotion: "excited" }, { role: "cta", text: "Follow for the next test.", emotion: "happy" }] }] }
+            : { summary: "A shorter hook.", lines: [{ role: "hook", text: "Stop scrolling.", emotion: "excited" }, { role: "cta", text: "Follow for more.", emotion: "calm" }], actor: null };
+      return json(res, 200, { message: { role: "assistant", content: JSON.stringify(answer) } });
     }
     json(res, 404, {});
   });
   vi.stubEnv("OLLAMA_URL", ollama.url);
+  // The library: embeddings on the fake Ollama, no vision, transcription or
+  // yt-dlp here (each a warning in doctor, the same on every machine).
+  vi.stubEnv("TROUPE_LIBRARY_EMBED_MODEL", "all-minilm");
+  vi.stubEnv("TROUPE_LIBRARY_VISION_MODEL", "off");
+  vi.stubEnv("TROUPE_TRANSCRIBE_URL", "");
+  vi.stubEnv("TROUPE_YTDLP_PATH", join(tmpdir(), "no-yt-dlp-here"));
   studio = await startStudio();
 });
 
@@ -176,6 +197,7 @@ describe("troupe CLI against the studio's HTTP API", () => {
     const doctor = await troupe(["doctor", "--json"]);
     expect(doctor.data().checks.map((c: { name: string; status: string }) => [c.name, c.status])).toEqual([
       ["studio", "ok"], ["sign-in", "ok"], ["models", "ok"], [`model ${modelKey}`, "ok"], ["worker", "warn"], ["chat", "ok"],
+      ["library transcription", "warn"], ["library vision", "warn"], ["library embeddings", "ok"], ["library writer", "ok"], ["library links", "ok"], ["library video-links", "warn"],
     ]);
     expect(doctor.code).toBe(0);
 
@@ -261,5 +283,46 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(results).toEqual([expect.objectContaining({ label: "Test renderer", status: "completed", file: join(folder, "live", `${results[0].modelKey}.mp4`), probe: expect.objectContaining({ codec: "h264" }) })]);
     expect(await readFile(results[0].file)).toEqual(clip);
     expect(chat).toEqual({ ok: true, detail: "ollama (qwen3:4b) proposed a script." });
+  });
+
+  it("saves text and a video to the library, searches it, asks it and turns an idea into a project", async () => {
+    const signed = { env: { TROUPE_ACCESS_CODE: CODE } };
+    const text = await troupe(["library", "add", "-", "--mine", "--wait", "--json"], { ...signed, stdin: "This jacket packs into its own pocket.\nFollow for the next test." });
+    expect(text.code).toBe(0);
+    expect(text.data()).toMatchObject({ kind: "text", mine: true, status: "ready", tags: ["jacket", "travel"], analysis: { hook: { text: "This jacket packs into its own pocket." } } });
+
+    await writeFile(join(folder, "pocket.mp4"), clip);
+    const video = await troupe(["library", "add", "pocket.mp4", "--title", "Pocket clip", "--wait", "--json"], signed);
+    expect(video.code).toBe(0);
+    expect(video.data()).toMatchObject({ kind: "video", title: "Pocket clip", fileName: "pocket.mp4", status: "ready" });
+    // ffmpeg took its opening picture; no transcription here, which it says.
+    expect(video.data().analysis.frames.length).toBeGreaterThan(0);
+    expect(video.data().problem).toContain("Skipped: the transcript.");
+    // An HTML page is not a file the library takes.
+    await writeFile(join(folder, "page.html"), "<html><script>alert(1)</script></html>");
+    const refused = await troupe(["library", "add", "page.html", "--json"], signed);
+    expect(refused.code).toBe(1);
+    expect(JSON.parse(refused.stderr).error.message).toContain("not one the library reads");
+
+    const listed = (await troupe(["library", "list", "--json"], signed)).data();
+    expect(listed.map((i: { title: string }) => i.title)).toEqual(["Pocket clip", "This jacket packs into its own pocket."]);
+    expect((await troupe(["library", "show", "pocket clip"], signed)).stdout).toMatch(/Kind:\s+video/);
+
+    const found = (await troupe(["library", "search", "jacket", "pocket", "--json"], signed)).data();
+    expect(found.mode).toBe("semantic");
+    expect(found.hits[0].itemId).toBe(text.data().id);
+
+    const answered = await troupe(["library", "chat", "--item", text.data().id.slice(0, 8), "how", "does", "it", "open?"], signed);
+    expect(answered.stdout).toContain("It opens on a dare about the pocket [1].");
+    expect(answered.stdout).toMatch(/\[1\] This jacket packs into its own pocket\. \(troupe library show [0-9a-f]{8}\)/);
+
+    const written = await troupe(["library", "ideas", "generate", "--item", text.data().id, "--json"], signed);
+    expect(written.code).toBe(0);
+    expect(written.data()).toEqual([expect.objectContaining({ title: "Pocket test", kind: "ideas", lines: [expect.objectContaining({ role: "hook" }), expect.objectContaining({ role: "cta" })] })]);
+    const made = await troupe(["library", "ideas", "project", "pocket test", "--platform", "instagram", "--json"], signed);
+    expect(made.data()).toMatchObject({ created: true });
+    const script = (await troupe(["script", "show", "--project", made.data().projectId, "--json"], signed)).data();
+    expect(script).toMatchObject({ version: 1, origin: "chat" });
+    expect((await troupe(["library", "ideas"], signed)).stdout).toContain(`(project ${made.data().projectId.slice(0, 8)})`);
   });
 });

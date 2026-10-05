@@ -4,11 +4,16 @@
 
 const DB_NAME = "troupe-media";
 const STORE = "files";
-// The only types served as themselves (keep in step with MEDIA_TYPES in
+// The only types served as themselves: renders and the library's videos,
+// sound and pictures (keep in step with MEDIA_TYPES in
 // site/src/data/backup.ts; site/src/media-worker.test.ts checks). Anything
 // else is a download: a file served inline from the studio's own origin as
 // HTML or SVG would run as one of its pages.
+// Renders, named with mediaDisposition's copy below.
 const PLAYABLE = new Set(["video/mp4", "video/webm"]);
+const INLINE = new Set(["video/mp4", "video/webm", "video/quicktime", "audio/mp4", "audio/mpeg", "audio/aac", "audio/wav", "audio/ogg", "audio/flac", "image/png", "image/jpeg", "image/gif", "image/webp"]);
+// Kept, but always a download.
+const DOWNLOAD_ONLY = new Set(["application/pdf"]);
 
 // Service worker globals are not in the DOM typings the repo checks against.
 /** @type {any} */
@@ -62,13 +67,20 @@ async function serve(id, range, download) {
   const size = blob.size;
   const stored = blob.type || "video/mp4";
   const playable = PLAYABLE.has(stored);
-  const type = playable ? stored : "application/octet-stream";
+  const inline = INLINE.has(stored);
+  const type = inline || DOWNLOAD_ONLY.has(stored) ? stored : "application/octet-stream";
+  const library = `troupe-library.${stored.split("/")[1]?.replace(/[^a-z0-9]/g, "") || "bin"}`;
   const headers = new Headers({
     "content-type": type,
     "accept-ranges": "bytes",
     "cache-control": "private, no-store",
     "x-content-type-options": "nosniff",
-    "content-disposition": playable ? disposition(download, type === "video/webm" ? "webm" : "mp4") : 'attachment; filename="troupe-file.bin"',
+    "content-security-policy": "default-src 'none'; sandbox",
+    "content-disposition": playable
+      ? disposition(download, type === "video/webm" ? "webm" : "mp4")
+      : inline && download === null
+        ? `inline; filename="${library}"`
+        : `attachment; filename="${stored === "application/pdf" ? "troupe-library.pdf" : inline ? library : "troupe-file.bin"}"`,
   });
   let start = 0;
   let end = size - 1;

@@ -7,6 +7,7 @@ import { defineConfig, loadEnv, type UserConfig } from "vite";
 import { THEME_SCRIPT } from "../src/app/theme-script";
 import { ACTOR_CATALOG } from "../src/modules/actors/server/catalog";
 import { parseChatConfig } from "./src/chat/config";
+import { parseLibraryConfig } from "./src/library/config";
 import { parseRenderConfig } from "./src/render/config";
 import { actorPictures, headScript, landingPage, pagesFallback, parseBasePath, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
 
@@ -46,6 +47,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // check the build's model id.
   const { prebuiltAppConfig } = await import("@mlc-ai/web-llm");
   const chatConfig = parseChatConfig(env, prebuiltAppConfig.model_list.map((m) => m.model_id));
+  const libraryConfig = parseLibraryConfig(env);
   // The actors' pictures: the cast checked in for the self-hosted app, or
   // another folder laid out the same way (<slug>/v1/front.webp, …).
   const portraitsDir = resolve(REPO, env.VITE_PORTRAITS_DIR || "public/actors");
@@ -55,7 +57,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     root: SITE,
     base: BASE,
     appType: "mpa",
-    define: { __CHAT_CONFIG__: JSON.stringify(chatConfig) },
+    define: { __CHAT_CONFIG__: JSON.stringify(chatConfig), __LIBRARY_CONFIG__: JSON.stringify(libraryConfig) },
     publicDir: resolve(SITE, "public"),
     resolve: {
       alias: [

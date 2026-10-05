@@ -4,6 +4,8 @@ import { createBrowserRouter, Navigate, Outlet, useParams } from "react-router";
 import ActorsPage from "~/app/(app)/actors/page";
 import BenchmarkPage from "~/app/(app)/benchmark/page";
 import DashboardPage from "~/app/(app)/dashboard/page";
+import LibraryItemPage from "~/app/(app)/library/[itemId]/page";
+import LibraryPage from "~/app/(app)/library/page";
 import ProjectExportPage from "~/app/(app)/projects/[projectId]/export/page";
 import ProjectMonitorPage from "~/app/(app)/projects/[projectId]/page";
 import ProjectScriptPage from "~/app/(app)/projects/[projectId]/script/page";
@@ -34,6 +36,12 @@ const ProjectMonitor = withProjectParams(ProjectMonitorPage);
 const ProjectScript = withProjectParams(ProjectScriptPage);
 const ProjectExport = withProjectParams(ProjectExportPage);
 
+function LibraryItemRoute() {
+  const itemId = useParams().itemId ?? "";
+  const params = useMemo(() => settled({ itemId }), [itemId]);
+  return <LibraryItemPage key={itemId} params={params} />;
+}
+
 export const router = createBrowserRouter(
   [
     {
@@ -45,6 +53,8 @@ export const router = createBrowserRouter(
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: "dashboard", element: <DashboardPage /> },
+        { path: "library", element: <LibraryPage /> },
+        { path: "library/:itemId", element: <LibraryItemRoute /> },
         { path: "actors", element: <ActorsPage /> },
         { path: "benchmark", element: <BenchmarkPage /> },
         { path: "settings", element: <SettingsPage /> },

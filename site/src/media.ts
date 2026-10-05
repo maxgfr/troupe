@@ -1,8 +1,8 @@
 import type { MediaStore, StoredFile } from "~/server/media/store";
 import { actorPictureUrl } from "~/modules/actors/pictures";
 
-// Renders made in the browser edition live in IndexedDB, one record per
-// media asset: { id: asset id, storagePath, blob }. The service worker
+// Renders made in the browser edition, and the library's files, live in
+// IndexedDB, one record per media asset: { id: asset id, storagePath, blob }. The service worker
 // (public/sw.js) serves them at /troupe/app/media/<id>, with byte ranges for
 // seeking.
 // Keep DB_NAME and STORE in step with public/sw.js.
@@ -42,6 +42,20 @@ async function write(run: (store: IDBObjectStore) => void): Promise<void> {
 
 export function saveMediaFile(file: MediaFile): Promise<void> {
   return write((store) => store.put(file));
+}
+
+// One stored file, or undefined.
+export async function readMediaFile(id: string): Promise<MediaFile | undefined> {
+  const db = await open();
+  try {
+    return await new Promise<MediaFile | undefined>((resolve, reject) => {
+      const request = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+      request.onsuccess = () => resolve(request.result as MediaFile | undefined);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
 }
 
 export function clearMediaFiles(): Promise<void> {

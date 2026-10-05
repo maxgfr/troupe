@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { mediaAssets } from "~/modules/generation";
-import type { MediaReader } from "~/modules/library";
+import { frameTimes, type MediaReader } from "~/modules/library";
 import { ffprobePath, mediaFilePath } from "~/server/media/storage";
 import { libraryPath } from "./files";
 
@@ -42,20 +42,6 @@ const SCENE = 0.3;
 
 export function cutTimes(log: string): number[] {
   return [...log.matchAll(/pts_time:\s*([\d.]+)/g)].map((m) => Number(m[1])).filter((t) => Number.isFinite(t));
-}
-
-export function frameTimes(cuts: readonly number[], durationS: number | null, max: number): number[] {
-  const opening = durationS && durationS < 1 ? durationS / 2 : 0.5;
-  const after = cuts.filter((t) => t > opening + 0.5).map((t) => t + 0.2);
-  // Spread over the cuts when there are more than room for.
-  const room = Math.max(0, max - 1);
-  const chosen = after.length <= room ? after : Array.from({ length: room }, (_, i) => after[Math.round((i * (after.length - 1)) / Math.max(1, room - 1))]!);
-  // A video without cuts still gets a few pictures across its length.
-  if (chosen.length === 0 && durationS && durationS > 4 && room > 0) {
-    const n = Math.min(room, 3);
-    for (let i = 1; i <= n; i++) chosen.push(Math.round(((durationS * i) / (n + 1)) * 10) / 10);
-  }
-  return [opening, ...chosen].map((t) => Math.round(t * 100) / 100);
 }
 
 export function serverMediaReader(db: Db, settings: { ffmpegPath: string; timeoutMs?: number }): MediaReader {

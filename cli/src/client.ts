@@ -84,6 +84,22 @@ export async function fetchMedia(connection: Connection, path: string): Promise<
   throw new CliError(`Too many redirects while downloading ${path}.`);
 }
 
+// POST /api/library/upload: a file as the request body, answered with the
+// new item (src/app/api/library/upload/route.ts).
+export async function uploadToLibrary(connection: Connection, file: Blob, query: { name: string; workspaceId: string; mine: boolean; title?: string }): Promise<{ id: string; title: string }> {
+  const params = new URLSearchParams({ name: query.name, workspaceId: query.workspaceId, mine: query.mine ? "1" : "0", ...(query.title ? { title: query.title } : {}) });
+  const response = await fetch(`${connection.url}/api/library/upload?${params}`, {
+    method: "POST",
+    headers: { ...(await authHeaders(connection)), "content-type": "application/octet-stream" },
+    body: file,
+    redirect: "manual",
+  });
+  const body = (await response.json().catch(() => null)) as { item?: { id: string; title: string }; error?: string } | null;
+  if (response.ok && body?.item) return body.item;
+  const auth = response.status === 401 || response.status === 403;
+  throw new CliError(body?.error ?? `The studio refused the upload (HTTP ${response.status}).`, { exitCode: auth ? EXIT.auth : EXIT.failed, code: auth ? "UNAUTHORIZED" : response.status === 413 ? "TOO_LARGE" : "UPLOAD_FAILED" });
+}
+
 const NETWORK_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_SOCKET"]);
 
 // fetch() fails with TypeError("fetch failed") and the reason in `cause`.

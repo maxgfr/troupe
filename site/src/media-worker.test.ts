@@ -25,9 +25,15 @@ describe("the media service worker", () => {
     }
   });
 
-  it("plays the same types the backups accept", () => {
-    const playable = /^const PLAYABLE = new Set\((\[[^\]]*\])\);$/m.exec(worker);
-    expect(playable).not.toBeNull();
-    expect(JSON.parse(playable![1]!)).toEqual([...MEDIA_TYPES]);
+  const types = (name: string): string[] => {
+    const found = new RegExp(`^const ${name} = new Set\\((\\[[^\\]]*\\])\\);$`, "m").exec(worker);
+    if (!found) throw new Error(`sw.js has no ${name}.`);
+    return JSON.parse(found[1]!);
+  };
+
+  it("serves inline, or as a download, exactly the types the backups accept", () => {
+    expect([...types("INLINE"), ...types("DOWNLOAD_ONLY")].sort()).toEqual([...MEDIA_TYPES].sort());
+    for (const type of types("PLAYABLE")) expect(types("INLINE")).toContain(type);
+    for (const type of [...types("INLINE"), ...types("DOWNLOAD_ONLY")]) expect(type).not.toMatch(/html|svg|xml|javascript/);
   });
 });

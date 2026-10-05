@@ -17,10 +17,26 @@ import { readTar, writeTar } from "./tar";
 export const BACKUP_FORMAT = "troupe-backup";
 export const BACKUP_VERSION = 1;
 const MANIFEST = "troupe-backup.json";
-// What the studio stores (renders are MP4, src/modules/generation): the
-// media service worker serves these inline from the studio's own origin, so
-// nothing else may come in, an HTML or SVG file least of all.
-export const MEDIA_TYPES: readonly string[] = ["video/mp4", "video/webm"];
+// What the studio stores: renders (MP4, src/modules/generation) and the
+// library's files (src/server/library/sniff.ts names them by their bytes).
+// The media service worker serves the playable ones inline from the studio's
+// own origin, so nothing else may come in, an HTML or SVG file least of all.
+export const MEDIA_TYPES: readonly string[] = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/aac",
+  "audio/wav",
+  "audio/ogg",
+  "audio/flac",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+];
 // Asset ids are UUIDs; they also name the archive entries.
 const MEDIA_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const mediaPath = (id: string) => `media/${id}`;
@@ -146,7 +162,8 @@ export function summarize(backup: Backup): BackupSummary {
   return {
     createdAt: backup.createdAt,
     projects: backup.database.tables.troupe_project?.length ?? 0,
-    videos: backup.media.length,
+    // Renders: the library's files are counted with the database's rows.
+    videos: backup.media.filter((file) => !file.storagePath.startsWith("library/")).length,
     bytes: backup.media.reduce((total, file) => total + file.blob.size, 0),
   };
 }

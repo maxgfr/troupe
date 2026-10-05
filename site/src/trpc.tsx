@@ -12,6 +12,7 @@ import { api } from "~/trpc/react";
 import { forgetBrowserCatalog, loadBrowserCatalog } from "./catalog";
 import { holdResultsUntil } from "./hold-results-link";
 import { createBrowserChat } from "./chat/backend";
+import { createBrowserLibrary } from "./library/backend";
 import { browserDatabase, rebuildGeneration, rebuildsDone } from "./db/client";
 import { browserMedia } from "./media";
 import { rerunQueriesCaughtByRebuild } from "./rebuild-link";
@@ -19,9 +20,10 @@ import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 
 // The studio's own router, called in the page instead of over HTTP: every
 // procedure runs against the PGlite database in this browser.
-async function createContext() {
+export async function createBrowserContext() {
   const { db } = await browserDatabase();
-  return createTRPCContext({ headers: new Headers(), db, media: browserMedia, userId: LOCAL_USER_ID, catalog: await loadBrowserCatalog(db), ingest: ingestBrowserRender, chat: createBrowserChat(db) });
+  const chat = createBrowserChat(db);
+  return createTRPCContext({ headers: new Headers(), db, media: browserMedia, userId: LOCAL_USER_ID, catalog: await loadBrowserCatalog(db), ingest: ingestBrowserRender, chat, library: createBrowserLibrary(db, chat) });
 }
 
 // The catalog is read once and kept (site/src/catalog.ts); a mutation may
@@ -68,7 +70,7 @@ export function BrowserTRPCProvider({ children }: { children: React.ReactNode })
         forgetCatalogOnMutation,
         keepRendersBeforeResults,
         rerunQueriesCaughtByRebuild<AppRouter>({ generation: rebuildGeneration, rebuilt: rebuildsDone }),
-        unstable_localLink({ router: appRouter, createContext, transformer: SuperJSON }),
+        unstable_localLink({ router: appRouter, createContext: createBrowserContext, transformer: SuperJSON }),
       ],
     }),
   );

@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { watchConsole } from "./page-checks";
@@ -13,7 +14,9 @@ import { watchConsole } from "./page-checks";
 // Local only: it needs WebGPU (headed Chrome on a machine with a GPU; CI
 // runners have none) and downloads the chat model (about 880 MB) into the
 // browser profile once. The profile is the render test's (RENDER_PROFILE,
-// default in the OS temp folder), so the voice model is shared too.
+// default in the OS temp folder), so the voice model is shared too. The
+// library's test below reuses the same model for its analysis, its chat and
+// its ideas.
 
 const APP = "/troupe/app";
 const PROFILE = process.env.RENDER_PROFILE ?? join(tmpdir(), "troupe-render-test-profile");
@@ -98,5 +101,32 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
   await expect(proposals()).toHaveCount(2);
   await page.goto(`${projectUrl}/script`);
   await expect(page.getByText(/version 3 · from the chat/)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("reads a video into the library, answers about it with citations, and writes ideas that become a project", async () => {
+  test.setTimeout(25 * 60_000);
+  await page.goto(`${APP}/library`);
+  await page.locator('input[type="file"]').setInputFiles(fileURLToPath(new URL("fixtures/library-clip.mp4", import.meta.url)));
+  const row = page.locator("table").getByRole("row", { name: /library clip/i }).first();
+  await expect(row.getByText("ready")).toBeVisible({ timeout: 15 * 60_000 });
+  await row.getByRole("link", { name: /library clip/i }).click();
+  // The in-browser model wrote the structure and the tags.
+  await expect(page.getByRole("heading", { name: "Structure" })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("library-item.png"), fullPage: true });
+
+  const ask = page.getByRole("complementary", { name: "Ask about this item" });
+  await ask.getByLabel("Ask about this item").fill("Why does this hook work?");
+  await ask.getByRole("button", { name: "Ask" }).click();
+  await expect(ask.getByText(/is reading your library/)).toBeHidden({ timeout: 10 * 60_000 });
+  await expect(ask.getByRole("alert")).toHaveCount(0);
+  await expect(ask.getByRole("list", { name: "Sources" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "5 ideas in this style" }).click();
+  await expect(page.getByRole("button", { name: "Create project" }).first()).toBeVisible({ timeout: 10 * 60_000 });
+  await page.getByRole("button", { name: "Create project" }).first().click();
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
+  await page.goto(`${page.url()}/script`);
+  await expect(page.getByText(/version 1 · from the chat/)).toBeVisible();
   expect(errors).toEqual([]);
 });

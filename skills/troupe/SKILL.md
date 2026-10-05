@@ -10,10 +10,14 @@ platform and format, a versioned script (one spoken line each, an emotion per
 line), and renders made by a video model. You drive it with the `troupe` CLI,
 which calls the studio's own API.
 
-Run every command with `--json` and read stdout; errors arrive as
-`{"error":{"code","message","exitCode"}}` on stderr. Ids accept their first 8
-characters; projects, actors and models also accept their title or name.
-`troupe <command> --help` is the reference for options.
+Run every command with `--json` and read stdout. A refusal arrives on
+stderr as `{"error":{"code","message","exitCode"}}`: the `message` says what
+to change, and the `code` names the case (`SCRIPT_TOO_LONG`,
+`MODEL_UNAVAILABLE`, `FILE_EXISTS`, `NOT_FOUND`, the studio's `BAD_REQUEST`).
+A failed render is different: exit 1 with the render on stdout, its
+`errorDetail` saying why. Ids accept their first 8 characters; projects,
+actors and models also accept their title or name. `troupe <command> --help`
+is the reference for options.
 
 ## Guardrails
 
@@ -21,7 +25,8 @@ characters; projects, actors and models also accept their title or name.
   never go in a message, a command line or your output. When `troupe login`
   or `troupe keys set` needs one, ask the user to run that command in their
   own terminal (it prompts without echoing), or to pipe it from a file they
-  made: `troupe keys set fal --key-stdin < fal.key`.
+  made: `troupe keys set fal --key-stdin < fal.key`. Leave
+  `~/.config/troupe/config.json` unread: it holds the studio's cookie.
 - **`--confirm-watched` is the user's statement.** It records that a person
   watched the video and found it ready to publish. Pass it only after the
   user says so in this conversation.
@@ -29,12 +34,20 @@ characters; projects, actors and models also accept their title or name.
   `troupe models list --json`) bill the user's account. Before launching on
   one, state the cost (`pricePerSecondUsd` × clip seconds, or "not set in
   Settings" when it is null) and wait for a yes. Local models cost nothing.
+- **One launch per render.** A launched render keeps running in the studio
+  whatever happens to your command. Give every `--watch` and `render watch`
+  `--timeout 500` and a Bash timeout of 600000 ms. After a command that was
+  cut off or ended with exit 5, run `troupe render list --json` before any
+  launch: a `queued` or `in_progress` render is still yours, and
+  `troupe render watch <id> --timeout 500` picks it up again.
 - **Deleting is the user's call.** `troupe projects delete` only when asked.
 
 ## The loop
 
-1. **Check.** `command -v troupe`; if missing, in a Troupe checkout run
-   `pnpm install && pnpm --filter troupe-cli build && npm install -g ./cli`.
+1. **Check.** `command -v troupe`. If it is missing and you are in a Troupe
+   checkout, ask the user before installing anything, then run
+   `pnpm install && pnpm --filter troupe-cli build && npm install -g ./cli`
+   (or, without installing, use `node cli/dist/troupe.mjs` in its place).
    Then `troupe doctor --json`. Done when every check is `ok` or `warn`;
    for each `fail`, apply the fix below or tell the user what blocks you.
 
@@ -75,24 +88,29 @@ characters; projects, actors and models also accept their title or name.
    --json` saves a version; done when its `estimatedDurationS` fits the clip.
    To use the studio's chat instead: `troupe chat send "<request>" --json`,
    read `proposal.lines`, then `troupe chat apply <id>` (or
-   `chat apply-and-launch <id> --watch`).
+   `chat apply-and-launch <id> --watch --timeout 500`).
 
-5. **Render.** `troupe render launch --duration <seconds> --watch --json`,
-   with the brief's length if the model offers it (without `--duration`
-   the CLI takes the model's default, or the shortest length that fits the
-   script). Exit 0 is
-   `completed`; exit 1 is `failed`: read `errorDetail`, fix the cause
-   (`troupe models test <model>`), then `troupe render relaunch <id>
-   --watch`. Exit 5 means still running: `troupe render watch <id>`.
+5. **Render.** `troupe render launch --duration <seconds> --watch
+   --timeout 500 --json`, with the brief's length if the model offers it
+   (without `--duration` the CLI takes the model's default, or the shortest
+   length that fits the script). Exit 0 is `completed`. Exit 1 with a render
+   on stdout is `failed`: read `errorDetail`, fix the cause (`troupe models
+   test <model>`), then `troupe render relaunch <id> --watch --timeout 500`.
+   Exit 1 with an error on stderr is a refusal: nothing was launched; act
+   on its `message`. Exit 5: still running, so watch it again; never
+   relaunch it.
 
 6. **Review.** Watch it the way you can: `troupe download <id> -o
-   review/ --json` prints the file's `path`. Put it in `video` (in zsh,
-   `path` is your PATH) and run
+   review/ --json` prints the file's `path`. Then, in one command (the
+   variable is `video`, since zsh ties `path` to PATH):
 
    ```bash
+   video='review/<file>.mp4'   # the "path" printed by troupe download
    ffprobe -v error -show_entries stream=codec_type,codec_name,width,height:format=duration -of json "$video"
    d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$video")
-   for f in 0.1 0.5 0.9; do t=$(LC_ALL=C awk "BEGIN{print $d*$f}"); ffmpeg -v error -y -ss "$t" -i "$video" -frames:v 1 "review/frame-$f.png"; done
+   case "$d" in ''|N/A) echo "no duration: the file is damaged, download it again" ;;
+     *) for f in 0.1 0.5 0.9; do t=$(LC_ALL=C awk "BEGIN{print $d*$f}"); ffmpeg -v error -y -ss "$t" -i "$video" -frames:v 1 "review/frame-$f.png"; done ;;
+   esac
    ```
 
    Open the three frames and look at them. Done when you have checked: a video
@@ -116,8 +134,8 @@ characters; projects, actors and models also accept their title or name.
 
 | Code | Meaning | Next |
 |---|---|---|
-| 1 | Refused or failed | Read `message`; it names the cause. |
+| 1 | Refused (stderr) or render failed (stdout) | Act on `message` or `errorDetail`. |
 | 2 | Usage | Check `troupe <command> --help`. |
 | 3 | Not signed in | The user runs `troupe login`. |
 | 4 | Studio unreachable | Ask whether the studio runs, and where. |
-| 5 | Timed out | Keep watching with `troupe render watch`. |
+| 5 | Render still running | `troupe render watch <id> --timeout 500`; never relaunch. |

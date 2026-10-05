@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "troupe",
-      "source": "./",
+      "source": "./skills/troupe",
       "description": "Make short videos with a self-hosted Troupe studio: check the setup, cast, script, render, review and export through the troupe CLI.",
       "category": "media"
     }

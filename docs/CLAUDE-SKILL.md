@@ -6,8 +6,11 @@ script (or ask the studio's script chat), render, review the video, iterate
 and export. Ask in plain words ("make a 10-second TikTok announcing our
 Sunday opening hours with Troupe") and Claude takes it from there.
 
-The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md). This
-repository is also a Claude Code plugin marketplace that ships it.
+The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md). That
+folder is also the plugin (`skills/troupe/.claude-plugin/plugin.json`), and
+this repository is a Claude Code plugin marketplace that lists it
+(`.claude-plugin/marketplace.json`), so installing it copies the skill
+folder alone, a few kilobytes.
 
 ## Before you start
 
@@ -15,7 +18,8 @@ repository is also a Claude Code plugin marketplace that ships it.
   setup, the [local renderer](LOCAL-MODELS.md#local-renderer).
 - The CLI on your PATH, from a checkout:
   `pnpm install && pnpm --filter troupe-cli build && npm install -g ./cli`.
-  (Claude builds it itself from a checkout if `troupe` is missing.)
+  (If `troupe` is missing, Claude offers to build and install it from a
+  checkout, and waits for your yes.)
 - Signed in, in your own terminal: `troupe login --url <studio address>`.
   Claude never asks for the access code or an API key in the conversation;
   when one is needed it asks you to run the command yourself.
@@ -31,9 +35,12 @@ As a plugin, from GitHub:
 ```
 
 or from your shell: `claude plugin marketplace add maxgfr/troupe`, then
-`claude plugin install troupe@troupe`. From a local checkout, pass its path
-instead of `maxgfr/troupe`. The skill then answers to `/troupe:troupe` and
-loads on its own when you ask for a Troupe video.
+`claude plugin install troupe@troupe`. Adding the marketplace clones this
+repository; `claude plugin marketplace add maxgfr/troupe --sparse
+.claude-plugin skills` checks out only the two folders it needs. From a
+local checkout, pass its path instead of `maxgfr/troupe`. The skill then
+answers to `/troupe:troupe` and loads on its own when you ask for a Troupe
+video.
 
 Without the plugin system, copy the folder into your personal skills:
 
@@ -55,8 +62,10 @@ with `/plugin marketplace update troupe`.
    launch, then creates the project.
 4. Writes the script within the word budget (clip seconds × 2.5), with an
    emotion per line, or asks the studio's chat and applies its proposal.
-5. Renders and follows the render; on a failure, reads the reason, fixes it
-   and relaunches.
+5. Renders and follows the render with a time limit; on a failure, reads
+   the reason, fixes it and relaunches. A render still running when the
+   limit passes is watched again, never launched twice, and after any
+   interrupted command Claude lists the renders before launching.
 6. Reviews the MP4: `ffprobe` for the streams, size and length, and three
    frames it looks at for the actor and the captions. It tells you what it
    saw and where the file is, and says what it could not check (it cannot

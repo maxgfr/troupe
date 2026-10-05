@@ -68,7 +68,7 @@ function view(row: ItemRow): LibraryItemView {
     fileName: row.fileName,
     mimeType: row.mimeType,
     assetId: row.assetId,
-    thumbnailAssetId: row.kind === "image" ? row.assetId : (a?.frames?.[0]?.assetId ?? null),
+    thumbnailAssetId: row.kind === "image" ? row.assetId : (a?.thumbnailAssetId ?? a?.frames?.[0]?.assetId ?? null),
     durationS: row.durationS,
     mine: row.mine,
     status: row.status,

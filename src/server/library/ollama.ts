@@ -78,12 +78,12 @@ const VISION_SCHEMA = {
   additionalProperties: false,
   required: ["description", "text"],
   properties: {
-    description: { type: "string", description: "One or two sentences: who or what is in the picture, the setting, the shot." },
+    description: { type: "string", description: "One or two sentences: who or what is in it, the setting, the shot." },
     text: { type: "string", description: "Every word written in the picture (captions, titles, signs), exactly; empty if none." },
   },
 } as const;
 
-const VISION_PROMPT = "This is a frame from a short video (or a picture) a creator saved for inspiration. Describe it in one or two sentences, and copy any text written in it exactly. Answer with the JSON object only.";
+const VISION_PROMPT = "Say what this picture shows in one or two plain sentences: the people, objects and setting, and how it is framed (close-up, wide, screen recording…). Do not say that it is a picture or a frame. Then copy any words written in it exactly, or leave the text empty. Answer with the JSON object only.";
 
 export function ollamaVision(target: OllamaTarget, model: string): Vision {
   return {

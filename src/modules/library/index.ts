@@ -22,7 +22,7 @@ export {
   MAX_TEXT_CHARS,
 } from "./server/service";
 export type { LibraryItemView, LibraryItemDetail, SearchHit, SearchResult, LibraryMessageView, IdeaView, Writer } from "./server/service";
-export { analyzeItem, claimNextItem, requeueStale, runLibraryQueue, embedMissing, spread } from "./server/analyze";
+export { analyzeItem, claimNextItem, requeueStale, runLibraryQueue, embedMissing, spread, thumbnailOf } from "./server/analyze";
 export type { AnalysisOptions } from "./server/analyze";
 export { libraryItems, libraryChunks, libraryMessages, libraryIdeas } from "./server/schema";
 export * from "./model";

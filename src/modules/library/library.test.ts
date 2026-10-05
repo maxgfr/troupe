@@ -23,6 +23,7 @@ import {
   listItems,
   requeueStale,
   runLibraryQueue,
+  thumbnailOf,
   searchLibrary,
   sendLibraryMessage,
   updateItem,
@@ -109,6 +110,7 @@ describe("the inspiration library", () => {
     expect(a.pacing).toMatchObject({ cutsPerMinute: 6 });
     expect(a.insightsModel).toBe("fake-writer");
     expect(a.steps.map((s) => `${s.name}:${s.status}`)).toEqual(["frames:done", "transcript:done", "vision:done", "insights:done", "embeddings:done"]);
+    // Every frame weighs the same here: the first is the thumbnail.
     expect(detail.thumbnailAssetId).toBe(a.frames![0]!.assetId);
     expect(detail.passages).toBeGreaterThanOrEqual(5);
     expect(detail.embedded).toBe(detail.passages);
@@ -235,5 +237,11 @@ describe("the inspiration library", () => {
     await setAuthUser(t, userId);
     expect(await t.db.select({ id: libraryItems.id }).from(libraryItems)).toEqual([{ id: item.id }]);
     await resetAuth(t);
+  });
+
+  it("does not take a black opening frame as the thumbnail", async () => {
+    const item = await saveVideo(t, workspaceId);
+    const [black, shot, other] = await t.db.insert(mediaAssets).values([1200, 24_000, 21_000].map((bytes, i) => ({ workspaceId, kind: "frame" as const, storagePath: `library/${item.id}/f${i}.jpg`, mimeType: "image/jpeg", bytes, checksum: "x", meta: { itemId: item.id } }))).returning();
+    expect(await thumbnailOf(t.db, [black!, shot!, other!].map((f, i) => ({ assetId: f.id, atS: i })))).toBe(shot!.id);
   });
 });

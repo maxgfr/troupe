@@ -59,6 +59,9 @@ export interface ItemAnalysis {
   language?: string | null;
   transcript?: Transcript;
   frames?: Frame[];
+  // The frame the library shows for the item: the first that is not nearly
+  // uniform (a black or blank opening).
+  thumbnailAssetId?: string;
   // What the first 3 seconds say (or the opening line of a text).
   hook?: { text: string; endS?: number; why?: string };
   structure?: StructurePart[];

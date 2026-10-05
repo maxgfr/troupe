@@ -126,16 +126,14 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
         <caption className="sr-only">Your saved items</caption>
         <colgroup>
           <col />
-          <col className="w-[5.5rem]" />
           <col className="w-[4.5rem]" />
-          <col className="w-[11rem] max-xl:w-[8rem]" />
+          <col className="w-[10rem] max-xl:w-[7.5rem]" />
           <col className="w-[6.5rem]" />
           <col className="w-[5.5rem]" />
         </colgroup>
         <thead className="border-b border-muted/20 text-xs text-muted">
           <tr>
             <SortHeader label="Item" column="title" sort={sort} onSort={onSort} className="pl-4" />
-            <th scope="col" className="px-3 py-2 font-medium">Kind</th>
             <SortHeader label="Length" column="durationS" sort={sort} onSort={onSort} className="text-right" />
             <th scope="col" className="px-3 py-2 font-medium">Tags</th>
             <SortHeader label="Added" column="createdAt" sort={sort} onSort={onSort} />
@@ -154,12 +152,11 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
                     </Link>
                     <p className="truncate text-xs text-muted">
                       {row.mine ? <span className="mr-1.5 rounded bg-surface px-1.5 py-px text-[11px] text-fg">mine</span> : null}
-                      {row.hook ? `“${row.hook}”` : sourceOf(row)}
+                      {KIND_LABELS[row.kind]} · {row.hook ? `“${row.hook}”` : sourceOf(row)}
                     </p>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2.5 whitespace-nowrap text-muted">{KIND_LABELS[row.kind]}</td>
               <td className="px-3 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums text-muted">{clock(row.durationS) || "—"}</td>
               <td className="px-3 py-2.5">
                 <div className="flex flex-wrap gap-1">

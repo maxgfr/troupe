@@ -192,9 +192,11 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     }
     const found = insights ?? heuristicInsights({ words, hook: hookText, transcript, durationS });
 
+    const thumbnailAssetId = frames.length > 1 ? await thumbnailOf(db, frames) : undefined;
     const analysis: ItemAnalysis = {
       version: 1,
       language,
+      ...(thumbnailAssetId ? { thumbnailAssetId } : {}),
       ...(transcript ? { transcript } : {}),
       ...(frames.length ? { frames } : {}),
       ...(hookText ? { hook: { text: hookText, ...(opening ? { endS: opening.endS } : {}), ...(found.hookWhy ? { why: found.hookWhy } : {}) } } : {}),
@@ -256,6 +258,17 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
       .catch(() => {});
     log({ event: "library.analysis.failed", itemId: item.id, message: message(error) });
   }
+}
+
+// A nearly uniform picture (a black or blank opening) compresses to a
+// fraction of the others' size: the thumbnail is the first frame at least a
+// third as large as the median.
+export async function thumbnailOf(db: Db, frames: readonly Frame[]): Promise<string | undefined> {
+  const rows = await db.select({ id: mediaAssets.id, bytes: mediaAssets.bytes }).from(mediaAssets).where(inArray(mediaAssets.id, frames.map((f) => f.assetId)));
+  const size = new Map(rows.map((r) => [r.id, r.bytes]));
+  const sorted = [...size.values()].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  return frames.find((f) => (size.get(f.assetId) ?? 0) >= median / 3)?.assetId ?? frames[0]?.assetId;
 }
 
 async function embedAll(embedder: Embedder, texts: string[], signal?: AbortSignal): Promise<number[][]> {

@@ -26,5 +26,10 @@ describe("encoder delay", () => {
     expect(delayFromProbe(new Float32Array(PROBE.length))).toBe(0);
     // An encoder never moves sound earlier.
     expect(delayFromProbe(probeSignal().subarray(10))).toBe(0);
+    // Encoders delay by a few tens of milliseconds: past 100 ms the round
+    // trip is more likely broken, and a wrong but plausible shift would put
+    // the voice off the picture.
+    expect(delayFromProbe(roundTrip(3840))).toBe(3840);
+    expect(delayFromProbe(roundTrip(6000))).toBe(0);
   });
 });

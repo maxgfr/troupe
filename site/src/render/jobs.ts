@@ -147,7 +147,11 @@ export async function pruneJobs(
   settlement: (jobIds: string[]) => Promise<ReadonlyMap<string, JobSettlement>>,
   keepFile: (file: { assetId: string; storagePath: string }, video: Blob) => Promise<void>,
 ): Promise<void> {
-  const finished = (await readAll()).filter((record) => !unfinished(record));
+  const all = await readAll();
+  // Jobs another tab already forgot: drop this tab's copy (and its MP4 handle).
+  const stored = new Set(all.map((record) => record.id));
+  for (const id of known.keys()) if (!stored.has(id)) known.delete(id);
+  const finished = all.filter((record) => !unfinished(record));
   if (finished.length === 0) return;
   const settled = await settlement(finished.map((record) => record.id));
   const now = Date.now();

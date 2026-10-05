@@ -10,6 +10,7 @@ import { createTRPCContext } from "~/server/api/trpc";
 import { createQueryClient } from "~/trpc/query-client";
 import { api } from "~/trpc/react";
 import { forgetBrowserCatalog, loadBrowserCatalog } from "./catalog";
+import { holdResultsUntil } from "./hold-results-link";
 import { createBrowserChat } from "./chat/backend";
 import { browserDatabase, rebuildGeneration, rebuildsDone } from "./db/client";
 import { browserMedia } from "./media";
@@ -56,21 +57,7 @@ export async function keepRecordedRenders(): Promise<void> {
 // The result of a reconciling call reaches the page only once the files of
 // the renders it recorded are stored: the timeline never offers a video the
 // media service worker cannot serve yet. Every tab does the same for itself.
-const keepRendersBeforeResults: TRPCLink<AppRouter> = () => ({ op, next }) =>
-  observable((observer) => {
-    if (!RECONCILING.has(op.path)) return next(op).subscribe(observer);
-    let delivered = Promise.resolve();
-    const after = (deliver: () => void) => {
-      delivered = delivered.then(deliver);
-    };
-    return next(op).subscribe({
-      next(result) {
-        after(() => keepRecordedRenders().then(() => observer.next(result)));
-      },
-      error: (error) => after(() => observer.error(error)),
-      complete: () => after(() => observer.complete()),
-    });
-  });
+const keepRendersBeforeResults = holdResultsUntil<AppRouter>((path) => RECONCILING.has(path), keepRecordedRenders);
 
 export function BrowserTRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);

@@ -14,8 +14,10 @@ const RATE = 48_000;
 const PULSE_AT = 4800;
 const PULSE_LENGTH = 48;
 export const PROBE = { rate: RATE, length: 9600 } as const;
-// Beyond this an answer is more likely a broken round trip than a delay.
-const MAX_DELAY = RATE / 5;
+// Beyond this (100 ms) an answer is more likely a broken round trip than a
+// delay: encoders prime a few tens of milliseconds (Chrome's AAC 44 ms), and
+// a wrong but plausible shift would put the voice off the picture.
+const MAX_DELAY = RATE / 10;
 
 export function probeSignal(): Float32Array<ArrayBuffer> {
   const signal = new Float32Array(PROBE.length);

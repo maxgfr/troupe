@@ -1,4 +1,4 @@
-import type { TRPCLink } from "@trpc/client";
+import { TRPCClientError, type TRPCLink } from "@trpc/client";
 import type { AnyRouter } from "@trpc/server";
 import { observable, type Unsubscribable } from "@trpc/server/observable";
 
@@ -7,7 +7,8 @@ import { observable, type Unsubscribable } from "@trpc/server/observable";
 // before the rebuild waits for it in PGlite's queue and may read the tables
 // in between: an empty studio, which the app shell would take for a broken
 // one. Such a query's answer is dropped and the query asked again once the
-// rebuild is over. A mutation is never repeated.
+// rebuild is over, unless the page aborted it meanwhile. A mutation is never
+// repeated.
 export function rerunQueriesCaughtByRebuild<TRouter extends AnyRouter>(rebuilds: {
   // Goes up when a rebuild starts in this tab.
   generation: () => number;
@@ -22,6 +23,8 @@ export function rerunQueriesCaughtByRebuild<TRouter extends AnyRouter>(rebuilds:
         let stopped = false;
         const run = () => {
           if (stopped) return;
+          // The page gave up on it while it waited (a query's AbortSignal).
+          if (op.signal?.aborted) return observer.error(TRPCClientError.from(new Error("The query was aborted.")));
           const started = rebuilds.generation();
           let caught = false;
           const again = () => {

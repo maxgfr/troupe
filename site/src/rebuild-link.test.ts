@@ -1,4 +1,4 @@
-import { createTRPCClient, type TRPCLink } from "@trpc/client";
+import { createTRPCClient, TRPCClientError, type TRPCLink } from "@trpc/client";
 import { initTRPC } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
 import { describe, expect, it } from "vitest";
@@ -28,13 +28,15 @@ function harness() {
     observable((observer) => {
       calls.push(op.path);
       const answer = answers.shift() ?? "after";
-      if (answer === "during") {
+      // "during" and "failed during" start a rebuild; "failed…" fails.
+      if (answer.endsWith("during")) {
         generation += 1;
         rebuilt = new Promise((resolve) => {
           finish = resolve;
         });
       }
       queueMicrotask(() => {
+        if (answer.startsWith("failed")) return observer.error(TRPCClientError.from(new Error("relation does not exist")));
         observer.next({ result: { type: "data", data: answer } });
         observer.complete();
       });
@@ -55,6 +57,47 @@ describe("queries caught by a rebuild of the studio", () => {
     h.finish();
     expect(await answer).toBe("after");
     expect(h.calls).toEqual(["workspaces", "workspaces"]);
+  });
+
+  it("are asked again when they failed because of the rebuild", async () => {
+    const h = harness();
+    h.answers.push("failed during");
+    const answer = h.client.workspaces.query();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    h.finish();
+    expect(await answer).toBe("after");
+    expect(h.calls).toEqual(["workspaces", "workspaces"]);
+  });
+
+  it("wait out a second rebuild that catches them again", async () => {
+    const h = harness();
+    h.answers.push("during", "during");
+    const answer = h.client.workspaces.query();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    h.finish();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(h.calls).toEqual(["workspaces", "workspaces"]);
+    h.finish();
+    expect(await answer).toBe("after");
+    expect(h.calls).toEqual(["workspaces", "workspaces", "workspaces"]);
+  });
+
+  it("are not asked again when the page gave up on them while they waited", async () => {
+    const h = harness();
+    h.answers.push("during");
+    const abort = new AbortController();
+    const answer = h.client.workspaces.query(undefined, { signal: abort.signal });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    abort.abort();
+    h.finish();
+    await expect(answer).rejects.toThrow(/aborted/);
+    expect(h.calls).toEqual(["workspaces"]);
+  });
+
+  it("pass a failure on when no rebuild happened", async () => {
+    const h = harness();
+    h.answers.push("failed");
+    await expect(h.client.workspaces.query()).rejects.toThrow();
   });
 
   it("go through untouched when no rebuild happened", async () => {

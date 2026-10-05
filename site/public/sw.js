@@ -5,8 +5,9 @@
 const DB_NAME = "troupe-media";
 const STORE = "files";
 // The only types served as themselves (keep in step with MEDIA_TYPES in
-// site/src/data/backup.ts). Anything else is a download: a file served inline
-// from the studio's own origin as HTML or SVG would run as one of its pages.
+// site/src/data/backup.ts; site/src/media-worker.test.ts checks). Anything
+// else is a download: a file served inline from the studio's own origin as
+// HTML or SVG would run as one of its pages.
 const PLAYABLE = new Set(["video/mp4", "video/webm"]);
 
 // Service worker globals are not in the DOM typings the repo checks against.
@@ -24,7 +25,8 @@ worker.addEventListener("fetch", (/** @type {any} */ event) => {
   event.respondWith(serve(id, event.request.headers.get("range"), url.searchParams.get("download")));
 });
 
-// Mirrors mediaDisposition in src/server/media/store.ts.
+// Mirrors mediaDisposition in src/server/media/store.ts
+// (site/src/media-worker.test.ts checks they agree).
 /** @param {string | null} download @param {string} ext */
 function disposition(download, ext) {
   if (download === null) return `inline; filename="troupe-video.${ext}"`;

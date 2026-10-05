@@ -17,9 +17,12 @@ import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 // forgets the job. A rolled-back commit leaves no file and keeps the job, so
 // the next poll records it again.
 //
-// The page never points at a render before its file is stored: the browser
-// edition's tRPC client (site/src/trpc.tsx) runs keepSettledRenders before it
-// hands the result of a reconciling call to the page.
+// A reconciling call's result never points the page at a render before its
+// file is stored: the browser edition's tRPC client (site/src/trpc.tsx) runs
+// keepSettledRenders before it hands that result over. Other reads
+// (benchmark.list, an export) do not wait: for the moment between another
+// tab's commit and that tab storing the file, they can list a render whose
+// file the media service worker does not have yet (it answers 404 until then).
 
 export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
   if (gen.outputAssetId) return;

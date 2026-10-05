@@ -96,4 +96,25 @@ describe("render jobs", () => {
     await pruneJobs(async () => new Map([["seen", { state: "settled" }]]), async () => {});
     expect(knownJob("seen")).toBeUndefined();
   });
+
+  it("forgets a job another tab pruned the next time this one prunes", async () => {
+    await saveJob(record("elsewhere", { status: "succeeded", video: new Blob(["mp4"]) }));
+    await jobState("elsewhere");
+    expect(knownJob("elsewhere")).toBeDefined();
+    // Another tab deletes it from IndexedDB, out of this tab's sight.
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open("troupe-render", 1);
+      open.onsuccess = () => {
+        const tx = open.result.transaction("jobs", "readwrite");
+        tx.objectStore("jobs").delete("elsewhere");
+        tx.oncomplete = () => {
+          open.result.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+    });
+    await pruneJobs(async () => new Map(), async () => {});
+    expect(knownJob("elsewhere")).toBeUndefined();
+  });
 });

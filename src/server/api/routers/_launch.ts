@@ -1,6 +1,9 @@
+import { TRPCError } from "@trpc/server";
+
 import type { Db } from "~/server/db/types";
 import { launchGeneration } from "~/modules/generation";
 import { estimateCostUsd, type ModelCatalog } from "~/modules/models";
+import { ScriptTooLongError } from "~/modules/script";
 import { pickLaunchAdapter } from "./_adapters";
 
 export interface TextLaunch {
@@ -29,5 +32,9 @@ export function launchText(ctx: { db: Db; catalog: ModelCatalog }, input: TextLa
     language: input.language,
     timeoutS: model.timeoutS,
     estimatedCostUsd: estimateCostUsd(model, input.durationS),
+  }).catch((error: unknown) => {
+    // The caller's choice to fix (a shorter script, a longer clip), not a fault.
+    if (error instanceof ScriptTooLongError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+    throw error;
   });
 }

@@ -99,6 +99,15 @@ describe("script router", () => {
     expect(retagged.version).toBe(2);
   });
 
+  it("pastes a script with an emotion per line as one version; untagged lines keep their emotion", async () => {
+    const own = await seedFixture(t.db, { userId: MEMBER, name: "Tagged paste" });
+    await asMember().script.setLineEmotion({ projectId: own.projectId, scriptId: own.scriptId, lineIndex: 0, emotion: "serious" });
+    const saved = await asMember().script.paste({ projectId: own.projectId, text: "Hook line. Body line. Call to action now.\nA second line.\nThe end.", emotions: [null, "excited", "calm"] });
+    expect(saved.lines.map((l) => [l.role, l.emotion])).toEqual([["hook", "serious"], ["body", "excited"], ["cta", "calm"]]);
+    expect((await asMember().script.history({ projectId: own.projectId })).map((v) => v.version)).toEqual([1, 2]);
+    await expect(asMember().script.paste({ projectId: own.projectId, text: "One.\nTwo.", emotions: ["calm"] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   it("a stranger cannot read the script", async () => {
     await expect(asStranger().script.history({ projectId: fx.projectId })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
@@ -178,6 +187,11 @@ describe("generation router", () => {
     await expect(
       noKeys.generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", durationS: 8, resolution: "720p" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("BAD_REQUEST, with the reason, when the script is longer than the clip", async () => {
+    await expect(asMember().generation.launchText({ projectId: fx.projectId, scriptId: fx.scriptId, modelKey: "veo", durationS: 1, resolution: "720p" }))
+      .rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/takes about \d+s to say, but the clip is 1s/) });
   });
 
   it("a stranger cannot launch a render", async () => {

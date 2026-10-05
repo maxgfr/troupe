@@ -47,7 +47,9 @@ First public release.
   `doctor`, models and provider keys, actors, projects, scripts in a
   `[emotion] line` file format, the script chat, launching and watching
   renders, exports and downloads; `--json` everywhere and documented exit
-  statuses ([docs/CLI.md](docs/CLI.md)). `export.list` joins the API for it.
+  statuses ([docs/CLI.md](docs/CLI.md)). It speaks https to other machines
+  (plain http only on this machine, or with `--insecure`). For it, the API
+  gains `export.list`, and `script.paste` takes an emotion per line.
 - A Claude Code skill and plugin marketplace (`skills/troupe`,
   `.claude-plugin/`) that runs a project end to end through the CLI,
   reviewing each render with ffprobe and extracted frames
@@ -57,6 +59,9 @@ First public release.
   `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.
 
 ### Changed
+
+- Launching a script longer than its clip is refused as a bad request with
+  its reason, instead of an internal error.
 
 - Saved API keys are encrypted at rest (existing plaintext keys are converted
   on first read).

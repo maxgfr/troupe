@@ -86,13 +86,23 @@ async function insertScript(db: Db, input: { projectId: string; origin: "chat" |
   });
 }
 
+export class ScriptEmotionsMismatchError extends Error {
+  constructor(lines: number, emotions: number) {
+    super(`The script has ${lines} lines but ${emotions} emotions were given. Give one per line (null keeps the line's emotion).`);
+    this.name = "ScriptEmotionsMismatchError";
+  }
+}
+
 // Pasted scripts split into lines with a neutral default emotion.
-export async function pasteScript(db: Db, input: { projectId: string; text: string }): Promise<ScriptWithLines> {
+// `emotions`, one per non-empty line, sets them in the same version; a null
+// keeps the default.
+export async function pasteScript(db: Db, input: { projectId: string; text: string; emotions?: (Emotion | null)[] }): Promise<ScriptWithLines> {
   const raw = input.text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (raw.length === 0) throw new Error("The script is empty. Write at least one line.");
+  if (input.emotions && input.emotions.length !== raw.length) throw new ScriptEmotionsMismatchError(raw.length, input.emotions.length);
   // Lines whose text did not change keep the emotion chosen for them.
   const [latest] = await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, input.projectId)).orderBy(desc(scripts.version)).limit(1);
   const previous = latest ? (await loadScript(db, latest.id)).lines : [];
@@ -103,7 +113,7 @@ export async function pasteScript(db: Db, input: { projectId: string; text: stri
     return {
       text,
       role: i === 0 ? "hook" : i === raw.length - 1 && raw.length > 1 ? "cta" : "body",
-      emotion: match?.emotion ?? "neutral",
+      emotion: input.emotions?.[i] ?? match?.emotion ?? "neutral",
     };
   });
   return insertScript(db, { projectId: input.projectId, origin: "pasted", lines });

@@ -2,6 +2,7 @@
 export {
   SUPPORTED_EMOTIONS,
   ScriptTooLongError,
+  ScriptEmotionsMismatchError,
   estimateDurationS,
   assertScriptFitsClip,
   pasteScript,

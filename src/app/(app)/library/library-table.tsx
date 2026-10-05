@@ -164,8 +164,8 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
               <td className="px-3 py-2.5">
                 <div className="flex flex-wrap gap-1">
                   {row.tags.slice(0, 2).map((t) => (
-                    <button key={t} type="button" onClick={() => onTag(tag === t ? null : t)} aria-pressed={tag === t} title={`Only items tagged ${t}`} className={`max-w-full truncate rounded-md px-1.5 py-0.5 text-xs whitespace-nowrap transition-colors duration-150 ${tag === t ? "bg-primary/15 text-primary" : "bg-surface text-muted hover:text-fg"}`}>
-                      {t}
+                    <button key={t} type="button" onClick={() => onTag(tag === t ? null : t)} aria-pressed={tag === t} title={`Only items tagged ${t}`} className={`relative flex max-w-full rounded-md px-1.5 py-0.5 text-xs transition-colors duration-150 after:absolute after:-inset-y-2.5 after:inset-x-0 ${tag === t ? "bg-primary/15 text-primary" : "bg-surface text-muted hover:text-fg"}`}>
+                      <span className="truncate whitespace-nowrap">{t}</span>
                     </button>
                   ))}
                 </div>

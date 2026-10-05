@@ -191,6 +191,60 @@ programs under other licenses:
     [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU License) for
     the WebP files. Their other dependencies, pinned in
     `scripts/actors/uv.lock`, keep their own licenses.
+- **The inspiration library** (`docs/LIBRARY.md`). Troupe distributes no
+  model weights; each is downloaded at run time from where it is published.
+  - Transcription in the self-hosted studio: the renderer image installs, with
+    `uv` from `renderer/whisper/uv.lock`, [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+    1.2.1 (MIT License) on [CTranslate2](https://github.com/OpenNMT/CTranslate2)
+    4.8 (MIT License), with [PyAV](https://github.com/PyAV-Org/PyAV) 16.1
+    (BSD 3-Clause License; its wheels bundle FFmpeg's libraries, built under
+    the GNU LGPL version 2.1 or later), [ONNX Runtime](https://github.com/microsoft/onnxruntime)
+    1.30 (MIT License, for the voice detector),
+    [tokenizers](https://github.com/huggingface/tokenizers) 0.23 and
+    [huggingface_hub](https://github.com/huggingface/huggingface_hub) 1.33
+    (Apache License 2.0), [NumPy](https://github.com/numpy/numpy) 2.5 (BSD
+    3-Clause), [tqdm](https://github.com/tqdm/tqdm) (MPL 2.0 and MIT) and
+    [certifi](https://github.com/certifi/python-certifi) (MPL 2.0); the other
+    packages pinned there keep their own licenses. The weights,
+    [`Systran/faster-whisper-base`](https://huggingface.co/Systran/faster-whisper-base)
+    (or the size `WHISPER_MODEL` names; the end-to-end tests use `tiny`), are
+    OpenAI's Whisper converted to CTranslate2, MIT License.
+  - Transcription and search in the browser edition, run by Transformers.js
+    (above): [`onnx-community/whisper-base`](https://huggingface.co/onnx-community/whisper-base),
+    an ONNX export of [`openai/whisper-base`](https://huggingface.co/openai/whisper-base)
+    (Apache License 2.0 on its model card; OpenAI released the Whisper code and
+    weights on GitHub under the MIT License), and
+    [`Xenova/multilingual-e5-small`](https://huggingface.co/Xenova/multilingual-e5-small),
+    an ONNX export of [`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small)
+    (MIT License). The exports declare no license of their own.
+  - Search and vision in the self-hosted studio, pulled by the stack's
+    `ollama` service: `qwen3-embedding:0.6b`
+    ([Qwen/Qwen3-Embedding-0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B))
+    and `qwen3-vl:2b-instruct`
+    ([Qwen/Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct)),
+    both Apache License 2.0; the end-to-end tests use `all-minilm`
+    ([sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2),
+    Apache License 2.0).
+  - [yt-dlp](https://github.com/yt-dlp/yt-dlp) 2026.08.19, in the app image
+    (`ghcr.io/maxgfr/troupe`) unless it is built with `TROUPE_YTDLP=0`:
+    The Unlicense (public domain). Its self-contained `musllinux` build, which
+    the image downloads and checks against the release's SHA-256 sum, bundles
+    CPython (PSF License 2.0) and the libraries listed with their licenses in
+    [`THIRD_PARTY_LICENSES.txt`](https://github.com/yt-dlp/yt-dlp/blob/2026.08.19/THIRD_PARTY_LICENSES.txt)
+    (among them GNU Readline under the GPL version 3 or later, libidn2 and
+    libunistring under the LGPL version 3 or later, OpenSSL under the Apache
+    License 2.0); their source is available from those projects. Troupe runs
+    it as a separate program.
+  - Articles and PDFs: [Readability](https://github.com/mozilla/readability)
+    (`@mozilla/readability`) 0.6: Apache License 2.0;
+    [linkedom](https://github.com/WebReflection/linkedom) 0.18: ISC License,
+    with [htmlparser2](https://github.com/fb55/htmlparser2) (MIT),
+    css-select, css-what, domhandler, domutils, entities and nth-check
+    (BSD 2-Clause), cssom and html-escaper (MIT), boolbase and uhyphen (ISC);
+    [unpdf](https://github.com/unjs/unpdf) 1.8 (MIT License), which bundles a
+    build of Mozilla's [PDF.js](https://github.com/mozilla/pdf.js) (Apache
+    License 2.0). unpdf is also bundled into the browser edition, in a chunk
+    loaded when a PDF is read.
 - **The CLI bundle** (`cli/dist/troupe.mjs`, built by `pnpm --filter
   troupe-cli build` with [esbuild](https://github.com/evanw/esbuild) 0.28,
   MIT License, which is not bundled) includes

@@ -33,7 +33,7 @@ function Cited({ text, citations, href, follow }: { text: string; citations: Cit
             href={href(cited)}
             onClick={follow(cited)}
             aria-label={`Source ${cited.n}: ${cited.title}${cited.startS !== null ? ` at ${clock(cited.startS)}` : ""}`}
-            className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded-md bg-primary/15 px-1 align-[1px] font-mono text-[11px] tabular-nums text-primary transition-colors duration-150 hover:bg-primary/25"
+            className="relative mx-0.5 inline-flex min-w-5 items-center justify-center rounded-md bg-primary/15 px-1 align-[1px] font-mono text-[11px] tabular-nums text-primary transition-colors duration-150 after:absolute after:-inset-x-2.5 after:-inset-y-3 hover:bg-primary/25"
           >
             {cited.n}
           </Link>

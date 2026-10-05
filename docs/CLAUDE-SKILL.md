@@ -71,6 +71,13 @@ with `/plugin marketplace update troupe`.
    saw and where the file is, and says what it could not check (it cannot
    hear the voice).
 7. Iterates on the script when you ask.
+
+With the [inspiration library](LIBRARY.md), Claude also saves the files and
+links you give it (`troupe library add`, waiting for the analysis), reads
+their hooks and structure, searches and asks the library, and writes scripts
+from what it found, through the library's idea cards (`troupe library ideas
+generate`, then `ideas project`) or itself; then it carries on with the
+render. It saves only what you hand it, one item at a time.
 8. Exports only after you say you watched the video and it is ready, then
    passes on the platform's AI-disclosure rule.
 

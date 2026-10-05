@@ -47,8 +47,9 @@ set in mono and marked "est." when estimated.
 ## Components
 
 - **Wordmark**: "troupe", Bricolage 700; the "o" carries a gold ring.
-- **App shell**: top bar with Dashboard · Actors · Benchmark and Settings, on
-  one row down to 360 px (Settings becomes a sliders icon on phones). The
+- **App shell**: top bar with Dashboard · Library · Actors · Benchmark and
+  Settings, on one row down to 360 px: on phones Settings becomes a sliders
+  icon and Dashboard leaves the row, the wordmark leading there. The
   browser edition adds no banner: it is Troupe, not a preview of it.
 - **Dashboard**: each project shows its stage in words (Script, Rendering,
   To review, Exported), worked out from its renders and exports; a warning
@@ -72,6 +73,26 @@ set in mono and marked "est." when estimated.
   **Download MP4** in its place. Downloads are named after the project, the
   model and the time, from the timeline and the export page alike.
 - **Actor library**: `auto-fit minmax(280px, 1fr)` grid of portraits.
+- **Inspiration library**: a ledger, not a mood board. The add bar (one
+  field for a link or a text, Upload beside it, the whole bar a drop zone,
+  "It is my own content" below) and one quiet line of status dots for the
+  tools that read the library. Then a sortable table (picture or kind glyph
+  and title with the hook quoted below, kind, length in mono, two tag chips
+  that filter, date in mono, status chip: waiting, reading in cobalt, ready,
+  failed), two-line rows on phones; the search field above it swaps the table
+  for passages ranked by meaning, each opening its item at its moment. The
+  library chat sits beside it behind a hairline (below it on phones), its
+  citations small mono numbers on a cobalt tint that open the item at the
+  cited second. Idea cards are hairline-divided: title, mono word count,
+  the lines with their role in small mono caps, and an outlined cobalt
+  **Create project** (ten cards must not make ten primary buttons).
+- **Library item**: the player, then the item on one time axis: hook (cobalt
+  tint), body (surface) and call to action (success tint) as bands, the
+  pictures at their seconds, a native range scrubber, mono ticks; every one
+  of them seeks the player. Below: the hook quoted large with why it works,
+  the structure with mono times, pace in mono, tone, tags, then the
+  transcript with its current line on a cobalt tint. A reading item shows the
+  glowing progress bar with the step in words.
 - **Benchmark lab**: one column per model, cost and latency in mono, the vote
   and "Adopt for project" in gold.
 - **Settings**: default model, cloud models, the script chat, provider

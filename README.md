@@ -86,6 +86,12 @@ the local renderer, including its AI video mode.
   against the current version, apply it or apply and relaunch the render.
   Ollama by default (the Docker stack runs its own), Claude with an
   Anthropic key, WebLLM in the browser edition ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
+- An inspiration library: save videos, posts, articles, sound, pictures and
+  PDFs (files, pasted text or links); your own models transcribe them, look
+  at their pictures, find the hook and the structure, and make them
+  searchable by meaning. Ask the library with cited answers, and turn an item
+  into idea cards that become a project with its script in one click
+  ([docs/LIBRARY.md](docs/LIBRARY.md)).
 - Launch on any configured model, follow progress, relaunch failures, compare
   two or three models on the same script and vote.
 - Videos are checked with ffprobe before they are kept. Downloads stream with
@@ -99,7 +105,8 @@ they do not keep the same face from one render to the next.
 
 `troupe`, the CLI in [`cli/`](cli), drives a running studio from a terminal:
 sign in, check the setup, add models, create projects, set scripts, chat,
-render, watch, export and download, with `--json` on every command.
+render, watch, export and download, save to the library, search it and turn
+it into ideas, with `--json` on every command.
 
 ```bash
 pnpm --filter troupe-cli build && npm install -g ./cli

@@ -256,6 +256,25 @@ result carries the platform's AI-disclosure rule (`disclosure`).
 `<name>.<random>.part` file and renames it when complete, and never
 overwrites a file without `--force` (exit 1, `FILE_EXISTS`).
 
+### Library
+
+The [inspiration library](LIBRARY.md). Items, ideas and actors take an id,
+an id prefix or a title.
+
+| Command | Does |
+|---|---|
+| `library add <file\|link\|-> [--title] [--mine] [--wait [--timeout S]]` | Save a file (uploaded to the studio), a link (a video platform through yt-dlp, any other page as an article) or text from stdin (`-`). `--wait` follows the analysis and prints it: exit 0 ready, 1 failed, 5 still reading. |
+| `library list [--kind K] [--mine] [--tag T]` | The library, newest first. |
+| `library show <item> [--transcript]` | Hook, why it works, summary, structure, pace, tone, tags, pictures, passages indexed, and what was skipped. |
+| `library search <query…> [--item] [--limit N]` | Passages ranked by meaning (by keywords where no embedding model has read them), each with its item and moment. |
+| `library chat <message…> [--item]` | Ask the library, or one item; the answer lists the sources it cites. |
+| `library ideas [--item]` | The idea cards, each a whole script. |
+| `library ideas generate --item <item>… [--kind ideas\|remix\|script\|repurpose] [--count N] [--actor] [--duration S] [--brief]` | Write idea cards from items (default: 10 in their style). `--kind script` needs `--actor`. |
+| `library ideas project <idea> [--actor] [--platform]` | Make a project from an idea, its script as version 1, and the current project. |
+
+`doctor` also checks the library's tools (transcription, vision, search, the
+writing model, links, yt-dlp): a missing one is a warning.
+
 ## A whole project
 
 ```bash

@@ -6,6 +6,19 @@ First public release.
 
 ### Added
 
+- The inspiration library ([docs/LIBRARY.md](docs/LIBRARY.md)): save files,
+  pasted text and links (yt-dlp for video platforms, articles kept as text);
+  your own models transcribe them (faster-whisper on the renderer, Whisper in
+  the browser edition), take a picture after each cut and describe it
+  (Ollama vision), find the hook, structure, pace, tone and tags, and index
+  them for search by meaning. A library chat answers with citations to items
+  and moments; idea cards ("10 ideas in this style", a hook remix, a script
+  for an actor, a long item cut into short scripts) become a project with its
+  script in one click; items marked as your own shape everything written "in
+  your voice". `troupe library add|list|show|search|chat|ideas`, `doctor`
+  checks, the Claude skill, the Docker stack (models pulled after the chat
+  model) and both editions.
+
 - Model catalog: Veo 3.1 Fast, Kling 3.0 and Seedance 1.5 Pro described by their
   capabilities (formats, resolutions, lengths, audio, tried languages). Each
   model can be turned off, given defaults, a price per second and a time limit;

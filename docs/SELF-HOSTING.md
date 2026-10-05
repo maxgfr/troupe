@@ -85,6 +85,8 @@ Docker Desktop gives its virtual machine a share of the computer's memory
 | The images: `troupe` 495 MB, `troupe-renderer` 1.3 GB, `troupe-ollama` 220 MB, `troupe-web` 190 MB, `postgres` 410 MB (`troupe-cli` 240 MB with the `cli` profile) | about 2.6 GB on disk; Troupe's five images compress to about 610 MB | Docker's image store |
 | The chat model, `qwen3:4b` | 2.5 GB | the `ollama` volume |
 | Kokoro-82M, 8-bit (`onnx-community/Kokoro-82M-v1.0-ONNX`) | about 90 MB | the `renderer` volume |
+| After the chat model, in the background: the library's search and vision models, `qwen3-embedding:0.6b` and `qwen3-vl:2b-instruct` (skipped with `TROUPE_LIBRARY=0`) | 639 MB and 1.9 GB | the `ollama` volume |
+| On the first transcription: Whisper base (`Systran/faster-whisper-base`) | about 145 MB | the `renderer` volume |
 
 Sizes are those of the linux/arm64 images on Docker Desktop. On an Apple M5
 Mac with the images already built, the first `docker compose up -d --wait`
@@ -146,6 +148,8 @@ Everything is optional. Put what you change in `.env` next to
 | `TROUPE_CHAT_PROVIDER`, `TROUPE_CHAT_INSTRUCTIONS`, `TROUPE_CHAT_WORDS_PER_SECOND`, `TROUPE_CHAT_TIMEOUT_S`, `TROUPE_CHAT_TEMPERATURE`, `TROUPE_CHAT_HISTORY_TURNS` | `auto`, —, `2.5`, `180`, provider's own, `6` | The chat's provider choice, house style, word-budget rate, answer time limit, sampling temperature (sent to Claude only for the models that accept one) and history kept ([SCRIPT-CHAT.md](SCRIPT-CHAT.md#settings)). Settings → Script chat overrides the first three. |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES`, `TROUPE_RENDERER_PORTRAITS_DIR` | `q8`, built-in casting, `./public/actors` | The renderer's weights, voices and actors' pictures ([LOCAL-MODELS.md](LOCAL-MODELS.md#run-it)). |
 | `TROUPE_RENDERER_PORT` | `8078` | With `docker-compose.dev.yml` only: the renderer's port on `127.0.0.1`, for a studio run with `pnpm dev`. |
+| `TROUPE_LIBRARY`, `TROUPE_LIBRARY_EMBED_MODEL`, `TROUPE_LIBRARY_VISION_MODEL` | `1`, `qwen3-embedding:0.6b`, `qwen3-vl:2b-instruct` | The [inspiration library](LIBRARY.md) and the Ollama models it searches and looks with (`off` skips one). `ollama` pulls them after the chat model, without holding up the start. |
+| `TROUPE_TRANSCRIPTION`, `TROUPE_WHISPER_MODEL` | `1`, `base` | The renderer's Whisper for the library ([LIBRARY.md](LIBRARY.md#settings) lists the library's other settings). |
 | `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.1.0`. |
 
 Inside the app container: `TROUPE_DATA_DIR=/app/data` (videos, `access-code`,

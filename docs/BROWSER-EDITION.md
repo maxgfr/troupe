@@ -241,6 +241,21 @@ soundtrack under its playback, and encodes both files to fit `TOUR_MAX_MB`.
 `node scripts/tour/record.ts --cards` redraws only the cards (after changing
 their text), and `pnpm tour:edit` cuts again from the same footage.
 
+## The inspiration library
+
+The [library](LIBRARY.md) works here too, in the tab: uploads stay in this
+browser (with the renders, in the same backups), pictures are taken with a
+video element and a canvas, Whisper base and multilingual-e5-small run in a
+worker through Transformers.js (about 195 MB, downloaded once, on the CPU;
+`VITE_LIBRARY_DEVICE=auto` uses WebGPU), and the analysis's writing, the
+library chat and the ideas use the script chat's WebLLM model, so they need
+WebGPU. Two things need a server and say so where they would be: saving a
+link (a page cannot fetch other sites; save the file and upload it, or paste
+the text) and describing the pictures (no vision model small enough runs in a
+tab yet). `VITE_LIBRARY_*` in `site/.env.example` change the models and
+limits. `pnpm site:test` uploads a clip and searches it; `pnpm
+site:test:chat` (WebGPU) also asks about it and makes an idea a project.
+
 ## How it is put together
 
 - `site/vite.config.ts`: Vite with `base: "/troupe/"`, `~` mapped to `src/`, and

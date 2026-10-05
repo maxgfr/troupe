@@ -338,6 +338,28 @@ supported picks the pace up when you press **Test** on it in Settings.
 - A line too long for the caption area even at the smallest caption size is
   shown a few rows at a time, following the word being said.
 
+## Transcription for the library
+
+The renderer also transcribes speech for the [inspiration library](LIBRARY.md):
+`POST /transcribe` with a sound file as the body (any format FFmpeg reads;
+the studio sends 16 kHz mono FLAC) answers `{ language, model, duration,
+segments: [{ start, end, text }] }`; `GET /transcribe/health` answers
+`{ ok: true, model }`, or 503 with what is missing. It runs
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) on the CPU (int8),
+in a Python environment of its own (`renderer/whisper`, locked with uv; no
+PyTorch), one file at a time, beside the renders. The token, when set,
+guards it too.
+
+- Docker: on in the `renderer` image (`TROUPE_TRANSCRIPTION=0` turns it off,
+  `TROUPE_WHISPER_MODEL` picks the size); the model downloads into the
+  `renderer` volume on first use (base: 145 MB).
+- Natively: `pnpm renderer:whisper:setup` (the environment and the model,
+  `WHISPER_MODEL` to pick another), then `pnpm renderer:whisper`, and point the
+  studio at it: `TROUPE_TRANSCRIBE_URL=http://127.0.0.1:8078`.
+
+Measured on an Apple M5 (natively), base in int8: a 14 s clip in 1.3 s
+including the model's load. `WHISPER_*` variables: [docs/LIBRARY.md](LIBRARY.md#settings).
+
 ## AI video mode (LTX-Video)
 
 The local renderer has an opt-in second mode that puts a generated person

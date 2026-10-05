@@ -12,7 +12,9 @@ the browser.
 
 The core path: project → actor preset → short script with an emotion per line →
 model (cloud or local) → follow the render → preview → MP4 download. Comparing
-two or three models on the same script is part of it.
+two or three models on the same script is part of it. Before it, an
+inspiration library keeps what the user saved (their files and links, read
+by their own models) and turns what works into scripts.
 
 Principles:
 
@@ -26,4 +28,9 @@ Principles:
   cloud inference. Actor presets guide the prompt; fidelity depends on the model.
 - Keep the quiet light/dark workbench design (DESIGN.md).
 
-Out of scope: payments, multi-user administration, posting to social networks.
+- Analyse only what the user gives the library, one file or link at a time;
+  no crawling, and originals stay on the user's own server or browser.
+
+Out of scope: payments, multi-user administration, posting to social networks,
+and, for now, the library's visual boards, carousels and browser extension
+(docs/LIBRARY.md).

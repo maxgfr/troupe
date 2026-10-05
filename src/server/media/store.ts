@@ -48,3 +48,15 @@ export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = 
   const name = downloadFileName(download, ext);
   return name === null ? `inline; filename="${DEFAULT_DOWNLOAD_NAME}.${ext}"` : `attachment; filename="${name}"`;
 }
+
+// The library's files (src/modules/library), served as themselves only when
+// a browser shows them safely inline; anything else is a download.
+const INLINE_LIBRARY_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/aac", "audio/wav", "audio/ogg", "audio/flac", "image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+export function libraryMediaHeaders(mimeType: string, download: string | null): { contentType: string; disposition: string } {
+  const inline = INLINE_LIBRARY_TYPES.has(mimeType);
+  const ext = { "application/pdf": "pdf" }[mimeType] ?? mimeType.split("/")[1]?.replace(/[^a-z0-9]/g, "") ?? "bin";
+  const name = `troupe-library.${ext}`;
+  if (!inline) return { contentType: mimeType === "application/pdf" ? "application/pdf" : "application/octet-stream", disposition: `attachment; filename="${name}"` };
+  return { contentType: mimeType, disposition: download === null ? `inline; filename="${name}"` : `attachment; filename="${name}"` };
+}

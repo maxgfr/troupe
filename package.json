@@ -40,6 +40,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",
     "@heroui/react": "^3.2.2",
+    "@mozilla/readability": "0.6.0",
     "@supabase/supabase-js": "^2.116.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.69.0",
@@ -47,12 +48,14 @@
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
     "drizzle-orm": "^0.45.2",
+    "linkedom": "0.18.13",
     "next": "^15.5.25",
     "postgres": "^3.4.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "superjson": "^2.2.1",
+    "unpdf": "1.8.1",
     "zod": "^3.24.2"
   },
   "optionalDependencies": {

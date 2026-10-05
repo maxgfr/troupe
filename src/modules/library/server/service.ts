@@ -371,18 +371,37 @@ async function passagesFor(db: Db, input: { workspaceId: string; itemId?: string
     }
   }
   const result = await searchLibrary(db, { workspaceId: input.workspaceId, query: input.message, itemId: input.itemId ?? undefined, limit: SOURCES, embedder: input.embedder });
-  return result.hits;
+  if (input.itemId || result.hits.length >= SOURCES / 2) return result.hits;
+  // A broad question ("what works in these?") matches few passages: the
+  // newest items' openings fill the rest.
+  const seen = new Set(result.hits.map((h) => h.chunkId));
+  const newest = await db
+    .select({ chunk: libraryChunks, item: libraryItems })
+    .from(libraryChunks)
+    .innerJoin(libraryItems, eq(libraryItems.id, libraryChunks.itemId))
+    .where(and(eq(libraryChunks.workspaceId, input.workspaceId), eq(libraryChunks.index, 0)))
+    .orderBy(desc(libraryItems.createdAt))
+    .limit(SOURCES);
+  const fill = newest
+    .filter((r) => !seen.has(r.chunk.id))
+    .map((r) => {
+      const v = view(r.item);
+      return { chunkId: r.chunk.id, itemId: v.id, title: v.title, kind: v.kind, thumbnailAssetId: v.thumbnailAssetId, text: r.chunk.text, startS: r.chunk.startS, score: 0 };
+    });
+  return [...result.hits, ...fill].slice(0, SOURCES);
 }
 
-async function ask(writer: Writer, turns: ChatTurn[], schema: Parameters<ChatModel["propose"]>[1]["schema"], read: (raw: unknown) => boolean, options: { signal?: AbortSignal; maxTokens?: number }) {
+// One answer in the schema, with one more try when it cannot be read.
+async function ask<T>(writer: Writer, turns: ChatTurn[], schema: Parameters<ChatModel["propose"]>[1]["schema"], read: (raw: unknown) => T | null, options: { signal?: AbortSignal; maxTokens?: number }): Promise<{ text: string; value: T | null }> {
   const first = await writer.model.propose(turns, { schema, signal: options.signal, maxTokens: options.maxTokens });
-  if (first.proposal !== null && read(first.proposal)) return first;
+  const firstValue = first.proposal === null ? null : read(first.proposal);
+  if (firstValue !== null) return { text: first.text, value: firstValue };
   const second = await writer.model.propose(
     [...turns, { role: "assistant", content: first.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object, following the same rules." }],
     { schema, signal: options.signal, maxTokens: options.maxTokens },
   );
-  if (second.proposal !== null && read(second.proposal)) return second;
-  return { text: second.text.trim() || first.text.trim(), proposal: null };
+  const secondValue = second.proposal === null ? null : read(second.proposal);
+  return { text: second.text.trim() || first.text.trim(), value: secondValue };
 }
 
 export async function sendLibraryMessage(
@@ -404,10 +423,9 @@ export async function sendLibraryMessage(
     message: input.message,
   });
   const known = sources.map((s) => s.n);
-  let read: ReturnType<typeof readChatAnswer> = null;
-  const answer = await ask(input.writer, turns, chatAnswerSchema(), (raw) => (read = readChatAnswer(raw, known)) !== null, { signal: input.signal });
-  const content = read ? (read as { answer: string }).answer : answer.text || "(the model sent an empty answer)";
-  const cited = read ? (read as { cited: number[] }).cited : [];
+  const answer = await ask(input.writer, turns, chatAnswerSchema(), (raw) => readChatAnswer(raw, known), { signal: input.signal });
+  const content = answer.value?.answer ?? (answer.text || "(the model sent an empty answer)");
+  const cited = answer.value?.cited ?? [];
   const citations: Citation[] = cited.map((n) => {
     const s = sources[n - 1]!;
     return { n, itemId: s.hit.itemId, chunkId: s.hit.chunkId, title: s.title, kind: s.kind, startS: s.startS };
@@ -524,8 +542,11 @@ export async function generateIdeas(
     voice: voice.profile,
     brief: input.brief?.trim() || null,
   });
-  let ideas: ReturnType<typeof readIdeas> = [];
-  const answer = await ask(input.writer, turns, ideasSchema(), (raw) => (ideas = readIdeas(raw, count)).length > 0, { signal: input.signal, maxTokens: 400 + count * 220 });
+  const answer = await ask(input.writer, turns, ideasSchema(), (raw) => {
+    const read = readIdeas(raw, count);
+    return read.length > 0 ? read : null;
+  }, { signal: input.signal, maxTokens: 400 + count * 220 });
+  let ideas = answer.value ?? [];
   if (ideas.length === 0) {
     const raw = answer.text ? parseJsonAnswer(answer.text) : null;
     ideas = raw ? readIdeas(raw, count) : [];

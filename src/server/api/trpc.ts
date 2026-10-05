@@ -20,6 +20,7 @@ import type { RenderIngestor } from "~/modules/generation";
 import type { ModelCatalog } from "~/modules/models";
 import type { Machine } from "~/server/settings/urls";
 import type { ChatBackend } from "~/modules/chat";
+import type { LibraryBackend } from "~/modules/library";
 
 /**
  * 1. CONTEXT
@@ -50,6 +51,10 @@ export const createTRPCContext = async (opts: {
   // The script chat's model: Ollama or Claude here (src/server/chat), WebLLM
   // in the browser edition. Null where none is wired (most tests).
   chat?: ChatBackend | null;
+  // The inspiration library's tools: ffmpeg, the stack's Whisper and Ollama
+  // here (src/server/library), the page's own models in the browser
+  // edition. Null where none is wired (most tests).
+  library?: LibraryBackend | null;
 }) => {
   return {
     db: opts.db,
@@ -62,6 +67,7 @@ export const createTRPCContext = async (opts: {
     ingest: opts.ingest,
     machine: opts.machine ?? null,
     chat: opts.chat ?? null,
+    library: opts.library ?? null,
   };
 };
 

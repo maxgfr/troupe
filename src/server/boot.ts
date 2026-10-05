@@ -62,6 +62,12 @@ export async function boot() {
     const { reconcileOnce, startLoop } = await import("./jobs/worker");
     startLoop("jobs.reconcile", () => reconcileOnce(), 30_000);
     console.info(JSON.stringify({ event: "jobs.worker.started", everyS: 30 }));
+    // The inspiration library's analyses: resumed after a restart, and the
+    // passages saved while the embedding model was missing indexed.
+    if (url) {
+      const [{ libraryPass }, { createServerChat }, { db }] = await Promise.all([import("./library"), import("./chat"), import("./db")]);
+      startLoop("library.analyze", () => libraryPass(db, createServerChat(db)), 60_000);
+    }
   }
 
   // The Docker stack's own renderer, added as a local model on first start

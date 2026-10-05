@@ -6,6 +6,7 @@ import { serverMedia } from "~/server/media/storage";
 import type { VideoProviderAdapter } from "~/modules/generation";
 import type { ModelCatalog } from "~/modules/models";
 import type { ChatBackend } from "~/modules/chat";
+import type { LibraryBackend } from "~/modules/library";
 import { catalogOf } from "./adapters";
 
 // Build a tRPC caller with a test context. `userId` defaults to an anonymous
@@ -19,6 +20,7 @@ export function testCaller(opts: {
   media?: MediaStore;
   machine?: Machine | null;
   chat?: ChatBackend | null;
+  library?: LibraryBackend | null;
 }) {
   return createCaller({
     db: opts.db,
@@ -29,5 +31,6 @@ export function testCaller(opts: {
     ingest: undefined,
     machine: opts.machine ?? null,
     chat: opts.chat ?? null,
+    library: opts.library ?? null,
   });
 }

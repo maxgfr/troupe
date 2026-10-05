@@ -9,6 +9,7 @@ import { exportRouter } from "~/server/api/routers/export";
 import { opsRouter } from "~/server/api/routers/ops";
 import { settingsRouter } from "~/server/api/routers/settings";
 import { chatRouter } from "~/server/api/routers/chat";
+import { libraryRouter } from "~/server/api/routers/library";
 
 // One router per module (ADR module boundary). Each procedure is workspace- or
 // project-scoped and fails closed for non-members.
@@ -24,6 +25,7 @@ export const appRouter = createTRPCRouter({
   ops: opsRouter,
   settings: settingsRouter,
   chat: chatRouter,
+  library: libraryRouter,
 });
 
 export type AppRouter = typeof appRouter;

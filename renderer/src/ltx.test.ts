@@ -1,4 +1,5 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -182,14 +183,36 @@ describe("generateClip", () => {
     expect(stdout.trim()).toBe("");
   });
 
-  const alive = (pid: number) => {
+  // A killed process lingers as a zombie until its parent reaps it. The
+  // grandchild's parent dies first, so it is adopted by an ancestor that may
+  // never reap it (PID 1 in a container, the CI runner's subreaper), and
+  // kill(pid, 0) still succeeds on a zombie. Dead means gone or a zombie;
+  // anything else after the wait is a process still running.
+  function dead(pid: number): boolean {
     try {
       process.kill(pid, 0);
-      return true;
     } catch {
-      return false;
+      return true;
     }
-  };
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      return stat.slice(stat.lastIndexOf(")") + 2).startsWith("Z");
+    } catch {
+      // No /proc (macOS): ask ps.
+    }
+    try {
+      return execFileSync("ps", ["-o", "stat=", "-p", String(pid)], { encoding: "utf8" }).trim().startsWith("Z");
+    } catch {
+      return true;
+    }
+  }
+  // SIGKILL is delivered asynchronously: give it a moment, bounded.
+  async function diesWithin(pid: number, ms = 3000): Promise<boolean> {
+    for (const started = Date.now(); Date.now() - started < ms; await new Promise((r) => setTimeout(r, 50))) {
+      if (dead(pid)) return true;
+    }
+    return dead(pid);
+  }
   const pidIn = async (file: string) => {
     for (let i = 0; i < 50; i++) {
       const text = await readFile(file, "utf8").catch(() => "");
@@ -205,7 +228,7 @@ describe("generateClip", () => {
     const done = generateClip(settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile], timeoutS: 1 }), job);
     const grandchild = await pidIn(pidFile);
     await expect(done).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
-    expect(alive(grandchild)).toBe(false);
+    expect(await diesWithin(grandchild)).toBe(true);
   }, 15_000);
 
   it("stops running generations when the renderer shuts down", async () => {
@@ -215,7 +238,7 @@ describe("generateClip", () => {
     const grandchild = await pidIn(pidFile);
     stopGenerators();
     await expect(done).rejects.toThrow(/LTX/);
-    expect(alive(grandchild)).toBe(false);
+    expect(await diesWithin(grandchild)).toBe(true);
   });
 
   it("says how to install uv when it is missing", async () => {

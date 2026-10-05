@@ -95,7 +95,7 @@ uv run --project scripts/actors python scripts/actors/generate.py --sheet
 3. Every picture was reviewed on a contact sheet. The first fronts all wore
    the same six outfits, so 20 actors got their own clothes (`wear` in
    `cast.json`); two looks were rewritten and reseeded (Louis came out with
-   too light a skin for his description, Elsa's crop was off). The edits came
+   too light a skin for his description, Elsa's had a thin frame drawn around her). The edits came
    out right the first time.
 4. The full-size PNGs stay in `scripts/actors/raw/` (not committed), which the
    edits read as their reference; the published files are WebP at quality 80.

@@ -1,0 +1,13 @@
+# The stack's renderer for a studio run with `pnpm dev` on this computer.
+# Laid over docker-compose.yml, it publishes the renderer on 127.0.0.1:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait renderer
+#
+# then add the HTTP model http://127.0.0.1:8078 in Settings (or let `pnpm dev`
+# add it: TROUPE_AUTOCONFIGURE=1 TROUPE_RENDERER_URL=http://127.0.0.1:8078).
+# TROUPE_RENDERER_PORT picks another port, e.g. when `pnpm renderer` already
+# listens on 8078.
+services:
+  renderer:
+    ports:
+      - "127.0.0.1:${TROUPE_RENDERER_PORT:-8078}:8078"

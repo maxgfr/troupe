@@ -1,6 +1,10 @@
 # The browser edition behind nginx (site/Dockerfile). ${TROUPE_WEB_BASE} is
 # filled in when the container starts; nginx's own $variables are left alone.
 
+# $troupe_csp: the Content-Security-Policy written at build time
+# (site/docker/csp.mjs).
+include /etc/nginx/troupe-csp.conf;
+
 # Hashed bundles never change; pages, the service worker and the app's
 # entry are checked on every load so an update shows up at once; pictures and
 # the presentation video for an hour.
@@ -43,6 +47,9 @@ server {
     add_header Service-Worker-Allowed $troupe_sw_allowed always;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Content-Security-Policy $troupe_csp always;
+    # For browsers without frame-ancestors: no page of the site in a frame.
+    add_header X-Frame-Options DENY always;
 
     location = /healthz {
         access_log off;

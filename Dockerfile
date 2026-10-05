@@ -33,8 +33,11 @@ COPY --from=builder --chown=node:node /app/public ./public
 # Applied automatically on start (src/server/boot.ts).
 COPY --from=builder --chown=node:node /app/drizzle ./drizzle
 # Videos, the generated access code and the encryption key live here.
-RUN mkdir -p /app/data && chown node:node /app/data
+RUN mkdir -p /app/data /app/cli-access && chown node:node /app/data /app/cli-access
 VOLUME /app/data
+# A copy of the generated access code for the Compose stack's CLI container
+# (TROUPE_ACCESS_CODE_SHARE_DIR), alone in its own volume.
+VOLUME /app/cli-access
 # Builds DATABASE_URL for the Compose stack when it is not set.
 COPY --chmod=755 scripts/docker/app-entrypoint.sh /usr/local/bin/troupe-entrypoint
 USER node

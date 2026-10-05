@@ -54,14 +54,18 @@ function run(command: string, args: string[], options: { quiet?: boolean; log?: 
   return new Promise((done, fail) => {
     const piped = Boolean(options.log || options.output);
     const child = spawn(command, args, { cwd: REPO, env, stdio: piped ? ["ignore", "pipe", "pipe"] : options.quiet ? "ignore" : "inherit" });
-    if (options.log) {
-      const file = createWriteStream(options.log);
-      child.stdout?.pipe(file);
-      child.stderr?.pipe(file);
+    // Both streams into one file, which closes (and is complete) after both.
+    const file = options.log ? createWriteStream(options.log) : null;
+    if (file) {
+      child.stdout?.pipe(file, { end: false });
+      child.stderr?.pipe(file, { end: false });
     }
     child.stdout?.on("data", (chunk: Buffer) => options.output?.push(chunk.toString()));
     child.on("error", fail);
-    child.on("exit", (code) => done(code ?? 1));
+    child.on("close", (code) => {
+      if (file) file.end(() => done(code ?? 1));
+      else done(code ?? 1);
+    });
   });
 }
 
@@ -74,9 +78,14 @@ async function timed(label: string, step: () => Promise<number>): Promise<number
   return code;
 }
 
-// The containers run as their own users (Ollama, the renderer and the CLI's
-// node) and write into these folders, restored from a cache owned by whoever
-// ran last: open them up, as far as this user may.
+// The containers run as their own users, whose ids match nobody on the host
+// (Ollama as uid 10001, the renderer and the CLI as node, uid 1000), and
+// write into these bind-mounted folders. On a CI runner (uid 1001) the folders
+// come back from actions/cache owned by the runner, and on Linux a folder
+// Docker creates is root's. World-writable (0777) is what lets every one of
+// them write there without knowing the others' ids; it is a throwaway cache
+// of public model files, in this checkout only. Open them up as far as this
+// user may.
 function openUp(path: string) {
   try {
     chmodSync(path, 0o777);
@@ -101,6 +110,9 @@ async function main(): Promise<number> {
   const up = await timed("first start, until every service is healthy", () => compose(["up", "--detach", "--no-build", "--wait", "--wait-timeout", WAIT_S]));
   if (up) {
     await compose(["ps", "--all"]);
+    // Kept with the test results (CI uploads them), before the stack goes.
+    await compose(["logs", "--no-color", "--timestamps"], { log: join(RESULTS, "stack.log") });
+    console.log(`[e2e] The services' logs are in ${join(RESULTS, "stack.log")}.`);
     return up;
   }
 

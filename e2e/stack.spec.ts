@@ -15,6 +15,19 @@ test("the health check answers and the generated access code is in the logs", as
   expect(logs).toContain(process.env.E2E_ACCESS_CODE ?? "missing");
 });
 
+test("the browser edition is served with its security headers", async ({ request }) => {
+  const web = process.env.E2E_WEB_URL ?? "http://127.0.0.1:3191";
+  const page = await request.get(`${web}/troupe/app/dashboard`);
+  expect(page.status()).toBe(200);
+  const csp = page.headers()["content-security-policy"] ?? "";
+  for (const part of ["default-src 'self'", "'wasm-unsafe-eval'", "worker-src 'self' blob:", "frame-ancestors 'none'", "https://huggingface.co", "'sha256-"]) expect(csp).toContain(part);
+  expect(csp).not.toContain("'unsafe-eval'");
+  expect(page.headers()["x-frame-options"]).toBe("DENY");
+  expect(page.headers()["x-content-type-options"]).toBe("nosniff");
+  const worker = await request.get(`${web}/troupe/sw.js`);
+  expect(worker.headers()).toMatchObject({ "cache-control": "no-cache", "service-worker-allowed": "/troupe/" });
+});
+
 test("a spoofed localhost Host header gets nothing", async ({ request, baseURL }) => {
   const response = await request.get(`${baseURL}/api/trpc/identity.myWorkspaces`, { headers: { host: "localhost:3100" } });
   expect(response.status()).toBe(401);

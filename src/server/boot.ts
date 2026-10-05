@@ -4,7 +4,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
 import { databaseTls } from "../../scripts/database-tls.mjs";
-import { accessCodeFile, ensureAccessCode } from "./access-code";
+import { accessCodeFile, ensureAccessCode, shareAccessCode } from "./access-code";
 import { prepareDatabase } from "./db/prepare";
 
 const flag = (name: string, fallback: boolean) => {
@@ -28,6 +28,11 @@ async function migrateDatabase(url: string) {
 // Runs once when the server process starts (src/instrumentation.ts).
 export async function boot() {
   const access = ensureAccessCode();
+  try {
+    shareAccessCode(access);
+  } catch (error) {
+    console.warn(`Troupe: the access code could not be shared with the CLI container: ${(error as Error).message}`);
+  }
   if (access.source === "generated" || access.source === "file") {
     console.info([
       "",

@@ -801,10 +801,19 @@ code {
   margin: 0;
   padding: 16px 20px 18px;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* Wrap a narrow screen's commands between words, not inside the URL. */
+  overflow-wrap: break-word;
   font-size: 0.8125rem;
   line-height: 1.7;
   tab-size: 2;
+}
+/* One command per line; a command too long for the screen continues on an
+   indented line, so it does not read as two. */
+.terminal .command {
+  display: inline-block;
+  width: 100%;
+  padding-left: 2ch;
+  text-indent: -2ch;
 }
 .copy {
   position: relative;

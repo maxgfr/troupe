@@ -28,13 +28,31 @@ programs under other licenses:
 - **Ollama** (`troupe-ollama`, the stack's chat server). The image copies the
   `ollama` program and its CPU libraries from the official
   [`ollama/ollama`](https://hub.docker.com/r/ollama/ollama) image, unmodified,
-  leaving out its GPU libraries: [Ollama](https://github.com/ollama/ollama)
-  is under the MIT License, and it bundles [llama.cpp and ggml](https://github.com/ggml-org/llama.cpp)
-  (MIT License), [cpp-httplib](https://github.com/yhirose/cpp-httplib) (MIT
-  License) and the Go runtime (BSD 3-Clause License); their license files
-  stay in the image, under `/usr/lib/ollama`. `docker-compose.gpu.yml` runs
-  the official image instead, which also carries NVIDIA's CUDA libraries
-  under [NVIDIA's license](https://docs.nvidia.com/cuda/eula/).
+  at the version pinned in `ollama/Dockerfile`, leaving out its GPU libraries.
+  [`ollama/NOTICE`](ollama/NOTICE), installed as `/usr/share/doc/ollama/NOTICE`,
+  says where each license lives in the image:
+  - [Ollama](https://github.com/ollama/ollama): MIT License, vendored from that
+    tag as `ollama/LICENSE.ollama` and installed as
+    `/usr/share/doc/ollama/LICENSE` (the official image does not carry it).
+  - [llama.cpp and ggml](https://github.com/ggml-org/llama.cpp) (MIT License,
+    with the code it vendors), [cpp-httplib](https://github.com/yhirose/cpp-httplib)
+    (MIT License) and the Go runtime compiled into `ollama` (BSD 3-Clause
+    License): their license files, from the official image, under
+    `/usr/lib/ollama` (`LLAMA_CPP_LICENSE`, `LLAMA_CPP_VENDORS_LICENSE`,
+    `CPP_HTTPLIB_LICENSE`, `GO_LICENSE`).
+  - GNU OpenMP (`/usr/lib/ollama/libgomp.so.1`), part of
+    [GCC](https://gcc.gnu.org): GNU General Public License version 3 with the
+    GCC Runtime Library Exception 3.1; the texts are in the image's
+    `/usr/share/doc/gcc-14-base/copyright` and
+    `/usr/share/common-licenses/GPL-3`, the source at gcc.gnu.org and in
+    Ubuntu's gcc packages.
+  - LLVM OpenMP (`/usr/lib/ollama/libomp.so`), part of the
+    [LLVM project](https://github.com/llvm/llvm-project): Apache License 2.0
+    with LLVM Exceptions (https://llvm.org/LICENSE.txt).
+  The image's build fails if one of these files is missing, and
+  `pnpm e2e:docker` checks them. `docker-compose.gpu.yml` builds the official
+  image itself (the `gpu` target, with the same two files added), which also
+  carries NVIDIA's CUDA libraries under [NVIDIA's license](https://docs.nvidia.com/cuda/eula/).
 - **ComfyUI workflows.** `src/modules/generation/server/adapters/comfyui/templates/*.json`
   are derived from [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates)
   (MIT). The model weights they reference are not distributed with Troupe and

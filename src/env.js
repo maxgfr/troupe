@@ -38,6 +38,8 @@ export const env = createEnv({
     TROUPE_DATA_DIR: z.string().optional(),
     TROUPE_INPROCESS_WORKER: z.enum(["0", "1", "true", "false"]).optional(),
     TROUPE_AUTO_MIGRATE: z.enum(["0", "1", "true", "false"]).optional(),
+    // Where a copy of the generated access code goes for the Docker CLI (access-code.ts).
+    TROUPE_ACCESS_CODE_SHARE_DIR: z.string().optional(),
     // Where browsers load the actors' pictures (read by src/server/media/store.ts):
     // a path or URL laid out like public/actors. Default: /actors.
     TROUPE_ACTOR_PORTRAITS_URL: z.string().optional(),
@@ -86,6 +88,7 @@ export const env = createEnv({
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,
     TROUPE_INPROCESS_WORKER: process.env.TROUPE_INPROCESS_WORKER,
     TROUPE_AUTO_MIGRATE: process.env.TROUPE_AUTO_MIGRATE,
+    TROUPE_ACCESS_CODE_SHARE_DIR: process.env.TROUPE_ACCESS_CODE_SHARE_DIR,
     TROUPE_ACTOR_PORTRAITS_URL: process.env.TROUPE_ACTOR_PORTRAITS_URL,
     TROUPE_AUTOCONFIGURE: process.env.TROUPE_AUTOCONFIGURE,
     TROUPE_RENDERER_URL: process.env.TROUPE_RENDERER_URL,

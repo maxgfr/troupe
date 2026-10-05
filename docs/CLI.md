@@ -48,9 +48,10 @@ docker compose run --rm cli download --project "Spring drop"
 ```
 
 It reaches the studio at `http://app:3000`, inside the stack's network
-(`TROUPE_INSECURE=1` there), and reads the access code the studio saved in
-its data volume, mounted read-only, unless `TROUPE_ACCESS_CODE` is set in
-`.env`. Profiles and the chosen project persist in the `cli-config` volume;
+(`TROUPE_INSECURE=1` there), and reads the access code the studio generated
+from a volume the studio copies it into for this purpose
+(`troupe-cli-access`, read-only), unless `TROUPE_ACCESS_CODE` is set in
+`.env`. It never mounts the studio's data volume, which holds `secret.key`. Profiles and the chosen project persist in the `cli-config` volume;
 downloads land in the folder with `docker-compose.yml` (`TROUPE_CLI_DIR`
 moves them). In the container, `--base-url` for `models add` is the address
 the studio reaches, such as `http://renderer:8078`.

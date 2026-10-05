@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { currentAccessCode, ensureAccessCode, resetAccessCodeCache } from "./access-code";
+import { currentAccessCode, ensureAccessCode, resetAccessCodeCache, shareAccessCode } from "./access-code";
 
 let dir: string;
 beforeEach(async () => {
@@ -46,5 +46,33 @@ describe("access code", () => {
     vi.stubEnv("VERCEL", "1");
     resetAccessCodeCache();
     expect(ensureAccessCode()).toEqual({ code: null, source: "none" });
+  });
+});
+
+// The Docker stack's CLI container reads the code from a volume of its own,
+// never the data volume (which also holds secret.key).
+describe("sharing the access code with the CLI", () => {
+  it("copies a generated or saved code, owner-only, into the shared folder", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const shared = join(dir, "shared");
+    const access = ensureAccessCode();
+    shareAccessCode(access, shared);
+    expect((await readFile(join(shared, "access-code"), "utf8")).trim()).toBe(access.code);
+    expect((await stat(join(shared, "access-code"))).mode & 0o777).toBe(0o600);
+    // Only the code: nothing else from the data folder.
+    expect(await readdir(shared)).toEqual(["access-code"]);
+    resetAccessCodeCache();
+    shareAccessCode(ensureAccessCode(), shared);
+    expect((await readFile(join(shared, "access-code"), "utf8")).trim()).toBe(access.code);
+  });
+
+  it("removes a stale copy when the code comes from the environment, and does nothing without a folder", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const shared = join(dir, "shared");
+    shareAccessCode(ensureAccessCode(), shared);
+    vi.stubEnv("TROUPE_ACCESS_CODE", "set-in-env-123");
+    shareAccessCode(ensureAccessCode(), shared);
+    expect(await readdir(shared)).toEqual([]);
+    expect(() => shareAccessCode(ensureAccessCode(), undefined)).not.toThrow();
   });
 });

@@ -31,6 +31,8 @@ services:
       POSTGRES_PASSWORD_FILE: /run/troupe-secrets/postgres-password
       TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
       TROUPE_SECRET: ${TROUPE_SECRET:-}
+      # A copy of the generated access code for the `cli` service.
+      TROUPE_ACCESS_CODE_SHARE_DIR: /app/cli-access
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
       FAL_KEY: ${FAL_KEY:-}
       # The script chat: the stack's Ollama by default, Claude with a key.
@@ -54,6 +56,7 @@ services:
     volumes:
       - troupe-media:/app/data
       - troupe-secrets:/run/troupe-secrets:ro
+      - troupe-cli-access:/app/cli-access
     extra_hosts:
       # Reach a ComfyUI or model server running on this computer.
       - "host.docker.internal:host-gateway"
@@ -69,8 +72,8 @@ services:
     <<: *restart
     image: postgres:16-alpine
     environment:
-      # Empty: a random password is generated on first start and kept in the
-      # troupe-secrets volume.
+      # Empty: a random password is generated when the database is created
+      # and kept in the troupe-secrets volume.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: troupe
     entrypoint:
@@ -80,6 +83,12 @@ services:
         secret=/run/troupe-secrets/postgres-password
         if [ -z "$$POSTGRES_PASSWORD" ]; then
           if [ ! -s "$$secret" ]; then
+            # A database created with a password of its own: a new one would
+            # not open it, and the studio would fail to sign in to it.
+            if [ -s "$$PGDATA/PG_VERSION" ]; then
+              echo "Troupe: this database was created with a password that is set nowhere now. Put it back as POSTGRES_PASSWORD in .env (see docs/SELF-HOSTING.md#upgrade), then run docker compose up -d --wait again." >&2
+              exit 1
+            fi
             umask 022
             head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$$secret.tmp"
             mv "$$secret.tmp" "$$secret"
@@ -106,7 +115,9 @@ services:
   # The local renderer, on the CPU: Kokoro voices, the actor card and
   # captions, encoded with ffmpeg (docs/LOCAL-MODELS.md). The app adds it as a
   # video model on first start. Kokoro's weights (about 90 MB) download into
-  # the `renderer` volume on its first start.
+  # the `renderer` volume on its first start. No port on the host, so it never
+  # clashes with `pnpm renderer`; docker-compose.dev.yml publishes it for a
+  # studio run with `pnpm dev`.
   renderer:
     <<: *restart
     image: ghcr.io/maxgfr/troupe-renderer:${TROUPE_VERSION:-latest}
@@ -118,9 +129,6 @@ services:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
       KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
-    ports:
-      # For Troupe under `pnpm dev`: http://127.0.0.1:8078.
-      - "127.0.0.1:${TROUPE_RENDERER_PORT:-8078}:8078"
     volumes:
       - renderer:/data
       # The actors' pictures drawn in the card: the checked-in cast, or your own.
@@ -145,6 +153,10 @@ services:
       TROUPE_OLLAMA_MODELS: ${TROUPE_OLLAMA_MODELS:-${OLLAMA_MODEL:-qwen3:4b}}
       OLLAMA_MODELS: /ollama/models
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    # Downloads each model in the background, retrying with a growing pause
+    # (5 s up to 5 min) while the network fails. A name the Ollama library does
+    # not know never succeeds: the service then stops with that message, so
+    # `docker compose up --wait` fails at once instead of waiting.
     entrypoint:
       - /bin/sh
       - -c
@@ -152,7 +164,19 @@ services:
         (
           until ollama list > /dev/null 2>&1; do sleep 1; done
           for model in $$(echo "$$TROUPE_OLLAMA_MODELS" | tr ',' ' '); do
-            ollama show "$$model" > /dev/null 2>&1 || ollama pull "$$model" || echo "Could not download $$model; the chat will say so."
+            pause=5
+            until ollama show "$$model" > /dev/null 2>&1; do
+              ollama pull "$$model" 2>&1 | tee /tmp/ollama-pull.log
+              ollama show "$$model" > /dev/null 2>&1 && break
+              if grep -qiE "file does not exist|not found" /tmp/ollama-pull.log; then
+                echo "The Ollama library has no model called $$model. Fix OLLAMA_MODEL (or TROUPE_OLLAMA_MODELS) in .env, then run docker compose up -d --wait again." >&2
+                kill -TERM 1
+                exit 1
+              fi
+              echo "Could not download $$model; trying again in $$pause s." >&2
+              sleep "$$pause"
+              pause=$$((pause * 2)); [ "$$pause" -gt 300 ] && pause=300
+            done
           done
         ) &
         exec ollama serve
@@ -209,8 +233,9 @@ services:
       TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
       TROUPE_PROJECT: ${TROUPE_PROJECT:-}
     volumes:
-      # Read for its access-code file only.
-      - troupe-media:/studio:ro
+      # The access code the studio generated, alone: never the data volume,
+      # which also holds secret.key.
+      - troupe-cli-access:/run/troupe-access:ro
       - cli-config:/home/node/.config/troupe
       - ${TROUPE_CLI_DIR:-.}:/work
     depends_on:
@@ -303,6 +328,7 @@ volumes:
   troupe-media:
   troupe-pgdata:
   troupe-secrets:
+  troupe-cli-access:
   renderer:
   ollama:
   cli-config:

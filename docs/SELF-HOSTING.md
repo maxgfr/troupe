@@ -37,8 +37,8 @@ To build them from your checkout instead: `docker compose up -d --wait --build`.
 |---|---|---|---|
 | `app` | `ghcr.io/maxgfr/troupe` ([Dockerfile](../Dockerfile)) | `127.0.0.1:3100` | The studio. Applies database migrations on start, checks running renders every 30 seconds, and on first start adds the renderer as a model ([first-start wiring](#first-start-wiring)). |
 | `db` | `postgres:16-alpine` | none | The database. Generates its password on first start. |
-| `renderer` | `ghcr.io/maxgfr/troupe-renderer` ([renderer/Dockerfile](../renderer/Dockerfile)) | `127.0.0.1:8078` | The local renderer: Kokoro voices, the actor card and captions, encoded with ffmpeg, on the CPU ([LOCAL-MODELS.md](LOCAL-MODELS.md#local-renderer)). The port is for a studio run with `pnpm dev`. |
-| `ollama` | `ghcr.io/maxgfr/troupe-ollama` ([ollama/Dockerfile](../ollama/Dockerfile)) | none | The script chat's model server: the official Ollama build without its GPU libraries, run as a user. Downloads the chat model on first start. |
+| `renderer` | `ghcr.io/maxgfr/troupe-renderer` ([renderer/Dockerfile](../renderer/Dockerfile)) | none (`docker-compose.dev.yml` publishes `127.0.0.1:8078`) | The local renderer: Kokoro voices, the actor card and captions, encoded with ffmpeg, on the CPU ([LOCAL-MODELS.md](LOCAL-MODELS.md#local-renderer)). |
+| `ollama` | `ghcr.io/maxgfr/troupe-ollama` ([ollama/Dockerfile](../ollama/Dockerfile)) | none | The script chat's model server: the official Ollama build (the version is pinned in that Dockerfile) without its GPU libraries, run as a user. Downloads the chat model on first start, retrying while the network fails; a model name the Ollama library does not know stops the service with that message. |
 | `web` | `ghcr.io/maxgfr/troupe-web` ([site/Dockerfile](../site/Dockerfile)) | `127.0.0.1:3101` | The browser edition and its landing page, served by nginx ([BROWSER-EDITION.md](BROWSER-EDITION.md)). It only serves files: projects and renders stay in each visitor's browser. |
 
 On demand, with a [profile](https://docs.docker.com/compose/how-tos/profiles/):
@@ -50,8 +50,16 @@ On demand, with a [profile](https://docs.docker.com/compose/how-tos/profiles/):
 | `ltx` | `renderer-ltx` (built from this checkout) | The renderer's AI video mode (LTX-Video) on an NVIDIA GPU ([LOCAL-MODELS.md](LOCAL-MODELS.md#in-docker)). |
 | `ltx-cpu` | `renderer-ltx-cpu` | The same without a GPU: it works, at minutes to hours per clip. |
 
-Every service restarts unless stopped, has a health check, and runs as a user
-other than root (except the database, which drops to `postgres` itself).
+| Service | Health check | Runs as | Restarts |
+|---|---|---|---|
+| `app` | `/api/health` (the database answers) | `node` | unless stopped |
+| `db` | `pg_isready` | starts as root, then the server runs as `postgres` | unless stopped |
+| `renderer`, `renderer-ltx`, `renderer-ltx-cpu` | `/health` | `node` | unless stopped |
+| `ollama` | every model in `TROUPE_OLLAMA_MODELS` is there | `ollama` (uid 10001), with `docker-compose.gpu.yml` too | unless stopped |
+| `web` | `/healthz` | `nginx` | unless stopped |
+| `cli` | none: it runs one command and exits (`run --rm`) | `node` | no |
+| `comfyui` | none (third-party image) | root (third-party image) | unless stopped |
+
 `docker compose ps` shows their health.
 
 ### Memory
@@ -135,7 +143,8 @@ Everything is optional. Put what you change in `.env` next to
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after an answer. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | —, `claude-opus-5-5` | The script chat uses Claude when a key is set (or saved in Settings). |
 | `TROUPE_CHAT_PROVIDER`, `TROUPE_CHAT_INSTRUCTIONS`, `TROUPE_CHAT_WORDS_PER_SECOND`, `TROUPE_CHAT_TIMEOUT_S`, `TROUPE_CHAT_TEMPERATURE`, `TROUPE_CHAT_HISTORY_TURNS` | `auto`, —, `2.5`, `180`, provider's own, `6` | The chat's provider choice, house style, word-budget rate, answer time limit, sampling temperature (sent to Claude only for the models that accept one) and history kept ([SCRIPT-CHAT.md](SCRIPT-CHAT.md#settings)). Settings → Script chat overrides the first three. |
-| `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES`, `TROUPE_RENDERER_PORT`, `TROUPE_RENDERER_PORTRAITS_DIR` | `q8`, built-in casting, `8078`, `./public/actors` | The renderer's weights, voices, host port and actors' pictures ([LOCAL-MODELS.md](LOCAL-MODELS.md#run-it)). |
+| `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES`, `TROUPE_RENDERER_PORTRAITS_DIR` | `q8`, built-in casting, `./public/actors` | The renderer's weights, voices and actors' pictures ([LOCAL-MODELS.md](LOCAL-MODELS.md#run-it)). |
+| `TROUPE_RENDERER_PORT` | `8078` | With `docker-compose.dev.yml` only: the renderer's port on `127.0.0.1`, for a studio run with `pnpm dev`. |
 | `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.1.0`. |
 
 Inside the app container: `TROUPE_DATA_DIR=/app/data` (videos, `access-code`,
@@ -152,6 +161,7 @@ whatever their `Host` header says.
 | `troupe-pgdata` | the database | yes (with `pg_dump`, below) |
 | `troupe-media` | videos, `access-code`, `secret.key` | yes |
 | `troupe-secrets` | the generated database password | yes, with the database |
+| `troupe-cli-access` | a copy of the generated access code, for the `cli` service | no: the studio writes it on every start |
 | `ollama` | the chat models | no: they download again |
 | `renderer` | Kokoro's weights and finished renders | no: the studio keeps its own copy of every video |
 | `cli-config` | the CLI's profiles and chosen project | no |
@@ -170,20 +180,23 @@ docker compose run --rm cli download --project "Spring drop"
 ```
 
 The `cli` service reaches the studio at `http://app:3000` and signs in with the
-access code the studio saved in its data volume (mounted read-only), or with
-`TROUPE_ACCESS_CODE` when you set one. Files it downloads land in this folder
+access code the studio generated, which the studio copies into a volume of its
+own (`troupe-cli-access`, mounted read-only: the CLI never sees the data
+volume and its `secret.key`), or with `TROUPE_ACCESS_CODE` when you set one. Files it downloads land in this folder
 (`TROUPE_CLI_DIR` to choose another; on Linux it must be writable by uid 1000).
 Everything else about the CLI is in [CLI.md](CLI.md).
 
 ## GPUs
 
 - **Chat on an NVIDIA GPU**: lay `docker-compose.gpu.yml` over the stack. It
-  runs the official Ollama image (with CUDA, about 7 GB) on the GPU; the
+  builds the official Ollama image (with CUDA, about 7 GB) at the version
+  pinned in [ollama/Dockerfile](../ollama/Dockerfile), as the same user, and
+  runs it on the GPU; the
   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)
   must be installed.
 
   ```bash
-  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --wait
+  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --wait --build ollama
   ```
 
 - **Video on an NVIDIA GPU**: the `comfyui` and `ltx` profiles.
@@ -260,7 +273,8 @@ Earlier versions ran only `app` and `db`, needed `POSTGRES_PASSWORD` in `.env`,
 and used the Ollama on the host.
 
 - Keep `POSTGRES_PASSWORD` in `.env`: the database was created with it. The
-  generated password only applies to a new database.
+  generated password only applies to a new database: without either, `db`
+  refuses to start and says so ([troubleshooting](#troubleshooting)).
 - The chat now uses the stack's Ollama. To keep the one on your computer, set
   `OLLAMA_URL=http://host.docker.internal:11434` and start with
   `--scale ollama=0`.
@@ -309,9 +323,15 @@ checkout, starts the stack under its own Compose project (`troupe-e2e`, ports
 - the CLI in its container: `doctor`, `projects list`, `render list`,
   `download`;
 - the stack: health, the access code in the logs, a spoofed `Host` header
-  refused, a restart that keeps the data and adds nothing twice;
-- the browser edition served by `web`: its smoke tests, landing page tests and
-  a render in the page (`E2E_WEB_RENDER=0` skips it).
+  refused, the browser edition's security headers, a restart that keeps the
+  data and adds nothing twice;
+- the images on their own: the licenses the Ollama image carries, and the
+  database's password script from `docker-compose.yml` (generated for a new
+  database, refused for an existing one without it);
+- the browser edition served by `web`, under its Content-Security-Policy: its
+  smoke tests, landing page tests and a render in the page
+  (`E2E_WEB_RENDER=0` skips it); `E2E_WEB_CHAT=1` adds the WebLLM chat, which
+  needs headed Chrome with WebGPU.
 
 It then deletes that project's containers and volumes, never another's.
 Model downloads are kept in `.cache/e2e` between runs. `E2E_KEEP=1` leaves the
@@ -328,8 +348,8 @@ machine), images and model downloads from earlier runs kept:
 | Building the images (cached layers, after a source change) | 26 s |
 | First start, `qwen2.5:0.5b` (397 MB) not yet downloaded | 81 s |
 | First start, model already in `.cache/e2e` | 8 s |
-| The 20 tests | 2 minutes |
-| The whole run | 2.6 minutes |
+| The 23 tests | 2.3 minutes |
+| The whole run | 2.9 minutes |
 
 On a CI runner, add installing Playwright's Chromium and the first build of
 the images (BuildKit's cache then keeps them).
@@ -339,7 +359,18 @@ the images (BuildKit's cache then keeps them).
 - `docker compose ps` shows a service as unhealthy: `docker compose logs <service>`.
   The app's health check (`/api/health`) fails while the database is unreachable.
 - `ollama` stays "starting" for minutes on first start: it is downloading the
-  chat model; `docker compose logs -f ollama` shows the progress.
+  chat model; `docker compose logs -f ollama` shows the progress (and the
+  retries, when the network fails). `ollama` restarting over and over with
+  "The Ollama library has no model called …": fix the name in `OLLAMA_MODEL`
+  or `TROUPE_OLLAMA_MODELS`.
+- `db` restarting over and over with "this database was created with a
+  password that is set nowhere now", or `app` logging `password
+  authentication failed`: the database exists but its password is neither in
+  `.env` (`POSTGRES_PASSWORD`) nor in the `troupe-secrets` volume, typically
+  after an upgrade from a stack that needed `POSTGRES_PASSWORD` with a lost
+  or replaced `.env`. Put the original password back in `.env` as
+  `POSTGRES_PASSWORD` ([upgrade](#upgrade)), or restore the `troupe-secrets`
+  volume from its backup. Nothing is generated over an existing database.
 - The renderer is not in the model list: `docker compose logs app | grep autoconfigure`
   says why (`unreachable`, `name-taken`, `already-added`, `exists`).
 - Settings → Background checks shows when job checks last ran. Older than five

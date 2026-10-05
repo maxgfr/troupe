@@ -64,8 +64,7 @@ describe("autoconfigureSettings", () => {
   });
 
   it("refuses clip lengths it cannot use", () => {
-    for (const bad of ["", "abc", "0", "61", "4,x", "2.5"]) {
-      if (bad === "") continue;
+    for (const bad of ["abc", "0", "61", "4,x", "2.5"]) {
       expect(() => settingsFor("http://renderer:8078", { TROUPE_RENDERER_DURATIONS: bad })).toThrow(/TROUPE_RENDERER_DURATIONS/);
     }
   });

@@ -1,5 +1,5 @@
 # The end-to-end test stack, laid over docker-compose.yml by `pnpm e2e:docker`
-# (scripts/e2e-docker.mjs), which also sets the variables below. Images are
+# (scripts/e2e-docker.ts), which also sets the variables below. Images are
 # built from this checkout under their own names, ports sit apart from a
 # running stack's, and the chat runs a small model. The models' downloads
 # (Ollama's and Kokoro's) are kept in E2E_CACHE_DIR, outside the volumes the
@@ -26,7 +26,6 @@ services:
   renderer:
     image: troupe-e2e/renderer:local
     pull_policy: never
-    ports: !reset []
     volumes:
       - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/kokoro:/data/kokoro
 
@@ -40,6 +39,6 @@ services:
     image: troupe-e2e/cli:local
     pull_policy: never
     volumes: !override
-      - troupe-media:/studio:ro
+      - troupe-cli-access:/run/troupe-access:ro
       - cli-config:/home/node/.config/troupe
       - ${E2E_CACHE_DIR:?run through pnpm e2e:docker}/cli:/work

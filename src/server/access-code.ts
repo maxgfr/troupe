@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // The private studio's access code. A production server never runs open:
@@ -50,4 +50,22 @@ export function ensureAccessCode(): { code: string | null; source: AccessCodeSou
 
 export function currentAccessCode(): string | null {
   return ensureAccessCode().code;
+}
+
+// The Docker stack's `cli` container signs in with the code from a volume of
+// its own (TROUPE_ACCESS_CODE_SHARE_DIR, docker-compose.yml), so it never sees
+// the data folder, which also holds secret.key. A code set in the environment
+// reaches the CLI through its environment instead: a copy left from before
+// is removed.
+export function shareAccessCode(access: { code: string | null; source: AccessCodeSource }, dir = process.env.TROUPE_ACCESS_CODE_SHARE_DIR) {
+  if (!dir) return;
+  const file = join(resolve(dir), "access-code");
+  if (!access.code || (access.source !== "generated" && access.source !== "file")) {
+    rmSync(file, { force: true });
+    return;
+  }
+  mkdirSync(resolve(dir), { recursive: true });
+  const temp = `${file}.${randomBytes(4).toString("hex")}.tmp`;
+  writeFileSync(temp, `${access.code}\n`, { mode: 0o600, flag: "wx" });
+  renameSync(temp, file);
 }

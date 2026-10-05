@@ -2,7 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
-import { PROJECT, troupe } from "./stack";
+import { compose, PROJECT, troupe } from "./stack";
 
 // The CLI as the stack ships it: `docker compose run --rm cli …`, signed in
 // with the access code the studio saved in its data volume, nothing set by
@@ -38,6 +38,11 @@ const studioProject = () => {
   expect(project, "the project the studio flow made").toBeTruthy();
   return project!.id;
 };
+
+test("the CLI container sees the access code, and nothing else of the studio's data", () => {
+  const seen = compose("run", "--rm", "--no-deps", "--entrypoint", "sh", "cli", "-c", "ls -A /run/troupe-access; test -e /studio && echo studio-mounted; true");
+  expect(seen.trim().split("\n")).toEqual(["access-code"]);
+});
 
 test("projects list and render list show the studio flow's project and its render", () => {
   const renders = json(["render", "list", "--project", studioProject()]) as { status: string; modelLabel: string }[];

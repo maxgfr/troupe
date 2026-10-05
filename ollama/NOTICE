@@ -1,0 +1,25 @@
+Third-party software in Troupe's Ollama image (ollama/Dockerfile)
+
+The image runs the `ollama` program and its CPU libraries, copied unmodified
+from the official ollama/ollama image (the version is pinned in
+ollama/Dockerfile), on Ubuntu 24.04.
+
+- Ollama: MIT License, /usr/share/doc/ollama/LICENSE (from
+  https://github.com/ollama/ollama at the pinned tag).
+- llama.cpp and ggml (the libggml-* and libllama* libraries): MIT License,
+  /usr/lib/ollama/LLAMA_CPP_LICENSE; the code llama.cpp vendors:
+  /usr/lib/ollama/LLAMA_CPP_VENDORS_LICENSE.
+- cpp-httplib: MIT License, /usr/lib/ollama/CPP_HTTPLIB_LICENSE.
+- The Go runtime and standard library, compiled into `ollama`: BSD 3-Clause
+  License, /usr/lib/ollama/GO_LICENSE.
+- GNU OpenMP runtime (/usr/lib/ollama/libgomp.so.1), part of GCC: GNU General
+  Public License version 3 with the GCC Runtime Library Exception 3.1. The
+  license texts are in /usr/share/doc/gcc-14-base/copyright (and
+  /usr/share/common-licenses/GPL-3); the source is available from
+  https://gcc.gnu.org and Ubuntu's gcc packages
+  (https://launchpad.net/ubuntu/+source/gcc-14).
+- LLVM OpenMP runtime (/usr/lib/ollama/libomp.so), part of the LLVM project:
+  Apache License 2.0 with LLVM Exceptions (parts also under the University of
+  Illinois/NCSA and MIT licenses), https://llvm.org/LICENSE.txt; source from
+  https://github.com/llvm/llvm-project (openmp/).
+- Ubuntu 24.04 packages keep their own licenses, in /usr/share/doc/*/copyright.

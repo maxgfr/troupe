@@ -9,7 +9,9 @@
 # site's other settings (site/.env.example) are read from site/.env when the
 # file exists, or from VITE_* build arguments passed through the environment.
 
-FROM node:24-alpine AS build
+# The site is the same files on every platform: build it once, natively,
+# for a multi-platform image.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
@@ -17,15 +19,19 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ARG TROUPE_WEB_BASE=/troupe/
-RUN VITE_BASE="$TROUPE_WEB_BASE" pnpm site:build
+RUN VITE_BASE="$TROUPE_WEB_BASE" pnpm site:build \
+ && node site/docker/csp.mjs site/dist > site/csp.conf
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+# nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
 ARG TROUPE_WEB_BASE=/troupe/
 # Read by the configuration template when the container starts.
 ENV TROUPE_WEB_BASE=${TROUPE_WEB_BASE}
 USER root
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY site/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+# The Content-Security-Policy, with the built pages' inline script hashes.
+COPY --from=build /app/site/csp.conf /etc/nginx/troupe-csp.conf
 COPY --from=build --chown=nginx:nginx /app/site/dist /usr/share/nginx/html${TROUPE_WEB_BASE}
 USER nginx
 EXPOSE 8080

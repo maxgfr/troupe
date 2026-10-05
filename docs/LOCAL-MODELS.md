@@ -233,12 +233,17 @@ player's menu.
 
 With Docker it runs by default: `docker compose up -d --wait` starts it as
 the `renderer` service, and the studio adds it as a model on first start
-([Add it to Troupe](#add-it-to-troupe)). To run only the renderer, for a
-studio started with `pnpm dev`:
+([Add it to Troupe](#add-it-to-troupe)). It has no port on the host, so it
+never clashes with `pnpm renderer`. For a studio started with `pnpm dev`,
+publish it on `127.0.0.1` with the dev overlay:
 
 ```bash
-docker compose up -d --wait renderer   # http://127.0.0.1:8078
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait renderer   # http://127.0.0.1:8078
 ```
+
+and add `http://127.0.0.1:8078` in Settings (or start `pnpm dev` with
+`TROUPE_AUTOCONFIGURE=1 TROUPE_RENDERER_URL=http://127.0.0.1:8078`, which adds
+it for you). `TROUPE_RENDERER_PORT` picks another port.
 
 On a Mac or any machine with Node.js 22+ and ffmpeg:
 
@@ -260,7 +265,7 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | `KOKORO_CACHE` | `~/.cache/troupe-renderer` | where the weights go |
 | `OUT_DIR` | the OS temp folder | finished MP4s; they are not cleaned up |
 | `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a relative path is read from the repository root; a missing picture falls back to the front one, then to the initials, and a job's portrait path the renderer cannot use is logged and skipped |
-| `TROUPE_RENDERER_PORT` | `8078` | Compose only: the port published on `127.0.0.1` |
+| `TROUPE_RENDERER_PORT` | `8078` | Compose with `docker-compose.dev.yml` only: the port published on `127.0.0.1` |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
 | `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | Compose only: the host folder mounted, read-only, as the container's pictures (relative to the repository root, where `docker-compose.yml` is) |
 

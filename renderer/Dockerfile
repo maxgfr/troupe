@@ -68,7 +68,8 @@ USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
+# ghcr.io/astral-sh/uv:0.9
+COPY --from=ghcr.io/astral-sh/uv:0.9@sha256:538e0b39736e7feae937a65983e49d2ab75e1559d35041f9878b7b7e51de91e4 /uv /usr/local/bin/uv
 COPY renderer/ltx/pyproject.toml renderer/ltx/uv.lock renderer/ltx/generate.py /app/renderer/ltx/
 RUN cd /app/renderer/ltx \
  && UV_PYTHON_DOWNLOADS=never UV_PYTHON=python3 UV_LINK_MODE=copy uv sync --frozen --no-cache \

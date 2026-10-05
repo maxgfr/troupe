@@ -55,6 +55,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+      # The site and the CLI bundle build once, natively ($BUILDPLATFORM in
+      # their Dockerfiles); only the runtime stages run under QEMU.
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}

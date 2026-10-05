@@ -7,7 +7,9 @@
 # Inside the stack it reaches the studio at http://app:3000 and signs in with
 # the access code the studio saved in its data volume (mounted read-only).
 
-FROM node:24-alpine AS build
+# One JavaScript bundle for every platform: built once, natively, for a
+# multi-platform image.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app

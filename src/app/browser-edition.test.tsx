@@ -109,10 +109,17 @@ describe("the browser edition's data in Settings", () => {
     const data = localData();
     URL.createObjectURL = vi.fn(() => "blob:backup");
     URL.revokeObjectURL = vi.fn();
+    // jsdom cannot follow the download link: record what it would save.
+    const saved: { href: string; download: string }[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push({ href: this.href, download: this.download });
+    });
     render(<LocalDataSettings data={data} />);
     fireEvent.click(screen.getByRole("button", { name: "Export data" }));
     expect(await screen.findByText("Saved troupe-backup-2026-10-05-0945.tar (1 bytes).")).toBeDefined();
     expect(data.exportBackup).toHaveBeenCalledOnce();
+    expect(saved).toEqual([{ href: "blob:backup", download: "troupe-backup-2026-10-05-0945.tar" }]);
+    click.mockRestore();
   });
 
   it("imports a backup only once its contents are confirmed", async () => {

@@ -62,11 +62,16 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
     <div className="space-y-6">
       {analysis.hook ? (
         <figure className="space-y-1.5">
-          <figcaption className="flex items-baseline gap-2 text-xs text-muted">
-            The hook{analysis.hook.endS ? <span className="font-mono tabular-nums">0:00–{clock(analysis.hook.endS)}</span> : null}
-          </figcaption>
           <blockquote className="text-pretty text-lg leading-snug font-semibold">“{analysis.hook.text}”</blockquote>
-          {analysis.hook.why ? <p className="max-w-[72ch] text-pretty text-sm text-muted">{analysis.hook.why}</p> : null}
+          <figcaption className="max-w-[72ch] text-pretty text-sm text-muted">
+            <span className="text-fg">The hook</span>
+            {analysis.hook.endS ? (
+              <>
+                , <span className="font-mono text-xs tabular-nums">0:00–{clock(analysis.hook.endS)}</span>
+              </>
+            ) : null}
+            {analysis.hook.why ? `. ${analysis.hook.why}` : "."}
+          </figcaption>
         </figure>
       ) : null}
 

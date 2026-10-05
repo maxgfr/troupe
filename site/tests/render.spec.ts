@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
@@ -51,6 +51,41 @@ test.beforeAll(async ({}, testInfo) => {
 
 test.afterAll(async () => {
   await context?.close();
+});
+
+// A failed test leaves what the page showed and where the render jobs stood
+// (the jobs in IndexedDB, the Web Locks the open tabs hold) in its results.
+// biome-ignore lint/correctness/noEmptyPattern: Playwright wants the fixtures argument destructured, and this hook uses none.
+test.afterEach(async ({}, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus || !page || page.isClosed()) return;
+  // Written to the test's output folder (kept by CI), and listed by the reporter.
+  const screenshot = testInfo.outputPath("page.png");
+  if (await page.screenshot({ path: screenshot, fullPage: true, timeout: 10_000 }).then(() => true, () => false)) await testInfo.attach("page", { path: screenshot, contentType: "image/png" });
+  const state = await page
+    .evaluate(async () => {
+      const jobs = await new Promise<unknown>((resolve) => {
+        const open = indexedDB.open("troupe-render", 1);
+        // Reading must not create the database: a missing one is reported.
+        open.onupgradeneeded = () => open.transaction?.abort();
+        open.onerror = () => resolve(`not readable: ${open.error?.name}`);
+        open.onsuccess = () => {
+          try {
+            const all = open.result.transaction("jobs").objectStore("jobs").getAll();
+            all.onsuccess = () => resolve((all.result as { id: string; status: string; detail?: string; createdAt: number }[]).map(({ id, status, detail, createdAt }) => ({ id, status, detail, createdAt })));
+            all.onerror = () => resolve(`not readable: ${all.error?.name}`);
+          } catch (error) {
+            resolve(`not readable: ${String(error)}`);
+          } finally {
+            open.result.close();
+          }
+        };
+      });
+      return { url: location.href, jobs, locks: await navigator.locks.query(), text: document.querySelector("main")?.innerText.slice(0, 2000) };
+    })
+    .catch((error: unknown) => ({ unreadable: String(error) }));
+  const stateFile = testInfo.outputPath("page-state.json");
+  writeFileSync(stateFile, JSON.stringify({ ...state, errors }, null, 2));
+  await testInfo.attach("page state", { path: stateFile, contentType: "application/json" });
 });
 
 // Deep links answer with Pages' 404.html and a 404 status, which the browser
@@ -195,11 +230,24 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
 test("a render cut short by closing its tab is marked failed on the next load", async () => {
   test.setTimeout(5 * 60_000);
   const projectUrl = await newProject("Interrupted render");
+  // The render worker fetches the actor's pictures once the lines are voiced,
+  // before it draws a frame. Holding that fetch keeps the render unfinished
+  // for as long as the tab lives, so the tab always closes mid-render: with
+  // the voices cached, a 6 s render can otherwise finish before Chrome has
+  // stopped the closed tab. The fetch is never answered (an answer, even a
+  // refusal, would let the render go on without the picture).
+  let held = "";
+  await context.route("**/troupe/actors/**", (route) => {
+    if (route.request().resourceType() !== "fetch") return route.fallback();
+    held = route.request().url();
+  });
   await launchSixSeconds();
+  await expect.poll(() => held, { message: "the render worker asks for the actor's picture", timeout: 4 * 60_000 }).not.toBe("");
   await expect(page.getByRole("progressbar", { name: "Render progress" })).toBeVisible();
 
   // Close the tab mid-render, then come back in a new one.
   await page.close();
+  await context.unrouteAll({ behavior: "ignoreErrors" });
   page = await context.newPage();
   watch(page);
   await page.goto(projectUrl);

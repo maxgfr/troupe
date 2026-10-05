@@ -28,14 +28,8 @@ export default defineConfig({
     // Last of the stack's own: it restarts the studio.
     { name: "stack", testDir: ".", testMatch: /stack\.spec\.ts/, dependencies: ["cli"], use: { baseURL: APP } },
     { name: "web", testDir: "../site/tests", testMatch: /(smoke|landing)\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: WEB } },
-    // A real render in the page, served by nginx; E2E_WEB_RENDER=0 skips it.
-    // "a render cut short by closing its tab" is left to the site's own suite
-    // (pnpm site:test:render): it checks the site's job bookkeeping, not how
-    // the site is served, and it races the closed tab's teardown (with the
-    // voices cached, the render can finish before Chrome stops the closed
-    // tab's worker), failing about one run in three on a fast machine, with
-    // or without nginx.
-    ...(process.env.E2E_WEB_RENDER === "0" ? [] : [{ name: "web-render", testDir: "../site/tests", testMatch: /render\.spec\.ts/, grepInvert: /cut short by closing its tab/, use: { baseURL: WEB } }]),
+    // Real renders in the page, served by nginx; E2E_WEB_RENDER=0 skips them.
+    ...(process.env.E2E_WEB_RENDER === "0" ? [] : [{ name: "web-render", testDir: "../site/tests", testMatch: /render\.spec\.ts/, use: { baseURL: WEB } }]),
     // The WebLLM chat needs WebGPU (headed Chrome on a machine with a GPU, not
     // CI): E2E_WEB_CHAT=1 adds it.
     ...(process.env.E2E_WEB_CHAT === "1" ? [{ name: "web-chat", testDir: "../site/tests", testMatch: /chat\.spec\.ts/, use: { baseURL: WEB } }] : []),

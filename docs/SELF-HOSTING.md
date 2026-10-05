@@ -330,9 +330,11 @@ checkout, starts the stack under its own Compose project (`troupe-e2e`, ports
   database's password script from `docker-compose.yml` (generated for a new
   database, refused for an existing one without it);
 - the browser edition served by `web`, under its Content-Security-Policy: its
-  smoke tests, landing page tests and a render in the page
-  (`E2E_WEB_RENDER=0` skips it); `E2E_WEB_CHAT=1` adds the WebLLM chat, which
-  needs headed Chrome with WebGPU.
+  smoke tests, landing page tests and its renders in the page (a render
+  played, seeked and downloaded; one cut short by closing its tab; a backup
+  that brings the video back; `E2E_WEB_RENDER=0` skips them);
+  `E2E_WEB_CHAT=1` adds the WebLLM chat, which needs headed Chrome with
+  WebGPU.
 
 It then deletes that project's containers and volumes, never another's.
 Model downloads are kept in `.cache/e2e` between runs. `E2E_KEEP=1` leaves the

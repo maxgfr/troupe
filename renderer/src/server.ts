@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { createReadStream, mkdirSync, statSync } from "node:fs";
+import { createReadStream, createWriteStream, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { readdir, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 
 import type { Speak, VoicePools } from "../../src/modules/scene";
 import { renderVideo } from "./render";
 import { BadRequest, parseJobBody, type RenderRequest } from "./request";
+import type { WhisperResult } from "./whisper";
 
 // Troupe's HTTP contract v1 (docs/LOCAL-MODELS.md), the same routes as
 // examples/http-model/server.mjs. The fast mode answers at the root; the
@@ -32,6 +34,8 @@ export interface RendererOptions {
   portraitsDir?: string;
   // The AI video mode, served under /ltx when set.
   ltx?: RenderMode;
+  // Transcription for the studio's inspiration library, at /transcribe when set.
+  whisper?: TranscribeMode;
   // Where finished MP4s are kept.
   outDir: string;
   // How long a finished job and its MP4 are kept, in seconds; 0 keeps them
@@ -40,6 +44,15 @@ export interface RendererOptions {
   token?: string;
   log?: (message: string) => void;
 }
+
+export interface TranscribeMode {
+  model: string;
+  maxBytes: number;
+  ready(): string | null;
+  transcribe(file: string): Promise<WhisperResult>;
+}
+
+export const WHISPER_OFF = "Transcription is off on this renderer. Start it with WHISPER_ENABLED=1 after pnpm renderer:whisper:setup (docs/LIBRARY.md); the Docker image has it on.";
 
 interface Job {
   status: "queued" | "running" | "succeeded" | "failed";
@@ -114,10 +127,77 @@ export function createRendererServer(options: RendererOptions): Server {
     sweeping.unref();
   }
 
+  // Transcriptions run one at a time too, apart from the renders.
+  let transcriptions = Promise.resolve();
+  function transcribe(req: import("node:http").IncomingMessage, res: ServerResponse, whisper: TranscribeMode) {
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > whisper.maxBytes) {
+      req.resume();
+      return send(res, 413, { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` });
+    }
+    const dir = mkdtempSync(join(tmpdir(), "troupe-whisper-"));
+    const file = join(dir, "audio");
+    const out = createWriteStream(file, { mode: 0o600 });
+    let received = 0;
+    let refused = false;
+    req.on("data", (chunk: Buffer) => {
+      received += chunk.length;
+      if (received > whisper.maxBytes && !refused) {
+        refused = true;
+        out.destroy();
+        req.resume();
+      }
+    });
+    req.pipe(out);
+    req.on("end", () => {
+      const done = () => rmSync(dir, { recursive: true, force: true });
+      if (refused) {
+        done();
+        return send(res, 413, { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` });
+      }
+      out.on("close", () => {
+        if (received === 0) {
+          done();
+          return send(res, 400, { error: "Send the sound as the request body." });
+        }
+        transcriptions = transcriptions.then(async () => {
+          const started = Date.now();
+          try {
+            const result = await whisper.transcribe(file);
+            log(`Transcribed ${(received / 1024).toFixed(0)} KB of sound (${result.language ?? "?"}, ${result.segments.length} segments) in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+            send(res, 200, result);
+          } catch (error) {
+            log(`Transcription failed: ${(error as Error).message}`);
+            send(res, 500, { error: (error as Error).message || "The transcription failed." });
+          } finally {
+            done();
+          }
+        });
+      });
+    });
+  }
+
   const server = createServer((req, res) => {
     if (options.token && req.headers.authorization !== `Bearer ${options.token}`) return send(res, 401, { error: "unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     let path = url.pathname;
+    if (path === "/transcribe/health" && req.method === "GET") {
+      if (!options.whisper) return send(res, 503, { ok: false, error: WHISPER_OFF });
+      const unready = options.whisper.ready();
+      return unready ? send(res, 503, { ok: false, error: unready }) : send(res, 200, { ok: true, model: `faster-whisper ${options.whisper.model}` });
+    }
+    if (path === "/transcribe" && req.method === "POST") {
+      if (!options.whisper) {
+        req.resume();
+        return send(res, 503, { error: WHISPER_OFF });
+      }
+      const unready = options.whisper.ready();
+      if (unready) {
+        req.resume();
+        return send(res, 503, { error: unready });
+      }
+      return transcribe(req, res, options.whisper);
+    }
     let mode = fast;
     let name = "fast";
     if (path === LTX_PREFIX || path.startsWith(`${LTX_PREFIX}/`)) {

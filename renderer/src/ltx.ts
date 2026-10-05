@@ -89,7 +89,7 @@ export function ltxSettingsFromEnv(env: Env, defaultCommand: string[]): LtxSetti
   };
 }
 
-function installed(program: string): boolean {
+export function installed(program: string): boolean {
   const runnable = (file: string) => {
     try {
       accessSync(file, constants.X_OK);

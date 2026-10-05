@@ -45,7 +45,7 @@ function textType(head: Uint8Array): string | null {
     return null;
   }
   if (/[\u0000-\u0008\u000b\u000e-\u001f\u007f]/.test(text)) return null;
-  const start = text.replace(/^﻿/, "").trimStart();
+  const start = text.replace(/^\uFEFF/, "").trimStart();
   if (!start || start.startsWith("<")) return null;
   return "text/plain";
 }

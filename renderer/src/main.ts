@@ -6,6 +6,7 @@
 //   pnpm renderer                       # http://127.0.0.1:8078
 //   PORT=8078 HOST=0.0.0.0 TOKEN=secret pnpm renderer
 //   pnpm renderer:ltx                   # also the AI video mode, at /ltx
+//   pnpm renderer:whisper               # also transcription, at /transcribe
 //
 // Requires ffmpeg on the PATH; the AI video mode also needs uv.
 import { homedir, tmpdir } from "node:os";
@@ -19,6 +20,7 @@ import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } fr
 import { portraitsDir } from "./portraits";
 import { renderLtxVideo } from "./render-ltx";
 import { createRendererServer, KEEP_RENDERS_S, LTX_PREFIX } from "./server";
+import { transcribeFile, whisperReadiness, type WhisperSettings, whisperSettingsFromEnv } from "./whisper";
 
 const PORT = Number(process.env.PORT ?? 8078);
 const HOST = process.env.HOST ?? "127.0.0.1";
@@ -59,6 +61,18 @@ if (process.argv.includes("--ltx") || ["1", "true", "yes"].includes(process.env.
   }
 }
 
+// Transcription for the inspiration library is opt-in too: `--whisper`
+// (pnpm renderer:whisper) or WHISPER_ENABLED=1.
+const WHISPER_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "whisper");
+let whisper: WhisperSettings | undefined;
+if (process.argv.includes("--whisper") || ["1", "true", "yes"].includes(process.env.WHISPER_ENABLED ?? "")) {
+  try {
+    whisper = whisperSettingsFromEnv(process.env, ["uv", "run", "--project", WHISPER_DIR, "python", join(WHISPER_DIR, "transcribe.py")]);
+  } catch (error) {
+    refuse((error as Error).message);
+  }
+}
+
 registerSceneFonts();
 const kokoro = kokoroVoice({
   cacheDir: process.env.KOKORO_CACHE ?? join(homedir(), ".cache", "troupe-renderer"),
@@ -78,6 +92,16 @@ const server = createRendererServer({
           pollEveryS: 5,
           // The default command runs in renderer/ltx/.venv, made by the setup.
           ready: () => ltxReadiness(ltx.command, process.env.LTX_COMMAND?.trim() ? undefined : join(LTX_DIR, ".venv")),
+        },
+      }
+    : {}),
+  ...(whisper
+    ? {
+        whisper: {
+          model: whisper.model,
+          maxBytes: whisper.maxBytes,
+          ready: () => whisperReadiness(whisper.command, process.env.WHISPER_COMMAND?.trim() ? undefined : join(WHISPER_DIR, ".venv")),
+          transcribe: (file: string) => transcribeFile(whisper, file),
         },
       }
     : {}),
@@ -102,6 +126,7 @@ server.listen(PORT, HOST, () => {
   const address = server.address();
   const origin = `http://${HOST}:${typeof address === "object" && address ? address.port : PORT}`;
   log(`Troupe renderer on ${origin} (contract v1)`);
+  if (whisper) log(`Transcription (faster-whisper ${whisper.model}, ${whisper.computeType}) on ${origin}/transcribe`);
   if (ltx) {
     const { width, height } = ltx.resolution;
     log(`AI video mode (LTX-Video) on ${origin}${LTX_PREFIX}: ${width}x${height}, ${ltx.frames} frames at ${ltx.frameRate} fps, upscaled with ${ltx.upscale}`);

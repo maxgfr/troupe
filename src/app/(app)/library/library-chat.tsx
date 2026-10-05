@@ -90,7 +90,8 @@ export function LibraryChat({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, send.isPending]);
 
-  const unavailable = writer === null ? "No chat model is set up, and the library chat answers with it." : writer.problem;
+  // Said once the history is in: while it loads, nothing is known yet.
+  const unavailable = !history.data ? null : writer === null ? "No chat model is set up, and the library chat answers with it." : writer.problem;
   const href = (c: Citation) => (c.itemId === itemId && onSeek ? "#" : `/library/${c.itemId}${c.startS !== null ? `?t=${Math.floor(c.startS)}` : ""}`);
   const follow = (c: Citation) => (event: React.MouseEvent) => {
     if (c.itemId === itemId && onSeek && c.startS !== null) {

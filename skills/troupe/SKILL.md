@@ -1,6 +1,6 @@
 ---
 name: troupe
-description: Use when the user wants a short video made, scripted, rendered, reviewed, iterated on or exported with Troupe, or wants a Troupe studio checked or set up (actors, video models, the local renderer, provider keys, the script chat) from the terminal.
+description: Use when the user wants a short video made, scripted, rendered, reviewed, iterated on or exported with Troupe; wants references saved to Troupe's inspiration library, their hooks pulled out, or scripts written from them; or wants a Troupe studio checked or set up (actors, video models, the local renderer, provider keys, the script chat) from the terminal.
 ---
 
 # Troupe
@@ -41,6 +41,9 @@ is the reference for options.
   launch: a `queued` or `in_progress` render is still yours, and
   `troupe render watch <id> --timeout 500` picks it up again.
 - **Deleting is the user's call.** `troupe projects delete` only when asked.
+- **Only what the user may use goes in the library.** Save files and links
+  the user gives you, never pages you went looking for; never loop over a
+  channel or a site. The studio keeps the originals on its own disk.
 
 ## The loop
 
@@ -59,7 +62,8 @@ is the reference for options.
    | `model <key>` | That model's server is down: start it, or pick another. |
 
    `worker` warnings are fine while you watch renders; a `chat` warning only
-   matters if you use the chat.
+   matters if you use the chat; `library …` warnings only if you use the
+   library (each says which model to pull or what to install).
 
 2. **Brief.** Settle what the video says, for whom, on which platform
    (tiktok, instagram, youtube, linkedin) and how long. Fill gaps with
@@ -129,6 +133,36 @@ is the reference for options.
    `troupe export create <render> --platform <p> --caption "<c>" --hashtag
    <tag> --confirm-watched --json`, then `troupe download <export-id>`.
    Pass on the `disclosure` it returns: the AI label the platform expects.
+
+## The inspiration library
+
+Saved references (videos, sound, pictures, PDFs, texts, links) are read by
+the studio's own models: a transcript, pictures after each cut, the hook
+(what is said in the first seconds), the structure, the pace, tone and tags.
+
+1. **Save.** `troupe library add <file|link> --wait --timeout 900 --json`
+   (Bash timeout 960000 ms), or text on stdin: `troupe library add - --wait
+   --json`. Add `--mine` for the user's own content: its hooks, tone and pace
+   then shape everything Troupe writes for them. Links to YouTube, TikTok,
+   Instagram and the like need yt-dlp on the studio (`doctor` says); other
+   links are kept as articles. Done when `status` is `ready`; `problem` names
+   any step that was skipped (a model not pulled yet) and the item stays
+   usable. Exit 5: still reading; `troupe library show <id> --json` later.
+2. **Read.** `troupe library show <item> --transcript --json`:
+   `analysis.hook.text` is the hook, `analysis.structure` the parts with
+   their start times, `analysis.pacing` the words a second and cuts a minute.
+3. **Find.** `troupe library search <words> --json` ranks passages by
+   meaning (`mode: "keyword"` when no embedding model has read them yet);
+   each hit has its `itemId` and `startS`. `troupe library chat [--item <id>]
+   <question>` answers from the library and cites `[n]` items and moments.
+4. **Write.** `troupe library ideas generate --item <id> --json` (Bash
+   timeout 600000 ms) writes idea cards: `--kind ideas` (10 in its style),
+   `remix` (new hooks that work the same way), `script --actor <name>`, or
+   `repurpose` (a long item cut into short scripts). Each card is a whole
+   script. `troupe library ideas project <idea> --json` makes it a project
+   with that script as version 1 and the current project: carry on at step 5
+   of the loop (render). Or write the script yourself from the hook and
+   structure, as in step 4.
 
 ## Exit status
 

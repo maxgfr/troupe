@@ -9,6 +9,9 @@
 !renderer/ltx/pyproject.toml
 !renderer/ltx/uv.lock
 !renderer/ltx/generate.py
+!renderer/whisper/pyproject.toml
+!renderer/whisper/uv.lock
+!renderer/whisper/transcribe.py
 !src/modules/scene
 !public/actors
 **/*.test.ts

@@ -107,8 +107,14 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
 test("reads a video into the library, answers about it with citations, and writes ideas that become a project", async () => {
   test.setTimeout(25 * 60_000);
   await page.goto(`${APP}/library`);
+  await expect(page.getByRole("heading", { name: "Library" })).toBeVisible({ timeout: 60_000 });
+  // The profile is kept between runs: this run's clip is the newest row.
+  const rows = page.locator("table tbody tr");
+  await expect(rows.first().or(page.getByText("Save your first piece"))).toBeVisible({ timeout: 60_000 });
+  const before = await rows.count();
   await page.locator('input[type="file"]').setInputFiles(fileURLToPath(new URL("fixtures/library-clip.mp4", import.meta.url)));
-  const row = page.locator("table").getByRole("row", { name: /library clip/i }).first();
+  await expect(rows).toHaveCount(before + 1);
+  const row = rows.first();
   await expect(row.getByText("ready")).toBeVisible({ timeout: 15 * 60_000 });
   await row.getByRole("link", { name: /library clip/i }).click();
   // The in-browser model wrote the structure and the tags.
@@ -122,8 +128,16 @@ test("reads a video into the library, answers about it with citations, and write
   await expect(ask.getByRole("alert")).toHaveCount(0);
   await expect(ask.getByRole("list", { name: "Sources" }).first()).toBeVisible();
 
+  // The 1.5B model now and then writes an answer that is not a script (about
+  // one try in five here); the page says to try again, and so does the test.
+  const created = page.getByRole("button", { name: "Create project" }).first();
+  const refused = page.getByRole("alert").filter({ hasText: "did not write usable scripts" });
   await page.getByRole("button", { name: "5 ideas in this style" }).click();
-  await expect(page.getByRole("button", { name: "Create project" }).first()).toBeVisible({ timeout: 10 * 60_000 });
+  await expect(created.or(refused)).toBeVisible({ timeout: 10 * 60_000 });
+  if (await refused.isVisible()) {
+    await page.getByRole("button", { name: "5 ideas in this style" }).click();
+    await expect(created).toBeVisible({ timeout: 10 * 60_000 });
+  }
   await page.getByRole("button", { name: "Create project" }).first().click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
   await page.goto(`${page.url()}/script`);

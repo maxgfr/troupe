@@ -18,8 +18,27 @@ ENV SKIP_ENV_VALIDATION=1 \
 RUN pnpm build
 
 FROM node:24-alpine AS runner
-# ffprobe validates every downloaded video.
+# ffprobe validates every downloaded video; ffmpeg takes the library's
+# pictures and sound.
 RUN apk add --no-cache ffmpeg
+# yt-dlp saves links to video platforms into the library (Unlicense; its
+# self-contained musl build, pinned and checked). TROUPE_YTDLP=0 leaves it
+# out; the library then takes uploads, pages and direct links only.
+ARG TROUPE_YTDLP=1
+ARG YTDLP_VERSION=2026.08.19
+ARG YTDLP_SHA256_AMD64=f3dec9cfeaf304cec98290fe41c6ad465d4b747d302473559643e7af24929722
+ARG YTDLP_SHA256_ARM64=17b164c4d258be92bb1ad146cb7c336b783aedb380814aabbcb7d52937f77e57
+ARG TARGETARCH
+RUN if [ "$TROUPE_YTDLP" = "1" ]; then \
+      case "$TARGETARCH" in \
+        amd64) file=yt-dlp_musllinux; sum="$YTDLP_SHA256_AMD64" ;; \
+        arm64) file=yt-dlp_musllinux_aarch64; sum="$YTDLP_SHA256_ARM64" ;; \
+        *) echo "No yt-dlp build for $TARGETARCH; build with TROUPE_YTDLP=0." >&2; exit 1 ;; \
+      esac \
+      && wget -q -O /usr/local/bin/yt-dlp "https://github.com/yt-dlp/yt-dlp/releases/download/$YTDLP_VERSION/$file" \
+      && echo "$sum  /usr/local/bin/yt-dlp" | sha256sum -c - \
+      && chmod 755 /usr/local/bin/yt-dlp; \
+    fi
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

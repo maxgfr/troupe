@@ -551,7 +551,11 @@ export async function generateIdeas(
     const raw = answer.text ? parseJsonAnswer(answer.text) : null;
     ideas = raw ? readIdeas(raw, count) : [];
   }
-  if (ideas.length === 0) throw new LibraryError(`${input.writer.modelId} did not write usable scripts. Try again, or ask for fewer.`, "PRECONDITION_FAILED");
+  if (ideas.length === 0) {
+    // The answer stays in the log (the server's, or the browser's console).
+    console.warn(JSON.stringify({ event: "library.ideas.unreadable", model: input.writer.modelId, answer: answer.text.slice(0, 4000) }));
+    throw new LibraryError(`${input.writer.modelId} did not write usable scripts. Try again, or ask for fewer.`, "PRECONDITION_FAILED");
+  }
   const inserted = await db
     .insert(libraryIdeas)
     .values(

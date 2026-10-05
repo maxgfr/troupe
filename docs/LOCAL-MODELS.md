@@ -432,6 +432,16 @@ to install PyTorch and download about 25 GB first, which on an ordinary
 connection takes longer than `LTX_TIMEOUT_S` (30 minutes) and would be
 stopped.
 
+`pnpm test` covers the mode through a stand-in for `generate.py`
+(`renderer/test/fake-generate.mjs`). The Python helpers have their own tests,
+which need no weights but do need that environment, so they are not part of
+`pnpm test` or CI (installing PyTorch there would cost several GB per run).
+Run them after the setup, whenever `generate.py` changes:
+
+```bash
+uv run --project renderer/ltx python -m unittest discover renderer/ltx
+```
+
 ### Run it
 
 ```bash

@@ -5,7 +5,8 @@
 #   docker compose run --rm cli doctor
 #
 # Inside the stack it reaches the studio at http://app:3000 and signs in with
-# the access code the studio saved in its data volume (mounted read-only).
+# the copy of the access code the studio shares in the troupe-cli-access
+# volume (mounted read-only), never the data volume, which holds secret.key.
 
 # One JavaScript bundle for every platform: built once, natively, for a
 # multi-platform image.

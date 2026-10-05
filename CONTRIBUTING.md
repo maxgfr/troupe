@@ -32,6 +32,10 @@ SKIP_ENV_VALIDATION=1 pnpm build
   browser edition and the video its presentation tour, so one word for a
   cut-down product is refused everywhere (`scripts/check-wording.ts` names it
   and the two files allowed to contain it).
+- Changed `renderer/ltx/generate.py`? Also run its tests, which need the AI
+  video mode's Python environment and so are not in `pnpm test`:
+  `uv run --project renderer/ltx python -m unittest discover renderer/ltx`
+  ([LOCAL-MODELS.md](docs/LOCAL-MODELS.md#set-it-up)).
 - Describe what changed and how you checked it. Mention live-provider testing
   only if you actually ran it.
 

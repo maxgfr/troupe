@@ -35,9 +35,10 @@ COPY --from=builder --chown=node:node /app/drizzle ./drizzle
 # Videos, the generated access code and the encryption key live here.
 RUN mkdir -p /app/data /app/cli-access && chown node:node /app/data /app/cli-access
 VOLUME /app/data
-# A copy of the generated access code for the Compose stack's CLI container
-# (TROUPE_ACCESS_CODE_SHARE_DIR), alone in its own volume.
-VOLUME /app/cli-access
+# /app/cli-access: a copy of the generated access code for the Compose
+# stack's CLI container, written only when TROUPE_ACCESS_CODE_SHARE_DIR points
+# there. docker-compose.yml mounts its own named volume on it; it is no VOLUME
+# here, so a plain `docker run` does not leave an anonymous volume behind.
 # Builds DATABASE_URL for the Compose stack when it is not set.
 COPY --chmod=755 scripts/docker/app-entrypoint.sh /usr/local/bin/troupe-entrypoint
 USER node

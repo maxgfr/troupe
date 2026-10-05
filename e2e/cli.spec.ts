@@ -5,8 +5,8 @@ import { expect, test } from "@playwright/test";
 import { compose, PROJECT, troupe } from "./stack";
 
 // The CLI as the stack ships it: `docker compose run --rm cli …`, signed in
-// with the access code the studio saved in its data volume, nothing set by
-// hand. Runs after the studio flow (e2e/playwright.config.ts) and finds what
+// with the copy of the access code the studio shares in the troupe-cli-access
+// volume (never its data volume), nothing set by hand. Runs after the studio flow (e2e/playwright.config.ts) and finds what
 // it made.
 
 const json = (args: string[]) => {

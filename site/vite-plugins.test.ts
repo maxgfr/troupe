@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, actorPicturesMiddleware, landingPage, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
+import { actorPictures, actorPicturesMiddleware, landingPage, pagesNotFoundMiddleware, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -114,6 +114,29 @@ describe("actor pictures in vite dev", () => {
     for (const url of ["/troupe/app/", "/troupe/actors/secret.txt", "/troupe/actors/..%2F..%2Fetc%2Fpasswd.webp", "/troupe/actors/%E0%A4%A.webp"]) {
       expect(serve(url), url).toEqual({ next: true });
     }
+  });
+});
+
+describe("vite preview, answering like GitHub Pages", () => {
+  function serve(url: string) {
+    const out = mkdtempSync(join(tmpdir(), "troupe-pages-"));
+    dirs.push(out);
+    writeFileSync(join(out, "404.html"), "<p>the app</p>");
+    writeFileSync(join(out, "sw.js"), "");
+    mkdirSync(join(out, "app"));
+    writeFileSync(join(out, "app", "index.html"), "");
+    const sent: { status?: number; body?: string; next?: boolean } = {};
+    const res = { statusCode: 200, setHeader() {}, end: (body: Buffer) => Object.assign(sent, { status: res.statusCode, body: body.toString() }) };
+    pagesNotFoundMiddleware("/troupe/", out)({ url } as never, res as never, () => (sent.next = true));
+    return sent;
+  }
+
+  it("passes files and folders with an index on, and paths outside the base", () => {
+    for (const url of ["/troupe/sw.js", "/troupe/app/", "/troupe/app?x=1", "/elsewhere/%E0%A4%A"]) expect(serve(url), url).toEqual({ next: true });
+  });
+
+  it("answers anything else with 404.html and a 404, malformed URLs included", () => {
+    for (const url of ["/troupe/app/projects/123", "/troupe/%E0%A4%A", "/troupe/app/%"]) expect(serve(url), url).toEqual({ status: 404, body: "<p>the app</p>" });
   });
 });
 

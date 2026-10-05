@@ -12,6 +12,9 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
+  // CI retries a failed test once, so a single flake does not fail the run;
+  // a test that only passes on its retry is still listed as "flaky" in the
+  // list and HTML reports, so flakiness shows. Locally, a failure is final.
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never", outputFolder: "./playwright-report" }]] : "list",
   use: {

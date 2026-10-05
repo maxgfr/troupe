@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { TRIAL_WORD, watchConsole, watchForBrokenStudio } from "./page-checks";
 
 // The browser edition end to end in a real browser: the studio's pages, its
 // tRPC router and Postgres (PGlite in IndexedDB) all running in the page.
@@ -9,27 +11,12 @@ const APP = "/troupe/app";
 // and a reset take seconds on a laptop and far longer on a CI runner.
 const MIGRATING = { timeout: 60_000 };
 
-// The word that would sell the browser edition short, spelled d[e]mo so the
-// repository itself never says it (scripts/check-wording.ts).
-const TRIAL_WORD = /\bd[e]mo\b/i;
-
 // SITE_CPU_THROTTLE=6 replays the suite with the page's CPU six times slower
 // (the PGlite worker keeps its speed).
 test.beforeEach(async ({ page }) => {
   const rate = Number(process.env.SITE_CPU_THROTTLE ?? 1);
   if (rate > 1) await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate });
 });
-
-// GitHub Pages answers a deep link with 404.html (the app) and a 404 status;
-// the browser logs that status. Anything else in the console is a bug.
-function watchConsole(page: Page) {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error" && !message.text().includes("status of 404")) errors.push(message.text());
-  });
-  return errors;
-}
 
 test("landing → dashboard → new project → script, kept across reloads and deep links", async ({ page }) => {
   const errors = watchConsole(page);
@@ -166,14 +153,7 @@ test("settings says what needs the self-hosted studio, and deleting all local da
     await new Promise((resolve) => setTimeout(resolve, 3_000));
     await route.continue();
   });
-  const glimpses: string[] = [];
-  await page.exposeBinding("reportGlimpse", (_source, text: string) => glimpses.push(text));
-  await page.addInitScript(() => {
-    new MutationObserver(() => {
-      const text = document.querySelector("main")?.textContent ?? "";
-      if (/could not (load|be initialized)/.test(text)) (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
-    }).observe(document, { childList: true, subtree: true, characterData: true });
-  });
+  const glimpses = await watchForBrokenStudio(page);
   await page.goto(`${APP}/settings`);
   await page.getByRole("button", { name: "Delete all local data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();

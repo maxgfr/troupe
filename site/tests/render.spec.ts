@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { buildScene } from "../../src/modules/scene";
+import { watchConsole, watchForBrokenStudio } from "./page-checks";
 
 // A real render in the browser: Kokoro voices, the shared scene, WebCodecs
 // and mediabunny, then playback through the media service worker. Run it
@@ -46,7 +47,7 @@ test.beforeAll(async ({}, testInfo) => {
     args: (process.env.RENDER_ARGS ?? "").split(" ").filter(Boolean),
   });
   page = context.pages()[0] ?? (await context.newPage());
-  watch(page);
+  watchConsole(page, errors);
 });
 
 test.afterAll(async () => {
@@ -87,15 +88,6 @@ test.afterEach(async ({}, testInfo) => {
   writeFileSync(stateFile, JSON.stringify({ ...state, errors }, null, 2));
   await testInfo.attach("page state", { path: stateFile, contentType: "application/json" });
 });
-
-// Deep links answer with Pages' 404.html and a 404 status, which the browser
-// logs; anything else in the console is a bug.
-function watch(target: Page) {
-  target.on("pageerror", (error) => errors.push(error.message));
-  target.on("console", (message) => {
-    if (message.type() === "error" && !message.text().includes("status of 404")) errors.push(message.text());
-  });
-}
 
 async function newProject(title: string): Promise<string> {
   await page.goto(`${APP}/projects/new`);
@@ -249,7 +241,7 @@ test("a render cut short by closing its tab is marked failed on the next load", 
   await page.close();
   await context.unrouteAll({ behavior: "ignoreErrors" });
   page = await context.newPage();
-  watch(page);
+  watchConsole(page, errors);
   await page.goto(projectUrl);
   await expect(page.getByText("failed", { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("The tab rendering this video was closed before it finished. Relaunch it.")).toBeVisible();
@@ -274,14 +266,7 @@ test("a render survives export, deleting all local data and import", async () =>
 
   // While the tables are rebuilt, the studio must never look broken: queries
   // already on their way are asked again afterwards (site/src/rebuild-link.ts).
-  const glimpses: string[] = [];
-  await page.exposeFunction("reportGlimpse", (text: string) => glimpses.push(text));
-  await page.evaluate(() => {
-    new MutationObserver(() => {
-      const text = document.querySelector("main")?.textContent ?? "";
-      if (/could not (load|be initialized)/.test(text)) (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
-    }).observe(document, { childList: true, subtree: true, characterData: true });
-  });
+  const glimpses = await watchForBrokenStudio(page);
   await page.getByRole("button", { name: "Delete all local data" }).click();
   await page.getByRole("button", { name: "Delete everything" }).click();
   // Two steps, as the app takes them: the deletion ends by opening the

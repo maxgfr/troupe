@@ -89,6 +89,28 @@ export function headScript(script: string): Plugin {
   };
 }
 
+// `vite preview`: a path under `base` with no file (or folder with an
+// index.html) in `outDir` gets 404.html with a 404, as on GitHub Pages; so
+// does a URL that does not decode. Anything else goes on to Vite.
+export function pagesNotFoundMiddleware(base: string, outDir: string): Connect.NextHandleFunction {
+  return (req, res, next) => {
+    const raw = (req.url ?? "/").split("?")[0]!;
+    if (!raw.startsWith(base)) return next();
+    let path: string | null;
+    try {
+      path = decodeURIComponent(raw);
+    } catch {
+      path = null;
+    }
+    const file = path === null ? null : join(outDir, path.slice(base.length));
+    const exists = file !== null && existsSync(file) && (statSync(file).isFile() || existsSync(join(file, "index.html")));
+    if (exists) return next();
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.end(readFileSync(join(outDir, "404.html")));
+  };
+}
+
 // GitHub Pages has no rewrites: an unknown path such as
 // /troupe/app/projects/<id> gets 404.html, so 404.html is the app itself.
 // `vite dev` rewrites app paths to the app; `vite preview` answers like Pages.
@@ -104,17 +126,7 @@ export function pagesFallback({ base, outDir }: { base: string; outDir: string }
       });
     },
     configurePreviewServer(server) {
-      const notFound: Connect.NextHandleFunction = (req, res, next) => {
-        const path = decodeURIComponent((req.url ?? "/").split("?")[0]!);
-        if (!path.startsWith(base)) return next();
-        const file = join(outDir, path.slice(base.length));
-        const exists = existsSync(file) && (statSync(file).isFile() || existsSync(join(file, "index.html")));
-        if (exists) return next();
-        res.statusCode = 404;
-        res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.end(readFileSync(join(outDir, "404.html")));
-      };
-      server.middlewares.use(notFound);
+      server.middlewares.use(pagesNotFoundMiddleware(base, outDir));
     },
     closeBundle() {
       const index = join(outDir, "app", "index.html");

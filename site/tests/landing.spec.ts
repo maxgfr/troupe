@@ -1,13 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { TRIAL_WORD } from "./page-checks";
+
 // The landing page at /troupe/: what it says, the presentation video, the
 // step list's jumps into it, the quick start's copy button, and every link
 // that stays on the site.
 
 const LANDING = "/troupe/";
-// The word that would sell the browser edition short, spelled d[e]mo so the
-// repository itself never says it (scripts/check-wording.ts).
-const TRIAL_WORD = /\bd[e]mo\b/i;
 
 test("says what Troupe is, opens the browser edition, and presents it as Troupe itself", async ({ page }) => {
   const errors: string[] = [];

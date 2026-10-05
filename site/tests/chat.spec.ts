@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { watchConsole } from "./page-checks";
+
 // The script chat in the browser edition, for real: WebLLM runs the chat model
 // on the GPU, the proposal is applied as a new version, then relaunched with
 // the in-browser renderer. Run it with `pnpm site:test:chat` after
@@ -35,10 +37,7 @@ test.beforeAll(async ({}, testInfo) => {
     args: (process.env.RENDER_ARGS ?? "").split(" ").filter(Boolean),
   });
   page = context.pages()[0] ?? (await context.newPage());
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error" && !message.text().includes("status of 404")) errors.push(message.text());
-  });
+  watchConsole(page, errors);
 });
 
 test.afterAll(async () => {

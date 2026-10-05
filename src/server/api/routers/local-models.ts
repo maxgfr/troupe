@@ -7,6 +7,7 @@ import { NodeBindingSchema, parseWorkflow, workflowProblems, type ApiWorkflow } 
 import { COMFY_TEMPLATES, findComfyTemplate } from "~/modules/generation/server/adapters/comfyui/templates";
 import { createLocalModel, getModelConfig, listModelConfigs, LOCAL_TIMEOUT_S, newLocalModelKey, updateLocalModel } from "~/modules/models";
 import { buildComfyAdapter, buildHttpAdapter, ComfyConnection, HttpConnection, MAX_WORKFLOW_BYTES, sealModelToken, type LocalDraft } from "~/server/local-models";
+import type { Db } from "~/server/db/types";
 import { checkLocalUrl, sameOrigin, suggestedComfyUrl } from "~/server/settings/urls";
 import { SecretUnavailableError } from "~/server/settings/secrets";
 import { MODEL_KEY } from "./generation";
@@ -122,6 +123,19 @@ async function testDraft(draft: LocalDraft, family: "http" | "comfyui"): Promise
   }
 }
 
+// A successful test of an HTTP model saves the polling pace its server asks
+// for now (or forgets it when the server stopped asking). With `baseUrl`, only
+// while the model still points there.
+export async function rememberPollPace(db: Db, modelKey: string, report: ConnectionReport, baseUrl?: string) {
+  if (report.ok !== true) return;
+  const row = await getModelConfig(db, modelKey);
+  if (row?.family !== "http") return;
+  const { pollEveryS: previous, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
+  if (baseUrl !== undefined && rest.baseUrl !== baseUrl) return;
+  if (previous === report.pollEveryS) return;
+  await updateLocalModel(db, modelKey, { connection: { ...rest, ...(report.pollEveryS ? { pollEveryS: report.pollEveryS } : {}) } });
+}
+
 // Procedures for adding, editing and testing local models.
 export const localModelProcedures = {
   templates: protectedProcedure.query(() =>
@@ -144,6 +158,14 @@ export const localModelProcedures = {
       id, family: input.family, label: input.label, capabilities, connection, timeoutS,
       secret: input.token ? seal(id, input.token) : null,
     });
+    // Added without a test (an API client, the CLI's --skip-test): ask the
+    // server for its pace once, in the background, instead of polling at the
+    // 20 s default until the next test. An unreachable server changes nothing.
+    if (input.family === "http" && connection.pollEveryS === undefined) {
+      void testDraft({ modelKey: id, label: input.label, capabilities, connection, token: input.token }, "http")
+        .then((report) => rememberPollPace(ctx.db, id, report, connection.baseUrl as string))
+        .catch(() => {});
+    }
     return { modelKey: id };
   }),
 

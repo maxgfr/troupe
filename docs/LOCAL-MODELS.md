@@ -130,8 +130,9 @@ All requests carry `Authorization: Bearer <token>` when a token is set.
 
 `poll_every_s` is optional: how often, in seconds, Troupe should ask about a
 job. **Test** reads it, shows it, and **Add model** saves it with the model;
-testing a saved model again picks up a new value, and changing a model's
-server forgets it until the next test. Troupe rounds it to whole seconds
+a model added without a test asks its server for it once, in the background,
+right after it is added. Testing a saved model again picks up a new value,
+and changing a model's server forgets it until the next test. Troupe rounds it to whole seconds
 between 1 and 60 and then polls at that steady pace from the first check on,
 with no backoff. Without it, Troupe waits 20 seconds, then twice as long each
 time, up to 5 minutes. Set it when your server finishes in seconds or

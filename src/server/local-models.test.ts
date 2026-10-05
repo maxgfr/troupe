@@ -138,6 +138,45 @@ describe("local models end to end", () => {
     expect((await loadModelCatalog(t.db)).adapters.get(eager)?.pollEveryS).toBeUndefined();
   });
 
+  it("keeps the pace on a failed test or a move on the same server, and forgets it when the server stops asking", async () => {
+    let health: { status: number; body: Record<string, unknown> } = { status: 200, body: { ok: true, contract: 1, poll_every_s: 4 } };
+    const server = await startServer((r, res) => (r.path === "/health" ? json(res, health.status, health.body) : json(res, 404, {})));
+    servers.push(server);
+    const pace = async (key: string) => (await loadModelCatalog(t.db)).adapters.get(key)?.pollEveryS;
+    const { modelKey } = await (await caller()).settings.models.createLocal({ family: "http", label: "Paced", baseUrl: server.url, capabilities: caps, pollEveryS: 4 });
+
+    health = { status: 503, body: { ok: false, error: "warming up" } };
+    expect(await (await caller()).settings.models.test({ modelKey })).toMatchObject({ ok: false });
+    expect(await pace(modelKey)).toBe(4);
+    // Another path on the same server: the same server, the same pace.
+    await (await caller()).settings.models.updateLocal({ modelKey, baseUrl: `${server.url}/v2` });
+    expect(await pace(modelKey)).toBe(4);
+    health = { status: 200, body: { ok: true, contract: 1 } };
+    await (await caller()).settings.models.updateLocal({ modelKey, baseUrl: server.url });
+    expect(await (await caller()).settings.models.test({ modelKey })).toMatchObject({ ok: true });
+    expect(await pace(modelKey)).toBeUndefined();
+    expect((await getModelConfig(t.db, modelKey))?.connection).not.toHaveProperty("pollEveryS");
+  });
+
+  it("asks the server of a model added without a test for its pace, after adding it", async () => {
+    let asked = 0;
+    const server = await startServer((r, res) => {
+      if (r.path !== "/health") return json(res, 404, {});
+      asked++;
+      json(res, 200, { ok: true, contract: 1, poll_every_s: 2 });
+    });
+    servers.push(server);
+    const { modelKey } = await (await caller()).settings.models.createLocal({ family: "http", label: "Untested", baseUrl: server.url, capabilities: caps });
+    await expect.poll(async () => (await loadModelCatalog(t.db)).adapters.get(modelKey)?.pollEveryS, { timeout: 5000 }).toBe(2);
+    expect(asked).toBe(1);
+    // A pace sent with the form is not asked again; an unreachable server
+    // adds the model all the same, at the default pace.
+    await (await caller()).settings.models.createLocal({ family: "http", label: "Told", baseUrl: server.url, capabilities: caps, pollEveryS: 2 });
+    const { modelKey: away } = await (await caller()).settings.models.createLocal({ family: "http", label: "Away", baseUrl: "http://127.0.0.1:9", capabilities: caps });
+    expect((await loadModelCatalog(t.db)).adapters.get(away)?.pollEveryS).toBeUndefined();
+    expect(asked).toBe(1);
+  });
+
   it("refuses a cloud metadata address and a broken custom workflow", async () => {
     const api = await caller();
     await expect(api.settings.models.createLocal({ family: "http", label: "Nope", baseUrl: "http://169.254.169.254", capabilities: caps })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/metadata/i) });

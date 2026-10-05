@@ -45,9 +45,11 @@ export interface Palette {
   // The pill behind the word being said (ink on it reads at 4:1), and the
   // ring around the portrait while the actor speaks.
   highlight: string;
-  // The band behind captions laid over a video, and its faded edges.
+  // Captions laid over a video: the band behind them, its faded edges, and
+  // the words still to come, brighter than inkMuted to read on any picture.
   shade: string;
   shadeFade: string;
+  inkMutedOver: string;
 }
 
 export function paletteFor(actorId: string): Palette {
@@ -63,7 +65,8 @@ export function paletteFor(actorId: string): Palette {
     ink: oklch(0.97, 0.01, hue),
     inkMuted: oklch(0.97, 0.01, hue, 0.55),
     highlight: oklch(0.58, 0.12, hue),
-    shade: oklch(0.13, 0.03, hue, 0.55),
+    shade: oklch(0.13, 0.03, hue, 0.68),
     shadeFade: oklch(0.13, 0.03, hue, 0),
+    inkMutedOver: oklch(0.97, 0.01, hue, 0.72),
   };
 }

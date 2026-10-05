@@ -204,8 +204,13 @@ describe("drawFrame", () => {
       const word = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] }).cues[0]!.words[2]!;
       const t = (word.startS + word.endS) / 2;
       const over = drawCaptions(t);
-      expect(over.texts).toEqual(captionWords(draw(t)));
-      expect(over.rounds.filter((r) => r.fill === over.scene.palette.highlight)).toHaveLength(1);
+      const full = captionWords(draw(t));
+      const { palette } = over.scene;
+      expect(over.texts.map(({ text, x, y, font }) => ({ text, x, y, font }))).toEqual(full.map(({ text, x, y, font }) => ({ text, x, y, font })));
+      expect(over.rounds.filter((r) => r.fill === palette.highlight)).toHaveLength(1);
+      // Words still to come are brighter than on the plain background.
+      expect(over.texts.map((w) => w.fill)).toEqual(full.map((w) => (w.fill === palette.inkMuted ? palette.inkMutedOver : w.fill)));
+      expect(over.texts.some((w) => w.fill === palette.inkMutedOver)).toBe(true);
     });
 
     it("puts a shade behind the caption rows so they read on any picture", () => {

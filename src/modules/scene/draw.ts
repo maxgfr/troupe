@@ -206,7 +206,7 @@ function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
       ctx.roundRect(word.x - padX, word.y - px * 0.08, ctx.measureText(word.text).width + 2 * padX, height, height * 0.28);
       ctx.fill();
     }
-    ctx.fillStyle = saying || t >= timing.endS ? palette.ink : palette.inkMuted;
+    ctx.fillStyle = saying || t >= timing.endS ? palette.ink : shaded ? palette.inkMutedOver : palette.inkMuted;
     ctx.fillText(word.text, word.x, word.y);
   }
 }

@@ -87,6 +87,23 @@ the local renderer, including its AI video mode.
 With a video model, actor presets describe a voice and a look in the prompt;
 they do not keep the same face from one render to the next.
 
+## Command line and Claude Code
+
+`troupe`, the CLI in [`cli/`](cli), drives a running studio from a terminal:
+sign in, check the setup, add models, create projects, set scripts, chat,
+render, watch, export and download, with `--json` on every command.
+
+```bash
+pnpm --filter troupe-cli build && npm install -g ./cli
+troupe login --url http://127.0.0.1:3000
+troupe doctor
+```
+
+See [docs/CLI.md](docs/CLI.md). On top of it, a Claude Code skill runs the
+whole process for you, from the brief to the reviewed MP4:
+`/plugin marketplace add maxgfr/troupe`, then `/plugin install troupe@troupe`
+([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
+
 ## Honest status
 
 The cloud adapters are tested against recorded API responses, the local

@@ -42,6 +42,16 @@ First public release.
   links and its docs links at a fork.
   The cast grid uses 160 and 320 px copies of the front pictures
   (`scripts/actors/thumbnails.sh`).
+- `troupe`, a command-line client for a running studio (`cli/`): sign-in
+  with the access code into per-profile config (`~/.config/troupe`, 0600),
+  `doctor`, models and provider keys, actors, projects, scripts in a
+  `[emotion] line` file format, the script chat, launching and watching
+  renders, exports and downloads; `--json` everywhere and documented exit
+  statuses ([docs/CLI.md](docs/CLI.md)). `export.list` joins the API for it.
+- A Claude Code skill and plugin marketplace (`skills/troupe`,
+  `.claude-plugin/`) that runs a project end to end through the CLI,
+  reviewing each render with ffprobe and extracted frames
+  ([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
 - A one-minute presentation video, recorded from the real browser edition by
   `scripts/demo/record.ts` (Playwright, headed Chrome) and cut by
   `scripts/demo/edit.sh` (ffmpeg): `pnpm demo:record`, then `pnpm demo:edit`.

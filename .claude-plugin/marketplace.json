@@ -1,0 +1,16 @@
+{
+  "name": "troupe",
+  "description": "Troupe's Claude Code plugin: drive a self-hosted Troupe video studio through the troupe CLI.",
+  "owner": {
+    "name": "maxgfr",
+    "url": "https://github.com/maxgfr"
+  },
+  "plugins": [
+    {
+      "name": "troupe",
+      "source": "./",
+      "description": "Make short videos with a self-hosted Troupe studio: check the setup, cast, script, render, review and export through the troupe CLI.",
+      "category": "media"
+    }
+  ]
+}

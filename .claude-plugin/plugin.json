@@ -1,0 +1,14 @@
+{
+  "name": "troupe",
+  "displayName": "Troupe",
+  "version": "0.1.0",
+  "description": "Make short videos with a self-hosted Troupe studio from Claude Code: check the setup, cast, script, render, review and export through the troupe CLI.",
+  "author": {
+    "name": "maxgfr",
+    "url": "https://github.com/maxgfr"
+  },
+  "homepage": "https://github.com/maxgfr/troupe/blob/main/docs/CLAUDE-SKILL.md",
+  "repository": "https://github.com/maxgfr/troupe",
+  "license": "MIT",
+  "keywords": ["video", "self-hosted", "text-to-video", "cli"]
+}

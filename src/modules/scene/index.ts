@@ -1,6 +1,6 @@
 // Public barrel of the `scene` module — other modules import ONLY from here.
 // Pure TypeScript (no DOM, no Node): the browser and Node renderers share it.
-export { buildScene, cueAt, actorInitials, TIMING } from "./build";
+export { buildScene, cueAt, actorInitials, TIMING, WORDS_PER_SECOND } from "./build";
 export type { Scene, SceneInput, SceneLine, SceneActor, Cue, Word, Box, Layout } from "./build";
 export { drawFrame, portraitShotFor, portraitShots, SCENE_FONT } from "./draw";
 export type { DrawOptions, PortraitShot, SceneContext, SceneGradient, SceneImage, ScenePortraits } from "./draw";

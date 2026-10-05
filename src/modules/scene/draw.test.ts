@@ -187,6 +187,31 @@ describe("drawFrame", () => {
     });
   }
 
+  it("shows a line too long for the caption box a page of rows at a time, the word being said on it", () => {
+    const long = "Honestly I did not expect a tiny grinder like this one to change every single morning of my week but here we are again ".repeat(12).trim();
+    const count = long.split(" ").length;
+    for (const captionsOnly of [false, true]) {
+      const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines: [{ role: "body", text: long, emotion: "neutral" }], speechS: [60] });
+      const box = captionsOnly ? scene.layout.overlayCaptions : scene.layout.captions;
+      for (const index of [0, Math.floor(count / 2), count - 1]) {
+        const word = scene.cues[0]!.words[index]!;
+        const rec = recorder(scene.width, scene.height);
+        drawFrame(rec.ctx, scene, (word.startS + word.endS) / 2, { captionsOnly });
+        const words = rec.texts.filter((t) => t.y >= box.y - 1);
+        const px = fontPx(words[0]!.font);
+        expect(words.length, `${captionsOnly}: ${index}`).toBeLessThan(count);
+        for (const w of words) {
+          expect(w.y).toBeGreaterThanOrEqual(box.y - 0.001);
+          // The whole row, not just its top, stays above the box's bottom.
+          expect(w.y + px * 1.25, w.text).toBeLessThanOrEqual(box.y + box.height + 0.001);
+        }
+        // The word being said is on the page shown, on its pill.
+        const pill = rec.rounds.find((r) => r.fill === scene.palette.highlight)!;
+        expect(words.some((w) => w.text === word.text && Math.abs(w.y - pill.y - px * 0.08) < 0.001)).toBe(true);
+      }
+    }
+  });
+
   describe("captions only, to lay over a video", () => {
     function drawCaptions(t: number) {
       const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] });

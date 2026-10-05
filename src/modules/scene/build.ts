@@ -76,7 +76,8 @@ export interface Scene {
 
 // Silence before the first line, between lines and after the last one.
 export const TIMING = { leadInS: 0.3, gapS: 0.35, tailS: 0.6 } as const;
-const WORDS_PER_SECOND = 2.5;
+// The pace a line without a measured voice is timed at.
+export const WORDS_PER_SECOND = 2.5;
 
 export function actorInitials(name: string): string {
   return name

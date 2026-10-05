@@ -194,6 +194,7 @@ function card<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, 
 interface Placed {
   text: string;
   index: number;
+  row: number;
   x: number;
   y: number;
 }
@@ -244,7 +245,7 @@ function wrap(ctx: SceneContext, words: string[], box: Box, start: number): { px
       for (const [r, row] of rows.entries()) {
         let x = box.x + (box.width - row.width) / 2;
         for (const i of row.indices) {
-          placed.push({ text: words[i]!, index: i, x, y: top + r * lineHeight });
+          placed.push({ text: words[i]!, index: i, row: r, x, y: top + r * lineHeight });
           x += widths[i]! + gap;
         }
       }
@@ -254,12 +255,28 @@ function wrap(ctx: SceneContext, words: string[], box: Box, start: number): { px
   }
 }
 
+// The rows that fit in the box, when the line still does not at the smallest
+// size: the page of rows holding the word being said (or the last one said),
+// moved up to the top of the box.
+function page(placed: Placed[], cue: Cue, t: number, box: Box, px: number): Placed[] {
+  const lineHeight = px * LINE_HEIGHT;
+  const fit = Math.max(1, Math.floor(box.height / lineHeight));
+  const rows = (placed.at(-1)?.row ?? 0) + 1;
+  if (rows <= fit) return placed;
+  let current = 0;
+  for (const [i, word] of cue.words.entries()) if (word.startS <= t) current = i;
+  const first = Math.floor((placed.find((w) => w.index === current)?.row ?? 0) / fit) * fit;
+  return placed.filter((w) => w.row >= first && w.row < first + fit).map((w) => ({ ...w, y: box.y + (w.row - first) * lineHeight }));
+}
+
 function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
   const cue = cueAt(scene, t);
   if (!cue) return;
   const { palette, layout } = scene;
   const box = shaded ? layout.overlayCaptions : layout.captions;
-  const { px, placed } = wrap(ctx, cue.words.map((w) => w.text), box, layout.captionSize);
+  const wrapped = wrap(ctx, cue.words.map((w) => w.text), box, layout.captionSize);
+  const { px } = wrapped;
+  const placed = page(wrapped.placed, cue, t, box, px);
   if (shaded && placed.length > 0) {
     const rows = placed.map((w) => w.y);
     shade(ctx, scene, Math.min(...rows) - px * 0.5, Math.max(...rows) + px * (LINE_HEIGHT + 0.5), px);

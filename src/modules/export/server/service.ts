@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import type { MediaLinks } from "~/server/media/store";
@@ -77,4 +77,16 @@ export async function createExport(db: Db, input: CreateExportInput, media: Medi
     return row;
   });
   return { ...record!, downloadUrl: media.urlFor(gen.outputAssetId!, { download: true }) };
+}
+
+// A project's exports, newest first, each with the link that downloads its
+// video (null once the render's file is gone).
+export async function listExports(db: Db, projectId: string, media: MediaLinks) {
+  const rows = await db
+    .select({ record: exportRecords, outputAssetId: generations.outputAssetId })
+    .from(exportRecords)
+    .leftJoin(generations, eq(generations.id, exportRecords.generationId))
+    .where(eq(exportRecords.projectId, projectId))
+    .orderBy(desc(exportRecords.createdAt));
+  return rows.map(({ record, outputAssetId }) => ({ ...record, downloadUrl: outputAssetId ? media.urlFor(outputAssetId, { download: true }) : null }));
 }

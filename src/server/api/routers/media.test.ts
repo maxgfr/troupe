@@ -47,6 +47,9 @@ describe("media links come from the request context", () => {
     expect(timeline.find((g) => g.id === generationId)!.outputAssetUrl).toBe(`/api/media/${assetId}`);
     const exported = await caller.export.create({ projectId: fx.projectId, generationId, platform: "tiktok", caption: "c", hashtags: [], qualityConfirmed: true });
     expect(exported.downloadUrl).toBe(`/api/media/${assetId}?download=1`);
+    // The project's exports list it, newest first, with the same link.
+    const listed = await caller.export.list({ projectId: fx.projectId });
+    expect(listed[0]).toMatchObject({ id: exported.id, generationId, platform: "tiktok", caption: "c", downloadUrl: `/api/media/${assetId}?download=1` });
   });
 
   it("timeline, comparison and export links use ctx.media, and deleting a project removes its files through it", async () => {

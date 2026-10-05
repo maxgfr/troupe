@@ -132,4 +132,14 @@ programs under other licenses:
     [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU License) for
     the WebP files. Their other dependencies, pinned in
     `scripts/actors/uv.lock`, keep their own licenses.
+- **The CLI bundle** (`cli/dist/troupe.mjs`, built by `pnpm --filter
+  troupe-cli build` with [esbuild](https://github.com/evanw/esbuild) 0.28,
+  MIT License, which is not bundled) includes
+  [tRPC](https://github.com/trpc/trpc)'s client (`@trpc/client` and the
+  parts of `@trpc/server` it imports) 11.18,
+  [superjson](https://github.com/flightcontrolhq/superjson) 2.2 with
+  [copy-anything](https://github.com/mesqueeb/copy-anything) 4 and
+  [is-what](https://github.com/mesqueeb/is-what) 5, and the
+  [`@oxc-project/runtime`](https://github.com/oxc-project/oxc) helpers tRPC is
+  compiled with: all MIT License.
 - Other npm dependencies keep their own licenses, listed in `node_modules`.

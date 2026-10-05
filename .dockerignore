@@ -17,5 +17,7 @@ supabase
 .github
 .nvmrc
 renderer
+# The CLI talks to a running studio; it is not part of the image.
+cli
 # The portrait generator and its full-size working copies.
 scripts/actors

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { createTRPCRouter, projectProcedure } from "~/server/api/trpc";
-import { checkExportSpecs, createExport } from "~/modules/export";
+import { checkExportSpecs, createExport, listExports } from "~/modules/export";
 import { assertGenerationInProject } from "./_scope";
 
 const PLATFORM = z.enum(["instagram", "youtube", "tiktok", "linkedin"]);
@@ -9,6 +9,9 @@ const PLATFORM = z.enum(["instagram", "youtube", "tiktok", "linkedin"]);
 // Platform export presets. All keyed by projectId (workspace-scoped);
 // generation references are verified in-project.
 export const exportRouter = createTRPCRouter({
+  // Newest first, with download links.
+  list: projectProcedure.query(({ ctx, input }) => listExports(ctx.db, input.projectId, ctx.media)),
+
   checkSpecs: projectProcedure
     .input(z.object({ generationId: z.string().uuid(), platform: PLATFORM }))
     .query(async ({ ctx, input }) => {

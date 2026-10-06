@@ -91,7 +91,7 @@ export function spoken(text: string): string {
   return text
     .replace(TAG, "")
     .replace(/[*`]+/g, "")
-    .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\u200d\ufe0f]/gu, "")
+    .replace(/\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f/gu, "")
     .replace(/^\s*(?:[-•]|#+)\s+/, "")
     .replace(/\s+/g, " ")
     .trim();

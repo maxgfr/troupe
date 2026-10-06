@@ -24,7 +24,7 @@ const PLATFORM = new Set([...SYSTEM, "NODE_ENV", "NEXT_RUNTIME", "VERCEL", "VERC
 
 // The studio: src/env.js declares every variable the server reads.
 const envJs = read("src/env.js");
-const APP = matches(envJs.slice(0, envJs.indexOf("runtimeEnv:")), /^ {4}([A-Z][A-Z0-9_]+): z\./gm);
+const APP = matches(envJs.slice(0, envJs.indexOf("runtimeEnv:")), /^ {4}([A-Z][A-Z0-9_]+): z(?:\.|$)/gm);
 const serverReads = matches(sources("src").filter((f) => !f.startsWith("src/env.js")).map(read).join("\n"), /\bprocess\.env\.([A-Z][A-Z0-9_]+)/g, /\benv\.([A-Z][A-Z0-9_]+)/g, /\bsource\.([A-Z][A-Z0-9_]+)/g);
 
 // The browser edition: VITE_* variables, read when the site is built.

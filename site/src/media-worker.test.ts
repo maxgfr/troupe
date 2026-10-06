@@ -28,7 +28,8 @@ describe("the media service worker", () => {
   const types = (name: string): string[] => {
     const found = new RegExp(`^const ${name} = new Set\\((\\[[^\\]]*\\])\\);$`, "m").exec(worker);
     if (!found) throw new Error(`sw.js has no ${name}.`);
-    return JSON.parse(found[1]!);
+    // One line or one type per line, with or without a trailing comma.
+    return JSON.parse(found[1]!.replace(/,\s*\]$/, "]"));
   };
 
   it("serves inline, or as a download, exactly the types the backups accept", () => {

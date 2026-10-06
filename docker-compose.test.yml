@@ -17,6 +17,9 @@ services:
       OLLAMA_MODEL: ${E2E_OLLAMA_MODEL:-qwen2.5:0.5b}
       # Generated on first start, as for anyone: the run reads it back.
       TROUPE_ACCESS_CODE: ""
+      # The script chat stops a request after 4 minutes and says so (the
+      # studio spec then asks again, as a person would).
+      TROUPE_CHAT_SEND_TIMEOUT_S: "240"
       TROUPE_LIBRARY_EMBED_MODEL: all-minilm
       TROUPE_LIBRARY_VISION_MODEL: ${E2E_VISION_MODEL:-off}
       # The test's pages and files are served from this computer

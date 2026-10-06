@@ -22,6 +22,8 @@ export interface ChatEnvironment {
   instructions: string;
   wordsPerSecond: number;
   timeoutMs: number;
+  // One request in all, its answer and its retry together.
+  sendTimeoutMs: number;
   // Null: each provider's default (Ollama 0.4, Claude its own).
   temperature: number | null;
   historyTurns: number;
@@ -47,6 +49,7 @@ export function chatEnvironment(env: Env = process.env): ChatEnvironment {
     instructions: env.TROUPE_CHAT_INSTRUCTIONS?.trim() ?? "",
     wordsPerSecond: number(env.TROUPE_CHAT_WORDS_PER_SECOND, DEFAULT_WORDS_PER_SECOND, 1, 5),
     timeoutMs: number(env.TROUPE_CHAT_TIMEOUT_S, 180, 10, 1800) * 1000,
+    sendTimeoutMs: number(env.TROUPE_CHAT_SEND_TIMEOUT_S, 300, 30, 3600) * 1000,
     temperature: ((t) => (t < 0 ? null : t))(number(env.TROUPE_CHAT_TEMPERATURE, -1, 0, 2)),
     historyTurns: Math.round(number(env.TROUPE_CHAT_HISTORY_TURNS, HISTORY_TURNS, 0, 20)),
     anthropicFallback: ((f) => (f === "on" || f === "off" ? f : "auto"))(env.TROUPE_CHAT_ANTHROPIC_FALLBACK?.trim()),
@@ -97,7 +100,7 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
   }
 
   function setupFor(r: Awaited<ReturnType<typeof resolve>>): ChatSetup {
-    const common = { instructions: r.settings.instructions, wordsPerSecond: r.settings.wordsPerSecond, historyTurns: env.historyTurns };
+    const common = { instructions: r.settings.instructions, wordsPerSecond: r.settings.wordsPerSecond, historyTurns: env.historyTurns, sendTimeoutMs: env.sendTimeoutMs };
     if (r.provider === "anthropic") {
       const modelId = r.settings.anthropicModel;
       if (!r.anthropicKey) {

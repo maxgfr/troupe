@@ -12,6 +12,7 @@ describe("chatEnvironment", () => {
       instructions: "",
       wordsPerSecond: 2.5,
       timeoutMs: 180_000,
+      sendTimeoutMs: 300_000,
       temperature: null,
       historyTurns: 6,
       anthropicFallback: "auto",
@@ -19,8 +20,9 @@ describe("chatEnvironment", () => {
   });
 
   it("reads each variable, and falls back on a bad value", () => {
-    expect(chatEnvironment({ TROUPE_CHAT_PROVIDER: "anthropic", TROUPE_CHAT_TEMPERATURE: "0.8", TROUPE_CHAT_HISTORY_TURNS: "2", TROUPE_CHAT_WORDS_PER_SECOND: "2.2", TROUPE_CHAT_TIMEOUT_S: "60" })).toMatchObject({
+    expect(chatEnvironment({ TROUPE_CHAT_PROVIDER: "anthropic", TROUPE_CHAT_TEMPERATURE: "0.8", TROUPE_CHAT_HISTORY_TURNS: "2", TROUPE_CHAT_WORDS_PER_SECOND: "2.2", TROUPE_CHAT_TIMEOUT_S: "60", TROUPE_CHAT_SEND_TIMEOUT_S: "240" })).toMatchObject({
       provider: "anthropic",
+      sendTimeoutMs: 240_000,
       temperature: 0.8,
       historyTurns: 2,
       wordsPerSecond: 2.2,

@@ -52,6 +52,10 @@ export interface ChatSetup {
   wordsPerSecond: number;
   // Earlier turns sent with each request (default HISTORY_TURNS).
   historyTurns?: number;
+  // The longest one request may take, its answer and its retry together
+  // (TROUPE_CHAT_SEND_TIMEOUT_S; the browser edition's own): past it, the
+  // model's calls stop and the chat says so.
+  sendTimeoutMs: number;
 }
 
 export interface ChatConnectionReport {

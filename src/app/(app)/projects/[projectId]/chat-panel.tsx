@@ -141,7 +141,7 @@ export function ChatPanel({
                   {m.content}
                 </p>
               ) : (
-                <div key={m.id} className="space-y-2">
+                <article key={m.id} aria-label="Answer" className="space-y-2">
                   {m.proposal ? (
                     <>
                       <p className="text-pretty text-sm">{m.content}</p>
@@ -182,7 +182,7 @@ export function ChatPanel({
                   )}
                   {/* Said only when another model wrote it than the one answering now. */}
                   {m.model && provider && m.model !== provider.modelId ? <p className="font-mono text-[11px] text-muted">{m.model}</p> : null}
-                </div>
+                </article>
               ),
             )
           )}

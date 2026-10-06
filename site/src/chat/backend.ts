@@ -13,7 +13,8 @@ const LABEL = "This browser";
 export function createBrowserChat(db: Db): ChatBackend {
   async function resolve(): Promise<ChatSetup> {
     const [saved, support] = await Promise.all([getChatSettings(db), chatSupport()]);
-    const common = { instructions: saved.instructions ?? CHAT_CONFIG.instructions, wordsPerSecond: saved.wordsPerSecond ?? CHAT_CONFIG.wordsPerSecond, historyTurns: CHAT_CONFIG.historyTurns };
+    // A quarter of an hour covers loading the model the first time.
+    const common = { instructions: saved.instructions ?? CHAT_CONFIG.instructions, wordsPerSecond: saved.wordsPerSecond ?? CHAT_CONFIG.wordsPerSecond, historyTurns: CHAT_CONFIG.historyTurns, sendTimeoutMs: 15 * 60_000 };
     if (!support.ok) return { ...common, provider: "webllm", label: LABEL, modelId: CHAT_CONFIG.model, model: null, problem: support.detail };
     return { ...common, provider: "webllm", label: LABEL, modelId: support.model, model: webllmChat(support.model), problem: null };
   }

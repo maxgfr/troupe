@@ -116,7 +116,13 @@ export async function sendChatMessage(
     message: input.message,
   });
   const schema = proposalJsonSchema(choices.map((a) => a.name));
-  const ask = (turns: ChatTurn[]) => setup.model!.propose(turns, { schema, signal: input.signal });
+  // The answer is bounded to what one proposal takes, so a small model that
+  // rambles stops early: about 300 tokens of summary, keys, roles and
+  // emotions, and its lines: 7 tokens a second of speech (Japanese, Chinese
+  // or Thai, with no spaces to count words by, take about that), or 1.4 a
+  // word of the budget when that is more.
+  const maxTokens = 300 + Math.ceil(Math.max(input.durationS * 7, budget * 1.4));
+  const ask = (turns: ChatTurn[]) => setup.model!.propose(turns, { schema, signal: input.signal, maxTokens });
   const check = (answer: ChatAnswer): ProposalCheck =>
     answer.proposal === null ? { ok: false, problem: "it is not a JSON object" } : checkProposal(answer.proposal, context);
 

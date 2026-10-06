@@ -57,7 +57,7 @@ function scriptedModel(answers: string[]) {
 }
 
 function setupWith(model: ChatModel, overrides: Partial<ChatSetup> = {}): ChatSetup {
-  return { provider: "ollama", label: "Ollama", modelId: "qwen3:4b", model, problem: null, instructions: "", wordsPerSecond: 2.5, ...overrides };
+  return { provider: "ollama", label: "Ollama", modelId: "qwen3:4b", model, problem: null, instructions: "", wordsPerSecond: 2.5, sendTimeoutMs: 300_000, ...overrides };
 }
 
 const answer = (lines: { role: string; text: string; emotion: string }[], extra: Record<string, unknown> = {}) =>

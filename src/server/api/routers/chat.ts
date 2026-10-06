@@ -61,9 +61,16 @@ export const chatRouter = createTRPCRouter({
       // "In my voice": the style of the library items marked as the user's own.
       const { profile } = await voiceProfile(ctx.db, ctx.workspaceId);
       const setup = profile ? { ...loaded, instructions: [loaded.instructions.trim(), `Write in the creator's own voice: ${profile}`].filter(Boolean).join(" ") } : loaded;
+      // The answer and its retry together get setup.sendTimeoutMs: a small
+      // model on a slow CPU must not hold the panel for ever. Past it, the
+      // model's calls stop, nothing is stored, and the chat says so.
+      const limit = AbortSignal.timeout(setup.sendTimeoutMs);
       try {
-        return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal });
+        return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal: signal ? AbortSignal.any([signal, limit]) : limit });
       } catch (error) {
+        if (limit.aborted && !signal?.aborted) {
+          throw new TRPCError({ code: "TIMEOUT", message: `${setup.modelId} took longer than ${Math.max(1, Math.round(setup.sendTimeoutMs / 1000))} s to write a new version and was stopped. Try again, perhaps in fewer words.` });
+        }
         if (signal?.aborted) throw new TRPCError({ code: "CLIENT_CLOSED_REQUEST", message: "The request was stopped." });
         if (error instanceof ChatProviderError) asTrpcError(error);
         // The details stay in the server's log: they may name hosts or data.

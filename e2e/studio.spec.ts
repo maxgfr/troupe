@@ -73,24 +73,35 @@ test("open the studio → new project → script → chat → render → play �
   const chat = page.getByRole("complementary", { name: "Script chat" });
   await expect(chat.getByText(/^Ollama · /)).toBeVisible();
   // The test stack's model is small (qwen2.5:0.5b): asked plainly, it changes
-  // the script, but now and then it answers with the same lines. Ask again,
-  // in other words, until a proposal has something to apply.
-  const asks = [
-    'Replace the first line with "Tired of slow mornings?" and keep the other two lines.',
-    "Rewrite line 1 as: Tired of slow mornings?",
-    "Make the first line a question about slow mornings.",
-  ];
+  // the script, but now and then it answers with the same lines, or with
+  // something that is not a script, or runs out of time. Ask again, in other
+  // words, until a proposal has something to apply: two tries, each settled
+  // by the server within TROUPE_CHAT_SEND_TIMEOUT_S (240 s here), with what
+  // each did recorded.
+  const asks = ['Replace the first line with "Tired of slow mornings?" and keep the other two lines.', "Rewrite line 1 as: Tired of slow mornings?"];
   const apply = chat.getByRole("button", { name: "Apply & relaunch" });
-  const proposals = chat.getByText(/^Compared with version 1$/);
-  for (const [i, ask] of asks.entries()) {
+  const answers = chat.getByRole("article", { name: "Answer" });
+  const tried: string[] = [];
+  for (const ask of asks) {
+    const before = await answers.count();
     await chat.getByLabel("Ask for a change").fill(ask);
     await chat.getByRole("button", { name: "Send" }).click();
-    await expect(proposals).toHaveCount(i + 1, { timeout: 10 * 60_000 });
-    await expect(chat.getByText(/is writing a new version/)).toBeHidden();
-    await expect(chat.getByRole("alert")).toHaveCount(0);
+    // Settled: an answer (a proposal, or what could not be read), or the
+    // reason there is none.
+    await expect(answers.nth(before).or(chat.getByRole("alert"))).toBeVisible({ timeout: (240 + 60) * 1000 });
+    const alert = chat.getByRole("alert");
+    const answer = answers.nth(before);
+    tried.push(
+      (await alert.isVisible())
+        ? `stopped: ${await alert.innerText()}`
+        : (await answer.getByText(/^Compared with version 1$/).count())
+          ? (await apply.count()) ? "proposal to apply" : "proposal, same lines"
+          : "not a script",
+    );
     if (await apply.count()) break;
   }
-  await expect(apply.last()).toBeVisible();
+  test.info().annotations.push({ type: "script chat tries", description: tried.join(" | ") });
+  expect(await apply.count(), `no proposal to apply in ${tried.length} tries: ${tried.join(" | ")}`).toBeGreaterThan(0);
   await shot("04-chat-proposal");
 
   // 5. Apply & relaunch renders the new version on the stack's renderer.
@@ -140,5 +151,7 @@ test("open the studio → new project → script → chat → render → play �
 
   // Nothing needed Settings.
   expect(visited.filter((path) => path.startsWith("/settings"))).toEqual([]);
-  expect(errors).toEqual([]);
+  // The tRPC logger also prints a chat request stopped at its time limit,
+  // which the chat step above asks again for.
+  expect(errors.filter((error) => !/took longer than \d+ s to write a new version/.test(error))).toEqual([]);
 });

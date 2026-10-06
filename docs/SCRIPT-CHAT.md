@@ -98,6 +98,7 @@ use the defaults below.
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
+| `TROUPE_CHAT_SEND_TIMEOUT_S` | `300` | how long one request may take in all, its answer and the retry when the first answer is not a usable script; past it the model is stopped, nothing is stored, and the chat says "took longer than N s … Try again, perhaps in fewer words". The browser edition allows 15 minutes, which covers loading its model the first time. Each answer is also held to what one proposal takes: about 300 tokens and 7 a second of the clip. |
 | `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2 for Ollama; Claude takes 0 to 1 (a higher value is sent as 1), and only the models marked below accept one |
 | `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
 | `TROUPE_CHAT_ANTHROPIC_FALLBACK` | `auto` | the server-side fallback below (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): `auto` sends it only when requests go to `api.anthropic.com` (no `ANTHROPIC_BASE_URL`, or that one), since a gateway may refuse the beta; `on` or `off` decides for any address |

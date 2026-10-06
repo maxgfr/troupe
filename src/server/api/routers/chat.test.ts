@@ -6,7 +6,7 @@ import { testCaller } from "~/test/caller";
 import { fakeAdapter } from "~/test/adapters";
 import { json, startServer } from "~/test/local-server";
 import { createServerChat } from "~/server/chat";
-import { chatMessages } from "~/modules/chat";
+import { chatMessages, type ChatBackend } from "~/modules/chat";
 import type { Db } from "~/server/db/types";
 
 const MEMBER = "71111111-1111-4111-8111-111111111111";
@@ -63,6 +63,54 @@ describe("chat router with Ollama", () => {
     const history = await asMember().chat.history({ projectId: fx.projectId });
     expect(history.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
     expect(history.provider).toMatchObject({ id: "ollama", label: "Ollama", modelId: "qwen3:4b", problem: null });
+  });
+
+  it("bounds the answer by the clip's seconds of speech, so a rambling model stops early", async () => {
+    const tokens = async (durationS: number) => {
+      await asMember().chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS });
+      return (JSON.parse(ollama.requests.at(-1)!.body) as { options: { num_predict?: number } }).options.num_predict;
+    };
+    // 300 for the summary, keys, roles and emotions, then 7 a second of speech
+    // (Japanese, Chinese or Thai have no spaces to count words by), or 1.4 a
+    // word of the budget when that is more.
+    expect(await tokens(8)).toBe(300 + 56);
+    expect(await tokens(20)).toBe(300 + 140);
+  });
+
+  it("stops an answer that takes longer than the time limit, both tries together, and says so", async () => {
+    let stopped = 0;
+    const hanging: ChatBackend = {
+      ...chat(),
+      async load() {
+        return {
+          provider: "ollama",
+          label: "Ollama",
+          modelId: "qwen2.5:0.5b",
+          problem: null,
+          instructions: "",
+          wordsPerSecond: 2.5,
+          sendTimeoutMs: 300,
+          model: {
+            propose: (_turns, options) =>
+              new Promise<never>((_resolve, reject) =>
+                options.signal?.addEventListener("abort", () => {
+                  stopped += 1;
+                  reject(options.signal!.reason);
+                }),
+              ),
+          },
+        };
+      },
+    };
+    const started = Date.now();
+    await expect(testCaller({ db, userId: MEMBER, chat: hanging }).chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS: 8 })).rejects.toMatchObject({
+      code: "TIMEOUT",
+      message: "qwen2.5:0.5b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
+    });
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(stopped).toBe(1);
+    // Nothing was stored: the conversation is as it was.
+    expect((await asMember().chat.history({ projectId: fx.projectId })).messages).toEqual([]);
   });
 
   it("says how to pull a missing model", async () => {

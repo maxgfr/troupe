@@ -21,7 +21,7 @@ let other: Fixture;
 const chat: ChatBackend = {
   offers: ["ollama"],
   async load() {
-    return { provider: "ollama", label: "Ollama", modelId: "fake-writer", model: fakeWriter(), problem: null, instructions: "", wordsPerSecond: 2.5 };
+    return { provider: "ollama", label: "Ollama", modelId: "fake-writer", model: fakeWriter(), problem: null, instructions: "", wordsPerSecond: 2.5, sendTimeoutMs: 300_000 };
   },
   async settings() {
     throw new Error("unused");

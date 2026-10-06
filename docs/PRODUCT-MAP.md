@@ -19,8 +19,8 @@ the browser edition.
 ## Navigation
 
 - **Top bar** on every page: the wordmark (to Projects), then **Projects ·
-  Library · Actors · Compare**, then **New project** and **Settings** on the
-  right.
+  Library · Actors · Compare**, then **New project** (outlined) and
+  **Settings** on the right.
 - **Phones** (below 640 px): the top bar keeps the wordmark, New project and
   Settings; the four sections move to a **bottom tab bar** with an icon and a
   label each.
@@ -30,7 +30,10 @@ the browser edition.
   sheet); wider screens keep the chat beside the timeline.
 - **Keyboard**: `n` new project; `g` then `p` / `l` / `a` / `c` / `s` goes to
   Projects, Library, Actors, Compare, Settings; `/` searches the library; `?`
-  lists the shortcuts. Shortcuts never fire while typing.
+  lists the shortcuts (Settings lists them too). Shortcuts never fire while
+  typing or while a dialog is open.
+- **Titles**: every screen's title names it, then what it belongs to, then
+  Troupe ("Script · Cold brew mornings · Troupe").
 
 ## Screens
 
@@ -62,8 +65,9 @@ path.
 | Say | Not |
 |---|---|
 | project | experiment, job |
-| render (a video made from a script version); draft until exported, final after | generation, clip (in the UI) |
-| launch a render / Launch draft | generate, submit |
+| render (a video made from a script version); draft until exported, final after | generation |
+| clip, only for the length a model renders ("Clip length", "an 8 s clip", "Cut it to fit the clip") | clip for the video itself |
+| launch a render / Launch draft; a model renders audio ("With audio") | generate, submit |
 | script, script version, line, emotion | prompt (in the UI) |
 | script chat (on a project), library chat (in the library) | assistant, AI |
 | proposal, Apply & relaunch | suggestion |
@@ -84,17 +88,27 @@ plain sentences.
 
 All in `src/app/_components` and shared by both editions:
 
-- `Button` / `ButtonLink` (`ui.tsx`): **primary** (cobalt, one per view),
-  **secondary** (hairline outline), **quiet** (text), **danger**, and
-  `SpotButton` (gold, only when a human decision is awaited).
-- `Chip` styles for single choices (platform, format, language, emotion,
-  filters); `Field` styles for inputs, selects and text areas.
-- `PageHeader` (Bricolage title), `ProjectHeader` + `ProjectTabs`,
-  `Section`.
-- `EmptyState` (teaches the next step), `Skeleton` shaped like what loads,
-  `ErrorNote` (danger), `ProviderWarning` (warning), `NeedsSelfHosted`.
-- `StatusChip` / `StageChip`, `ProgressBar` (the one glowing motion),
-  `ActorPortrait`, `VideoPoster`.
+- `Button` / `ButtonLink` / `buttonClass` (`ui.tsx`) in eight voices:
+  **primary** (filled cobalt, one per view), **secondary** (hairline
+  outline), **outline** (cobalt outline: a cobalt action that is not the
+  view's main one, like the bar's New project), **quiet** (text),
+  **quiet-primary** and **quiet-danger** (text in colour), **danger**
+  (outlined) and **danger-solid** (the confirmation); plus `SpotButton`
+  (gold, only when a human decision is awaited).
+- `chipClass` for single choices (platform, format, language, emotion,
+  filters); `fieldClass` (and `fieldSurface` for a field sized its own
+  way) for inputs, selects and text areas; `panelClass` for raised panels;
+  `Kbd` for keys.
+- `PageHeader` (Bricolage title), `Section`; the project pages'
+  `ProjectHeader` (`projects/[projectId]/project-header.tsx`), which carries
+  the tabs.
+- `EmptyState` (teaches the next step), `Skeleton` / `SkeletonRows` shaped
+  like what loads, `ErrorNote` (danger), `ProviderWarning` (warning),
+  `NeedsSelfHosted` (`edition.tsx`).
+- `StatusChip` (and `StageChip` on posters), `ProgressBar` (the one glowing
+  motion), `ActorPortrait`, `VideoStill` and `VideoPoster`.
+- `Shortcuts` / `ShortcutList`, `usePageTitle`, the stage light
+  (`stage.tsx`).
 - Icons from `icons.tsx`: one 20 px grid, 1.6 stroke, round caps; no
   Unicode arrows standing in for icons.
 

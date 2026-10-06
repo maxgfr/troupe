@@ -109,7 +109,7 @@ describe("launch panel", () => {
     const lengths = [...(screen.getByLabelText("Clip length") as HTMLSelectElement).options].map((o) => o.value);
     expect(lengths).toEqual(["8", "10", "12"]);
     fireEvent.change(screen.getByLabelText("Resolution"), { target: { value: "1080p" } });
-    fireEvent.click(screen.getByLabelText("Generate audio"));
+    fireEvent.click(screen.getByLabelText("With audio"));
     fireEvent.click(screen.getByRole("button", { name: "Launch draft" }));
     expect(launch).toHaveBeenCalledWith(expect.objectContaining({ modelKey: "seedance", durationS: 8, resolution: "1080p", audio: false, scriptId: "s1" }));
   });
@@ -121,7 +121,7 @@ describe("launch panel", () => {
     renderPage();
     expect(screen.getAllByRole("status").map((s) => s.textContent).join(" ")).toMatch(/at most 8s/);
     expect((screen.getByRole("button", { name: "Launch draft" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.queryByLabelText("Generate audio")).toBeNull();
+    expect(screen.queryByLabelText("With audio")).toBeNull();
   });
 });
 

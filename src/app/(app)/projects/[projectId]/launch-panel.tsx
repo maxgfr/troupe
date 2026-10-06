@@ -91,7 +91,7 @@ export function LaunchPanel({
             {settings.audioToggle ? (
               <label className="flex min-h-10 items-center gap-2 self-end text-sm">
                 <input type="checkbox" className="size-4 accent-[var(--troupe-color-primary)]" checked={settings.audio} disabled={busy} onChange={(event) => setChoice((c) => ({ ...c, audio: event.target.checked }))} />
-                Generate audio
+                With audio
               </label>
             ) : null}
           </>

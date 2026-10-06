@@ -31,7 +31,7 @@ describe("model catalog settings", () => {
     fireEvent.change(screen.getByLabelText("Resolution"), { target: { value: "480p" } });
     fireEvent.change(screen.getByLabelText("Price per second (USD)"), { target: { value: "0.05" } });
     fireEvent.change(screen.getByLabelText("Give up after (minutes)"), { target: { value: "45" } });
-    fireEvent.click(screen.getByLabelText("Generate audio by default"));
+    fireEvent.click(screen.getByLabelText("With audio by default"));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave).toHaveBeenCalledWith("Seedance", { defaults: { resolution: "480p", durationS: 8, audio: false }, pricePerSecondUsd: 0.05, timeoutS: 2700 });
   });

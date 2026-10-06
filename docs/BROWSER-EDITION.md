@@ -37,7 +37,7 @@ below).
 
 | In the browser edition | Needs the self-hosted studio |
 |---|---|
-| Projects, the wizard, actors, versioned scripts with emotions, the benchmark lab and export pages, light and dark themes | Cloud models: they need an API key kept on a server. Settings and the wizard say so, with a link to [SELF-HOSTING.md](SELF-HOSTING.md). |
+| Projects, the wizard, actors, versioned scripts with emotions, the Compare and Export pages, light and dark themes | Cloud models: they need an API key kept on a server. Settings and the wizard say so, with a link to [SELF-HOSTING.md](SELF-HOSTING.md). |
 | Rendering in the browser with **Kokoro voice + captions**: the same voices and picture as the local renderer, played, seeked and downloaded as MP4 | ComfyUI and other model servers: a web page cannot reach servers on your machine |
 | Data that survives reloads and new deploys, a backup to export and import, and **Delete all local data** (see [Your data](#your-data)) | Provider accounts (Settings says why instead of the form) |
 | The **script chat**, with a small model run by [WebLLM](https://github.com/mlc-ai/web-llm) on the GPU (880 MB, once per browser; needs WebGPU), then Apply & relaunch in the tab ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)) | Ollama and Claude for the chat: no server to keep a key or reach your machine |

@@ -196,9 +196,9 @@ function ModelPreferencesForm({ model, busy, onSave }: { model: CatalogModelView
         {model.capabilities.audio === "optional" ? (
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
-            Generate audio by default
+            With audio by default
           </label>
-        ) : <p className="text-xs text-muted">{model.capabilities.audio === "always" ? "This model always generates audio." : "This model makes silent video."}</p>}
+        ) : <p className="text-xs text-muted">{model.capabilities.audio === "always" ? "This model always renders audio." : "This model makes silent video."}</p>}
         <div className="sm:col-span-2">
           <button type="submit" disabled={busy || !valid} className={buttonClass({ variant: "primary" })}>Save</button>
           {!valid ? <span className="ml-3 text-xs text-warning">Enter a price of 0 or more and a limit between 1 and 1440 minutes.</span> : null}

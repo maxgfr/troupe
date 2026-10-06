@@ -65,7 +65,7 @@ jobs:
           labels: org.opencontainers.image.licenses=${{ matrix.license }}
       # The site and the CLI bundle build once, natively ($BUILDPLATFORM in
       # their Dockerfiles); only the runtime stages run under QEMU.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}

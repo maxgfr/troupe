@@ -131,3 +131,17 @@ test("every link and file the landing page points at on this site exists", async
   const anchors = await page.locator('a[href^="#"]').evaluateAll((list) => list.map((a) => a.getAttribute("href")!.slice(1)));
   for (const id of anchors) expect(await page.locator(`[id="${id}"]`).count(), id).toBe(1);
 });
+
+test("the steps quote the take the video shows", async ({ page, request }) => {
+  // The video's captions track holds the lines it renders, in order.
+  const vtt = await (await request.get("/troupe/tour/troupe-tour-captions.vtt")).text();
+  const lines = vtt.split(/\n\n+/).slice(1).map((cue) => cue.split("\n").slice(1).join(" ").trim()).filter(Boolean);
+  expect(lines).toHaveLength(3);
+  await page.goto(LANDING);
+  const proposal = page.locator('[data-chapter="chat"] .diff > li');
+  await expect(proposal).toHaveCount(3);
+  for (const [i, line] of lines.entries()) await expect(proposal.nth(i).locator("p").first()).toHaveText(line);
+  // The lines the chat kept are the script's own.
+  const script = page.locator('[data-chapter="script"] .artifact--script > li');
+  for (const i of [1, 2]) await expect(script.nth(i)).toContainText(lines[i]!);
+});

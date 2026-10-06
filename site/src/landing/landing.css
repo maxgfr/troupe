@@ -626,6 +626,11 @@ code {
   border-radius: 8px;
   background: var(--tint-primary);
 }
+/* A line the proposal keeps as it was: no tint, quieter, as in the studio. */
+.diff li.diff__same {
+  background: none;
+  color: var(--muted);
+}
 .diff__note {
   font-size: 0.8125rem;
   color: var(--muted);

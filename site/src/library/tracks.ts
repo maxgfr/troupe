@@ -1,5 +1,3 @@
-import { ALL_FORMATS, BlobSource, Input } from "mediabunny";
-
 // What a saved file holds, read from its container without decoding it:
 // its length, whether it has a picture, and its sound track's codec if it
 // has one. Null when the container is one mediabunny does not read; the page
@@ -12,7 +10,10 @@ export interface Tracks {
   audioCodec: string | null;
 }
 
+// mediabunny (about a megabyte) loads with the first file saved, not with
+// the studio's first page.
 export async function readTracks(blob: Blob): Promise<Tracks | null> {
+  const { ALL_FORMATS, BlobSource, Input } = await import("mediabunny");
   const input = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
   try {
     const [video, audio] = await Promise.all([input.getPrimaryVideoTrack(), input.getPrimaryAudioTrack()]);

@@ -1,6 +1,8 @@
+import { Suspense } from "react";
+
 import { AppShell } from "~/app/_components/app-shell";
 import { EditionProvider, type Edition } from "~/app/_components/edition";
-import { EmptyState, PageHeader } from "~/app/_components/ui";
+import { EmptyState, PageHeader, SkeletonRows } from "~/app/_components/ui";
 import { WorkspaceProvider } from "~/app/_components/workspace-context";
 import { browserChat } from "./chat/ui";
 import { localData } from "./data/local-data";
@@ -18,7 +20,10 @@ export function BrowserLayout({ children }: { children: React.ReactNode }) {
     <BrowserTRPCProvider>
       <EditionProvider value={BROWSER_EDITION}>
         <WorkspaceProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell>
+            {/* While a page's code loads, the shape of a page. */}
+            <Suspense fallback={<SkeletonRows rows={4} />}>{children}</Suspense>
+          </AppShell>
         </WorkspaceProvider>
       </EditionProvider>
     </BrowserTRPCProvider>

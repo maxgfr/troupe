@@ -40,7 +40,9 @@ test("landing → dashboard → new project → script, kept across reloads and 
   const picture = actor.locator("img");
   await expect(picture).toHaveAttribute("src", /^\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front\.webp$/);
   await picture.scrollIntoViewIfNeeded();
-  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(768);
+  // The copy the browser picked for the tile's width (front-160/320.webp),
+  // decoded.
+  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0 && img.currentSrc)).toMatch(/\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front(-\d+)?\.webp$/);
   await actor.click();
   await page.getByRole("button", { name: /Create project/ }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}\/script$/);

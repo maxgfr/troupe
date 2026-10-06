@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
+import { HTTP_MODEL_DEFAULTS } from "~/modules/models/http-defaults";
 import { ErrorNote, ProviderWarning, buttonClass, chipClass, fieldClass, fieldSurface, panelClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
@@ -30,7 +31,16 @@ export type LocalModelDraft =
   | { family: "http"; label: string; baseUrl: string; token?: string; capabilities: CapabilitiesDraft; fps?: number }
   | { family: "comfyui"; label: string; baseUrl: string; token?: string; templateId?: string; workflow?: unknown; capabilities?: CapabilitiesDraft; fps?: number; frameRule?: "any" | "4n+1" | "8n+1" };
 
-const DEFAULT_CAPS: CapabilitiesDraft = { aspectRatios: ["16:9", "9:16"], resolutions: ["720p"], durationsS: [5], audio: "none", dialogueLanguages: null };
+// A custom ComfyUI workflow: most draw a short silent clip.
+const COMFY_CAPS: CapabilitiesDraft = { aspectRatios: ["16:9", "9:16"], resolutions: ["720p"], durationsS: [5], audio: "none", dialogueLanguages: null };
+// An HTTP endpoint starts where `troupe models add http` does.
+const HTTP_CAPS: CapabilitiesDraft = {
+  aspectRatios: [...HTTP_MODEL_DEFAULTS.aspectRatios],
+  resolutions: [...HTTP_MODEL_DEFAULTS.resolutions],
+  durationsS: [...HTTP_MODEL_DEFAULTS.durationsS],
+  audio: HTTP_MODEL_DEFAULTS.audio,
+  dialogueLanguages: null,
+};
 
 function parseDurations(text: string) {
   const values = text.split(/[\s,]+/).filter(Boolean).map(Number);
@@ -90,10 +100,12 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
   const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? "custom");
   const [workflow, setWorkflow] = useState<unknown>(undefined);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
-  const [caps, setCaps] = useState<CapabilitiesDraft>(DEFAULT_CAPS);
-  const [fps, setFps] = useState("24");
+  const [caps, setCaps] = useState<CapabilitiesDraft>(COMFY_CAPS);
+  const [fps, setFps] = useState(String(HTTP_MODEL_DEFAULTS.fps));
   const [frameRule, setFrameRule] = useState<"any" | "4n+1" | "8n+1">("any");
-  const template = templates.find((t) => t.id === templateId);
+  // The chosen ComfyUI template, only while ComfyUI is the kind: an HTTP
+  // endpoint is never named after one.
+  const template = family === "comfyui" ? templates.find((t) => t.id === templateId) : undefined;
   const custom = family === "comfyui" && !template;
 
   function draft(): LocalModelDraft {
@@ -121,7 +133,7 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
         <legend className="mb-2 text-sm font-medium">Kind</legend>
         {(["comfyui", "http"] as const).map((f) => (
           <label key={f} className={chipClass(family === f)}>
-            <input type="radio" name="family" className="sr-only" checked={family === f} onChange={() => { setFamily(f); setBaseUrl(f === "comfyui" ? comfyUrl : ""); }} />
+            <input type="radio" name="family" className="sr-only" checked={family === f} onChange={() => { setFamily(f); setBaseUrl(f === "comfyui" ? comfyUrl : ""); setCaps(f === "http" ? HTTP_CAPS : COMFY_CAPS); }} />
             {f === "comfyui" ? "ComfyUI" : "HTTP endpoint"}
           </label>
         ))}
@@ -179,7 +191,7 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
 
       {family === "http" || custom ? (
         <>
-          <CapabilitiesFields value={caps} onChange={setCaps} />
+          <CapabilitiesFields key={family} value={caps} onChange={setCaps} />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <span className="mb-1.5 block font-medium">Frames per second</span>

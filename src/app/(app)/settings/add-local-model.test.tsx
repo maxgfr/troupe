@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("~/trpc/react", () => ({ api: {} }));
 
+import { HTTP_MODEL_DEFAULTS } from "~/modules/models/http-defaults";
 import { AddLocalModelForm, type TemplateView } from "./add-local-model";
 
 afterEach(cleanup);
@@ -48,8 +49,19 @@ describe("add a local model", () => {
     fireEvent.click(screen.getByRole("button", { name: "Test" }));
     expect(onTest).toHaveBeenCalledWith({
       family: "http", label: "GPU box", baseUrl: "http://192.168.1.20:8000", token: "secret", fps: 24,
-      capabilities: { aspectRatios: ["16:9", "9:16"], resolutions: ["720p"], durationsS: [4, 8], audio: "optional", dialogueLanguages: null },
+      capabilities: { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["720p"], durationsS: [4, 8], audio: "optional", dialogueLanguages: null },
     });
+  });
+
+  it("starts an HTTP endpoint from the same defaults as troupe models add http", () => {
+    const onTest = vi.fn();
+    render(<AddLocalModelForm templates={TEMPLATES} comfyUrl="http://127.0.0.1:8188" onTest={onTest} onSave={vi.fn()} />);
+    fireEvent.click(screen.getByText("HTTP endpoint"));
+    expect((screen.getByLabelText("Clip lengths (seconds)") as HTMLInputElement).value).toBe("4, 6, 8, 10, 15");
+    fireEvent.change(screen.getByLabelText("Address"), { target: { value: "http://127.0.0.1:8078" } });
+    fireEvent.click(screen.getByRole("button", { name: "Test" }));
+    const { fps, ...capabilities } = HTTP_MODEL_DEFAULTS;
+    expect(onTest).toHaveBeenCalledWith({ family: "http", label: "Local model", baseUrl: "http://127.0.0.1:8078", fps, capabilities: { ...capabilities, dialogueLanguages: null } });
   });
 
   it("imports a custom workflow and refuses files over 2 MB", async () => {

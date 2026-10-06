@@ -4,6 +4,7 @@ import type { Inputs, Outputs } from "../client.ts";
 import { CliError, EXIT, usageError } from "../errors.ts";
 import { fields, numberRanges, table } from "../output.ts";
 import { pick } from "../resolve.ts";
+import { HTTP_MODEL_DEFAULTS as HTTP } from "../../../src/modules/models/http-defaults.ts";
 
 type Model = Outputs["settings"]["models"]["list"]["models"][number];
 type HttpDraft = Extract<Inputs["settings"]["models"]["createLocal"], { family: "http" }>;
@@ -67,11 +68,11 @@ const modelsAdd: Command = {
     name: { type: "string", value: "<name>", description: "Name shown in pickers (required, unique)." },
     "base-url": { type: "string", value: "<url>", description: "Where the model server listens, as the studio reaches it (required), e.g. http://127.0.0.1:8078." },
     "token-stdin": { type: "boolean", description: "Read a bearer token for the server from stdin." },
-    formats: { type: "string", value: "<list>", description: "http: formats it renders (default 9:16,16:9,1:1)." },
-    resolutions: { type: "string", value: "<list>", description: "http: resolutions (default 720p; 480p 540p 576p 720p 1080p)." },
-    durations: { type: "string", value: "<list>", description: "http: clip lengths in seconds (default 4,6,8,10,15)." },
-    audio: { type: "string", value: "<mode>", description: "http: always, optional or none (default always)." },
-    fps: { type: "string", value: "<n>", description: "http: frames per second (default 24)." },
+    formats: { type: "string", value: "<list>", description: `http: formats it renders (default ${HTTP.aspectRatios.join(",")}).` },
+    resolutions: { type: "string", value: "<list>", description: `http: resolutions (default ${HTTP.resolutions.join(",")}; ${RESOLUTIONS.join(" ")}).` },
+    durations: { type: "string", value: "<list>", description: `http: clip lengths in seconds (default ${HTTP.durationsS.join(",")}).` },
+    audio: { type: "string", value: "<mode>", description: `http: always, optional or none (default ${HTTP.audio}).` },
+    fps: { type: "string", value: "<n>", description: `http: frames per second (default ${HTTP.fps}).` },
     template: { type: "string", value: "<id>", description: "comfyui: bundled workflow (troupe models templates lists them; required)." },
     "negative-prompt": { type: "string", value: "<text>", description: "comfyui: what the picture should avoid." },
     timeout: { type: "string", value: "<seconds>", description: "Give up on a render after this long (default 7200)." },
@@ -94,7 +95,7 @@ const modelsAdd: Command = {
 
     let draft: Inputs["settings"]["models"]["createLocal"];
     if (family === "http") {
-      const durations = list(str(options, "durations") ?? "4,6,8,10,15").map((d) => {
+      const durations = list(str(options, "durations") ?? HTTP.durationsS.join(",")).map((d) => {
         const n = Number(d);
         if (!Number.isInteger(n) || n < 1 || n > 60) throw usageError(`--durations takes whole seconds between 1 and 60, not "${d}".`);
         return n;
@@ -102,13 +103,13 @@ const modelsAdd: Command = {
       draft = {
         family, ...common,
         capabilities: {
-          aspectRatios: list(str(options, "formats") ?? FORMATS.join(",")).map((f) => oneOf(f, FORMATS, "formats")),
-          resolutions: list(str(options, "resolutions") ?? "720p").map((r) => oneOf(r, RESOLUTIONS, "resolutions")),
+          aspectRatios: list(str(options, "formats") ?? HTTP.aspectRatios.join(",")).map((f) => oneOf(f, FORMATS, "formats")),
+          resolutions: list(str(options, "resolutions") ?? HTTP.resolutions.join(",")).map((r) => oneOf(r, RESOLUTIONS, "resolutions")),
           durationsS: durations,
-          audio: oneOf(str(options, "audio") ?? "always", AUDIO, "audio"),
+          audio: oneOf(str(options, "audio") ?? HTTP.audio, AUDIO, "audio"),
           dialogueLanguages: null,
         },
-        fps: int(options, "fps", { min: 1, max: 120 }) ?? 24,
+        fps: int(options, "fps", { min: 1, max: 120 }) ?? HTTP.fps,
       };
     } else {
       const templateId = str(options, "template");

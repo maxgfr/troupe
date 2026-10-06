@@ -25,7 +25,7 @@ COPY cli/src cli/src
 # providers' list prices for doctor --live).
 COPY src/app/_components/download-name.ts src/app/_components/
 COPY src/modules/export/disclosure.ts src/modules/export/
-COPY src/modules/models/list-price.ts src/modules/models/
+COPY src/modules/models/list-price.ts src/modules/models/http-defaults.ts src/modules/models/
 RUN pnpm --filter troupe-cli build
 
 FROM node:24-alpine

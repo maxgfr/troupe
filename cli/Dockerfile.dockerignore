@@ -10,4 +10,5 @@
 !src/app/_components/download-name.ts
 !src/modules/export/disclosure.ts
 !src/modules/models/list-price.ts
+!src/modules/models/http-defaults.ts
 **/*.test.ts

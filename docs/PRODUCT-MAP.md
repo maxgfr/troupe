@@ -42,7 +42,7 @@ the browser edition.
 | `/projects/:id/script` | Script tab | Lines with their emotion, the editor, earlier versions | Save as new version | Write or paste the script |
 | `/projects/:id/export` | Export tab | Pick a render, platform preset, caption, AI label | Create export, then Download MP4 | Render a video first |
 | `/library` | Library | Saved inspiration, search by meaning, ask, ideas | Save | Save your first piece |
-| `/library/:id` | *item title* | The item on one time axis, its analysis and transcript | Ideas from this item | Reading… (progress) |
+| `/library/:id` | *item title* | The item on one time axis, its analysis and transcript | Make something from it (ideas, a remix, scripts) | Reading… (progress) |
 | `/actors` | Actors | The 30 actors: picture, voice, style | — | — |
 | `/benchmark` | Compare | One script across several models; vote; adopt the winner | Adopt for project (gold) | Start a comparison from a project |
 | `/settings` | Settings | Appearance, your data, models, script chat, provider accounts | Each section's Save / Test | — |
@@ -67,7 +67,7 @@ path.
 | script, script version, line, emotion | prompt (in the UI) |
 | script chat (on a project), library chat (in the library) | assistant, AI |
 | proposal, Apply & relaunch | suggestion |
-| actor | preset, avatar, character |
+| actor (in the docs, "actor preset" where it matters that a model only approximates the look) | avatar, character |
 | model (video model, chat model), local / cloud | provider (except "provider account": where an API key belongs) |
 | Compare, comparison | benchmark, run (in the UI) |
 | export, Download MP4 | publish, share |

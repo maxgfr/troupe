@@ -17,7 +17,12 @@ export function ToolStatus({ tools }: { tools: Tool[] }) {
   const missing = tools.filter((t) => !t.ready);
   return (
     <div className="text-xs">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-mx-1 flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 rounded px-1 text-left text-muted transition-colors duration-150 hover:text-fg">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="-mx-1 flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 rounded px-1 text-left text-muted transition-colors duration-150 hover:text-fg"
+      >
         {tools.map((t) => (
           <span key={t.name} className="inline-flex items-center gap-1.5">
             <span aria-hidden className={`size-2 rounded-full ${t.ready ? "bg-success" : "border border-warning"}`} />
@@ -25,14 +30,19 @@ export function ToolStatus({ tools }: { tools: Tool[] }) {
             <span className="sr-only">{t.ready ? " (ready)," : " (not ready),"}</span>
           </span>
         ))}
-        <span className="text-primary">{open ? "Hide details" : missing.length ? `${missing.length} not ready · details` : "Details"}</span>
+        <span className="text-primary">
+          {open ? "Hide details" : missing.length ? `${missing.length} not ready · details` : "Details"}
+        </span>
       </button>
       {open ? (
         <dl className="mt-2 grid max-w-3xl gap-x-6 gap-y-2 border-t border-line pt-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
           {tools.map((t) => (
             <div key={t.name} className="contents">
               <dt className="flex items-center gap-1.5 font-medium text-fg">
-                <span aria-hidden className={`size-2 shrink-0 rounded-full ${t.ready ? "bg-success" : "border border-warning"}`} />
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 rounded-full ${t.ready ? "bg-success" : "border border-warning"}`}
+                />
                 {t.label}
                 <span className="sr-only">{t.ready ? "(ready)" : "(not ready)"}</span>
               </dt>

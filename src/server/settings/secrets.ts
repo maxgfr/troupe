@@ -70,7 +70,10 @@ function keyFromFile(): Buffer {
     }
   }
   const hex = readFileSync(file, "utf8").trim();
-  if (!/^[0-9a-f]{64}$/.test(hex)) throw new SecretUnavailableError(`${file} is not a valid key file. Restore it from your backup or set TROUPE_SECRET.`);
+  if (!/^[0-9a-f]{64}$/.test(hex))
+    throw new SecretUnavailableError(
+      `${file} is not a valid key file. Restore it from your backup or set TROUPE_SECRET.`,
+    );
   return Buffer.from(hex, "hex");
 }
 

@@ -5,7 +5,10 @@ import type { ModelCatalog, ResolvedModel } from "~/modules/models";
 
 // Pick a model that may start a new job, or explain in one sentence why not.
 // Polling uses catalog.adapters directly: disabled models still finish.
-export function pickLaunchAdapter(catalog: ModelCatalog, modelKey: string): { adapter: VideoProviderAdapter; model: ResolvedModel } {
+export function pickLaunchAdapter(
+  catalog: ModelCatalog,
+  modelKey: string,
+): { adapter: VideoProviderAdapter; model: ResolvedModel } {
   const model = catalog.models.find((m) => m.key === modelKey);
   const fail = (message: string): never => {
     throw new TRPCError({ code: "BAD_REQUEST", message });

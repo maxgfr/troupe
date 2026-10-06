@@ -13,7 +13,9 @@ const CACHE = "transformers-cache";
 export async function voiceModelCached(device: VoiceDevice): Promise<boolean> {
   try {
     const cache = await caches.open(CACHE);
-    return Boolean(await cache.match(`https://huggingface.co/${RENDER_CONFIG.kokoroModel}/resolve/main/${weightsFor(device).file}`));
+    return Boolean(
+      await cache.match(`https://huggingface.co/${RENDER_CONFIG.kokoroModel}/resolve/main/${weightsFor(device).file}`),
+    );
   } catch {
     return false;
   }

@@ -28,7 +28,8 @@ export interface MediaStore extends MediaLinks {
 // points at another copy of the cast (a CDN, a bucket, another path).
 export const apiMediaLinks: MediaLinks = {
   urlFor: (assetId, opts) => `/api/media/${assetId}${opts?.download ? "?download=1" : ""}`,
-  pictureUrl: (storagePath) => actorPictureUrl(process.env.TROUPE_ACTOR_PORTRAITS_URL || DEFAULT_PICTURES_BASE, storagePath),
+  pictureUrl: (storagePath) =>
+    actorPictureUrl(process.env.TROUPE_ACTOR_PORTRAITS_URL || DEFAULT_PICTURES_BASE, storagePath),
 };
 
 export const DEFAULT_DOWNLOAD_NAME = "troupe-video";
@@ -51,12 +52,36 @@ export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = 
 
 // The library's files (src/modules/library), served as themselves only when
 // a browser shows them safely inline; anything else is a download.
-const INLINE_LIBRARY_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/aac", "audio/wav", "audio/ogg", "audio/flac", "image/png", "image/jpeg", "image/gif", "image/webp"]);
+const INLINE_LIBRARY_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/aac",
+  "audio/wav",
+  "audio/ogg",
+  "audio/flac",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
 
-export function libraryMediaHeaders(mimeType: string, download: string | null): { contentType: string; disposition: string } {
+export function libraryMediaHeaders(
+  mimeType: string,
+  download: string | null,
+): { contentType: string; disposition: string } {
   const inline = INLINE_LIBRARY_TYPES.has(mimeType);
   const ext = { "application/pdf": "pdf" }[mimeType] ?? mimeType.split("/")[1]?.replace(/[^a-z0-9]/g, "") ?? "bin";
   const name = `troupe-library.${ext}`;
-  if (!inline) return { contentType: mimeType === "application/pdf" ? "application/pdf" : "application/octet-stream", disposition: `attachment; filename="${name}"` };
-  return { contentType: mimeType, disposition: download === null ? `inline; filename="${name}"` : `attachment; filename="${name}"` };
+  if (!inline)
+    return {
+      contentType: mimeType === "application/pdf" ? "application/pdf" : "application/octet-stream",
+      disposition: `attachment; filename="${name}"`,
+    };
+  return {
+    contentType: mimeType,
+    disposition: download === null ? `inline; filename="${name}"` : `attachment; filename="${name}"`,
+  };
 }

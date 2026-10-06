@@ -19,7 +19,8 @@ const PLATFORM_SPECS: Record<ExportPlatform, { formats: string[]; maxDurationS: 
 async function loadCompletedGeneration(db: Db, generationId: string) {
   const [gen] = await db.select().from(generations).where(eq(generations.id, generationId)).limit(1);
   if (!gen) throw new Error("This render no longer exists.");
-  if (gen.status !== "completed") throw new Error("Only finished renders can be exported. Wait for this one to complete.");
+  if (gen.status !== "completed")
+    throw new Error("Only finished renders can be exported. Wait for this one to complete.");
   if (!gen.outputAssetId) throw new Error("This render is still being saved. Try again in a minute.");
   return gen;
 }
@@ -29,7 +30,9 @@ export async function checkExportSpecs(db: Db, input: { generationId: string; pl
   const spec = PLATFORM_SPECS[input.platform];
   const mismatches: string[] = [];
   if (!spec.formats.includes(gen.aspectRatio)) {
-    mismatches.push(`the video is ${gen.aspectRatio} but ${platformName(input.platform)} documents ${spec.formats.join(" or ")}`);
+    mismatches.push(
+      `the video is ${gen.aspectRatio} but ${platformName(input.platform)} documents ${spec.formats.join(" or ")}`,
+    );
   }
   if (gen.durationS > spec.maxDurationS) {
     mismatches.push(`the video is ${gen.durationS}s but ${platformName(input.platform)} caps at ${spec.maxDurationS}s`);
@@ -54,7 +57,9 @@ export async function createExport(db: Db, input: CreateExportInput, media: Medi
   }
   const check = await checkExportSpecs(db, { generationId: input.generationId, platform: input.platform });
   if (!check.ok && !input.acknowledgeSpecMismatch) {
-    throw new Error(`This video does not match ${platformName(input.platform)}'s specs: ${check.mismatches.join("; ")}. Confirm to export anyway.`);
+    throw new Error(
+      `This video does not match ${platformName(input.platform)}'s specs: ${check.mismatches.join("; ")}. Confirm to export anyway.`,
+    );
   }
   const [render] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, gen.outputAssetId!)).limit(1);
   // The export and the render turning final commit together: a render is a
@@ -88,5 +93,8 @@ export async function listExports(db: Db, projectId: string, media: MediaLinks) 
     .leftJoin(generations, eq(generations.id, exportRecords.generationId))
     .where(eq(exportRecords.projectId, projectId))
     .orderBy(desc(exportRecords.createdAt));
-  return rows.map(({ record, outputAssetId }) => ({ ...record, downloadUrl: outputAssetId ? media.urlFor(outputAssetId, { download: true }) : null }));
+  return rows.map(({ record, outputAssetId }) => ({
+    ...record,
+    downloadUrl: outputAssetId ? media.urlFor(outputAssetId, { download: true }) : null,
+  }));
 }

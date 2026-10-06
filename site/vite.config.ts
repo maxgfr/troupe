@@ -9,7 +9,17 @@ import { ACTOR_CATALOG } from "../src/modules/actors/server/catalog";
 import { parseChatConfig } from "./src/chat/config";
 import { parseLibraryConfig } from "./src/library/config";
 import { parseRenderConfig } from "./src/render/config";
-import { actorPictures, fontPreloads, headScript, landingPage, pagesFallback, parseBasePath, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
+import {
+  actorPictures,
+  fontPreloads,
+  headScript,
+  landingPage,
+  pagesFallback,
+  parseBasePath,
+  parseLandingConfig,
+  serverGuard,
+  shimModules,
+} from "./vite-plugins";
 
 // The browser edition: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
@@ -26,7 +36,10 @@ const guard = () =>
       // PGlite ships one build for Node and browsers: these imports sit on
       // its Node-only paths (file:// data directories, Emscripten's Node
       // loader, dump compression) and never run with idb:// in a browser.
-      "@electric-sql/pglite": { builtins: ["fs", "fs/promises", "path", "module", "stream", "stream/promises", "util", "zlib"], reason: "Node-only code paths" },
+      "@electric-sql/pglite": {
+        builtins: ["fs", "fs/promises", "path", "module", "stream", "stream/promises", "util", "zlib"],
+        reason: "Node-only code paths",
+      },
       // Under Node, kokoro-js reads its voices from disk. Its package.json
       // maps both modules to nothing for browsers, where it fetches the
       // voices instead (checking that readFile exists first).
@@ -39,14 +52,18 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // the build here rather than a render in a visitor's browser.
   // The studio's tables come from drizzle/*.sql (src/db/migrations.ts): a
   // build without them would ship a studio that cannot start.
-  if (!readdirSync(resolve(REPO, "drizzle")).some((file) => file.endsWith(".sql"))) throw new Error("drizzle/*.sql is missing: the browser edition needs the migrations.");
+  if (!readdirSync(resolve(REPO, "drizzle")).some((file) => file.endsWith(".sql")))
+    throw new Error("drizzle/*.sql is missing: the browser edition needs the migrations.");
   const env = loadEnv(mode, SITE, "VITE_");
   const BASE = parseBasePath(env.VITE_BASE);
   parseRenderConfig(env);
   // WebLLM's model list, read here so the page never loads WebLLM just to
   // check the build's model id.
   const { prebuiltAppConfig } = await import("@mlc-ai/web-llm");
-  const chatConfig = parseChatConfig(env, prebuiltAppConfig.model_list.map((m) => m.model_id));
+  const chatConfig = parseChatConfig(
+    env,
+    prebuiltAppConfig.model_list.map((m) => m.model_id),
+  );
   const libraryConfig = parseLibraryConfig(env);
   // The actors' pictures: the cast checked in for the self-hosted app, or
   // another folder laid out the same way (<slug>/v1/front.webp, …).

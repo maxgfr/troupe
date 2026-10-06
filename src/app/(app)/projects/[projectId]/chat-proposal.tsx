@@ -23,8 +23,17 @@ function Direction({ line, before }: { line: Line; before?: Line }) {
   const recast = before && before.role !== line.role;
   return (
     <p className="mt-0.5 font-mono text-[11px] text-muted">
-      {recast ? <><s>{before.role}</s> </> : null}
-      {line.role} · {retagged ? <><s>{before.emotion}</s> </> : null}
+      {recast ? (
+        <>
+          <s>{before.role}</s>{" "}
+        </>
+      ) : null}
+      {line.role} ·{" "}
+      {retagged ? (
+        <>
+          <s>{before.emotion}</s>{" "}
+        </>
+      ) : null}
       <span className={retagged ? "text-fg" : undefined}>{line.emotion}</span>
     </p>
   );
@@ -41,10 +50,16 @@ export function ProposalDiff({ current, proposed }: { current: readonly Line[]; 
         const before = change.kind === "changed" ? change.before : undefined;
         return (
           <li key={i} className={`grid grid-cols-[0.75rem_minmax(0,1fr)] gap-x-2 rounded-md px-2 py-1.5 ${mark.row}`}>
-            <span aria-hidden className={`font-mono text-sm leading-5 ${mark.tone}`}>{mark.sign}</span>
+            <span aria-hidden className={`font-mono text-sm leading-5 ${mark.tone}`}>
+              {mark.sign}
+            </span>
             <div className="min-w-0">
               <span className="sr-only">{mark.label}: </span>
-              <p className={`text-pretty text-sm leading-5 ${change.kind === "removed" ? "text-muted line-through decoration-danger/60" : change.kind === "same" ? "text-muted" : "text-fg"}`}>{line.text}</p>
+              <p
+                className={`text-pretty text-sm leading-5 ${change.kind === "removed" ? "text-muted line-through decoration-danger/60" : change.kind === "same" ? "text-muted" : "text-fg"}`}
+              >
+                {line.text}
+              </p>
               {before && before.text.trim() !== line.text.trim() ? (
                 <p className="mt-0.5 text-pretty text-xs text-muted line-through decoration-muted/60">
                   <span className="sr-only">Was: </span>
@@ -104,7 +119,11 @@ export function ProposalCard({
     <div className="rounded-2xl bg-raised shadow-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-line px-3.5 py-2.5">
         <p className="text-xs font-medium">
-          {applied ? `Applied as version ${state.appliedVersion}` : state.latestVersion ? `Compared with version ${state.latestVersion}` : "First script"}
+          {applied
+            ? `Applied as version ${state.appliedVersion}`
+            : state.latestVersion
+              ? `Compared with version ${state.latestVersion}`
+              : "First script"}
         </p>
         <p className={`font-mono text-xs tabular-nums ${estimatedS > clipS ? "text-warning" : "text-muted"}`}>
           {words} words · ≈{estimatedS} s of {clipS} s
@@ -146,9 +165,13 @@ export function ProposalCard({
               </ProviderWarning>
             ) : null}
             {estimatedS > clipS ? (
-              <p className="px-2 text-xs text-muted">Longer than the {clipS} s clip. Ask for a shorter version, or relaunch on a longer clip.</p>
+              <p className="px-2 text-xs text-muted">
+                Longer than the {clipS} s clip. Ask for a shorter version, or relaunch on a longer clip.
+              </p>
             ) : null}
-            {unchanged ? <p className="px-2 pb-1 text-xs text-muted">Same lines as the current version: nothing to apply.</p> : (
+            {unchanged ? (
+              <p className="px-2 pb-1 text-xs text-muted">Same lines as the current version: nothing to apply.</p>
+            ) : (
               <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
                 {relaunch.ok ? (
                   state.newest ? (
@@ -164,7 +187,9 @@ export function ProposalCard({
                 <Button variant="quiet-primary" disabled={busy} onClick={onApply}>
                   Apply only
                 </Button>
-                <span className="basis-full px-2 font-mono text-[11px] text-muted">{relaunch.ok ? `Relaunches on ${relaunch.label}` : relaunch.reason}</span>
+                <span className="basis-full px-2 font-mono text-[11px] text-muted">
+                  {relaunch.ok ? `Relaunches on ${relaunch.label}` : relaunch.reason}
+                </span>
               </div>
             )}
           </>

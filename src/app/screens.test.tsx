@@ -8,12 +8,29 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({}),
-    identity: { myWorkspaces: { useQuery: () => ({ isPending: true }) }, projects: { useQuery: () => ({ isPending: true }) } },
+    identity: {
+      myWorkspaces: { useQuery: () => ({ isPending: true }) },
+      projects: { useQuery: () => ({ isPending: true }) },
+    },
     actors: { list: { useQuery: () => ({ isPending: true }) } },
-    studio: { formatOptions: { useQuery: () => ({ isPending: true }) }, providersFor: { useQuery: () => ({ isPending: true }) }, getProject: { useQuery: () => ({ isPending: true }) }, createFromWizard: { useMutation: () => ({}) }, updateChoices: { useMutation: () => ({}) } },
-    script: { history: { useQuery: () => ({ isPending: true }) }, paste: { useMutation: () => ({}) }, setLineEmotion: { useMutation: () => ({}) } },
+    studio: {
+      formatOptions: { useQuery: () => ({ isPending: true }) },
+      providersFor: { useQuery: () => ({ isPending: true }) },
+      getProject: { useQuery: () => ({ isPending: true }) },
+      createFromWizard: { useMutation: () => ({}) },
+      updateChoices: { useMutation: () => ({}) },
+    },
+    script: {
+      history: { useQuery: () => ({ isPending: true }) },
+      paste: { useMutation: () => ({}) },
+      setLineEmotion: { useMutation: () => ({}) },
+    },
     generation: { forProject: { useQuery: () => ({ isPending: true }) }, launchText: { useMutation: () => ({}) } },
-    benchmark: { start: { useMutation: () => ({}) }, get: { useQuery: () => ({ isPending: true }) }, vote: { useMutation: () => ({}) } },
+    benchmark: {
+      start: { useMutation: () => ({}) },
+      get: { useQuery: () => ({ isPending: true }) },
+      vote: { useMutation: () => ({}) },
+    },
     export: { checkSpecs: { useQuery: () => ({ isPending: true }) }, create: { useMutation: () => ({}) } },
   },
 }));
@@ -60,9 +77,16 @@ describe("Dashboard", () => {
   it("says when no model can render yet, with or without projects", () => {
     const { rerender } = render(<DashboardView projects={[]} readiness={{ ready: false }} />);
     expect(screen.getByRole("status").textContent).toMatch(/No video model can render yet/);
-    expect(screen.getByRole("link", { name: /Add an API key or a local model in Settings/ }).getAttribute("href")).toBe("/settings");
+    expect(screen.getByRole("link", { name: /Add an API key or a local model in Settings/ }).getAttribute("href")).toBe(
+      "/settings",
+    );
     expect(screen.getByText("Create your first project")).toBeDefined();
-    rerender(<DashboardView projects={[{ id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" }]} readiness={{ ready: false }} />);
+    rerender(
+      <DashboardView
+        projects={[{ id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" }]}
+        readiness={{ ready: false }}
+      />,
+    );
     expect(screen.getByRole("status").textContent).toMatch(/No video model can render yet/);
   });
 });
@@ -81,7 +105,16 @@ describe("Actor library", () => {
     render(
       <ActorGrid
         actors={[
-          { id: "a1", workspaceId: null, name: "Léa", gender: "female", ageRange: "25-34", style: "casual", voiceProfile: "warm", status: "active" },
+          {
+            id: "a1",
+            workspaceId: null,
+            name: "Léa",
+            gender: "female",
+            ageRange: "25-34",
+            style: "casual",
+            voiceProfile: "warm",
+            status: "active",
+          },
         ]}
       />,
     );
@@ -115,8 +148,26 @@ describe("Generation monitor", () => {
       <GenerationTimeline
         projectId="p1"
         generations={[
-          { id: "g2", provider: "local", modelId: "r", tier: "draft", status: "completed", durationS: 8, createdAt: new Date(), outputAssetUrl: "/api/media/new" },
-          { id: "g1", provider: "local", modelId: "r", tier: "draft", status: "completed", durationS: 8, createdAt: new Date(), outputAssetUrl: "/api/media/old" },
+          {
+            id: "g2",
+            provider: "local",
+            modelId: "r",
+            tier: "draft",
+            status: "completed",
+            durationS: 8,
+            createdAt: new Date(),
+            outputAssetUrl: "/api/media/new",
+          },
+          {
+            id: "g1",
+            provider: "local",
+            modelId: "r",
+            tier: "draft",
+            status: "completed",
+            durationS: 8,
+            createdAt: new Date(),
+            outputAssetUrl: "/api/media/old",
+          },
         ]}
       />,
     );
@@ -127,7 +178,20 @@ describe("Generation monitor", () => {
   it("keeps a render's length and cost whole on phones", () => {
     render(
       <GenerationTimeline
-        generations={[{ id: "g1", provider: "veo", modelId: "veo-3.1-fast", modelLabel: "Veo 3.1 Fast", tier: "final", status: "completed", durationS: 8, costUsd: 1.2, costSource: "estimate", createdAt: new Date() }]}
+        generations={[
+          {
+            id: "g1",
+            provider: "veo",
+            modelId: "veo-3.1-fast",
+            modelLabel: "Veo 3.1 Fast",
+            tier: "final",
+            status: "completed",
+            durationS: 8,
+            costUsd: 1.2,
+            costSource: "estimate",
+            createdAt: new Date(),
+          },
+        ]}
       />,
     );
     const meta = screen.getByText(/Veo 3.1 Fast · 8 s/);
@@ -140,7 +204,15 @@ describe("Generation monitor", () => {
     const { container } = render(
       <GenerationTimeline
         generations={[
-          { id: "g1", provider: "veo", modelId: "veo-3.1-fast", tier: "draft", status: "in_progress", durationS: 20, createdAt: new Date() },
+          {
+            id: "g1",
+            provider: "veo",
+            modelId: "veo-3.1-fast",
+            tier: "draft",
+            status: "in_progress",
+            durationS: 20,
+            createdAt: new Date(),
+          },
         ]}
       />,
     );
@@ -215,7 +287,15 @@ describe("Reconcile timeout UX", () => {
     render(
       <GenerationTimeline
         onRelaunch={onRelaunch}
-        generations={[{ ...base, provider: "veo", status: "failed", errorCode: "PROVIDER_AUTH", errorDetail: "Google rejected the API key." }]}
+        generations={[
+          {
+            ...base,
+            provider: "veo",
+            status: "failed",
+            errorCode: "PROVIDER_AUTH",
+            errorDetail: "Google rejected the API key.",
+          },
+        ]}
       />,
     );
     expect(screen.getByText("Google rejected the API key.")).toBeDefined();

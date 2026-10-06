@@ -2,7 +2,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-let status: { isPending: boolean; error: { message: string } | null; data?: { ideas: number; tools: { name: string; ready: boolean; detail: string }[] } };
+let status: {
+  isPending: boolean;
+  error: { message: string } | null;
+  data?: { ideas: number; tools: { name: string; ready: boolean; detail: string }[] };
+};
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({ library: { ideas: { list: { invalidate: vi.fn() } } } }),
@@ -29,7 +33,11 @@ describe("making ideas from an item", () => {
   });
 
   it("names the set's size once it knows it", () => {
-    status = { isPending: false, error: null, data: { ideas: 6, tools: [{ name: "writer", ready: true, detail: "" }] } };
+    status = {
+      isPending: false,
+      error: null,
+      data: { ideas: 6, tools: [{ name: "writer", ready: true, detail: "" }] },
+    };
     render(<MakeIdeas {...props} />);
     expect(screen.getByRole("button", { name: "6 ideas in this style" })).toBeDefined();
   });

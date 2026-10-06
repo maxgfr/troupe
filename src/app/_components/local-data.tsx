@@ -9,7 +9,8 @@ import { ErrorNote, buttonClass } from "./ui";
 // The browser edition's data, in Settings: how much this browser holds and
 // whether it may clear it, a backup to export or import, and deleting it all.
 
-const message = (cause: unknown, fallback: string) => (cause instanceof Error && cause.message ? cause.message : fallback);
+const message = (cause: unknown, fallback: string) =>
+  cause instanceof Error && cause.message ? cause.message : fallback;
 
 // 1.2 GB, 48 MB, 820 KB: two significant figures are plenty for storage.
 export function formatBytes(bytes: number): string {
@@ -52,14 +53,27 @@ function LocalNote() {
   return (
     <p className="mb-4 flex max-w-2xl items-center justify-between gap-3 rounded-xl bg-primary/10 py-1 pl-4 pr-1 text-sm text-fg/90">
       <span className="text-pretty">Troupe runs in your browser: your projects stay on this device.</span>
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:text-fg">
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss"
+        className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:text-fg"
+      >
         <CloseIcon className="size-4" />
       </button>
     </p>
   );
 }
 
-function Row({ title, description, children }: { title: string; description: React.ReactNode; children: React.ReactNode }) {
+function Row({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-3 px-5 py-5">
       <div>
@@ -77,8 +91,14 @@ function StorageRow({ storage }: { storage: LocalData["storage"] }) {
   const [asked, setAsked] = useState<"idle" | "busy" | "declined">("idle");
   useEffect(() => {
     let live = true;
-    storage.estimate().then((r) => live && setReport(r), () => live && setReport(null));
-    storage.persisted().then((p) => live && setKept(p), () => live && setKept(null));
+    storage.estimate().then(
+      (r) => live && setReport(r),
+      () => live && setReport(null),
+    );
+    storage.persisted().then(
+      (p) => live && setKept(p),
+      () => live && setKept(null),
+    );
     return () => {
       live = false;
     };
@@ -99,7 +119,8 @@ function StorageRow({ storage }: { storage: LocalData["storage"] }) {
     ) : (
       <>
         <span className="font-mono text-xs tabular-nums text-fg">{formatBytes(report.usageBytes)}</span> used, of about{" "}
-        <span className="font-mono text-xs tabular-nums">{formatBytes(report.quotaBytes)}</span> this browser allows the studio.
+        <span className="font-mono text-xs tabular-nums">{formatBytes(report.quotaBytes)}</span> this browser allows the
+        studio.
       </>
     );
 
@@ -139,7 +160,13 @@ function save(blob: Blob, filename: string) {
 }
 
 const savedOn = (date: Date) =>
-  date.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 function BackupRow({ data }: { data: LocalData }) {
   const [exporting, setExporting] = useState(false);
@@ -207,12 +234,18 @@ function BackupRow({ data }: { data: LocalData }) {
     >
       {mode === "confirm" || mode === "restoring" ? (
         summary ? (
-          <div role="alertdialog" aria-labelledby="import-question" className="max-w-2xl space-y-3 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]">
+          <div
+            role="alertdialog"
+            aria-labelledby="import-question"
+            className="max-w-2xl space-y-3 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]"
+          >
             <p id="import-question" className="text-pretty">
-              Replace everything in this browser with this backup? It holds {plural(summary.projects, "project", "projects")}
+              Replace everything in this browser with this backup? It holds{" "}
+              {plural(summary.projects, "project", "projects")}
               {summary.videos > 0 ? (
                 <>
-                  {" "}and {plural(summary.videos, "video", "videos")} (
+                  {" "}
+                  and {plural(summary.videos, "video", "videos")} (
                   <span className="font-mono text-xs tabular-nums">{formatBytes(summary.bytes)}</span>)
                 </>
               ) : null}
@@ -227,7 +260,13 @@ function BackupRow({ data }: { data: LocalData }) {
               >
                 {mode === "restoring" ? "Importing…" : "Replace with backup"}
               </button>
-              <button ref={cancelRef} type="button" disabled={mode === "restoring"} onClick={cancel} className={buttonClass({ variant: "quiet", size: "sm" })}>
+              <button
+                ref={cancelRef}
+                type="button"
+                disabled={mode === "restoring"}
+                onClick={cancel}
+                className={buttonClass({ variant: "quiet", size: "sm" })}
+              >
                 Cancel
               </button>
             </div>
@@ -235,10 +274,20 @@ function BackupRow({ data }: { data: LocalData }) {
         ) : null
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void exportAll()} disabled={exporting || mode === "reading"} className={BUTTON}>
+          <button
+            type="button"
+            onClick={() => void exportAll()}
+            disabled={exporting || mode === "reading"}
+            className={BUTTON}
+          >
             {exporting ? "Preparing…" : "Export data"}
           </button>
-          <button type="button" onClick={() => picker.current?.click()} disabled={exporting || mode === "reading"} className={BUTTON}>
+          <button
+            type="button"
+            onClick={() => picker.current?.click()}
+            disabled={exporting || mode === "reading"}
+            className={BUTTON}
+          >
             {mode === "reading" ? "Reading…" : "Import data…"}
           </button>
           <input
@@ -302,7 +351,11 @@ export function DeleteLocalData({ deleteAll }: { deleteAll: () => Promise<void> 
           Delete all local data
         </button>
       ) : (
-        <div role="alertdialog" aria-labelledby="delete-local-question" className="flex max-w-2xl flex-wrap items-center gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]">
+        <div
+          role="alertdialog"
+          aria-labelledby="delete-local-question"
+          className="flex max-w-2xl flex-wrap items-center gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]"
+        >
           <span id="delete-local-question" className="text-pretty">
             Delete every project, script, chat, render and setting saved in this browser? This cannot be undone.
           </span>
@@ -314,7 +367,13 @@ export function DeleteLocalData({ deleteAll }: { deleteAll: () => Promise<void> 
           >
             {mode === "busy" ? "Deleting…" : "Delete everything"}
           </button>
-          <button ref={cancelRef} type="button" disabled={mode === "busy"} onClick={() => setMode("idle")} className={buttonClass({ variant: "quiet", size: "sm" })}>
+          <button
+            ref={cancelRef}
+            type="button"
+            disabled={mode === "busy"}
+            onClick={() => setMode("idle")}
+            className={buttonClass({ variant: "quiet", size: "sm" })}
+          >
             Cancel
           </button>
         </div>
@@ -331,7 +390,10 @@ export function LocalDataSettings({ data }: { data: LocalData }) {
       <div className="max-w-2xl divide-y divide-line rounded-2xl bg-surface/60">
         <StorageRow storage={data.storage} />
         <BackupRow data={data} />
-        <Row title="Start over" description="Empties the studio in this browser, in every open tab. Export a backup first to keep a copy.">
+        <Row
+          title="Start over"
+          description="Empties the studio in this browser, in every open tab. Export a backup first to keep a copy."
+        >
           <DeleteLocalData deleteAll={data.deleteAll} />
         </Row>
       </div>

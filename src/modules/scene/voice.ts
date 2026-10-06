@@ -17,16 +17,23 @@ export const KOKORO_VOICES: VoicePools = {
 // Both pools are required; names are Kokoro voice ids.
 export function parseVoicePools(text: string): VoicePools {
   const pools: Partial<Record<keyof VoicePools, string[]>> = {};
-  for (const part of text.split(";").map((p) => p.trim()).filter(Boolean)) {
+  for (const part of text
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean)) {
     const [key = "", list = ""] = part.split("=", 2).map((s) => s.trim());
     if (key !== "female" && key !== "male") throw new Error(`"${key}" is not a pool: use female=… and male=….`);
-    const names = list.split(",").map((n) => n.trim()).filter(Boolean);
+    const names = list
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
     const bad = names.find((n) => !/^[a-z]{2}_[a-z0-9]+$/.test(n));
     if (bad) throw new Error(`"${bad}" is not a Kokoro voice id such as af_heart.`);
     pools[key] = names;
   }
   for (const key of ["female", "male"] as const) {
-    if (!pools[key]?.length) throw new Error(`the ${key} pool needs at least one voice (e.g. ${key}=${KOKORO_VOICES[key][0]}).`);
+    if (!pools[key]?.length)
+      throw new Error(`the ${key} pool needs at least one voice (e.g. ${key}=${KOKORO_VOICES[key][0]}).`);
   }
   return { female: pools.female!, male: pools.male! };
 }
@@ -65,7 +72,12 @@ function stableIndex(id: string, modulo: number): number {
 }
 
 export function voiceFor(actor: VoiceActor, emotion: Emotion, voices: VoicePools = KOKORO_VOICES): VoiceChoice {
-  const pool: readonly string[] = actor.gender === "female" ? voices.female : actor.gender === "male" ? voices.male : [...voices.female, ...voices.male];
+  const pool: readonly string[] =
+    actor.gender === "female"
+      ? voices.female
+      : actor.gender === "male"
+        ? voices.male
+        : [...voices.female, ...voices.male];
   const speed = Math.round(EMOTION_SPEED[emotion] * tempo(actor.voiceProfile) * 100) / 100;
   return { voice: pool[stableIndex(actor.id, pool.length)]!, speed };
 }

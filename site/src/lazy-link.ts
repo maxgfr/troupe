@@ -21,7 +21,8 @@ export function lazyLinks<TRouter extends AnyRouter>(load: () => Promise<TRPCLin
           },
           (cause: unknown) => {
             chain = null;
-            if (!closed) observer.error(TRPCClientError.from(cause instanceof Error ? cause : new Error(String(cause))));
+            if (!closed)
+              observer.error(TRPCClientError.from(cause instanceof Error ? cause : new Error(String(cause))));
           },
         );
         return () => {
@@ -34,7 +35,11 @@ export function lazyLinks<TRouter extends AnyRouter>(load: () => Promise<TRPCLin
 
 type Op<TRouter extends AnyRouter> = Parameters<OperationLink<TRouter>>[0]["op"];
 
-function run<TRouter extends AnyRouter>(links: OperationLink<TRouter>[], op: Op<TRouter>, index: number): ReturnType<OperationLink<TRouter>> {
+function run<TRouter extends AnyRouter>(
+  links: OperationLink<TRouter>[],
+  op: Op<TRouter>,
+  index: number,
+): ReturnType<OperationLink<TRouter>> {
   const link = links[index];
   if (!link) throw new Error("The last link must answer the call.");
   return link({ op, next: (nextOp) => run(links, nextOp, index + 1) as Observable<never, never> });

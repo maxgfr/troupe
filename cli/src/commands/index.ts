@@ -9,4 +9,13 @@ import { renderCommands } from "./render.ts";
 import { scriptCommands } from "./script.ts";
 
 // In the order help lists them: the order of the work.
-export const COMMANDS: Command[] = [...authCommands, ...modelCommands, ...projectCommands, ...scriptCommands, ...chatCommands, ...renderCommands, ...exportCommands, ...libraryCommands];
+export const COMMANDS: Command[] = [
+  ...authCommands,
+  ...modelCommands,
+  ...projectCommands,
+  ...scriptCommands,
+  ...chatCommands,
+  ...renderCommands,
+  ...exportCommands,
+  ...libraryCommands,
+];

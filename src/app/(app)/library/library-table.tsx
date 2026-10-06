@@ -33,8 +33,13 @@ const STATUS_TONES: Record<ItemStatus, string> = {
 
 export function ItemStatusChip({ status, stage }: { status: ItemStatus; stage?: string | null }) {
   return (
-    <span title={status === "analyzing" && stage ? stage : undefined} className={`${statusChipBase} ${STATUS_TONES[status]}`}>
-      {status === "analyzing" ? <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" /> : null}
+    <span
+      title={status === "analyzing" && stage ? stage : undefined}
+      className={`${statusChipBase} ${STATUS_TONES[status]}`}
+    >
+      {status === "analyzing" ? (
+        <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" />
+      ) : null}
       {STATUS_LABELS[status]}
       {status === "analyzing" && stage ? <span className="sr-only">: {stage}</span> : null}
     </span>
@@ -69,14 +74,39 @@ const KIND_GLYPHS: Record<ItemKind, React.ReactNode> = {
 
 // The picture of an item: its first frame or the image itself, else the
 // kind's glyph on the surface tint.
-export function Thumb({ row, className = "size-12" }: { row: Pick<LibraryRow, "thumbnailUrl" | "kind">; className?: string }) {
+export function Thumb({
+  row,
+  className = "size-12",
+}: {
+  row: Pick<LibraryRow, "thumbnailUrl" | "kind">;
+  className?: string;
+}) {
   if (row.thumbnailUrl) {
-    // biome-ignore lint/performance/noImgElement: the browser edition has no next/image; frames are small JPEGs the studio already sized.
-    return <img src={row.thumbnailUrl} alt="" loading="lazy" decoding="async" className={`${className} shrink-0 rounded-lg object-cover outline outline-1 -outline-offset-1 outline-[var(--picture-edge)]`} />;
+    return (
+      // biome-ignore lint/performance/noImgElement: the browser edition has no next/image; frames are small JPEGs the studio already sized.
+      <img
+        src={row.thumbnailUrl}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={`${className} shrink-0 rounded-lg object-cover outline outline-1 -outline-offset-1 outline-[var(--picture-edge)]`}
+      />
+    );
   }
   return (
-    <span aria-hidden className={`${className} flex shrink-0 items-center justify-center rounded-lg bg-surface text-muted`}>
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+    <span
+      aria-hidden
+      className={`${className} flex shrink-0 items-center justify-center rounded-lg bg-surface text-muted`}
+    >
+      <svg
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
         {KIND_GLYPHS[row.kind]}
       </svg>
     </span>
@@ -96,13 +126,35 @@ const sourceOf = (row: LibraryRow) => {
 
 type SortKey = "createdAt" | "title" | "durationS";
 
-function SortHeader({ label, column, sort, onSort, className = "" }: { label: string; column: SortKey; sort: { key: SortKey; desc: boolean }; onSort: (key: SortKey) => void; className?: string }) {
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  className = "",
+}: {
+  label: string;
+  column: SortKey;
+  sort: { key: SortKey; desc: boolean };
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
   const active = sort.key === column;
   return (
-    <th scope="col" aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"} className={`px-3 py-2 font-medium ${className}`}>
-      <button type="button" onClick={() => onSort(column)} className={`-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors duration-150 hover:text-fg ${active ? "text-fg" : ""}`}>
+    <th
+      scope="col"
+      aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"}
+      className={`px-3 py-2 font-medium ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors duration-150 hover:text-fg ${active ? "text-fg" : ""}`}
+      >
         {label}
-        <ChevronDownIcon className={`size-3 transition-transform duration-150 ${active ? "opacity-100" : "opacity-0"} ${active && !sort.desc ? "rotate-180" : ""}`} />
+        <ChevronDownIcon
+          className={`size-3 transition-transform duration-150 ${active ? "opacity-100" : "opacity-0"} ${active && !sort.desc ? "rotate-180" : ""}`}
+        />
       </button>
     </th>
   );
@@ -110,17 +162,31 @@ function SortHeader({ label, column, sort, onSort, className = "" }: { label: st
 
 // The library as a ledger: what was saved, sortable by when, title or
 // length, filtered by kind, "my own" and tag. Phones read two-line rows.
-export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: string | null; onTag: (tag: string | null) => void }) {
+export function LibraryTable({
+  rows,
+  tag,
+  onTag,
+}: {
+  rows: LibraryRow[];
+  tag: string | null;
+  onTag: (tag: string | null) => void;
+}) {
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "createdAt", desc: true });
   const sorted = useMemo(() => {
-    const value = (r: LibraryRow) => (sort.key === "createdAt" ? new Date(r.createdAt).getTime() : sort.key === "title" ? r.title.toLowerCase() : (r.durationS ?? -1));
+    const value = (r: LibraryRow) =>
+      sort.key === "createdAt"
+        ? new Date(r.createdAt).getTime()
+        : sort.key === "title"
+          ? r.title.toLowerCase()
+          : (r.durationS ?? -1);
     return [...rows].sort((a, b) => {
       const [x, y] = [value(a), value(b)];
       const order = x < y ? -1 : x > y ? 1 : 0;
       return sort.desc ? -order : order;
     });
   }, [rows, sort]);
-  const onSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "title" }));
+  const onSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "title" }));
 
   return (
     <div className="overflow-hidden rounded-2xl shadow-[inset_0_0_0_1px_var(--troupe-color-line)]">
@@ -137,9 +203,13 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
           <tr>
             <SortHeader label="Item" column="title" sort={sort} onSort={onSort} className="pl-4" />
             <SortHeader label="Length" column="durationS" sort={sort} onSort={onSort} className="text-right" />
-            <th scope="col" className="px-3 py-2 font-medium">Tags</th>
+            <th scope="col" className="px-3 py-2 font-medium">
+              Tags
+            </th>
             <SortHeader label="Added" column="createdAt" sort={sort} onSort={onSort} />
-            <th scope="col" className="px-3 py-2 pr-4 text-right font-medium">Status</th>
+            <th scope="col" className="px-3 py-2 pr-4 text-right font-medium">
+              Status
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -153,23 +223,36 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
                       {row.title}
                     </Link>
                     <p className="truncate text-xs text-muted">
-                      {row.mine ? <span className="mr-1.5 rounded-full bg-fg/[0.07] px-1.5 py-px text-[11px] text-fg">mine</span> : null}
+                      {row.mine ? (
+                        <span className="mr-1.5 rounded-full bg-fg/[0.07] px-1.5 py-px text-[11px] text-fg">mine</span>
+                      ) : null}
                       {KIND_LABELS[row.kind]} · {row.hook ? `“${row.hook}”` : sourceOf(row)}
                     </p>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums text-muted">{clock(row.durationS) || "—"}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums text-muted">
+                {clock(row.durationS) || "—"}
+              </td>
               <td className="px-3 py-2.5">
                 <div className="flex flex-wrap gap-1">
                   {row.tags.slice(0, 2).map((t) => (
-                    <button key={t} type="button" onClick={() => onTag(tag === t ? null : t)} aria-pressed={tag === t} title={`Only items tagged ${t}`} className={`relative flex max-w-full rounded-full px-2 py-0.5 text-xs transition-colors duration-150 after:absolute after:-inset-y-2.5 after:inset-x-0 ${tag === t ? "bg-primary/15 text-primary" : "bg-fg/[0.07] text-muted hover:text-fg"}`}>
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => onTag(tag === t ? null : t)}
+                      aria-pressed={tag === t}
+                      title={`Only items tagged ${t}`}
+                      className={`relative flex max-w-full rounded-full px-2 py-0.5 text-xs transition-colors duration-150 after:absolute after:-inset-y-2.5 after:inset-x-0 ${tag === t ? "bg-primary/15 text-primary" : "bg-fg/[0.07] text-muted hover:text-fg"}`}
+                    >
                       <span className="truncate whitespace-nowrap">{t}</span>
                     </button>
                   ))}
                 </div>
               </td>
-              <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap tabular-nums text-muted">{new Date(row.createdAt).toLocaleDateString()}</td>
+              <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap tabular-nums text-muted">
+                {new Date(row.createdAt).toLocaleDateString()}
+              </td>
               <td className="px-3 py-2.5 pr-4 text-right">
                 <ItemStatusChip status={row.status} stage={row.stage} />
               </td>
@@ -181,7 +264,10 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
       <ul className="divide-y divide-line md:hidden">
         {sorted.map((row) => (
           <li key={row.id}>
-            <Link href={`/library/${row.id}`} className="flex items-center gap-3 px-3 py-3 transition-colors duration-150 hover:bg-fg/[0.03]">
+            <Link
+              href={`/library/${row.id}`}
+              className="flex items-center gap-3 px-3 py-3 transition-colors duration-150 hover:bg-fg/[0.03]"
+            >
               <Thumb row={row} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{row.title}</p>

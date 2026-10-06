@@ -44,10 +44,19 @@ describe("pasting a script", () => {
 
   it("reads the emotions to keep from the newest version under the lock that allocates the next one", async () => {
     const queries: string[] = [];
-    const logged = drizzle(t.pg, { schema, logger: { logQuery: (query) => void queries.push(query) } }) as unknown as Db;
+    const logged = drizzle(t.pg, {
+      schema,
+      logger: { logQuery: (query) => void queries.push(query) },
+    }) as unknown as Db;
     await pasteScript(logged, { projectId, text: "Locked read." });
-    const lock = queries.findIndex((q) => /from "troupe_project" where "troupe_project"\."id" = \$1 for update$/.test(q));
-    const newest = queries.findIndex((q) => /from "troupe_script" where "troupe_script"\."projectId" = \$1 order by "troupe_script"\."version" desc limit \$2$/.test(q));
+    const lock = queries.findIndex((q) =>
+      /from "troupe_project" where "troupe_project"\."id" = \$1 for update$/.test(q),
+    );
+    const newest = queries.findIndex((q) =>
+      /from "troupe_script" where "troupe_script"\."projectId" = \$1 order by "troupe_script"\."version" desc limit \$2$/.test(
+        q,
+      ),
+    );
     expect(lock).toBeGreaterThanOrEqual(0);
     expect(newest).toBeGreaterThan(lock);
   });
@@ -55,7 +64,10 @@ describe("pasting a script", () => {
 
 describe("script editing with emotion tags", () => {
   it("retagging one line stores a new version and keeps the history", async () => {
-    const v1 = await pasteScript(t.db, { projectId, text: "Stop scrolling — this changed my mornings.\nTap the link before the bundle sells out." });
+    const v1 = await pasteScript(t.db, {
+      projectId,
+      text: "Stop scrolling — this changed my mornings.\nTap the link before the bundle sells out.",
+    });
     const v2 = await setLineEmotion(t.db, { scriptId: v1.id, lineIndex: 0, emotion: "excited" });
     expect(v2.version).toBe(v1.version + 1);
     expect(v2.lines[0]!.emotion).toBe("excited");
@@ -79,7 +91,9 @@ describe("script editing with emotion tags", () => {
 
   it("an unsupported emotion is rejected", async () => {
     const v1 = await pasteScript(t.db, { projectId, text: "x" });
-    await expect(setLineEmotion(t.db, { scriptId: v1.id, lineIndex: 0, emotion: "sarcastic" as never })).rejects.toThrowError(/unsupported emotion/i);
+    await expect(
+      setLineEmotion(t.db, { scriptId: v1.id, lineIndex: 0, emotion: "sarcastic" as never }),
+    ).rejects.toThrowError(/unsupported emotion/i);
     expect(SUPPORTED_EMOTIONS).toContain("neutral");
   });
 
@@ -98,7 +112,10 @@ describe("script editing with emotion tags", () => {
     await pasteScript(t.db, { projectId, text: "Something else entirely." });
     const restored = await restoreScriptVersion(t.db, old.id);
     expect(restored.version).toBeGreaterThan(old.version);
-    expect(restored.lines.map((l) => [l.text, l.emotion])).toEqual([["Old hook.", "neutral"], ["Old call to action.", "neutral"]]);
+    expect(restored.lines.map((l) => [l.text, l.emotion])).toEqual([
+      ["Old hook.", "neutral"],
+      ["Old call to action.", "neutral"],
+    ]);
     expect((await getScriptHistory(t.db, projectId)).at(-1)!.id).toBe(restored.id);
   });
 

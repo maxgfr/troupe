@@ -73,7 +73,9 @@ async function signIn(page: Page) {
 
 const row = (page: Page, title: RegExp): Locator => page.locator("table").getByRole("row", { name: title }).first();
 
-test("upload a video, save an article and a video from links, search, ask, make an idea a project, render it and play it", async ({ page }, testInfo) => {
+test("upload a video, save an article and a video from links, search, ask, make an idea a project, render it and play it", async ({
+  page,
+}, testInfo) => {
   // CI's docker-e2e job has 60 minutes for everything (images, the other
   // projects: about 15): this flow gets 30, two tries per model loop of at
   // most 5 minutes each, and ends with its annotations before the job does.
@@ -90,7 +92,9 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await expect(page.getByText("Save your first piece")).toBeVisible();
 
   // A video from this computer.
-  await page.locator('input[type="file"]').setInputFiles({ name: "cold-brew-trick.mp4", mimeType: "video/mp4", buffer: CLIP });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: "cold-brew-trick.mp4", mimeType: "video/mp4", buffer: CLIP });
   await expect(row(page, /cold brew trick/i).getByText("ready")).toBeVisible(READING);
 
   // An article and a video from links.
@@ -103,18 +107,24 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await shot("01-library");
 
   // The uploaded video, read: transcript, pictures, hook.
-  await row(page, /cold brew trick/i).getByRole("link").click();
+  await row(page, /cold brew trick/i)
+    .getByRole("link")
+    .click();
   await expect(page.getByRole("heading", { level: 1, name: "cold brew trick" })).toBeVisible();
   await expect(page.locator("section", { hasText: "Transcript" }).last()).toContainText(/brew/i);
   await expect(page.locator("blockquote")).toBeVisible();
   expect(await page.getByRole("list", { name: "Pictures" }).getByRole("button").count()).toBeGreaterThan(0);
   const frame = page.getByRole("list", { name: "Pictures" }).locator("img").first();
-  await expect.poll(() => frame.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+  await expect
+    .poll(() => frame.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
   await shot("02-item");
 
   // The article, read.
   await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Library" }).click();
-  await row(page, /Three hooks that work/).getByRole("link").click();
+  await row(page, /Three hooks that work/)
+    .getByRole("link")
+    .click();
   await expect(page.getByRole("heading", { level: 1, name: "Three hooks that work" })).toBeVisible();
   await expect(page.getByText("Ask a question the viewer cannot answer yet").first()).toBeVisible();
   await expect(page.getByText("Home · Archive · About")).toHaveCount(0);
@@ -140,10 +150,19 @@ test("upload a video, save an article and a video from links, search, ask, make 
     // Settled: an answer, or the reason there is none (the server's time limit).
     await expect(answers.nth(before).or(chat.getByRole("alert"))).toBeVisible(WRITING);
     const alert = chat.getByRole("alert");
-    asked.push((await alert.isVisible()) ? `stopped: ${await alert.innerText()}` : (await sources.count()) > 0 ? "cited" : "no citation");
+    asked.push(
+      (await alert.isVisible())
+        ? `stopped: ${await alert.innerText()}`
+        : (await sources.count()) > 0
+          ? "cited"
+          : "no citation",
+    );
   }
   testInfo.annotations.push({ type: "library chat asks", description: asked.join(" | ") });
-  expect(await sources.count(), `no answer cited a source in ${asked.length} asks: ${asked.join(" | ")}`).toBeGreaterThan(0);
+  expect(
+    await sources.count(),
+    `no answer cited a source in ${asked.length} asks: ${asked.join(" | ")}`,
+  ).toBeGreaterThan(0);
   // A citation opens the item it cites.
   await expect(sources.first().getByRole("link").first()).toHaveAttribute("href", /\/library\/[0-9a-f-]{36}/);
   await shot("03-chat");
@@ -152,7 +171,10 @@ test("upload a video, save an article and a video from links, search, ask, make 
   // renderer (15 s at most) made into a project. The 0.5B model sometimes
   // writes none, or only long ones: a person asks again, and the report says
   // how many tries it took and, when none fits, every length it wrote.
-  await page.locator("table").getByRole("link", { name: /cold brew trick/i }).click();
+  await page
+    .locator("table")
+    .getByRole("link", { name: /cold brew trick/i })
+    .click();
   // The stack writes three at a time (TROUPE_LIBRARY_IDEAS).
   const write = page.getByRole("button", { name: "3 ideas in this style" });
   const cards = page.locator("li").filter({ has: page.getByRole("button", { name: "Create project" }) });
@@ -166,11 +188,16 @@ test("upload a video, save an article and a video from links, search, ask, make 
     // or with the reason it stopped, within its time limit.
     await expect(write).toBeEnabled(WRITING);
     const alert = page.getByRole("alert").filter({ hasText: ASK_AGAIN });
-    tried.push((await alert.isVisible()) ? `stopped: ${await alert.innerText()}` : `${(await cards.count()) - before} ideas`);
+    tried.push(
+      (await alert.isVisible()) ? `stopped: ${await alert.innerText()}` : `${(await cards.count()) - before} ideas`,
+    );
   }
   testInfo.annotations.push({ type: "library ideas tries", description: tried.join(" | ") });
   const lengths = (await cards.allInnerTexts()).map((text) => /about (\d+) s/.exec(text)?.[1] ?? "?");
-  expect(await fitting.count(), `no idea of 15 s or less in ${tried.length} tries (${tried.join(" | ")}); lengths written: ${lengths.join(", ") || "none"}`).toBeGreaterThan(0);
+  expect(
+    await fitting.count(),
+    `no idea of 15 s or less in ${tried.length} tries (${tried.join(" | ")}); lengths written: ${lengths.join(", ") || "none"}`,
+  ).toBeGreaterThan(0);
   await shot("04-ideas");
   await fitting.first().click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
@@ -204,7 +231,9 @@ test("the CLI saves, lists, searches, asks and writes ideas, and doctor checks t
     return JSON.parse(run.stdout);
   };
   const doctor = json(["doctor", "--skip-tests"]) as { checks: { name: string; status: string }[] };
-  expect(Object.fromEntries(doctor.checks.filter((c) => c.name.startsWith("library ")).map((c) => [c.name, c.status]))).toMatchObject({
+  expect(
+    Object.fromEntries(doctor.checks.filter((c) => c.name.startsWith("library ")).map((c) => [c.name, c.status])),
+  ).toMatchObject({
     "library transcription": "ok",
     "library embeddings": "ok",
     "library writer": "ok",
@@ -212,7 +241,10 @@ test("the CLI saves, lists, searches, asks and writes ideas, and doctor checks t
     "library video-links": "ok",
   });
 
-  execFileSync("sh", ["-c", `printf 'Stop scrolling: this jacket packs into its own pocket.\\nFollow for the next test.\\n' > "${process.env.E2E_CACHE_DIR ?? ".cache/e2e"}/cli/note.txt"`]);
+  execFileSync("sh", [
+    "-c",
+    `printf 'Stop scrolling: this jacket packs into its own pocket.\\nFollow for the next test.\\n' > "${process.env.E2E_CACHE_DIR ?? ".cache/e2e"}/cli/note.txt"`,
+  ]);
   const saved = json(["library", "add", "/work/note.txt", "--mine", "--wait", "--timeout", "600"]);
   expect(saved).toMatchObject({ kind: "text", mine: true, status: "ready" });
   const listed = json(["library", "list"]) as { title: string }[];

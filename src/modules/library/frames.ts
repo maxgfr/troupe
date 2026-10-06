@@ -8,7 +8,10 @@ export function frameTimes(cuts: readonly number[], durationS: number | null, ma
   const after = cuts.filter((t) => t > opening + 0.5).map((t) => t + 0.2);
   // Spread over the cuts when there are more than room for.
   const room = Math.max(0, max - 1);
-  const chosen = after.length <= room ? after : Array.from({ length: room }, (_, i) => after[Math.round((i * (after.length - 1)) / Math.max(1, room - 1))]!);
+  const chosen =
+    after.length <= room
+      ? after
+      : Array.from({ length: room }, (_, i) => after[Math.round((i * (after.length - 1)) / Math.max(1, room - 1))]!);
   // A video without cuts still gets a few pictures across its length.
   if (chosen.length === 0 && durationS && durationS > 4 && room > 0) {
     const n = Math.min(room, 3);

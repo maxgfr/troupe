@@ -57,7 +57,17 @@ function scriptedModel(answers: string[]) {
 }
 
 function setupWith(model: ChatModel, overrides: Partial<ChatSetup> = {}): ChatSetup {
-  return { provider: "ollama", label: "Ollama", modelId: "qwen3:4b", model, problem: null, instructions: "", wordsPerSecond: 2.5, sendTimeoutMs: 300_000, ...overrides };
+  return {
+    provider: "ollama",
+    label: "Ollama",
+    modelId: "qwen3:4b",
+    model,
+    problem: null,
+    instructions: "",
+    wordsPerSecond: 2.5,
+    sendTimeoutMs: 300_000,
+    ...overrides,
+  };
 }
 
 const answer = (lines: { role: string; text: string; emotion: string }[], extra: Record<string, unknown> = {}) =>
@@ -72,20 +82,45 @@ const GOOD = answer([
 describe("sending a request", () => {
   it("stores the request and the model's proposal, made on the newest version", async () => {
     const { model, calls } = scriptedModel([GOOD]);
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Make the hook punchier", durationS: 8, setup: setupWith(model) });
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Make the hook punchier",
+      durationS: 8,
+      setup: setupWith(model),
+    });
 
     expect(calls).toHaveLength(1);
     expect(result.user).toMatchObject({ role: "user", content: "Make the hook punchier", baseScriptId: f.scriptId });
-    expect(result.assistant).toMatchObject({ role: "assistant", content: "Punchier hook, same call to action.", baseScriptId: f.scriptId, provider: "ollama", model: "qwen3:4b" });
-    expect(result.assistant.proposal?.lines.map((l) => [l.role, l.emotion])).toEqual([["hook", "excited"], ["body", "calm"], ["cta", "serious"]]);
+    expect(result.assistant).toMatchObject({
+      role: "assistant",
+      content: "Punchier hook, same call to action.",
+      baseScriptId: f.scriptId,
+      provider: "ollama",
+      model: "qwen3:4b",
+    });
+    expect(result.assistant.proposal?.lines.map((l) => [l.role, l.emotion])).toEqual([
+      ["hook", "excited"],
+      ["body", "calm"],
+      ["cta", "serious"],
+    ]);
     expect((await listChatMessages(db, f.projectId)).map((m) => m.role)).toEqual(["user", "assistant"]);
   });
 
   it("tells the model the word budget, the current lines and the house style", async () => {
     const { model, calls } = scriptedModel([GOOD]);
-    const first = await sendChatMessage(db, { projectId: f.projectId, message: "Punchier", durationS: 8, setup: setupWith(model) });
+    const first = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Punchier",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     await applyChatProposal(db, { projectId: f.projectId, messageId: first.assistant.id });
-    await sendChatMessage(db, { projectId: f.projectId, message: "Shorter", durationS: 8, setup: setupWith(model, { instructions: "Never use exclamation marks.", wordsPerSecond: 2 }) });
+    await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Shorter",
+      durationS: 8,
+      setup: setupWith(model, { instructions: "Never use exclamation marks.", wordsPerSecond: 2 }),
+    });
     const system = calls[1]![0]!;
     expect(system.role).toBe("system");
     expect(system.content).toContain("within 16 words");
@@ -101,7 +136,12 @@ describe("sending a request", () => {
     await sendChatMessage(db, { projectId: f.projectId, message: "Punchier", durationS: 8, setup: setupWith(model) });
     expect(calls[0]![0]!.content).not.toContain("not applied yet");
 
-    const followUp = await sendChatMessage(db, { projectId: f.projectId, message: "Now make that warmer", durationS: 8, setup: setupWith(model) });
+    const followUp = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Now make that warmer",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     const system = calls[1]![0]!.content;
     expect(system).toContain("Your last proposal, not applied yet");
     expect(system).toContain("Stop scrolling: your mornings just got easier.");
@@ -124,7 +164,12 @@ describe("sending a request", () => {
 
   it("asks once more when the answer does not follow the format, then keeps the good one", async () => {
     const { model, calls } = scriptedModel(['{"summary": "Done", "lines": []}', GOOD]);
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Again", durationS: 8, setup: setupWith(model) });
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Again",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     expect(calls).toHaveLength(2);
     const repair = calls[1]!;
     expect(repair.at(-2)).toEqual({ role: "assistant", content: '{"summary": "Done", "lines": []}' });
@@ -134,53 +179,118 @@ describe("sending a request", () => {
 
   it("keeps the raw answer, with no proposal, when the repair fails too", async () => {
     const { model, calls } = scriptedModel(["Sure! Here is a better hook: Wake up happy."]);
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Hook?", durationS: 8, setup: setupWith(model) });
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Hook?",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     expect(calls).toHaveLength(2);
     expect(result.assistant.proposal).toBeNull();
     expect(result.assistant.content).toBe("Sure! Here is a better hook: Wake up happy.");
   });
 
   it("asks for shorter lines over the word budget, and keeps an over-long proposal rather than nothing", async () => {
-    const long = answer([{ role: "hook", text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one", emotion: "neutral" }]);
+    const long = answer([
+      {
+        role: "hook",
+        text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one",
+        emotion: "neutral",
+      },
+    ]);
     const { model, calls } = scriptedModel([long, long]);
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(model) });
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Longer",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     expect(calls).toHaveLength(2);
     expect(calls[1]!.at(-1)!.content).toMatch(/21 words.*20/);
     expect(result.assistant.proposal?.lines).toHaveLength(1);
   });
 
   it("keeps an over-long script when the time limit stops the retry, and stores it as the answer", async () => {
-    const long = answer([{ role: "hook", text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one", emotion: "neutral" }]);
+    const long = answer([
+      {
+        role: "hook",
+        text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one",
+        emotion: "neutral",
+      },
+    ]);
     let calls = 0;
     const model: ChatModel = {
       async propose(_messages, options) {
         calls += 1;
         if (calls === 1) return { text: long, proposal: JSON.parse(long) };
         // The retry never ends on its own.
-        return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+        return new Promise<never>((_resolve, reject) =>
+          options.signal?.addEventListener("abort", () => reject(options.signal!.reason)),
+        );
       },
     };
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(model), limit: AbortSignal.timeout(200) });
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Longer",
+      durationS: 8,
+      setup: setupWith(model),
+      limit: AbortSignal.timeout(200),
+    });
     expect(calls).toBe(2);
     expect(result.assistant.proposal?.lines).toHaveLength(1);
   });
 
   it("does not keep anything when the person who asked has gone, or when no script came before the limit", async () => {
-    const long = answer([{ role: "hook", text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one", emotion: "neutral" }]);
+    const long = answer([
+      {
+        role: "hook",
+        text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one",
+        emotion: "neutral",
+      },
+    ]);
     const hangingAfter = (first: string): ChatModel => {
       let calls = 0;
       return {
         async propose(_messages, options) {
           calls += 1;
-          if (calls === 1) return { text: first, proposal: (() => { try { return JSON.parse(first); } catch { return null; } })() };
-          return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+          if (calls === 1)
+            return {
+              text: first,
+              proposal: (() => {
+                try {
+                  return JSON.parse(first);
+                } catch {
+                  return null;
+                }
+              })(),
+            };
+          return new Promise<never>((_resolve, reject) =>
+            options.signal?.addEventListener("abort", () => reject(options.signal!.reason)),
+          );
         },
       };
     };
     const left = new AbortController();
     setTimeout(() => left.abort(), 100);
-    await expect(sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(hangingAfter(long)), signal: left.signal, limit: AbortSignal.timeout(5000) })).rejects.toThrow();
-    await expect(sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(hangingAfter("not json")), limit: AbortSignal.timeout(200) })).rejects.toThrow();
+    await expect(
+      sendChatMessage(db, {
+        projectId: f.projectId,
+        message: "Longer",
+        durationS: 8,
+        setup: setupWith(hangingAfter(long)),
+        signal: left.signal,
+        limit: AbortSignal.timeout(5000),
+      }),
+    ).rejects.toThrow();
+    await expect(
+      sendChatMessage(db, {
+        projectId: f.projectId,
+        message: "Longer",
+        durationS: 8,
+        setup: setupWith(hangingAfter("not json")),
+        limit: AbortSignal.timeout(200),
+      }),
+    ).rejects.toThrow();
   });
 
   it("gives each answer room for its lines, so a long Japanese script fits", async () => {
@@ -191,7 +301,8 @@ describe("sending a request", () => {
         return { text: GOOD, proposal: JSON.parse(GOOD) };
       },
     };
-    for (const durationS of [8, 20, 60]) await sendChatMessage(db, { projectId: f.projectId, message: "Again", durationS, setup: setupWith(model) });
+    for (const durationS of [8, 20, 60])
+      await sendChatMessage(db, { projectId: f.projectId, message: "Again", durationS, setup: setupWith(model) });
     // 200 for the summary and keys, 25 a line (one every 3 s), 7 a second of
     // speech: a 60 s Japanese script, about 420 tokens of text in 20 lines
     // with their roles and emotions, fits in 1120.
@@ -201,25 +312,47 @@ describe("sending a request", () => {
   it("refuses an actor that does not exist, and resolves one that does", async () => {
     const actors = await listActors(db, {});
     const other = actors.find((a) => a.id !== f.actorId && a.status === "active")!;
-    const { model } = scriptedModel([answer([{ role: "hook", text: "Hi.", emotion: "happy" }], { actor: "Nobody" }), answer([{ role: "hook", text: "Hi.", emotion: "happy" }], { actor: other.name })]);
-    const result = await sendChatMessage(db, { projectId: f.projectId, message: `Use ${other.name}`, durationS: 8, setup: setupWith(model) });
+    const { model } = scriptedModel([
+      answer([{ role: "hook", text: "Hi.", emotion: "happy" }], { actor: "Nobody" }),
+      answer([{ role: "hook", text: "Hi.", emotion: "happy" }], { actor: other.name }),
+    ]);
+    const result = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: `Use ${other.name}`,
+      durationS: 8,
+      setup: setupWith(model),
+    });
     expect(result.assistant.proposal?.actorId).toBe(other.id);
   });
 
   it("refuses to run without a model, saying why", async () => {
-    await expect(sendChatMessage(db, { projectId: f.projectId, message: "Hi", durationS: 8, setup: setupWith(scriptedModel([GOOD]).model, { model: null, problem: "Ollama is not set up." }) })).rejects.toThrow("Ollama is not set up.");
+    await expect(
+      sendChatMessage(db, {
+        projectId: f.projectId,
+        message: "Hi",
+        durationS: 8,
+        setup: setupWith(scriptedModel([GOOD]).model, { model: null, problem: "Ollama is not set up." }),
+      }),
+    ).rejects.toThrow("Ollama is not set up.");
   });
 });
 
 describe("applying a proposal", () => {
   it("adds a script version from the chat that keeps every role and emotion, once", async () => {
     const { model } = scriptedModel([GOOD]);
-    const { assistant } = await sendChatMessage(db, { projectId: f.projectId, message: "Apply me", durationS: 8, setup: setupWith(model) });
+    const { assistant } = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Apply me",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     const before = await getScriptHistory(db, f.projectId);
 
     const applied = await applyChatProposal(db, { projectId: f.projectId, messageId: assistant.id });
     expect(applied.script).toMatchObject({ origin: "chat", version: before.at(-1)!.version + 1 });
-    expect(applied.script.lines.map(({ role, text, emotion }) => ({ role, text, emotion }))).toEqual(assistant.proposal!.lines);
+    expect(applied.script.lines.map(({ role, text, emotion }) => ({ role, text, emotion }))).toEqual(
+      assistant.proposal!.lines,
+    );
 
     // A second Apply (another tab, a double click) returns the same version.
     const again = await applyChatProposal(db, { projectId: f.projectId, messageId: assistant.id });
@@ -232,8 +365,15 @@ describe("applying a proposal", () => {
   it("changes the project's actor when the proposal names another one", async () => {
     const actors = await listActors(db, {});
     const other = actors.find((a) => a.id !== f.actorId && a.status === "active")!;
-    const { model } = scriptedModel([answer([{ role: "hook", text: "New face, same coffee.", emotion: "happy" }], { actor: other.name })]);
-    const { assistant } = await sendChatMessage(db, { projectId: f.projectId, message: "Switch actor", durationS: 8, setup: setupWith(model) });
+    const { model } = scriptedModel([
+      answer([{ role: "hook", text: "New face, same coffee.", emotion: "happy" }], { actor: other.name }),
+    ]);
+    const { assistant } = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Switch actor",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     const applied = await applyChatProposal(db, { projectId: f.projectId, messageId: assistant.id });
     expect(applied.actorChanged).toBe(true);
     const [project] = await db.select().from(projects).where(eq(projects.id, f.projectId));
@@ -242,11 +382,22 @@ describe("applying a proposal", () => {
 
   it("refuses a message that holds no proposal, or belongs to another project", async () => {
     const { model } = scriptedModel(["not json"]);
-    const { user, assistant } = await sendChatMessage(db, { projectId: f.projectId, message: "x", durationS: 8, setup: setupWith(model) });
-    await expect(applyChatProposal(db, { projectId: f.projectId, messageId: assistant.id })).rejects.toThrow(/no script to apply/i);
-    await expect(applyChatProposal(db, { projectId: f.projectId, messageId: user.id })).rejects.toThrow(/no script to apply/i);
+    const { user, assistant } = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "x",
+      durationS: 8,
+      setup: setupWith(model),
+    });
+    await expect(applyChatProposal(db, { projectId: f.projectId, messageId: assistant.id })).rejects.toThrow(
+      /no script to apply/i,
+    );
+    await expect(applyChatProposal(db, { projectId: f.projectId, messageId: user.id })).rejects.toThrow(
+      /no script to apply/i,
+    );
     const other = await seedFixture(db, { userId: "63333333-3333-4333-8333-333333333333", name: "Third" });
-    await expect(applyChatProposal(db, { projectId: other.projectId, messageId: assistant.id })).rejects.toThrow(/not found/i);
+    await expect(applyChatProposal(db, { projectId: other.projectId, messageId: assistant.id })).rejects.toThrow(
+      /not found/i,
+    );
   });
 });
 
@@ -257,7 +408,8 @@ describe("against an emotion retag in place", () => {
     const conn = drizzle(t.pg, { schema, logger: { logQuery: (query) => void queries.push(query) } }) as unknown as Db;
     return { conn, queries };
   }
-  const shareLockOn = (queries: string[]) => queries.findIndex((q) => /^select .* from "troupe_script" where "troupe_script"\."id" = \$1 for share$/.test(q));
+  const shareLockOn = (queries: string[]) =>
+    queries.findIndex((q) => /^select .* from "troupe_script" where "troupe_script"\."id" = \$1 for share$/.test(q));
 
   it("records a request under a share lock on the version it was made on", async () => {
     const { conn, queries } = logged();
@@ -270,7 +422,12 @@ describe("against an emotion retag in place", () => {
 
   it("applies a proposal under a share lock on the version it was made on", async () => {
     const { model } = scriptedModel([GOOD]);
-    const { assistant } = await sendChatMessage(db, { projectId: f.projectId, message: "Sharper", durationS: 8, setup: setupWith(model) });
+    const { assistant } = await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Sharper",
+      durationS: 8,
+      setup: setupWith(model),
+    });
     const { conn, queries } = logged();
     await applyChatProposal(conn, { projectId: f.projectId, messageId: assistant.id });
     const lock = shareLockOn(queries);
@@ -281,7 +438,12 @@ describe("against an emotion retag in place", () => {
 
 describe("row-level security", () => {
   it("shows a project's chat to its workspace members only", async () => {
-    await sendChatMessage(db, { projectId: f.projectId, message: "Hi", durationS: 8, setup: setupWith(scriptedModel([GOOD]).model) });
+    await sendChatMessage(db, {
+      projectId: f.projectId,
+      message: "Hi",
+      durationS: 8,
+      setup: setupWith(scriptedModel([GOOD]).model),
+    });
     await setAuthUser(t, OWNER);
     const mine = await t.pg.query("select id from troupe_chat_message");
     await setAuthUser(t, STRANGER);
@@ -297,7 +459,12 @@ describe("chat settings", () => {
     expect(await getChatSettings(db)).toEqual({});
     await saveChatSettings(db, { provider: "ollama", ollamaModel: "llama3.2:3b", wordsPerSecond: 2.2 });
     await saveChatSettings(db, { instructions: "Warm, no slang." });
-    expect(await getChatSettings(db)).toEqual({ provider: "ollama", ollamaModel: "llama3.2:3b", wordsPerSecond: 2.2, instructions: "Warm, no slang." });
+    expect(await getChatSettings(db)).toEqual({
+      provider: "ollama",
+      ollamaModel: "llama3.2:3b",
+      wordsPerSecond: 2.2,
+      instructions: "Warm, no slang.",
+    });
     // null clears a value: the default applies again.
     await saveChatSettings(db, { ollamaModel: null });
     expect(await getChatSettings(db)).not.toHaveProperty("ollamaModel");

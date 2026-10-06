@@ -8,7 +8,12 @@
 //   done        a video was exported
 export type ProjectStage = "draft" | "scripting" | "generating" | "review" | "done";
 
-export function projectStage(input: { stored: ProjectStage; running: number; finished: number; exported: number }): ProjectStage {
+export function projectStage(input: {
+  stored: ProjectStage;
+  running: number;
+  finished: number;
+  exported: number;
+}): ProjectStage {
   if (input.stored === "draft") return "draft";
   if (input.running > 0) return "generating";
   if (input.exported > 0) return "done";

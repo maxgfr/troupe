@@ -31,7 +31,9 @@ async function authHeaders(connection: Connection): Promise<Record<string, strin
 // call (no batching): errors stay attached to the call that caused them.
 export function createApi(connection: Connection) {
   return createTRPCClient<AppRouter>({
-    links: [httpLink({ url: `${connection.url}/api/trpc`, transformer: superjson, headers: () => authHeaders(connection) })],
+    links: [
+      httpLink({ url: `${connection.url}/api/trpc`, transformer: superjson, headers: () => authHeaders(connection) }),
+    ],
   });
 }
 
@@ -49,14 +51,20 @@ export async function exchangeAccessCode(url: string, code: string): Promise<str
   if (response.status === 503) return null;
   if (!response.ok) {
     const auth = response.status === 401 || response.status === 429;
-    throw new CliError(said ?? `The studio at ${url} refused the access code (HTTP ${response.status}).`, { exitCode: auth ? EXIT.auth : EXIT.failed, code: auth ? "UNAUTHORIZED" : "ACCESS_FAILED" });
+    throw new CliError(said ?? `The studio at ${url} refused the access code (HTTP ${response.status}).`, {
+      exitCode: auth ? EXIT.auth : EXIT.failed,
+      code: auth ? "UNAUTHORIZED" : "ACCESS_FAILED",
+    });
   }
   for (const header of response.headers.getSetCookie()) {
     const [pair] = header.split(";");
     const at = pair?.indexOf("=") ?? -1;
     if (pair && at > 0 && pair.slice(0, at).trim() === ACCESS_COOKIE) return pair.slice(at + 1).trim();
   }
-  throw new CliError(`The studio at ${url} accepted the code but set no ${ACCESS_COOKIE} cookie. Is this a Troupe studio?`, { code: "BAD_RESPONSE" });
+  throw new CliError(
+    `The studio at ${url} accepted the code but set no ${ACCESS_COOKIE} cookie. Is this a Troupe studio?`,
+    { code: "BAD_RESPONSE" },
+  );
 }
 
 // GET /api/health: the server and its database answer. No sign-in needed.
@@ -86,21 +94,46 @@ export async function fetchMedia(connection: Connection, path: string): Promise<
 
 // POST /api/library/upload: a file as the request body, answered with the
 // new item (src/app/api/library/upload/route.ts).
-export async function uploadToLibrary(connection: Connection, file: Blob, query: { name: string; workspaceId: string; mine: boolean; title?: string }): Promise<{ id: string; title: string }> {
-  const params = new URLSearchParams({ name: query.name, workspaceId: query.workspaceId, mine: query.mine ? "1" : "0", ...(query.title ? { title: query.title } : {}) });
+export async function uploadToLibrary(
+  connection: Connection,
+  file: Blob,
+  query: { name: string; workspaceId: string; mine: boolean; title?: string },
+): Promise<{ id: string; title: string }> {
+  const params = new URLSearchParams({
+    name: query.name,
+    workspaceId: query.workspaceId,
+    mine: query.mine ? "1" : "0",
+    ...(query.title ? { title: query.title } : {}),
+  });
   const response = await fetch(`${connection.url}/api/library/upload?${params}`, {
     method: "POST",
     headers: { ...(await authHeaders(connection)), "content-type": "application/octet-stream" },
     body: file,
     redirect: "manual",
   });
-  const body = (await response.json().catch(() => null)) as { item?: { id: string; title: string }; error?: string } | null;
+  const body = (await response.json().catch(() => null)) as {
+    item?: { id: string; title: string };
+    error?: string;
+  } | null;
   if (response.ok && body?.item) return body.item;
   const auth = response.status === 401 || response.status === 403;
-  throw new CliError(body?.error ?? `The studio refused the upload (HTTP ${response.status}).`, { exitCode: auth ? EXIT.auth : EXIT.failed, code: auth ? "UNAUTHORIZED" : response.status === 413 ? "TOO_LARGE" : "UPLOAD_FAILED" });
+  throw new CliError(body?.error ?? `The studio refused the upload (HTTP ${response.status}).`, {
+    exitCode: auth ? EXIT.auth : EXIT.failed,
+    code: auth ? "UNAUTHORIZED" : response.status === 413 ? "TOO_LARGE" : "UPLOAD_FAILED",
+  });
 }
 
-const NETWORK_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_SOCKET"]);
+const NETWORK_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
 
 // fetch() fails with TypeError("fetch failed") and the reason in `cause`.
 function networkReason(error: unknown): string | null {
@@ -126,19 +159,30 @@ export function explainError(error: unknown, url: string): CliError {
   if (error instanceof CliError) return error;
   const reason = networkReason(error);
   if (reason) {
-    return new CliError(`Cannot reach the studio at ${url} (${reason}). Is it running? Check the address with troupe whoami.`, { exitCode: EXIT.unreachable, code: "UNREACHABLE" });
+    return new CliError(
+      `Cannot reach the studio at ${url} (${reason}). Is it running? Check the address with troupe whoami.`,
+      { exitCode: EXIT.unreachable, code: "UNREACHABLE" },
+    );
   }
   if (error instanceof TRPCClientError) {
     const data = error.data as ErrorData | undefined;
     if (!data?.code) {
-      return new CliError(`The studio at ${url} sent an answer the CLI cannot read (${error.message}). Is this the address of a Troupe studio?`, { code: "BAD_RESPONSE" });
+      return new CliError(
+        `The studio at ${url} sent an answer the CLI cannot read (${error.message}). Is this the address of a Troupe studio?`,
+        { code: "BAD_RESPONSE" },
+      );
     }
     if (data.code === "UNAUTHORIZED" || data.code === "FORBIDDEN") {
       return new CliError(`${error.message} Run troupe login.`, { exitCode: EXIT.auth, code: data.code });
     }
     if (data.zodError) {
-      const fields = Object.entries(data.zodError.fieldErrors).map(([field, problems]) => `${field}: ${(problems ?? []).join(", ")}`);
-      return new CliError(`The studio refused the request: ${[...data.zodError.formErrors, ...fields].join("; ")}`, { exitCode: EXIT.usage, code: "BAD_REQUEST" });
+      const fields = Object.entries(data.zodError.fieldErrors).map(
+        ([field, problems]) => `${field}: ${(problems ?? []).join(", ")}`,
+      );
+      return new CliError(`The studio refused the request: ${[...data.zodError.formErrors, ...fields].join("; ")}`, {
+        exitCode: EXIT.usage,
+        code: "BAD_REQUEST",
+      });
     }
     return new CliError(error.message, { code: data.code });
   }

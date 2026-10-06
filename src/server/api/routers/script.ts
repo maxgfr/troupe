@@ -4,7 +4,18 @@ import { z } from "zod";
 import { createTRPCRouter, projectProcedure } from "~/server/api/trpc";
 import type { Db } from "~/server/db/types";
 import { TRPCError } from "@trpc/server";
-import { MAX_SCRIPT_LINES, SUPPORTED_EMOTIONS, ScriptEmotionsMismatchError, ScriptTooManyLinesError, getScriptHistory, lockScript, pasteScript, restoreScriptVersion, scripts, setLineEmotion } from "~/modules/script";
+import {
+  MAX_SCRIPT_LINES,
+  SUPPORTED_EMOTIONS,
+  ScriptEmotionsMismatchError,
+  ScriptTooManyLinesError,
+  getScriptHistory,
+  lockScript,
+  pasteScript,
+  restoreScriptVersion,
+  scripts,
+  setLineEmotion,
+} from "~/modules/script";
 import { generations } from "~/modules/generation";
 import { chatMessages } from "~/modules/chat";
 import { projects } from "~/modules/studio";
@@ -21,11 +32,24 @@ const EMOTION = z.enum(SUPPORTED_EMOTIONS);
 // is no longer the newest, or waits until the retag is done.
 async function retaggableInPlace(db: Db, projectId: string, scriptId: string): Promise<boolean> {
   await db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).for("no key update");
-  const [newest] = await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, projectId)).orderBy(desc(scripts.version)).limit(1);
+  const [newest] = await db
+    .select({ id: scripts.id })
+    .from(scripts)
+    .where(eq(scripts.projectId, projectId))
+    .orderBy(desc(scripts.version))
+    .limit(1);
   if (newest?.id !== scriptId) return false;
-  const [rendered] = await db.select({ id: generations.id }).from(generations).where(eq(generations.scriptId, scriptId)).limit(1);
+  const [rendered] = await db
+    .select({ id: generations.id })
+    .from(generations)
+    .where(eq(generations.scriptId, scriptId))
+    .limit(1);
   if (rendered) return false;
-  const [discussed] = await db.select({ id: chatMessages.id }).from(chatMessages).where(or(eq(chatMessages.baseScriptId, scriptId), eq(chatMessages.appliedScriptId, scriptId))).limit(1);
+  const [discussed] = await db
+    .select({ id: chatMessages.id })
+    .from(chatMessages)
+    .where(or(eq(chatMessages.baseScriptId, scriptId), eq(chatMessages.appliedScriptId, scriptId)))
+    .limit(1);
   return !discussed;
 }
 
@@ -36,22 +60,25 @@ export const scriptRouter = createTRPCRouter({
   // `emotions` (one per non-empty line, null to keep it) tags the lines in
   // the same version, as the CLI's script files do.
   paste: projectProcedure
-    .input(z.object({ text: z.string().min(1), emotions: z.array(EMOTION.nullable()).max(MAX_SCRIPT_LINES).optional() }))
+    .input(
+      z.object({ text: z.string().min(1), emotions: z.array(EMOTION.nullable()).max(MAX_SCRIPT_LINES).optional() }),
+    )
     .mutation(({ ctx, input }) =>
-      pasteScript(ctx.db, { projectId: input.projectId, text: input.text, emotions: input.emotions }).catch((error: unknown) => {
-        if (error instanceof ScriptEmotionsMismatchError || error instanceof ScriptTooManyLinesError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
-        throw error;
-      }),
+      pasteScript(ctx.db, { projectId: input.projectId, text: input.text, emotions: input.emotions }).catch(
+        (error: unknown) => {
+          if (error instanceof ScriptEmotionsMismatchError || error instanceof ScriptTooManyLinesError)
+            throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          throw error;
+        },
+      ),
     ),
 
   history: projectProcedure.query(({ ctx, input }) => getScriptHistory(ctx.db, input.projectId)),
 
-  restore: projectProcedure
-    .input(z.object({ scriptId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      await assertScriptInProject(ctx.db, input.scriptId, input.projectId);
-      return restoreScriptVersion(ctx.db, input.scriptId);
-    }),
+  restore: projectProcedure.input(z.object({ scriptId: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    await assertScriptInProject(ctx.db, input.scriptId, input.projectId);
+    return restoreScriptVersion(ctx.db, input.scriptId);
+  }),
 
   setLineEmotion: projectProcedure
     .input(z.object({ scriptId: z.string().uuid(), lineIndex: z.number().int().min(0), emotion: EMOTION }))
@@ -64,7 +91,12 @@ export const scriptRouter = createTRPCRouter({
         const conn = tx as unknown as Db;
         await lockScript(conn, input.scriptId, "update");
         const amend = await retaggableInPlace(conn, input.projectId, input.scriptId);
-        return setLineEmotion(conn, { scriptId: input.scriptId, lineIndex: input.lineIndex, emotion: input.emotion, amend });
+        return setLineEmotion(conn, {
+          scriptId: input.scriptId,
+          lineIndex: input.lineIndex,
+          emotion: input.emotion,
+          amend,
+        });
       });
     }),
 });

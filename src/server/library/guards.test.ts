@@ -6,7 +6,8 @@ import { sniffType } from "./sniff";
 import { libraryEnvironment } from "./config";
 import { isVideoPlatform, videoRefusal, ytDlpArgs, ytDlpInfoArgs } from "./ytdlp";
 
-const bytes = (...parts: (string | number[])[]) => new Uint8Array(parts.flatMap((p) => (typeof p === "string" ? [...Buffer.from(p, "latin1")] : p)));
+const bytes = (...parts: (string | number[])[]) =>
+  new Uint8Array(parts.flatMap((p) => (typeof p === "string" ? [...Buffer.from(p, "latin1")] : p)));
 
 describe("sniffType", () => {
   it("names a file by its first bytes, whatever its name says", () => {
@@ -40,7 +41,27 @@ describe("sniffType", () => {
 describe("checkPublicAddress", () => {
   it("allows public addresses only", () => {
     for (const ip of ["93.184.216.34", "1.1.1.1", "2606:4700:4700::1111"]) expect(checkPublicAddress(ip)).toBeNull();
-    for (const ip of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "198.18.0.1", "::1", "::", "fe80::1", "fd00:ec2::254", "fc00::1", "::ffff:127.0.0.1", "::ffff:a9fe:a9fe", "64:ff9b::a9fe:a9fe"]) {
+    for (const ip of [
+      "127.0.0.1",
+      "10.1.2.3",
+      "172.16.0.1",
+      "172.31.255.255",
+      "192.168.1.1",
+      "169.254.169.254",
+      "100.64.0.1",
+      "0.0.0.0",
+      "224.0.0.1",
+      "255.255.255.255",
+      "198.18.0.1",
+      "::1",
+      "::",
+      "fe80::1",
+      "fd00:ec2::254",
+      "fc00::1",
+      "::ffff:127.0.0.1",
+      "::ffff:a9fe:a9fe",
+      "64:ff9b::a9fe:a9fe",
+    ]) {
       expect(checkPublicAddress(ip), ip).not.toBeNull();
     }
   });
@@ -48,7 +69,10 @@ describe("checkPublicAddress", () => {
 
 describe("checkPublicUrl", () => {
   it("takes http(s) links to named or public hosts", () => {
-    expect(checkPublicUrl("https://example.com/post?id=1")).toEqual({ ok: true, url: new URL("https://example.com/post?id=1") });
+    expect(checkPublicUrl("https://example.com/post?id=1")).toEqual({
+      ok: true,
+      url: new URL("https://example.com/post?id=1"),
+    });
     expect(checkPublicUrl("example.com/post")).toMatchObject({ ok: true });
   });
 
@@ -73,15 +97,40 @@ describe("checkPublicUrl", () => {
 
 describe("yt-dlp", () => {
   it("knows the video platforms", () => {
-    for (const url of ["https://www.youtube.com/shorts/abc", "https://youtu.be/abc", "https://www.tiktok.com/@a/video/1", "https://vimeo.com/1", "https://www.instagram.com/reel/x/", "https://x.com/a/status/1"]) expect(isVideoPlatform(new URL(url)), url).toBe(true);
+    for (const url of [
+      "https://www.youtube.com/shorts/abc",
+      "https://youtu.be/abc",
+      "https://www.tiktok.com/@a/video/1",
+      "https://vimeo.com/1",
+      "https://www.instagram.com/reel/x/",
+      "https://x.com/a/status/1",
+    ])
+      expect(isVideoPlatform(new URL(url)), url).toBe(true);
     expect(isVideoPlatform(new URL("https://example.com/blog/post"))).toBe(false);
     expect(isVideoPlatform(new URL("https://notyoutube.com/x"))).toBe(false);
   });
 
   it("passes the link as an argument after --, with limits and no config or plugins", () => {
-    const args = ytDlpArgs("https://youtu.be/abc", { dir: "/tmp/x", maxBytes: 500 * 1024 * 1024, maxDurationS: 3600, ffmpegLocation: "/usr/bin/ffmpeg" });
+    const args = ytDlpArgs("https://youtu.be/abc", {
+      dir: "/tmp/x",
+      maxBytes: 500 * 1024 * 1024,
+      maxDurationS: 3600,
+      ffmpegLocation: "/usr/bin/ffmpeg",
+    });
     expect(args.slice(-2)).toEqual(["--", "https://youtu.be/abc"]);
-    expect(args).toEqual(expect.arrayContaining(["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--no-exec", "--max-filesize", "500M", "--match-filter", "duration <= 3600", "--restrict-filenames"]));
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "--ignore-config",
+        "--no-plugin-dirs",
+        "--no-playlist",
+        "--no-exec",
+        "--max-filesize",
+        "500M",
+        "--match-filter",
+        "duration <= 3600",
+        "--restrict-filenames",
+      ]),
+    );
     expect(args[args.indexOf("-o") + 1]).toBe("/tmp/x/media.%(ext)s");
     expect(args[args.indexOf("--ffmpeg-location") + 1]).toBe("/usr/bin/ffmpeg");
     expect(args).not.toContain("--proxy");
@@ -96,7 +145,12 @@ describe("yt-dlp", () => {
   });
 
   it("goes through the proxy a self-hoster names", () => {
-    const args = ytDlpArgs("https://youtu.be/abc", { dir: "/tmp/x", maxBytes: 1024 * 1024, maxDurationS: 60, proxy: "http://egress:3128" });
+    const args = ytDlpArgs("https://youtu.be/abc", {
+      dir: "/tmp/x",
+      maxBytes: 1024 * 1024,
+      maxDurationS: 60,
+      proxy: "http://egress:3128",
+    });
     expect(args[args.indexOf("--proxy") + 1]).toBe("http://egress:3128");
     expect(args.indexOf("--proxy")).toBeLessThan(args.indexOf("--"));
   });
@@ -113,7 +167,15 @@ describe("yt-dlp", () => {
 
   it("asks for the details with the same guards, without downloading", () => {
     const args = ytDlpInfoArgs("https://youtu.be/abc", { proxy: null });
-    expect(args).toEqual(expect.arrayContaining(["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--dump-single-json", "--skip-download"]));
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "--ignore-config",
+        "--no-plugin-dirs",
+        "--no-playlist",
+        "--dump-single-json",
+        "--skip-download",
+      ]),
+    );
     expect(args[args.indexOf("--use-extractors") + 1]).toBe("default,-generic");
     expect(args.slice(-2)).toEqual(["--", "https://youtu.be/abc"]);
   });
@@ -122,9 +184,15 @@ describe("yt-dlp", () => {
 describe("libraryEnvironment", () => {
   it("bounds each writing request and the ideas a set holds", () => {
     expect(libraryEnvironment({})).toMatchObject({ writeTimeoutMs: 300_000, ideas: 10 });
-    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "240", TROUPE_LIBRARY_IDEAS: "3" })).toMatchObject({ writeTimeoutMs: 240_000, ideas: 3 });
+    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "240", TROUPE_LIBRARY_IDEAS: "3" })).toMatchObject({
+      writeTimeoutMs: 240_000,
+      ideas: 3,
+    });
     // Out of range: the default (env.js refuses it at startup).
-    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "5", TROUPE_LIBRARY_IDEAS: "40" })).toMatchObject({ writeTimeoutMs: 300_000, ideas: 10 });
+    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "5", TROUPE_LIBRARY_IDEAS: "40" })).toMatchObject({
+      writeTimeoutMs: 300_000,
+      ideas: 10,
+    });
   });
 
   it("turns video links off, and names a proxy for yt-dlp", () => {
@@ -132,7 +200,9 @@ describe("libraryEnvironment", () => {
     expect(libraryEnvironment({}).ytDlpPath).toBe("yt-dlp");
     expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "" }).ytDlpPath).toBe("yt-dlp");
     expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "/opt/yt-dlp" }).ytDlpPath).toBe("/opt/yt-dlp");
-    expect(libraryEnvironment({ TROUPE_YTDLP_PROXY: "socks5://127.0.0.1:1080" }).ytDlpProxy).toBe("socks5://127.0.0.1:1080");
+    expect(libraryEnvironment({ TROUPE_YTDLP_PROXY: "socks5://127.0.0.1:1080" }).ytDlpProxy).toBe(
+      "socks5://127.0.0.1:1080",
+    );
     expect(libraryEnvironment({}).ytDlpProxy).toBeNull();
   });
 });
@@ -153,7 +223,10 @@ describe("extractArticle", () => {
   });
 
   it("falls back to the page's text when it has no article", () => {
-    const article = extractArticle("<html><head><title>Note</title></head><body><p>Short note.</p></body></html>", "https://example.com/n");
+    const article = extractArticle(
+      "<html><head><title>Note</title></head><body><p>Short note.</p></body></html>",
+      "https://example.com/n",
+    );
     expect(article).toMatchObject({ title: "Note", text: "Short note." });
   });
 });

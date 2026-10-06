@@ -46,7 +46,12 @@ const SCALE = 2;
 // What the video shows. Change these to record another story.
 const PROJECT = process.env.TOUR_PROJECT ?? "Cold brew launch";
 const ACTOR = process.env.TOUR_ACTOR ?? "Amara";
-const SCRIPT = (process.env.TOUR_SCRIPT ?? "Mornings are hard.\nOur cold brew is smooth, strong and ready in your fridge.\nGrab a bottle on your way out.").split("\\n").join("\n");
+const SCRIPT = (
+  process.env.TOUR_SCRIPT ??
+  "Mornings are hard.\nOur cold brew is smooth, strong and ready in your fridge.\nGrab a bottle on your way out."
+)
+  .split("\\n")
+  .join("\n");
 const REQUEST = process.env.TOUR_REQUEST ?? "Make the first line punchier. Keep the other lines.";
 
 const WAIT_LONG = 15 * 60_000;
@@ -70,19 +75,30 @@ class Footage {
     rmSync(join(OUT, "frames"), { recursive: true, force: true });
     mkdirSync(join(OUT, "frames"), { recursive: true });
     this.session = await page.context().newCDPSession(page);
-    this.session.on("Page.screencastFrame", (event: { data: string; sessionId: number; metadata: { timestamp?: number } }) => {
-      const at = event.metadata.timestamp ?? Date.now() / 1000;
-      if (!this.start) {
-        this.start = at;
-        // Wall-clock seconds, as now() assumes: anything else would skew the cut.
-        if (Math.abs(Date.now() / 1000 - at) > 2) throw new Error(`Unexpected screencast clock: ${at}`);
-      }
-      const file = join("frames", `${String(this.frames.length).padStart(6, "0")}.jpg`);
-      this.frames.push({ file, at: at - this.start });
-      writeFileSync(join(OUT, file), Buffer.from(event.data, "base64"));
-      this.pending.push(this.session!.send("Page.screencastFrameAck", { sessionId: event.sessionId }).then(() => undefined));
+    this.session.on(
+      "Page.screencastFrame",
+      (event: { data: string; sessionId: number; metadata: { timestamp?: number } }) => {
+        const at = event.metadata.timestamp ?? Date.now() / 1000;
+        if (!this.start) {
+          this.start = at;
+          // Wall-clock seconds, as now() assumes: anything else would skew the cut.
+          if (Math.abs(Date.now() / 1000 - at) > 2) throw new Error(`Unexpected screencast clock: ${at}`);
+        }
+        const file = join("frames", `${String(this.frames.length).padStart(6, "0")}.jpg`);
+        this.frames.push({ file, at: at - this.start });
+        writeFileSync(join(OUT, file), Buffer.from(event.data, "base64"));
+        this.pending.push(
+          this.session!.send("Page.screencastFrameAck", { sessionId: event.sessionId }).then(() => undefined),
+        );
+      },
+    );
+    await this.session.send("Page.startScreencast", {
+      format: "jpeg",
+      quality: 92,
+      maxWidth: VIEWPORT.width * SCALE,
+      maxHeight: VIEWPORT.height * SCALE,
+      everyNthFrame: 1,
     });
-    await this.session.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: VIEWPORT.width * SCALE, maxHeight: VIEWPORT.height * SCALE, everyNthFrame: 1 });
     // The first frame sets the clock.
     while (!this.start) await sleep(50);
   }
@@ -138,7 +154,12 @@ function cut(caption: CaptionId, pace: { speed?: number; fit?: number } = {}, cr
 function around(box: Box, pad: number): Box {
   const x = Math.max(0, box.x - pad);
   const y = Math.max(0, box.y - pad);
-  return { x, y, width: Math.min(VIEWPORT.width - x, box.width + 2 * pad), height: Math.min(VIEWPORT.height - y, box.height + 2 * pad) };
+  return {
+    x,
+    y,
+    width: Math.min(VIEWPORT.width - x, box.width + 2 * pad),
+    height: Math.min(VIEWPORT.height - y, box.height + 2 * pad),
+  };
 }
 
 // --- Driving the page like a person ---------------------------------------
@@ -185,7 +206,15 @@ async function moveTo(target: Locator) {
 async function glide(to: { x: number; y: number }) {
   const distance = Math.hypot(to.x - pointer.x, to.y - pointer.y);
   const ms = Math.round(Math.min(900, 250 + distance * 0.8));
-  await page.evaluate(({ x, y, t }) => (window as unknown as { __tourCursor: { move(x: number, y: number, ms: number): void } }).__tourCursor.move(x, y, t), { x: to.x, y: to.y, t: ms });
+  await page.evaluate(
+    ({ x, y, t }) =>
+      (window as unknown as { __tourCursor: { move(x: number, y: number, ms: number): void } }).__tourCursor.move(
+        x,
+        y,
+        t,
+      ),
+    { x: to.x, y: to.y, t: ms },
+  );
   await page.mouse.move(to.x, to.y, { steps: Math.max(8, Math.round(distance / 18)) });
   await sleep(Math.max(0, ms - 120));
   pointer = to;
@@ -220,7 +249,13 @@ const CARD_OPTIONS: CardOptions = {
 // The caption cards an earlier run's cut names (its edl.txt's last column).
 function captionsInCut(): string[] {
   const file = join(OUT, "edl.txt");
-  return existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").map((line) => line.split(" ")[4]!).filter(Boolean) : [];
+  return existsSync(file)
+    ? readFileSync(file, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => line.split(" ")[4]!)
+        .filter(Boolean)
+    : [];
 }
 
 // --- The run --------------------------------------------------------------
@@ -284,7 +319,10 @@ async function main() {
   await sleep(600);
   await click(page.getByRole("button", { name: "Continue" }));
   await sleep(800);
-  const actor = page.locator("label", { has: page.locator('input[name="actor"]:not([disabled])') }).filter({ hasText: ACTOR }).first();
+  const actor = page
+    .locator("label", { has: page.locator('input[name="actor"]:not([disabled])') })
+    .filter({ hasText: ACTOR })
+    .first();
   await click(actor);
   await sleep(400);
   await click(page.getByRole("button", { name: /Create project/ }));
@@ -320,7 +358,8 @@ async function main() {
   const asked = Date.now();
   await chat.getByText(/is writing a new version/).waitFor({ state: "hidden", timeout: WAIT_LONG });
   console.log(`Chat answered in ${((Date.now() - asked) / 1000).toFixed(0)} s`);
-  if (await chat.getByRole("alert").count()) throw new Error(`The chat failed: ${await chat.getByRole("alert").first().innerText()}`);
+  if (await chat.getByRole("alert").count())
+    throw new Error(`The chat failed: ${await chat.getByRole("alert").first().innerText()}`);
   cut("writing", { fit: 4 });
   // Read the proposal: the new lines against version 1.
   await chat
@@ -379,7 +418,10 @@ async function main() {
 
   // Off camera: the script as rendered, for the video's captions track.
   await page.goto(`${projectUrl}/script`);
-  const rendered = (await page.getByLabel("Edit script").inputValue()).split("\n").map((line) => line.trim()).filter(Boolean);
+  const rendered = (await page.getByLabel("Edit script").inputValue())
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   writeFileSync(join(OUT, "lines.txt"), `${rendered.join("\n")}\n`);
 
   // The edit lays the render's own soundtrack under the playback.
@@ -390,18 +432,37 @@ async function main() {
     `${edl.map((s, i) => [s.start.toFixed(3), s.end.toFixed(3), s.speed, s.crop ? [s.crop.x, s.crop.y, s.crop.width, s.crop.height].map((n) => Math.round(n * SCALE)).join(":") : "-", captions[i]].join(" ")).join("\n")}\n`,
   );
   // The steps' names, for the chapters edit.sh writes (plain text).
-  writeFileSync(join(OUT, "captions.tsv"), `${Object.entries(CAPTIONS).map(([id, [, text]]) => `${id}\t${text}`).join("\n")}\n`);
+  writeFileSync(
+    join(OUT, "captions.tsv"),
+    `${Object.entries(CAPTIONS)
+      .map(([id, [, text]]) => `${id}\t${text}`)
+      .join("\n")}\n`,
+  );
   // key=value lines; edit.sh reads the keys it needs, never sources the file.
   writeFileSync(join(OUT, "meta.txt"), `PLAY_SEGMENT=${playSegment}\nRENDER_DURATION=${duration.toFixed(3)}\n`);
 
   // The poster's frame: the render four seconds into its playback.
   const posterAt = playStart + 4;
-  const posterFrame = footage.frames.reduce((best, f) => (Math.abs(f.at - posterAt) < Math.abs(best.at - posterAt) ? f : best));
+  const posterFrame = footage.frames.reduce((best, f) =>
+    Math.abs(f.at - posterAt) < Math.abs(best.at - posterAt) ? f : best,
+  );
   writeFileSync(join(OUT, "poster.json"), JSON.stringify({ frame: posterFrame.file, crop: around(box, 20) }));
   await drawCards(await context.newPage(), CARD_OPTIONS, captions);
   await context.close();
 
-  const probe = execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,width,height:format=duration", "-of", "compact", join(OUT, "render.mp4")], { encoding: "utf8" });
+  const probe = execFileSync(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-show_entries",
+      "stream=codec_name,width,height:format=duration",
+      "-of",
+      "compact",
+      join(OUT, "render.mp4"),
+    ],
+    { encoding: "utf8" },
+  );
   console.log(`Footage: ${footage.frames.length} frames, ${footage.now().toFixed(1)} s → ${OUT}`);
   console.log(`Render: ${saved.suggestedFilename()}\n${probe.trim()}`);
   if (errors.length) console.warn(`Page errors:\n${errors.join("\n")}`);

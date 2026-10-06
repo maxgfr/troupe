@@ -12,7 +12,9 @@ const sources = readdirSync(dir).filter((f) => f.endsWith(".ts") && !f.endsWith(
 // Type-only imports and the module's own files are fine.
 function foreignImports(code: string): string[] {
   const found: string[] = [];
-  for (const [statement, typeOnly, source] of code.matchAll(/^\s*(?:import|export)\s+(type\s+)?[^;]*?from\s+["']([^"']+)["']/gm)) {
+  for (const [statement, typeOnly, source] of code.matchAll(
+    /^\s*(?:import|export)\s+(type\s+)?[^;]*?from\s+["']([^"']+)["']/gm,
+  )) {
     if (!typeOnly && !source!.startsWith("./")) found.push(statement.trim());
   }
   for (const [statement, source] of code.matchAll(/^\s*import\s*["']([^"']+)["']/gm)) {
@@ -24,7 +26,9 @@ function foreignImports(code: string): string[] {
 
 describe("scene module purity", () => {
   it("catches every way of loading another module's code", () => {
-    expect(foreignImports('import type { Emotion } from "~/modules/script";\nimport { cueAt } from "./build";')).toEqual([]);
+    expect(
+      foreignImports('import type { Emotion } from "~/modules/script";\nimport { cueAt } from "./build";'),
+    ).toEqual([]);
     expect(foreignImports('import { db } from "~/server/db";')).toHaveLength(1);
     expect(foreignImports('export { a } from "node:fs";')).toHaveLength(1);
     expect(foreignImports('import "~/server/polyfill";')).toHaveLength(1);

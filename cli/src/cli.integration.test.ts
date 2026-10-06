@@ -32,9 +32,14 @@ async function toRequest(req: IncomingMessage, base: string): Promise<Request> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
   const headers = new Headers();
-  for (const [name, value] of Object.entries(req.headers)) if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+  for (const [name, value] of Object.entries(req.headers))
+    if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
-  return new Request(new URL(req.url ?? "/", base), { method: req.method, headers, ...(hasBody ? { body: Buffer.concat(chunks) } : {}) });
+  return new Request(new URL(req.url ?? "/", base), {
+    method: req.method,
+    headers,
+    ...(hasBody ? { body: Buffer.concat(chunks) } : {}),
+  });
 }
 
 async function reply(res: ServerResponse, response: Response) {
@@ -56,9 +61,11 @@ async function startStudio(): Promise<{ url: string; server: Server }> {
       const media = /^\/api\/media\/([^/]+)$/.exec(path);
       if (path === "/api/health") return reply(res, await healthGet());
       if (path === "/api/access" && request.method === "POST") return reply(res, await accessPost(request));
-      if (path.startsWith("/api/trpc/")) return reply(res, await (request.method === "GET" ? trpcGet : trpcPost)(request as NextRequest));
+      if (path.startsWith("/api/trpc/"))
+        return reply(res, await (request.method === "GET" ? trpcGet : trpcPost)(request as NextRequest));
       if (media) return reply(res, await mediaGet(request, { params: Promise.resolve({ assetId: media[1]! }) }));
-      if (path === "/api/library/upload" && request.method === "POST") return reply(res, await libraryUploadPost(request));
+      if (path === "/api/library/upload" && request.method === "POST")
+        return reply(res, await libraryUploadPost(request));
       res.statusCode = 404;
       res.end("not found");
     })().catch((error: unknown) => {
@@ -107,20 +114,49 @@ beforeAll(async () => {
   // same shorter script, the library's analysis, answers and ideas, and
   // bag-of-words embeddings.
   ollama = await startServer((r, res) => {
-    if (r.path === "/api/tags") return json(res, 200, { models: [{ name: "qwen3:4b" }, { name: "all-minilm:latest" }] });
+    if (r.path === "/api/tags")
+      return json(res, 200, { models: [{ name: "qwen3:4b" }, { name: "all-minilm:latest" }] });
     if (r.path === "/api/embed") {
       const input = (JSON.parse(r.body) as { input: string[] }).input;
-      return json(res, 200, { embeddings: input.map((t) => ["coffee", "jacket", "hook", "pocket", "follow"].map((w) => (t.toLowerCase().includes(w) ? 1 : 0.01))) });
+      return json(res, 200, {
+        embeddings: input.map((t) =>
+          ["coffee", "jacket", "hook", "pocket", "follow"].map((w) => (t.toLowerCase().includes(w) ? 1 : 0.01)),
+        ),
+      });
     }
     if (r.path === "/api/chat") {
       const required = ((JSON.parse(r.body) as { format?: { required?: string[] } }).format?.required ?? []).join(",");
       const answer = required.includes("hook_why")
-        ? { summary: "A packable jacket, shown in one move.", hook_why: "It dares the viewer to keep scrolling.", structure: [{ part: "hook", start_s: 0, summary: "The dare" }], tone: ["direct"], tags: ["jacket", "travel"] }
+        ? {
+            summary: "A packable jacket, shown in one move.",
+            hook_why: "It dares the viewer to keep scrolling.",
+            structure: [{ part: "hook", start_s: 0, summary: "The dare" }],
+            tone: ["direct"],
+            tags: ["jacket", "travel"],
+          }
         : required.includes("answer")
           ? { answer: "It opens on a dare about the pocket [1].", sources: [1] }
           : required.includes("ideas")
-            ? { ideas: [{ title: "Pocket test", hook: "Can your jacket do this?", lines: [{ role: "hook", text: "Can your jacket do this?", emotion: "excited" }, { role: "cta", text: "Follow for the next test.", emotion: "happy" }] }] }
-            : { summary: "A shorter hook.", lines: [{ role: "hook", text: "Stop scrolling.", emotion: "excited" }, { role: "cta", text: "Follow for more.", emotion: "calm" }], actor: null };
+            ? {
+                ideas: [
+                  {
+                    title: "Pocket test",
+                    hook: "Can your jacket do this?",
+                    lines: [
+                      { role: "hook", text: "Can your jacket do this?", emotion: "excited" },
+                      { role: "cta", text: "Follow for the next test.", emotion: "happy" },
+                    ],
+                  },
+                ],
+              }
+            : {
+                summary: "A shorter hook.",
+                lines: [
+                  { role: "hook", text: "Stop scrolling.", emotion: "excited" },
+                  { role: "cta", text: "Follow for more.", emotion: "calm" },
+                ],
+                actor: null,
+              };
       return json(res, 200, { message: { role: "assistant", content: JSON.stringify(answer) } });
     }
     json(res, 404, {});
@@ -179,7 +215,10 @@ describe("troupe CLI against the studio's HTTP API", () => {
 
     expect((await troupe(["login", "--url", studio.url, "--code-stdin"], { stdin: "wrong-code" })).code).toBe(3);
     // --code-stdin wins over TROUPE_ACCESS_CODE.
-    const login = await troupe(["login", "--url", studio.url, "--code-stdin", "--json"], { stdin: `${CODE}\n`, env: { TROUPE_ACCESS_CODE: "stale-code" } });
+    const login = await troupe(["login", "--url", studio.url, "--code-stdin", "--json"], {
+      stdin: `${CODE}\n`,
+      env: { TROUPE_ACCESS_CODE: "stale-code" },
+    });
     expect(login.code).toBe(0);
     expect(login.data()).toEqual({ profile: "default", url: studio.url, access: "code" });
     // On a terminal, --code-stdin asks without echo instead of reading stdin.
@@ -189,15 +228,39 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect((await stat(configFile)).mode & 0o777).toBe(0o600);
     expect(await readFile(configFile, "utf8")).not.toContain(CODE);
 
-    const added = await troupe(["models", "add", "http", "--name", "Test renderer", "--base-url", model.url, "--durations", "4,8", "--audio", "optional", "--default", "--json"]);
+    const added = await troupe([
+      "models",
+      "add",
+      "http",
+      "--name",
+      "Test renderer",
+      "--base-url",
+      model.url,
+      "--durations",
+      "4,8",
+      "--audio",
+      "optional",
+      "--default",
+      "--json",
+    ]);
     expect(added.code).toBe(0);
     const { modelKey } = added.data();
     expect(added.data().test).toMatchObject({ ok: true, pollEveryS: 1 });
 
     const doctor = await troupe(["doctor", "--json"]);
     expect(doctor.data().checks.map((c: { name: string; status: string }) => [c.name, c.status])).toEqual([
-      ["studio", "ok"], ["sign-in", "ok"], ["models", "ok"], [`model ${modelKey}`, "ok"], ["worker", "warn"], ["chat", "ok"],
-      ["library transcription", "warn"], ["library vision", "warn"], ["library embeddings", "ok"], ["library writer", "ok"], ["library links", "ok"], ["library video-links", "warn"],
+      ["studio", "ok"],
+      ["sign-in", "ok"],
+      ["models", "ok"],
+      [`model ${modelKey}`, "ok"],
+      ["worker", "warn"],
+      ["chat", "ok"],
+      ["library transcription", "warn"],
+      ["library vision", "warn"],
+      ["library embeddings", "ok"],
+      ["library writer", "ok"],
+      ["library links", "ok"],
+      ["library video-links", "warn"],
     ]);
     expect(doctor.code).toBe(0);
 
@@ -208,11 +271,23 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(created.data()).toMatchObject({ title: "CLI walk", actorId: actor.id, platform: "tiktok", format: "9:16" });
 
     // Emotions from the file; untagged lines stay neutral. One version.
-    await writeFile(join(folder, "script.txt"), "# draft\n[excited] Stop scrolling: this jacket packs into its own pocket.\nIt weighs almost nothing.\n[calm] Tap the link.\n");
+    await writeFile(
+      join(folder, "script.txt"),
+      "# draft\n[excited] Stop scrolling: this jacket packs into its own pocket.\nIt weighs almost nothing.\n[calm] Tap the link.\n",
+    );
     const set = await troupe(["script", "set", "script.txt", "--json"]);
     expect(set.code).toBe(0);
-    expect(set.data()).toMatchObject({ version: 1, lines: [{ role: "hook", emotion: "excited" }, { role: "body", emotion: "neutral" }, { role: "cta", emotion: "calm" }] });
-    expect((await troupe(["script", "show", "--text"])).stdout).toContain("[excited] Stop scrolling: this jacket packs into its own pocket.");
+    expect(set.data()).toMatchObject({
+      version: 1,
+      lines: [
+        { role: "hook", emotion: "excited" },
+        { role: "body", emotion: "neutral" },
+        { role: "cta", emotion: "calm" },
+      ],
+    });
+    expect((await troupe(["script", "show", "--text"])).stdout).toContain(
+      "[excited] Stop scrolling: this jacket packs into its own pocket.",
+    );
     expect((await troupe(["script", "versions", "--json"])).data()).toHaveLength(1);
 
     const sent = await troupe(["chat", "send", "make", "it", "shorter", "--json"]);
@@ -227,7 +302,11 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(JSON.parse(tooShort.stderr).error.code).toBe("SCRIPT_TOO_LONG");
     const launched = await troupe(["render", "launch", "--json"]);
     expect(launched.code).toBe(0);
-    expect(launched.data()).toMatchObject({ modelKey, resolution: "720p", status: expect.stringMatching(/queued|in_progress/) });
+    expect(launched.data()).toMatchObject({
+      modelKey,
+      resolution: "720p",
+      status: expect.stringMatching(/queued|in_progress/),
+    });
     const watched = await troupe(["render", "watch", "--interval", "0.05", "--timeout", "30", "--json"]);
     expect(watched.code).toBe(0);
     expect(watched.data()).toMatchObject({ id: launched.data().id, status: "completed" });
@@ -243,9 +322,23 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect((await troupe(["download", "-o", saved.data().path, "--force"])).code).toBe(0);
 
     expect((await troupe(["export", "create", "--caption", "Spring"])).code).toBe(2);
-    const exported = await troupe(["export", "create", "--caption", "Spring", "--hashtag", "jacket", "--confirm-watched", "--json"]);
+    const exported = await troupe([
+      "export",
+      "create",
+      "--caption",
+      "Spring",
+      "--hashtag",
+      "jacket",
+      "--confirm-watched",
+      "--json",
+    ]);
     expect(exported.code).toBe(0);
-    expect(exported.data()).toMatchObject({ platform: "tiktok", caption: "Spring", hashtags: ["#jacket"], disclosure: { requirement: "toggle" } });
+    expect(exported.data()).toMatchObject({
+      platform: "tiktok",
+      caption: "Spring",
+      hashtags: ["#jacket"],
+      disclosure: { requirement: "toggle" },
+    });
     const listed = await troupe(["export", "list", "--json"]);
     expect(listed.data().map((e: { id: string }) => e.id)).toEqual([exported.data().id]);
     const exportFile = await troupe(["download", exported.data().id.slice(0, 8), "-o", "export.mp4", "--json"]);
@@ -272,7 +365,18 @@ describe("troupe CLI against the studio's HTTP API", () => {
     const before = (await troupe(["projects", "list", "--json"], signed)).data().length;
     const plan = await troupe(["doctor", "--live", "--json"], signed);
     expect(plan.code).toBe(2);
-    expect(plan.data().live).toEqual({ confirmed: false, plans: [expect.objectContaining({ label: "Test renderer", durationS: 4, resolution: "720p", audio: false, estimateUsd: 0 })] });
+    expect(plan.data().live).toEqual({
+      confirmed: false,
+      plans: [
+        expect.objectContaining({
+          label: "Test renderer",
+          durationS: 4,
+          resolution: "720p",
+          audio: false,
+          estimateUsd: 0,
+        }),
+      ],
+    });
     expect((await troupe(["projects", "list", "--json"], signed)).data()).toHaveLength(before);
     expect((await troupe(["doctor", "--live"], signed)).stdout).toContain("Nothing was launched");
 
@@ -280,21 +384,42 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(live.code).toBe(0);
     const { results, chat, folder: out } = live.data().live;
     expect(out).toBe(join(folder, "live"));
-    expect(results).toEqual([expect.objectContaining({ label: "Test renderer", status: "completed", file: join(folder, "live", `${results[0].modelKey}.mp4`), probe: expect.objectContaining({ codec: "h264" }) })]);
+    expect(results).toEqual([
+      expect.objectContaining({
+        label: "Test renderer",
+        status: "completed",
+        file: join(folder, "live", `${results[0].modelKey}.mp4`),
+        probe: expect.objectContaining({ codec: "h264" }),
+      }),
+    ]);
     expect(await readFile(results[0].file)).toEqual(clip);
     expect(chat).toEqual({ ok: true, detail: "ollama (qwen3:4b) proposed a script." });
   });
 
   it("saves text and a video to the library, searches it, asks it and turns an idea into a project", async () => {
     const signed = { env: { TROUPE_ACCESS_CODE: CODE } };
-    const text = await troupe(["library", "add", "-", "--mine", "--wait", "--json"], { ...signed, stdin: "This jacket packs into its own pocket.\nFollow for the next test." });
+    const text = await troupe(["library", "add", "-", "--mine", "--wait", "--json"], {
+      ...signed,
+      stdin: "This jacket packs into its own pocket.\nFollow for the next test.",
+    });
     expect(text.code).toBe(0);
-    expect(text.data()).toMatchObject({ kind: "text", mine: true, status: "ready", tags: ["jacket", "travel"], analysis: { hook: { text: "This jacket packs into its own pocket." } } });
+    expect(text.data()).toMatchObject({
+      kind: "text",
+      mine: true,
+      status: "ready",
+      tags: ["jacket", "travel"],
+      analysis: { hook: { text: "This jacket packs into its own pocket." } },
+    });
 
     await writeFile(join(folder, "pocket.mp4"), clip);
     const video = await troupe(["library", "add", "pocket.mp4", "--title", "Pocket clip", "--wait", "--json"], signed);
     expect(video.code).toBe(0);
-    expect(video.data()).toMatchObject({ kind: "video", title: "Pocket clip", fileName: "pocket.mp4", status: "ready" });
+    expect(video.data()).toMatchObject({
+      kind: "video",
+      title: "Pocket clip",
+      fileName: "pocket.mp4",
+      status: "ready",
+    });
     // ffmpeg took its opening picture; no transcription here, which it says.
     expect(video.data().analysis.frames.length).toBeGreaterThan(0);
     expect(video.data().problem).toContain("Skipped: the transcript.");
@@ -305,24 +430,43 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(JSON.parse(refused.stderr).error.message).toContain("not one the library reads");
 
     const listed = (await troupe(["library", "list", "--json"], signed)).data();
-    expect(listed.map((i: { title: string }) => i.title)).toEqual(["Pocket clip", "This jacket packs into its own pocket."]);
+    expect(listed.map((i: { title: string }) => i.title)).toEqual([
+      "Pocket clip",
+      "This jacket packs into its own pocket.",
+    ]);
     expect((await troupe(["library", "show", "pocket clip"], signed)).stdout).toMatch(/Kind:\s+video/);
 
     const found = (await troupe(["library", "search", "jacket", "pocket", "--json"], signed)).data();
     expect(found.mode).toBe("semantic");
     expect(found.hits[0].itemId).toBe(text.data().id);
 
-    const answered = await troupe(["library", "chat", "--item", text.data().id.slice(0, 8), "how", "does", "it", "open?"], signed);
+    const answered = await troupe(
+      ["library", "chat", "--item", text.data().id.slice(0, 8), "how", "does", "it", "open?"],
+      signed,
+    );
     expect(answered.stdout).toContain("It opens on a dare about the pocket [1].");
-    expect(answered.stdout).toMatch(/\[1\] This jacket packs into its own pocket\. \(troupe library show [0-9a-f]{8}\)/);
+    expect(answered.stdout).toMatch(
+      /\[1\] This jacket packs into its own pocket\. \(troupe library show [0-9a-f]{8}\)/,
+    );
 
     const written = await troupe(["library", "ideas", "generate", "--item", text.data().id, "--json"], signed);
     expect(written.code).toBe(0);
-    expect(written.data()).toEqual([expect.objectContaining({ title: "Pocket test", kind: "ideas", lines: [expect.objectContaining({ role: "hook" }), expect.objectContaining({ role: "cta" })] })]);
-    const made = await troupe(["library", "ideas", "project", "pocket test", "--platform", "instagram", "--json"], signed);
+    expect(written.data()).toEqual([
+      expect.objectContaining({
+        title: "Pocket test",
+        kind: "ideas",
+        lines: [expect.objectContaining({ role: "hook" }), expect.objectContaining({ role: "cta" })],
+      }),
+    ]);
+    const made = await troupe(
+      ["library", "ideas", "project", "pocket test", "--platform", "instagram", "--json"],
+      signed,
+    );
     expect(made.data()).toMatchObject({ created: true });
     const script = (await troupe(["script", "show", "--project", made.data().projectId, "--json"], signed)).data();
     expect(script).toMatchObject({ version: 1, origin: "chat" });
-    expect((await troupe(["library", "ideas"], signed)).stdout).toContain(`(project ${made.data().projectId.slice(0, 8)})`);
+    expect((await troupe(["library", "ideas"], signed)).stdout).toContain(
+      `(project ${made.data().projectId.slice(0, 8)})`,
+    );
   });
 });

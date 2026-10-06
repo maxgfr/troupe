@@ -20,7 +20,9 @@ function loadEngine(model: string): Promise<MLCEngineInterface> {
     const { CreateWebWorkerMLCEngine } = await import("@mlc-ai/web-llm");
     const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     try {
-      const created = await CreateWebWorkerMLCEngine(worker, model, { initProgressCallback: (report) => set(readProgress(report)) });
+      const created = await CreateWebWorkerMLCEngine(worker, model, {
+        initProgressCallback: (report) => set(readProgress(report)),
+      });
       set({ stage: "ready" });
       return created;
     } catch (error) {
@@ -87,7 +89,9 @@ export function webllmChat(model: string): ChatModel {
           return { text, proposal: parseJsonAnswer(text) };
         } catch (error) {
           if (signal?.aborted) throw stopped();
-          throw new ChatProviderError(`The in-browser model could not answer: ${error instanceof Error ? error.message : String(error)}`);
+          throw new ChatProviderError(
+            `The in-browser model could not answer: ${error instanceof Error ? error.message : String(error)}`,
+          );
         } finally {
           signal?.removeEventListener("abort", stop);
         }

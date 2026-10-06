@@ -14,14 +14,18 @@ interface Scope {
 }
 const scope = self as unknown as Scope;
 
-type Asr = (audio: Float32Array, options: Record<string, unknown>) => Promise<{ text: string; chunks?: { timestamp: [number, number | null]; text: string }[] }>;
+type Asr = (
+  audio: Float32Array,
+  options: Record<string, unknown>,
+) => Promise<{ text: string; chunks?: { timestamp: [number, number | null]; text: string }[] }>;
 type Extract = (texts: string[], options: Record<string, unknown>) => Promise<{ tolist(): number[][] }>;
 
 async function device(): Promise<"webgpu" | "wasm"> {
   if (LIBRARY_CONFIG.device === "wasm") return "wasm";
   const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
   const adapter = gpu ? await gpu.requestAdapter().catch(() => null) : null;
-  if (LIBRARY_CONFIG.device === "webgpu" && !adapter) throw new Error("this build runs the library's models on WebGPU, which this browser does not offer");
+  if (LIBRARY_CONFIG.device === "webgpu" && !adapter)
+    throw new Error("this build runs the library's models on WebGPU, which this browser does not offer");
   return adapter ? "webgpu" : "wasm";
 }
 
@@ -63,7 +67,11 @@ function loadAsr(): Promise<Asr> {
   asr ??= (async () => {
     const { pipeline } = await transformers();
     const where = await device();
-    return (await pipeline("automatic-speech-recognition", LIBRARY_CONFIG.whisperModel, { dtype: LIBRARY_CONFIG.whisperDtype as "q8", device: where, progress_callback: tracker("whisper") })) as unknown as Asr;
+    return (await pipeline("automatic-speech-recognition", LIBRARY_CONFIG.whisperModel, {
+      dtype: LIBRARY_CONFIG.whisperDtype as "q8",
+      device: where,
+      progress_callback: tracker("whisper"),
+    })) as unknown as Asr;
   })().catch((error: unknown) => {
     asr = undefined;
     throw error;
@@ -75,7 +83,11 @@ function loadExtractor(): Promise<Extract> {
   extractor ??= (async () => {
     const { pipeline } = await transformers();
     const where = await device();
-    return (await pipeline("feature-extraction", LIBRARY_CONFIG.embedModel, { dtype: LIBRARY_CONFIG.embedDtype as "q8", device: where, progress_callback: tracker("embeddings") })) as unknown as Extract;
+    return (await pipeline("feature-extraction", LIBRARY_CONFIG.embedModel, {
+      dtype: LIBRARY_CONFIG.embedDtype as "q8",
+      device: where,
+      progress_callback: tracker("embeddings"),
+    })) as unknown as Extract;
   })().catch((error: unknown) => {
     extractor = undefined;
     throw error;
@@ -85,7 +97,12 @@ function loadExtractor(): Promise<Extract> {
 
 async function transcribe(samples: Float32Array): Promise<WorkerTranscript> {
   const run = await loadAsr();
-  const out = await run(samples, { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5, task: "transcribe" });
+  const out = await run(samples, {
+    return_timestamps: true,
+    chunk_length_s: 30,
+    stride_length_s: 5,
+    task: "transcribe",
+  });
   const end = samples.length / 16000;
   const segments = (out.chunks ?? [])
     .map((c) => ({ startS: c.timestamp[0] ?? 0, endS: c.timestamp[1] ?? end, text: c.text.trim() }))
@@ -99,7 +116,10 @@ const prefix = (kind: "query" | "passage") => (/e5/i.test(LIBRARY_CONFIG.embedMo
 
 async function embed(texts: string[], kind: "query" | "passage"): Promise<number[][]> {
   const run = await loadExtractor();
-  const output = await run(texts.map((t) => `${prefix(kind)}${t}`), { pooling: "mean", normalize: true });
+  const output = await run(
+    texts.map((t) => `${prefix(kind)}${t}`),
+    { pooling: "mean", normalize: true },
+  );
   return output.tolist();
 }
 
@@ -112,7 +132,11 @@ scope.onmessage = ({ data }) => {
       const value = data.type === "transcribe" ? await transcribe(data.samples) : await embed(data.texts, data.kind);
       scope.postMessage({ type: "result", id: data.id, value });
     } catch (error) {
-      scope.postMessage({ type: "error", id: data.id, message: error instanceof Error ? error.message : String(error) });
+      scope.postMessage({
+        type: "error",
+        id: data.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 };

@@ -19,17 +19,29 @@ afterEach(() => {
 
 it("shows the not-found page when the project does not exist", () => {
   result = { error: { message: "project not found", data: { code: "NOT_FOUND" } } };
-  render(<ProjectGate projectId="p1"><p>Project tabs</p></ProjectGate>);
+  render(
+    <ProjectGate projectId="p1">
+      <p>Project tabs</p>
+    </ProjectGate>,
+  );
   expect(screen.getByRole("heading", { name: "Page not found" })).toBeDefined();
   expect(screen.getByRole("link", { name: "Back to your projects" }).getAttribute("href")).toBe("/dashboard");
   expect(screen.queryByText("Project tabs")).toBeNull();
 });
 
 it("shows the page while the project loads, once it has, and on any other error", () => {
-  render(<ProjectGate projectId="p1"><p>Project tabs</p></ProjectGate>);
+  render(
+    <ProjectGate projectId="p1">
+      <p>Project tabs</p>
+    </ProjectGate>,
+  );
   expect(screen.getByText("Project tabs")).toBeDefined();
   cleanup();
   result = { error: { message: "Database unavailable", data: { code: "INTERNAL_SERVER_ERROR" } } };
-  render(<ProjectGate projectId="p1"><p>Project tabs</p></ProjectGate>);
+  render(
+    <ProjectGate projectId="p1">
+      <p>Project tabs</p>
+    </ProjectGate>,
+  );
   expect(screen.getByText("Project tabs")).toBeDefined();
 });

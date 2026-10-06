@@ -26,7 +26,10 @@ const ALLOWED_FILES = new Set(["drizzle/0019_generation-progress.sql"]);
 const INTEGRITY = /sha512-[A-Za-z0-9+/]+=*/g;
 const PRINTABLE_RUN = /[\x20-\x7e]{8,}/g;
 
-const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: REPO, encoding: "utf8" })
+const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
+  cwd: REPO,
+  encoding: "utf8",
+})
   .split("\0")
   .filter(Boolean);
 

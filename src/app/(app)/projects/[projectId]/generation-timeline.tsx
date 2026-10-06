@@ -44,7 +44,8 @@ function failureMessage(g: GenerationRow): string | null {
   if (g.status !== "failed") return null;
   if (g.errorCode === "RECONCILE_TIMEOUT") return TIMEOUT_MESSAGE;
   if (g.errorDetail) return g.errorDetail;
-  if (g.errorCode === "SUBMISSION_UNKNOWN") return "Submission could not be confirmed. Check your provider dashboard before retrying to avoid a second charge.";
+  if (g.errorCode === "SUBMISSION_UNKNOWN")
+    return "Submission could not be confirmed. Check your provider dashboard before retrying to avoid a second charge.";
   return "The render failed. Check the model in Settings and try again.";
 }
 
@@ -61,7 +62,10 @@ const THUMB = "h-14 w-10 shrink-0 rounded-md";
 // the one already on the stage above (no second fetch of its video).
 function RenderGlyph({ g, playing = false }: { g: GenerationRow; playing?: boolean }) {
   return (
-    <span aria-hidden className={`flex items-center justify-center ${THUMB} ${playing ? "bg-primary/15 text-primary" : g.status === "failed" ? "bg-danger/10 text-danger" : "bg-fg/[0.06] text-muted"}`}>
+    <span
+      aria-hidden
+      className={`flex items-center justify-center ${THUMB} ${playing ? "bg-primary/15 text-primary" : g.status === "failed" ? "bg-danger/10 text-danger" : "bg-fg/[0.06] text-muted"}`}
+    >
       {playing ? <PlayIcon className="size-4 translate-x-px" /> : <FilmIcon className="size-4" />}
     </span>
   );
@@ -70,13 +74,25 @@ function RenderGlyph({ g, playing = false }: { g: GenerationRow; playing?: boole
 // A finished render's first moments, as a small still in its row.
 function RenderThumb({ g, playing }: { g: GenerationRow; playing: boolean }) {
   if (playing || g.status !== "completed" || !g.outputAssetUrl) return <RenderGlyph g={g} playing={playing} />;
-  return <VideoStill src={g.outputAssetUrl} fallback={<RenderGlyph g={g} />} className={`${THUMB} shadow-[inset_0_0_0_1px_var(--picture-edge)]`} />;
+  return (
+    <VideoStill
+      src={g.outputAssetUrl}
+      fallback={<RenderGlyph g={g} />}
+      className={`${THUMB} shadow-[inset_0_0_0_1px_var(--picture-edge)]`}
+    />
+  );
 }
 
 // Pure view — the launch timeline. The newest completed render is the star:
 // the video large on the stage, glowing in the actor's hue, no card around
 // it; every render below is a row with its still, its state and its figures.
-export function GenerationTimeline({ generations, projectId, projectTitle, onRelaunch, glowHue = null }: {
+export function GenerationTimeline({
+  generations,
+  projectId,
+  projectTitle,
+  onRelaunch,
+  glowHue = null,
+}: {
   generations: GenerationRow[];
   projectId?: string;
   projectTitle?: string | null;
@@ -90,12 +106,17 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
     return (
       <EmptyState
         title="No render yet — the stage is lit"
-        body={rendering ? "Launch a draft below. It renders in this tab and plays here when it is done." : "Launch a draft below and follow its progress here."}
+        body={
+          rendering
+            ? "Launch a draft below. It renders in this tab and plays here when it is done."
+            : "Launch a draft below and follow its progress here."
+        }
       />
     );
   }
   const star = generations.find((g) => g.status === "completed");
-  const fileName = (g: GenerationRow) => renderFileName({ project: projectTitle, model: g.modelLabel ?? g.modelId, createdAt: g.createdAt });
+  const fileName = (g: GenerationRow) =>
+    renderFileName({ project: projectTitle, model: g.modelLabel ?? g.modelId, createdAt: g.createdAt });
   const glow = `0 30px 90px -30px oklch(0.55 0.13 ${glowHue ?? 250} / 0.55), var(--troupe-shadow-card)`;
   return (
     <div className="space-y-10">
@@ -114,7 +135,12 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
               // that shows its own captions keeps this track off by default.
               const spoken = star.prompt ? spokenLinesFromPrompt(star.prompt) : null;
               return spoken ? (
-                <track kind="captions" label="Script" default={!star.burnedCaptions} src={vttFromLines(spoken, star.mediaDurationS ?? star.durationS)} />
+                <track
+                  kind="captions"
+                  label="Script"
+                  default={!star.burnedCaptions}
+                  src={vttFromLines(spoken, star.mediaDurationS ?? star.durationS)}
+                />
               ) : null;
             })()}
           </video>
@@ -123,7 +149,9 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
               <ButtonLink href={`/projects/${projectId}/export?render=${star.id}`} variant="outline">
                 Export this video
               </ButtonLink>
-              <span className="text-xs text-muted">{star.burnedCaptions ? "Captions are part of the picture." : "Captions come from the script."}</span>
+              <span className="text-xs text-muted">
+                {star.burnedCaptions ? "Captions are part of the picture." : "Captions come from the script."}
+              </span>
             </figcaption>
           ) : null}
         </figure>
@@ -139,7 +167,10 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
             const cost = g.costUsd == null ? null : Number(g.costUsd);
             const running = g.status === "in_progress" || g.status === "queued";
             return (
-              <li key={g.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <li
+                key={g.id}
+                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <RenderThumb g={g} playing={g.id === star?.id && Boolean(star.outputAssetUrl)} />
                   <div className="min-w-0 space-y-1">
@@ -147,8 +178,11 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
                       <StatusChip status={g.status} />
                       {/* Whole on phones (it wraps), on one line from the small breakpoint. */}
                       <span className="min-w-0 font-mono text-xs tabular-nums text-muted [overflow-wrap:anywhere] sm:truncate">
-                        <span className={g.tier === "final" ? "text-success" : undefined}>{g.tier === "final" ? "final" : "draft"}</span>
-                        {" · "}{g.modelLabel ?? `${g.provider}/${g.modelId}`} · {shownLength(g)}
+                        <span className={g.tier === "final" ? "text-success" : undefined}>
+                          {g.tier === "final" ? "final" : "draft"}
+                        </span>
+                        {" · "}
+                        {g.modelLabel ?? `${g.provider}/${g.modelId}`} · {shownLength(g)}
                         {cost !== null ? ` · ${formatCost(cost, g.costSource)}` : ""}
                       </span>
                     </div>
@@ -157,14 +191,21 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-13 sm:pl-0">
                   {g.outputAssetUrl ? (
-                    <a href={downloadUrl(g.outputAssetUrl, fileName(g))} className={buttonClass({ variant: "quiet", size: "sm" })}>
+                    <a
+                      href={downloadUrl(g.outputAssetUrl, fileName(g))}
+                      className={buttonClass({ variant: "quiet", size: "sm" })}
+                    >
                       <DownloadIcon className="size-4" />
                       Download MP4
                     </a>
                   ) : null}
-                  {g.status === "failed" && g.relaunched ? <span className="text-xs text-muted">Relaunched</span> : null}
+                  {g.status === "failed" && g.relaunched ? (
+                    <span className="text-xs text-muted">Relaunched</span>
+                  ) : null}
                   {g.status === "failed" && onRelaunch && !g.relaunched ? (
-                    <Button size="sm" onClick={() => onRelaunch(g.id)}>Relaunch</Button>
+                    <Button size="sm" onClick={() => onRelaunch(g.id)}>
+                      Relaunch
+                    </Button>
                   ) : null}
                   {g.status === "in_progress" && rendering && g.modelKey === rendering.modelKey && g.providerJobId ? (
                     <rendering.Progress providerJobId={g.providerJobId} />

@@ -32,13 +32,17 @@ export const exportRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertGenerationInProject(ctx.db, input.generationId, input.projectId);
-      return createExport(ctx.db, {
-        generationId: input.generationId,
-        platform: input.platform,
-        caption: input.caption,
-        hashtags: input.hashtags,
-        qualityConfirmedBy: input.qualityConfirmed ? ctx.userId : undefined,
-        acknowledgeSpecMismatch: input.acknowledgeSpecMismatch,
-      }, ctx.media);
+      return createExport(
+        ctx.db,
+        {
+          generationId: input.generationId,
+          platform: input.platform,
+          caption: input.caption,
+          hashtags: input.hashtags,
+          qualityConfirmedBy: input.qualityConfirmed ? ctx.userId : undefined,
+          acknowledgeSpecMismatch: input.acknowledgeSpecMismatch,
+        },
+        ctx.media,
+      );
     }),
 });

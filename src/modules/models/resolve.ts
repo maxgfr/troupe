@@ -56,7 +56,9 @@ export interface ModelTestResult {
 
 function lastTestOf(connection: unknown): ModelTestResult | null {
   const t = (connection as { lastTest?: Partial<ModelTestResult> } | null)?.lastTest;
-  return t && typeof t.ok === "boolean" && typeof t.message === "string" && typeof t.at === "string" ? { ok: t.ok, message: t.message, at: t.at } : null;
+  return t && typeof t.ok === "boolean" && typeof t.message === "string" && typeof t.at === "string"
+    ? { ok: t.ok, message: t.message, at: t.at }
+    : null;
 }
 
 // What a request sees: every model with its status, an adapter for each model
@@ -73,11 +75,21 @@ export const LOCAL_TIMEOUT_S = 7200;
 
 const LOCAL_VENDOR: Record<string, string> = { comfyui: "ComfyUI", http: "HTTP endpoint", browser: "This browser" };
 
-export function sanitizeDefaults(caps: ModelCapabilities, wanted: Partial<ModelDefaults> | null, fallback?: ModelDefaults): ModelDefaults {
-  const pick = <T,>(options: T[], ...candidates: (T | undefined)[]) => candidates.find((c) => c !== undefined && options.includes(c)) ?? options[0]!;
+export function sanitizeDefaults(
+  caps: ModelCapabilities,
+  wanted: Partial<ModelDefaults> | null,
+  fallback?: ModelDefaults,
+): ModelDefaults {
+  const pick = <T>(options: T[], ...candidates: (T | undefined)[]) =>
+    candidates.find((c) => c !== undefined && options.includes(c)) ?? options[0]!;
   const middle = caps.durationsS.includes(8) ? 8 : caps.durationsS[Math.floor(caps.durationsS.length / 2)];
   return {
-    resolution: pick(caps.resolutions, wanted?.resolution, fallback?.resolution, caps.resolutions.includes("720p") ? "720p" : undefined),
+    resolution: pick(
+      caps.resolutions,
+      wanted?.resolution,
+      fallback?.resolution,
+      caps.resolutions.includes("720p") ? "720p" : undefined,
+    ),
     durationS: pick(caps.durationsS, wanted?.durationS, fallback?.durationS, middle),
     audio: caps.audio === "always" ? true : caps.audio === "none" ? false : (wanted?.audio ?? fallback?.audio ?? true),
   };
@@ -106,16 +118,27 @@ export function resolveCatalog(input: {
     const r = byId.get(b.key);
     const status = credentialStatus(input.credentials[b.credential]);
     return {
-      key: b.key, family: b.family, label: b.label, vendor: b.vendor, kind: "cloud", credential: b.credential,
-      modelId: b.modelId, capabilities: b.capabilities,
+      key: b.key,
+      family: b.family,
+      label: b.label,
+      vendor: b.vendor,
+      kind: "cloud",
+      credential: b.credential,
+      modelId: b.modelId,
+      capabilities: b.capabilities,
       defaults: sanitizeDefaults(b.capabilities, r?.defaults ?? null, b.defaults),
-      pricePerSecondUsd: r ? price(r.pricePerSecondUsd) ?? b.pricePerSecondUsd : b.pricePerSecondUsd,
+      pricePerSecondUsd: r ? (price(r.pricePerSecondUsd) ?? b.pricePerSecondUsd) : b.pricePerSecondUsd,
       timeoutS: r?.timeoutS ?? b.timeoutS,
       enabled: r?.enabled ?? true,
       archived: false,
       status,
       lastTest: null,
-      statusDetail: status === "missing-credentials" ? `Add a ${b.credential === "google" ? "Google AI" : "fal.ai"} key in Settings.` : status === "undecryptable" ? "The saved key can no longer be read. Enter it again." : null,
+      statusDetail:
+        status === "missing-credentials"
+          ? `Add a ${b.credential === "google" ? "Google AI" : "fal.ai"} key in Settings.`
+          : status === "undecryptable"
+            ? "The saved key can no longer be read. Enter it again."
+            : null,
     };
   });
   const builtinKeys = new Set(BUILTIN_MODELS.map((b) => b.key));
@@ -124,11 +147,25 @@ export function resolveCatalog(input: {
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .map((r): ResolvedModel => {
       const caps = r.capabilities;
-      const veto = caps ? input.checkLocal?.(r) ?? null : { status: "invalid" as const, detail: "This model has no capabilities. Edit it in Settings." };
-      const fallbackCaps: ModelCapabilities = { aspectRatios: [], resolutions: [], durationsS: [], audio: "none", dialogueLanguages: null };
+      const veto = caps
+        ? (input.checkLocal?.(r) ?? null)
+        : { status: "invalid" as const, detail: "This model has no capabilities. Edit it in Settings." };
+      const fallbackCaps: ModelCapabilities = {
+        aspectRatios: [],
+        resolutions: [],
+        durationsS: [],
+        audio: "none",
+        dialogueLanguages: null,
+      };
       return {
-        key: r.id, family: r.family as ModelFamily, label: r.label ?? r.id, vendor: LOCAL_VENDOR[r.family] ?? r.family, kind: "local", credential: null,
-        modelId: r.label ?? r.id, capabilities: caps ?? fallbackCaps,
+        key: r.id,
+        family: r.family as ModelFamily,
+        label: r.label ?? r.id,
+        vendor: LOCAL_VENDOR[r.family] ?? r.family,
+        kind: "local",
+        credential: null,
+        modelId: r.label ?? r.id,
+        capabilities: caps ?? fallbackCaps,
         defaults: caps ? sanitizeDefaults(caps, r.defaults) : { resolution: "", durationS: 0, audio: false },
         pricePerSecondUsd: price(r.pricePerSecondUsd) ?? 0,
         timeoutS: r.timeoutS ?? LOCAL_TIMEOUT_S,
@@ -152,7 +189,10 @@ export function effectiveDefaultModel(models: ResolvedModel[], savedKey: string 
   return models.find(canLaunch)?.key ?? null;
 }
 
-export function estimateCostUsd(model: Pick<ResolvedModel, "kind" | "pricePerSecondUsd">, durationS: number): number | null {
+export function estimateCostUsd(
+  model: Pick<ResolvedModel, "kind" | "pricePerSecondUsd">,
+  durationS: number,
+): number | null {
   if (model.pricePerSecondUsd === null) return model.kind === "local" ? 0 : null;
   return Math.round(model.pricePerSecondUsd * durationS * 100) / 100;
 }

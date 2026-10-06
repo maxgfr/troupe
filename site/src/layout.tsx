@@ -13,7 +13,13 @@ import { BrowserTRPCProvider } from "./trpc";
 // src/app/(app)/layout.tsx for the browser edition: the same shell around the
 // same pages, with the router and database of this browser behind them.
 
-const BROWSER_EDITION: Edition = { kind: "browser", data: localData, rendering: browserRendering, chat: browserChat, library: browserLibrary };
+const BROWSER_EDITION: Edition = {
+  kind: "browser",
+  data: localData,
+  rendering: browserRendering,
+  chat: browserChat,
+  library: browserLibrary,
+};
 
 export function BrowserLayout({ children }: { children: React.ReactNode }) {
   return (

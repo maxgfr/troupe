@@ -24,7 +24,15 @@ export function VideoPoster({
   priority?: boolean;
 }) {
   const portrait = actor ? (
-    <ActorPortrait id={actor.id} name={actor.name} src={actor.portraitUrl} label="" sizes={sizes} priority={priority} className={className} />
+    <ActorPortrait
+      id={actor.id}
+      name={actor.name}
+      src={actor.portraitUrl}
+      label=""
+      sizes={sizes}
+      priority={priority}
+      className={className}
+    />
   ) : (
     <span aria-hidden className={`block bg-surface ${className}`} />
   );

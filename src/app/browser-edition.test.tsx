@@ -19,8 +19,15 @@ function localData(patch: Partial<LocalData> = {}): LocalData {
   return {
     deleteAll: vi.fn(async () => {}),
     exportBackup: vi.fn(async () => ({ blob: new Blob(["x"]), filename: "troupe-backup-2026-10-05-0945.tar" })),
-    readBackup: vi.fn(async () => ({ summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 3, videos: 1, bytes: 4_200_000 }, restore: vi.fn(async () => {}) })),
-    storage: { estimate: async () => ({ usageBytes: 48_200_000, quotaBytes: 120e9 }), persisted: async () => false, persist: async () => true },
+    readBackup: vi.fn(async () => ({
+      summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 3, videos: 1, bytes: 4_200_000 },
+      restore: vi.fn(async () => {}),
+    })),
+    storage: {
+      estimate: async () => ({ usageBytes: 48_200_000, quotaBytes: 120e9 }),
+      persisted: async () => false,
+      persist: async () => true,
+    },
     ...patch,
   };
 }
@@ -40,15 +47,37 @@ function inBrowser(node: React.ReactNode) {
 }
 
 const row = (patch: Partial<GenerationRow>): GenerationRow => ({
-  id: "g1", provider: "browser", modelId: "Kokoro voice + captions", modelKey: "browser", providerJobId: "job-1",
-  tier: "draft", status: "in_progress", durationS: 6, createdAt: new Date(), ...patch,
+  id: "g1",
+  provider: "browser",
+  modelId: "Kokoro voice + captions",
+  modelKey: "browser",
+  providerJobId: "job-1",
+  tier: "draft",
+  status: "in_progress",
+  durationS: 6,
+  createdAt: new Date(),
+  ...patch,
 });
 
 const option = (patch: Partial<ModelOptionView>): ModelOptionView => ({
-  key: "browser", label: "Kokoro voice + captions", vendor: "This browser", kind: "local",
-  capabilities: { aspectRatios: ["9:16"], resolutions: ["720p"], durationsS: [6, 8], audio: "always", dialogueLanguages: ["en"] },
-  defaults: { resolution: "720p", durationS: 6, audio: true }, pricePerSecondUsd: 0,
-  available: true, unavailableReason: null, compatible: true, warnings: [], ...patch,
+  key: "browser",
+  label: "Kokoro voice + captions",
+  vendor: "This browser",
+  kind: "local",
+  capabilities: {
+    aspectRatios: ["9:16"],
+    resolutions: ["720p"],
+    durationsS: [6, 8],
+    audio: "always",
+    dialogueLanguages: ["en"],
+  },
+  defaults: { resolution: "720p", durationS: 6, audio: true },
+  pricePerSecondUsd: 0,
+  available: true,
+  unavailableReason: null,
+  compatible: true,
+  warnings: [],
+  ...patch,
 });
 
 const panel = { estimatedS: 4, busy: false, onModel: vi.fn(), onLaunch: vi.fn(), onCompare: vi.fn() };
@@ -61,7 +90,9 @@ describe("rendering in the browser edition", () => {
 
   it("keeps the generic bar for other models and for jobs not yet accepted", () => {
     const { container } = inBrowser(
-      <GenerationTimeline generations={[row({ id: "g2", modelKey: "veo-3.1-fast" }), row({ id: "g3", providerJobId: null })]} />,
+      <GenerationTimeline
+        generations={[row({ id: "g2", modelKey: "veo-3.1-fast" }), row({ id: "g3", providerJobId: null })]}
+      />,
     );
     expect(screen.queryByText(/Progress of/)).toBeNull();
     expect(container.querySelectorAll(".progress-glow")).toHaveLength(2);
@@ -80,7 +111,10 @@ describe("rendering in the browser edition", () => {
   });
 
   it("explains why this browser cannot render, with the way out", () => {
-    const blocked = option({ available: false, unavailableReason: "This browser cannot render video. This browser has no WebCodecs encoder." });
+    const blocked = option({
+      available: false,
+      unavailableReason: "This browser cannot render video. This browser has no WebCodecs encoder.",
+    });
     inBrowser(<LaunchPanel {...panel} options={[blocked]} model={null} />);
     expect(screen.getByText(/has no WebCodecs encoder/)).toBeDefined();
     expect(screen.getByRole("link", { name: /set up the self-hosted studio/ })).toBeDefined();
@@ -98,7 +132,9 @@ describe("the browser edition's data in Settings", () => {
   });
 
   it("says so when the browser declines to keep it, and when it reports nothing", async () => {
-    const data = localData({ storage: { estimate: async () => null, persisted: async () => false, persist: async () => false } });
+    const data = localData({
+      storage: { estimate: async () => null, persisted: async () => false, persist: async () => false },
+    });
     render(<LocalDataSettings data={data} />);
     expect(await screen.findByText(/does not say how much space/)).toBeDefined();
     fireEvent.click(await screen.findByRole("button", { name: "Keep it on this device" }));
@@ -128,7 +164,12 @@ describe("the browser edition's data in Settings", () => {
 
   it("imports a backup only once its contents are confirmed", async () => {
     const restore = vi.fn(async () => {});
-    const data = localData({ readBackup: vi.fn(async () => ({ summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 3, videos: 1, bytes: 4_200_000 }, restore })) });
+    const data = localData({
+      readBackup: vi.fn(async () => ({
+        summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 3, videos: 1, bytes: 4_200_000 },
+        restore,
+      })),
+    });
     render(<LocalDataSettings data={data} />);
     const file = new File(["tar"], "troupe-backup.tar");
     fireEvent.change(screen.getByLabelText("Backup file to import"), { target: { files: [file] } });
@@ -144,9 +185,15 @@ describe("the browser edition's data in Settings", () => {
   });
 
   it("says why a file cannot be imported", async () => {
-    const data = localData({ readBackup: vi.fn(async () => { throw new Error("This file is not a Troupe backup."); }) });
+    const data = localData({
+      readBackup: vi.fn(async () => {
+        throw new Error("This file is not a Troupe backup.");
+      }),
+    });
     render(<LocalDataSettings data={data} />);
-    fireEvent.change(screen.getByLabelText("Backup file to import"), { target: { files: [new File(["x"], "notes.txt")] } });
+    fireEvent.change(screen.getByLabelText("Backup file to import"), {
+      target: { files: [new File(["x"], "notes.txt")] },
+    });
     expect((await screen.findByRole("alert")).textContent).toBe("This file is not a Troupe backup.");
   });
 
@@ -171,13 +218,24 @@ describe("the browser edition's data in Settings", () => {
   });
 
   it("leaves the size out of a backup with no videos", async () => {
-    const data = localData({ readBackup: vi.fn(async () => ({ summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 1, videos: 0, bytes: 0 }, restore: vi.fn(async () => {}) })) });
+    const data = localData({
+      readBackup: vi.fn(async () => ({
+        summary: { createdAt: new Date(2026, 9, 5, 9, 45), projects: 1, videos: 0, bytes: 0 },
+        restore: vi.fn(async () => {}),
+      })),
+    });
     render(<LocalDataSettings data={data} />);
     fireEvent.change(screen.getByLabelText("Backup file to import"), { target: { files: [new File(["x"], "b.tar")] } });
     expect((await screen.findByRole("alertdialog")).textContent).toMatch(/It holds 1 project, saved /);
   });
 
   it("formats sizes with two significant figures", () => {
-    expect([formatBytes(512), formatBytes(4_200_000), formatBytes(48_230_000), formatBytes(326_000_000), formatBytes(1.24e9)]).toEqual(["512 bytes", "4.2 MB", "48 MB", "326 MB", "1.2 GB"]);
+    expect([
+      formatBytes(512),
+      formatBytes(4_200_000),
+      formatBytes(48_230_000),
+      formatBytes(326_000_000),
+      formatBytes(1.24e9),
+    ]).toEqual(["512 bytes", "4.2 MB", "48 MB", "326 MB", "1.2 GB"]);
   });
 });

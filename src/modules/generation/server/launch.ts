@@ -33,7 +33,12 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
 
   const caps = input.adapter.capabilities();
   const audio = input.audio ?? caps.audio !== "none";
-  validateRequest(caps, { aspectRatio: project.format, resolution: input.resolution, durationS: input.durationS, audio });
+  validateRequest(caps, {
+    aspectRatio: project.format,
+    resolution: input.resolution,
+    durationS: input.durationS,
+    audio,
+  });
 
   const script = await getScript(db, input.scriptId);
   if (script.projectId !== project.id) throw new Error("This script belongs to another project.");
@@ -54,11 +59,17 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
     .select({ storagePath: actorAssets.storagePath })
     .from(actorAssets)
     .where(and(eq(actorAssets.actorId, actor.id), eq(actorAssets.version, actor.assetVersion)));
-  const portraits = Object.fromEntries(pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]));
+  const portraits = Object.fromEntries(
+    pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]),
+  );
   const jobScript: JobScript = {
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
     actor: {
-      id: actor.id, name: actor.name, gender: actor.gender, ageRange: actor.ageRange, voiceProfile: actor.voiceProfile,
+      id: actor.id,
+      name: actor.name,
+      gender: actor.gender,
+      ageRange: actor.ageRange,
+      voiceProfile: actor.voiceProfile,
       ...(pictures.length > 0 ? { portraits } : {}),
     },
     language,
@@ -68,33 +79,59 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
     adapter: input.adapter,
     timeoutS: input.timeoutS,
     record: {
-      projectId: input.projectId, modelKey: input.adapter.modelKey, provider: input.adapter.family, modelId: input.adapter.modelId,
-      inputMode: "text" as const, tier: input.tier,
-      scriptId: input.scriptId, actorId: actor.id, actorAssetVersion: actor.assetVersion,
-      prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution,
+      projectId: input.projectId,
+      modelKey: input.adapter.modelKey,
+      provider: input.adapter.family,
+      modelId: input.adapter.modelId,
+      inputMode: "text" as const,
+      tier: input.tier,
+      scriptId: input.scriptId,
+      actorId: actor.id,
+      actorAssetVersion: actor.assetVersion,
+      prompt,
+      aspectRatio: project.format,
+      durationS: input.durationS,
+      resolution: input.resolution,
       language: input.language,
       ...(input.parentGenerationId ? { parentGenerationId: input.parentGenerationId } : {}),
-      ...(input.estimatedCostUsd != null ? { costUsd: String(input.estimatedCostUsd), costSource: "estimate" as const } : {}),
+      ...(input.estimatedCostUsd != null
+        ? { costUsd: String(input.estimatedCostUsd), costSource: "estimate" as const }
+        : {}),
     },
-    request: { prompt, aspectRatio: project.format, durationS: input.durationS, resolution: input.resolution, audio, script: jobScript },
+    request: {
+      prompt,
+      aspectRatio: project.format,
+      durationS: input.durationS,
+      resolution: input.resolution,
+      audio,
+      script: jobScript,
+    },
   };
 }
 
 // Preparation can be completed for a whole comparison before any paid call.
-export async function submitGeneration(db: Db, gen: typeof generations.$inferSelect, prepared: Awaited<ReturnType<typeof prepareGeneration>>) {
+export async function submitGeneration(
+  db: Db,
+  gen: typeof generations.$inferSelect,
+  prepared: Awaited<ReturnType<typeof prepareGeneration>>,
+) {
   let providerJobId: string;
   try {
     ({ providerJobId } = await prepared.adapter.createJob(prepared.request));
   } catch (error) {
     const known = error instanceof AdapterError;
-    const [failed] = await db.update(generations).set({
-      status: "failed",
-      errorCode: known ? error.code : "SUBMIT_FAILED",
-      errorDetail: known ? error.detail : "The model did not accept the job. Check its settings and try again.",
-      // Nothing was rendered, so nothing was spent.
-      costUsd: null,
-      costSource: null,
-    }).where(eq(generations.id, gen.id)).returning();
+    const [failed] = await db
+      .update(generations)
+      .set({
+        status: "failed",
+        errorCode: known ? error.code : "SUBMIT_FAILED",
+        errorDetail: known ? error.detail : "The model did not accept the job. Check its settings and try again.",
+        // Nothing was rendered, so nothing was spent.
+        costUsd: null,
+        costSource: null,
+      })
+      .where(eq(generations.id, gen.id))
+      .returning();
     return failed!;
   }
   // A database failure after acceptance must never masquerade as a refused
@@ -102,8 +139,18 @@ export async function submitGeneration(db: Db, gen: typeof generations.$inferSel
   for (let attempt = 0; ; attempt++) {
     try {
       return await db.transaction(async (tx) => {
-        const [row] = await tx.update(generations).set({ providerJobId, status: "in_progress" }).where(eq(generations.id, gen.id)).returning();
-        await watchGeneration(tx as unknown as Db, { generationId: gen.id, modelKey: gen.modelKey, providerJobId, timeoutS: prepared.timeoutS, pollEveryS: prepared.adapter.pollEveryS });
+        const [row] = await tx
+          .update(generations)
+          .set({ providerJobId, status: "in_progress" })
+          .where(eq(generations.id, gen.id))
+          .returning();
+        await watchGeneration(tx as unknown as Db, {
+          generationId: gen.id,
+          modelKey: gen.modelKey,
+          providerJobId,
+          timeoutS: prepared.timeoutS,
+          pollEveryS: prepared.adapter.pollEveryS,
+        });
         return row!;
       });
     } catch (error) {

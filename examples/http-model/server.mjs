@@ -28,14 +28,31 @@ function renderClip(id, req) {
   const job = jobs.get(id);
   job.status = "running";
   const size = `${req.width}x${req.height}`;
-  const args = ["-y", "-loglevel", "error", "-f", "lavfi", "-i", `testsrc2=size=${size}:rate=${req.fps ?? 24}:duration=${req.duration_s}`];
+  const args = [
+    "-y",
+    "-loglevel",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    `testsrc2=size=${size}:rate=${req.fps ?? 24}:duration=${req.duration_s}`,
+  ];
   if (req.audio) args.push("-f", "lavfi", "-i", `sine=frequency=440:duration=${req.duration_s}`, "-c:a", "aac");
   args.push("-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-shortest", join(OUT, `${id}.mp4`));
   const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   ffmpeg.stderr.on("data", (d) => (stderr += d));
-  ffmpeg.on("error", () => Object.assign(job, { status: "failed", error: "ffmpeg is not installed on the model server." }));
-  ffmpeg.on("close", (code) => Object.assign(job, code === 0 ? { status: "succeeded", progress: 1 } : { status: "failed", error: stderr.slice(0, 200) || `ffmpeg exited with ${code}` }));
+  ffmpeg.on("error", () =>
+    Object.assign(job, { status: "failed", error: "ffmpeg is not installed on the model server." }),
+  );
+  ffmpeg.on("close", (code) =>
+    Object.assign(
+      job,
+      code === 0
+        ? { status: "succeeded", progress: 1 }
+        : { status: "failed", error: stderr.slice(0, 200) || `ffmpeg exited with ${code}` },
+    ),
+  );
 }
 
 function send(res, status, body) {
@@ -48,7 +65,8 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   // poll_every_s (optional): this server renders in about a second, so it asks
   // Troupe to check on jobs every second instead of backing off from 20 s.
-  if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
+  if (req.method === "GET" && url.pathname === "/health")
+    return send(res, 200, { ok: true, contract: 1, poll_every_s: 1 });
   if (req.method === "POST" && url.pathname === "/jobs") {
     let body = "";
     req.on("data", (c) => (body += c));
@@ -59,7 +77,8 @@ const server = createServer((req, res) => {
       } catch {
         return send(res, 400, { error: "invalid JSON" });
       }
-      if (!input.prompt || !input.width || !input.height || !input.duration_s) return send(res, 400, { error: "prompt, width, height and duration_s are required" });
+      if (!input.prompt || !input.width || !input.height || !input.duration_s)
+        return send(res, 400, { error: "prompt, width, height and duration_s are required" });
       const id = randomUUID();
       jobs.set(id, { status: "queued", progress: 0 });
       setImmediate(() => renderClip(id, input));
@@ -86,4 +105,6 @@ const server = createServer((req, res) => {
   send(res, 404, { error: "not found" });
 });
 // PORT=0 picks a free port: print the one actually bound.
-server.listen(PORT, HOST, () => console.log(`Example model server on http://${HOST}:${server.address().port} (contract v1)`));
+server.listen(PORT, HOST, () =>
+  console.log(`Example model server on http://${HOST}:${server.address().port} (contract v1)`),
+);

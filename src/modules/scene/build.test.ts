@@ -16,7 +16,12 @@ function scene(patch: Partial<SceneInput> = {}) {
 }
 
 function inside(inner: Box, outer: Box) {
-  return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
 }
 
 function overlap(a: Box, b: Box) {
@@ -26,18 +31,24 @@ function overlap(a: Box, b: Box) {
 describe("buildScene timings", () => {
   it("places each line after the previous one, with the measured speech length", () => {
     const { cues, durationS } = scene({ speechS: [2.5, 1.5, 1.2] });
-    expect(cues.map((c) => [c.startS, c.endS])).toEqual([
-      [TIMING.leadInS, TIMING.leadInS + 2.5],
-      [TIMING.leadInS + 2.5 + TIMING.gapS, TIMING.leadInS + 4 + TIMING.gapS],
-      [TIMING.leadInS + 4 + 2 * TIMING.gapS, TIMING.leadInS + 5.2 + 2 * TIMING.gapS],
-    ].map(([a, b]) => [expect.closeTo(a!, 6), expect.closeTo(b!, 6)]));
+    expect(cues.map((c) => [c.startS, c.endS])).toEqual(
+      [
+        [TIMING.leadInS, TIMING.leadInS + 2.5],
+        [TIMING.leadInS + 2.5 + TIMING.gapS, TIMING.leadInS + 4 + TIMING.gapS],
+        [TIMING.leadInS + 4 + 2 * TIMING.gapS, TIMING.leadInS + 5.2 + 2 * TIMING.gapS],
+      ].map(([a, b]) => [expect.closeTo(a!, 6), expect.closeTo(b!, 6)]),
+    );
     expect(durationS).toBeCloseTo(TIMING.leadInS + 5.2 + 2 * TIMING.gapS + TIMING.tailS, 6);
   });
 
   it("estimates speech at 2.5 words per second when it was not measured", () => {
     const { cues } = scene();
     // 7, 4 and 3 words.
-    expect(cues.map((c) => c.endS - c.startS)).toEqual([expect.closeTo(7 / 2.5, 6), expect.closeTo(4 / 2.5, 6), expect.closeTo(3 / 2.5, 6)]);
+    expect(cues.map((c) => c.endS - c.startS)).toEqual([
+      expect.closeTo(7 / 2.5, 6),
+      expect.closeTo(4 / 2.5, 6),
+      expect.closeTo(3 / 2.5, 6),
+    ]);
   });
 
   it("never overlaps two cues and keeps every cue inside the clip", () => {
@@ -106,7 +117,12 @@ describe("buildScene layout", () => {
         expect(inside(layout.captions, frame)).toBe(true);
         expect(overlap(layout.card, layout.captions)).toBe(false);
         const { portrait } = layout;
-        expect(inside({ x: portrait.cx - portrait.r, y: portrait.cy - portrait.r, width: 2 * portrait.r, height: 2 * portrait.r }, layout.card)).toBe(true);
+        expect(
+          inside(
+            { x: portrait.cx - portrait.r, y: portrait.cy - portrait.r, width: 2 * portrait.r, height: 2 * portrait.r },
+            layout.card,
+          ),
+        ).toBe(true);
         // Room for at least two caption lines at the starting size.
         expect(layout.captions.height).toBeGreaterThanOrEqual(2 * layout.captionSize * 1.25);
       });
@@ -145,7 +161,8 @@ describe("buildScene layout", () => {
     it("leaves the full frame's layout as it was", () => {
       const { layout } = scene();
       const expected = { x: 43.2, y: 1280 * 0.42, width: 720 * 0.86 - 43.2, height: 1280 * 0.36 };
-      for (const [key, value] of Object.entries(expected)) expect(layout.captions[key as keyof typeof expected], key).toBeCloseTo(value, 6);
+      for (const [key, value] of Object.entries(expected))
+        expect(layout.captions[key as keyof typeof expected], key).toBeCloseTo(value, 6);
     });
   });
 

@@ -34,13 +34,15 @@ export async function boot() {
     console.warn(`Troupe: the access code could not be shared with the CLI container: ${(error as Error).message}`);
   }
   if (access.source === "generated" || access.source === "file") {
-    console.info([
-      "",
-      "  Troupe is protected by an access code:",
-      `      ${access.code}`,
-      `  It is saved in ${accessCodeFile()}. Set TROUPE_ACCESS_CODE to choose your own.`,
-      "",
-    ].join("\n"));
+    console.info(
+      [
+        "",
+        "  Troupe is protected by an access code:",
+        `      ${access.code}`,
+        `  It is saved in ${accessCodeFile()}. Set TROUPE_ACCESS_CODE to choose your own.`,
+        "",
+      ].join("\n"),
+    );
   } else if (access.source === "none" && process.env.NODE_ENV === "production") {
     console.warn("Troupe: set TROUPE_ACCESS_CODE — without it this deployment refuses every request.");
   }
@@ -48,7 +50,9 @@ export async function boot() {
   const url = process.env.DATABASE_URL;
   if (url) {
     if (isTransactionPooler(url)) {
-      console.warn("Troupe: DATABASE_URL is Supabase's transaction pooler (port 6543). The studio's pipelined queries stalled it for good in local testing (Supavisor 2.9.13; Supabase's hosted pooler was not tried). Use the session pooler (port 5432): docs/VERCEL-SUPABASE.md.");
+      console.warn(
+        "Troupe: DATABASE_URL is Supabase's transaction pooler (port 6543). The studio's pipelined queries stalled it for good in local testing (Supavisor 2.9.13; Supabase's hosted pooler was not tried). Use the session pooler (port 5432): docs/VERCEL-SUPABASE.md.",
+      );
     }
   }
   // Serverless platforms start many short-lived instances behind poolers that
@@ -65,7 +69,11 @@ export async function boot() {
     // The inspiration library's analyses: resumed after a restart, and the
     // passages saved while the embedding model was missing indexed.
     if (url) {
-      const [{ libraryPass }, { createServerChat }, { db }] = await Promise.all([import("./library"), import("./chat"), import("./db")]);
+      const [{ libraryPass }, { createServerChat }, { db }] = await Promise.all([
+        import("./library"),
+        import("./chat"),
+        import("./db"),
+      ]);
       startLoop("library.analyze", () => libraryPass(db, createServerChat(db)), 60_000);
     }
   }

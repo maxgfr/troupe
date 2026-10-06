@@ -11,7 +11,13 @@ const getQueryInput = vi.fn();
 const listFetch = vi.fn();
 
 let runEntries: Array<{ id: string; modelKey: string; status: string; votes: Record<string, number> }> = [];
-let listedRuns: Array<{ id: string; brief: string; createdAt: string; entryCount: number; winnerLabel: string | null }> = [];
+let listedRuns: Array<{
+  id: string;
+  brief: string;
+  createdAt: string;
+  entryCount: number;
+  winnerLabel: string | null;
+}> = [];
 
 vi.mock("~/app/_components/workspace-context", () => ({
   useWorkspace: () => ({ status: "ready", workspaceId: "ws1" }),
@@ -57,10 +63,23 @@ vi.mock("~/trpc/react", () => ({
           isPending: false,
           data: {
             models: ["veo", "kling"].map((key) => ({
-              key, label: key, vendor: "v", kind: "cloud",
-              capabilities: { aspectRatios: ["9:16"], resolutions: ["720p"], durationsS: [8], audio: "always", dialogueLanguages: null },
+              key,
+              label: key,
+              vendor: "v",
+              kind: "cloud",
+              capabilities: {
+                aspectRatios: ["9:16"],
+                resolutions: ["720p"],
+                durationsS: [8],
+                audio: "always",
+                dialogueLanguages: null,
+              },
               defaults: { resolution: "720p", durationS: 8, audio: true },
-              pricePerSecondUsd: null, available: true, unavailableReason: null, compatible: true, warnings: [],
+              pricePerSecondUsd: null,
+              available: true,
+              unavailableReason: null,
+              compatible: true,
+              warnings: [],
             })),
             defaultModelKey: null,
           },
@@ -127,7 +146,13 @@ describe("paged run list", () => {
 describe("workspace run list", () => {
   it("lists the workspace runs with brief, entry count and winner — clicking opens the run", () => {
     listedRuns = [
-      { id: "22222222-2222-4222-8222-222222222222", brief: "Spring drop", createdAt: "2026-07-12T10:00:00Z", entryCount: 2, winnerLabel: "kling" },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        brief: "Spring drop",
+        createdAt: "2026-07-12T10:00:00Z",
+        entryCount: 2,
+        winnerLabel: "kling",
+      },
     ];
     runEntries = [
       { id: "b1", modelKey: "veo", status: "completed", votes: {} },
@@ -149,7 +174,11 @@ describe("workspace run list", () => {
     runEntries = [{ id: "b1", modelKey: "veo", status: "in_progress", votes: {} }];
     try {
       render(<BenchmarkPage />);
-      expect(getQueryInput.mock.calls.some(([input, opts]) => input.runId === "44444444-4444-4444-8444-444444444444" && opts?.enabled)).toBe(true);
+      expect(
+        getQueryInput.mock.calls.some(
+          ([input, opts]) => input.runId === "44444444-4444-4444-8444-444444444444" && opts?.enabled,
+        ),
+      ).toBe(true);
       expect(screen.queryByText("Open a comparison")).toBeNull();
       expect(screen.queryByText("No comparison yet")).toBeNull();
     } finally {
@@ -167,7 +196,13 @@ describe("workspace run list", () => {
 describe("vote tie", () => {
   it("a tie shows an explicit tie notice and never offers adopt", () => {
     listedRuns = [
-      { id: "33333333-3333-4333-8333-333333333333", brief: "Tie brief", createdAt: "2026-07-12T10:00:00Z", entryCount: 2, winnerLabel: null },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        brief: "Tie brief",
+        createdAt: "2026-07-12T10:00:00Z",
+        entryCount: 2,
+        winnerLabel: null,
+      },
     ];
     runEntries = [
       { id: "b1", modelKey: "veo", status: "completed", votes: { u1: 1 } },

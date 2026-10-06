@@ -71,10 +71,16 @@ function list(values: (string | number)[]) {
 
 export function validateRequest(caps: ModelCapabilities, req: Omit<CreateJobRequest, "prompt">): void {
   if (!caps.aspectRatios.includes(req.aspectRatio)) {
-    throw new AdapterError("UNSUPPORTED_ASPECT_RATIO", `This model renders ${list(caps.aspectRatios)} video, not the ${req.aspectRatio} format.`);
+    throw new AdapterError(
+      "UNSUPPORTED_ASPECT_RATIO",
+      `This model renders ${list(caps.aspectRatios)} video, not the ${req.aspectRatio} format.`,
+    );
   }
   if (!caps.resolutions.includes(req.resolution)) {
-    throw new AdapterError("UNSUPPORTED_RESOLUTION", `This model renders ${list(caps.resolutions)}, not ${req.resolution}.`);
+    throw new AdapterError(
+      "UNSUPPORTED_RESOLUTION",
+      `This model renders ${list(caps.resolutions)}, not ${req.resolution}.`,
+    );
   }
   if (!caps.durationsS.includes(req.durationS)) {
     throw new AdapterError("UNSUPPORTED_DURATION", `Choose a ${list(caps.durationsS)} seconds clip for this model.`);

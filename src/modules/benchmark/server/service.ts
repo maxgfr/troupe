@@ -4,7 +4,13 @@ import type { Db } from "~/server/db/types";
 import type { MediaLinks } from "~/server/media/store";
 import { projects } from "~/modules/studio/server/schema";
 import { getScript, lockScript } from "~/modules/script";
-import { generations, mediaAssets, prepareGeneration, submitGeneration, type VideoProviderAdapter } from "~/modules/generation";
+import {
+  generations,
+  mediaAssets,
+  prepareGeneration,
+  submitGeneration,
+  type VideoProviderAdapter,
+} from "~/modules/generation";
 import { tallyWinner } from "../winner";
 import { BENCHMARK_LIST_LIMIT } from "../list-limit";
 import { benchmarkEntries, benchmarkRuns } from "./schema";
@@ -22,7 +28,11 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
   const [project] = await db.select().from(projects).where(eq(projects.id, input.projectId)).limit(1);
   if (!project) throw new Error(`project ${input.projectId} not found`);
 
-  if (input.models.length < 2 || input.models.length > 3 || new Set(input.models.map((m) => m.adapter.modelKey)).size !== input.models.length) {
+  if (
+    input.models.length < 2 ||
+    input.models.length > 3 ||
+    new Set(input.models.map((m) => m.adapter.modelKey)).size !== input.models.length
+  ) {
     throw new Error("Choose two or three different models to compare.");
   }
   // Persist the complete comparison first, including failed submissions. The
@@ -35,17 +45,28 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
     const brief = script.lines.map((l) => l.text).join(" ");
     const prepared = [];
     for (const { adapter, timeoutS, estimatedCostUsd } of input.models) {
-      prepared.push(await prepareGeneration(conn, {
-        projectId: input.projectId, scriptId: input.scriptId, adapter, timeoutS, estimatedCostUsd,
-        tier: "draft", durationS: input.durationS, resolution: input.resolution,
-      }));
+      prepared.push(
+        await prepareGeneration(conn, {
+          projectId: input.projectId,
+          scriptId: input.scriptId,
+          adapter,
+          timeoutS,
+          estimatedCostUsd,
+          tier: "draft",
+          durationS: input.durationS,
+          resolution: input.resolution,
+        }),
+      );
     }
     const [run] = await tx.insert(benchmarkRuns).values({ workspaceId: project.workspaceId, brief }).returning();
     if (!run) throw new Error("benchmark run insert returned no row");
     const jobs = [];
     for (const job of prepared) {
       const [gen] = await tx.insert(generations).values(job.record).returning();
-      const [entry] = await tx.insert(benchmarkEntries).values({ benchmarkRunId: run.id, generationId: gen!.id }).returning();
+      const [entry] = await tx
+        .insert(benchmarkEntries)
+        .values({ benchmarkRunId: run.id, generationId: gen!.id })
+        .returning();
       jobs.push({ gen: gen!, entry: entry!, prepared: job });
     }
     return { run, brief, jobs };
@@ -54,7 +75,11 @@ export async function startBenchmark(db: Db, input: StartBenchmarkInput) {
   const submissions = await Promise.allSettled(jobs.map((job) => submitGeneration(db, job.gen, job.prepared)));
   const failure = submissions.find((result) => result.status === "rejected");
   if (failure?.status === "rejected") throw failure.reason;
-  return { id: run.id, brief, entries: jobs.map(({ gen, entry }) => ({ id: entry.id, generationId: gen.id, modelKey: gen.modelKey })) };
+  return {
+    id: run.id,
+    brief,
+    entries: jobs.map(({ gen, entry }) => ({ id: entry.id, generationId: gen.id, modelKey: gen.modelKey })),
+  };
 }
 
 // Integer votes 1–5, stored per generation entry.
@@ -121,7 +146,12 @@ export async function listBenchmarkRuns(
   const entries = await db
     .select()
     .from(benchmarkEntries)
-    .where(inArray(benchmarkEntries.benchmarkRunId, runs.map((r) => r.id)));
+    .where(
+      inArray(
+        benchmarkEntries.benchmarkRunId,
+        runs.map((r) => r.id),
+      ),
+    );
   const generationIds = entries.map((e) => e.generationId);
   const gens = generationIds.length
     ? await db
@@ -150,7 +180,8 @@ export async function listBenchmarkRuns(
   });
 }
 
-const realLength = (seconds: number | undefined) => (seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? seconds : null);
+const realLength = (seconds: number | undefined) =>
+  seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 
 // Side-by-side view — cost, latency, votes, per-model means;
 // failed entries stay visible next to completed ones.
@@ -172,7 +203,12 @@ export async function getBenchmarkRun(db: Db, runId: string, media: MediaLinks) 
   const genById = new Map(gens.map((g) => [g.id, g]));
   // Each saved video's real length (a model may make it longer than asked).
   const assetIds = gens.map((g) => g.outputAssetId).filter((id): id is string => Boolean(id));
-  const assets = assetIds.length ? await db.select({ id: mediaAssets.id, meta: mediaAssets.meta }).from(mediaAssets).where(inArray(mediaAssets.id, assetIds)) : [];
+  const assets = assetIds.length
+    ? await db
+        .select({ id: mediaAssets.id, meta: mediaAssets.meta })
+        .from(mediaAssets)
+        .where(inArray(mediaAssets.id, assetIds))
+    : [];
   const lengthByAsset = new Map(assets.map((a) => [a.id, Number(a.meta.durationS)]));
   let projectId: string | null = null;
   let scriptId: string | null = null;

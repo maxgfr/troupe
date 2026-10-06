@@ -1,4 +1,12 @@
-import { getChatSettings, HISTORY_TURNS, type ChatBackend, type ChatProviderId, type ChatSettings, type ChatSettingsView, type ChatSetup } from "~/modules/chat";
+import {
+  getChatSettings,
+  HISTORY_TURNS,
+  type ChatBackend,
+  type ChatProviderId,
+  type ChatSettings,
+  type ChatSettingsView,
+  type ChatSetup,
+} from "~/modules/chat";
 import type { Db } from "~/server/db/types";
 import { readCredentials } from "~/server/settings/providers";
 import { checkLocalUrl } from "~/server/settings/urls";
@@ -60,7 +68,10 @@ export function chatEnvironment(env: Env = process.env): ChatEnvironment {
 // Vertex AI and Foundry lack it), and a gateway in between may refuse the
 // whole request over it. "auto" sends it only when requests go to
 // api.anthropic.com (no ANTHROPIC_BASE_URL, or that one).
-export function anthropicFallbackAllowed(mode: ChatEnvironment["anthropicFallback"], baseURL: string | undefined): boolean {
+export function anthropicFallbackAllowed(
+  mode: ChatEnvironment["anthropicFallback"],
+  baseURL: string | undefined,
+): boolean {
   if (mode !== "auto") return mode === "on";
   if (!baseURL?.trim()) return true;
   try {
@@ -95,23 +106,75 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
       instructions: saved.instructions ?? env.instructions,
       wordsPerSecond: saved.wordsPerSecond ?? env.wordsPerSecond,
     };
-    const provider: "ollama" | "anthropic" = settings.provider === "auto" || !settings.provider ? (anthropicKey ? "anthropic" : "ollama") : settings.provider;
+    const provider: "ollama" | "anthropic" =
+      settings.provider === "auto" || !settings.provider ? (anthropicKey ? "anthropic" : "ollama") : settings.provider;
     return { saved, settings, provider, anthropicKey };
   }
 
   function setupFor(r: Awaited<ReturnType<typeof resolve>>): ChatSetup {
-    const common = { instructions: r.settings.instructions, wordsPerSecond: r.settings.wordsPerSecond, historyTurns: env.historyTurns, sendTimeoutMs: env.sendTimeoutMs };
+    const common = {
+      instructions: r.settings.instructions,
+      wordsPerSecond: r.settings.wordsPerSecond,
+      historyTurns: env.historyTurns,
+      sendTimeoutMs: env.sendTimeoutMs,
+    };
     if (r.provider === "anthropic") {
       const modelId = r.settings.anthropicModel;
       if (!r.anthropicKey) {
-        return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: null, problem: "The chat is set to Claude but no Anthropic API key is saved. Add one under Provider accounts, or switch the chat to Ollama." };
+        return {
+          ...common,
+          provider: "anthropic",
+          label: LABELS.anthropic,
+          modelId,
+          model: null,
+          problem:
+            "The chat is set to Claude but no Anthropic API key is saved. Add one under Provider accounts, or switch the chat to Ollama.",
+        };
       }
-      return { ...common, provider: "anthropic", label: LABELS.anthropic, modelId, model: createAnthropicChat({ apiKey: r.anthropicKey, model: modelId, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL, temperature: env.temperature, serverFallback: anthropicFallbackAllowed(env.anthropicFallback, options.anthropicBaseURL ?? source.ANTHROPIC_BASE_URL) }), problem: null };
+      return {
+        ...common,
+        provider: "anthropic",
+        label: LABELS.anthropic,
+        modelId,
+        model: createAnthropicChat({
+          apiKey: r.anthropicKey,
+          model: modelId,
+          timeoutMs: env.timeoutMs,
+          baseURL: options.anthropicBaseURL,
+          temperature: env.temperature,
+          serverFallback: anthropicFallbackAllowed(
+            env.anthropicFallback,
+            options.anthropicBaseURL ?? source.ANTHROPIC_BASE_URL,
+          ),
+        }),
+        problem: null,
+      };
     }
     const modelId = r.settings.ollamaModel;
     const url = checkLocalUrl(r.settings.ollamaUrl);
-    if (!url.ok) return { ...common, provider: "ollama", label: LABELS.ollama, modelId, model: null, problem: `The Ollama address is not allowed: ${url.reason}` };
-    return { ...common, provider: "ollama", label: LABELS.ollama, modelId, model: createOllamaChat({ baseUrl: url.base, model: modelId, timeoutMs: env.timeoutMs, fetch: options.fetch, temperature: env.temperature }), problem: null };
+    if (!url.ok)
+      return {
+        ...common,
+        provider: "ollama",
+        label: LABELS.ollama,
+        modelId,
+        model: null,
+        problem: `The Ollama address is not allowed: ${url.reason}`,
+      };
+    return {
+      ...common,
+      provider: "ollama",
+      label: LABELS.ollama,
+      modelId,
+      model: createOllamaChat({
+        baseUrl: url.base,
+        model: modelId,
+        timeoutMs: env.timeoutMs,
+        fetch: options.fetch,
+        temperature: env.temperature,
+      }),
+      problem: null,
+    };
   }
 
   return {
@@ -125,17 +188,36 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
       return {
         offers: ["ollama", "anthropic"],
         saved: r.saved,
-        defaults: { provider: env.provider, ollamaUrl: env.ollamaUrl, ollamaModel: env.ollamaModel, anthropicModel: env.anthropicModel, instructions: env.instructions, wordsPerSecond: env.wordsPerSecond },
+        defaults: {
+          provider: env.provider,
+          ollamaUrl: env.ollamaUrl,
+          ollamaModel: env.ollamaModel,
+          anthropicModel: env.anthropicModel,
+          instructions: env.instructions,
+          wordsPerSecond: env.wordsPerSecond,
+        },
         active: { provider: setup.provider, label: setup.label, modelId: setup.modelId, problem: setup.problem },
       };
     },
     async test(provider) {
       const r = await resolve();
       if (provider === "anthropic") {
-        if (!r.anthropicKey) return { ok: false, message: "No Anthropic API key is saved. Add one under Provider accounts." };
-        return testAnthropic({ apiKey: r.anthropicKey, model: r.settings.anthropicModel, timeoutMs: env.timeoutMs, baseURL: options.anthropicBaseURL });
+        if (!r.anthropicKey)
+          return { ok: false, message: "No Anthropic API key is saved. Add one under Provider accounts." };
+        return testAnthropic({
+          apiKey: r.anthropicKey,
+          model: r.settings.anthropicModel,
+          timeoutMs: env.timeoutMs,
+          baseURL: options.anthropicBaseURL,
+        });
       }
-      if (provider === "ollama") return testOllama({ baseUrl: r.settings.ollamaUrl, model: r.settings.ollamaModel, timeoutMs: env.timeoutMs, fetch: options.fetch });
+      if (provider === "ollama")
+        return testOllama({
+          baseUrl: r.settings.ollamaUrl,
+          model: r.settings.ollamaModel,
+          timeoutMs: env.timeoutMs,
+          fetch: options.fetch,
+        });
       return { ok: false, message: "The self-hosted studio has no in-browser model." };
     },
   };

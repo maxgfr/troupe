@@ -3,7 +3,13 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createTestDb, type TestDb } from "~/test/db";
 import { createWorkspace } from "~/modules/identity";
 import { seedActorLibrary, listActors } from "~/modules/actors";
-import { completeWizard, createDraftProject, formatOptionsFor, getProject, updateProjectChoices } from "~/modules/studio";
+import {
+  completeWizard,
+  createDraftProject,
+  formatOptionsFor,
+  getProject,
+  updateProjectChoices,
+} from "~/modules/studio";
 
 const USER = "b1111111-1111-4111-8111-111111111111";
 
@@ -60,4 +66,3 @@ describe("guided creation wizard", () => {
     expect(reopened.status).toBe("draft");
   });
 });
-

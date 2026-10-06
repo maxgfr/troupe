@@ -7,8 +7,15 @@ import { listActors } from "~/modules/actors";
 // (null without one: the app shows the initials).
 export const actorsRouter = createTRPCRouter({
   list: protectedProcedure
-    .input(z.object({ gender: z.string().optional(), ageRange: z.string().optional(), style: z.string().optional() }).optional())
+    .input(
+      z
+        .object({ gender: z.string().optional(), ageRange: z.string().optional(), style: z.string().optional() })
+        .optional(),
+    )
     .query(async ({ ctx, input }) =>
-      (await listActors(ctx.db, input ?? {})).map((actor) => ({ ...actor, portraitUrl: actor.portraitPath ? ctx.media.pictureUrl(actor.portraitPath) : null })),
+      (await listActors(ctx.db, input ?? {})).map((actor) => ({
+        ...actor,
+        portraitUrl: actor.portraitPath ? ctx.media.pictureUrl(actor.portraitPath) : null,
+      })),
     ),
 });

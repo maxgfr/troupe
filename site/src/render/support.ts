@@ -42,16 +42,26 @@ async function detect(): Promise<RenderSupport> {
     !("locks" in navigator) && "Web Locks",
     typeof indexedDB === "undefined" && "IndexedDB",
   ].filter(Boolean);
-  if (missing.length > 0) return { ok: false, device: "wasm", detail: `${NO_RENDER}: it lacks ${missing.join(", ")}. ${USE}` };
+  if (missing.length > 0)
+    return { ok: false, device: "wasm", detail: `${NO_RENDER}: it lacks ${missing.join(", ")}. ${USE}` };
 
   const { pickCodecs } = await import("./encode");
   // Each format's frame, since encoders have size limits of their own.
-  for (const [width, height] of [[720, 1280], [1280, 720], [720, 720]] as const) {
+  for (const [width, height] of [
+    [720, 1280],
+    [1280, 720],
+    [720, 720],
+  ] as const) {
     const codecs = await pickCodecs(width, height);
     if ("problem" in codecs) return { ok: false, device: "wasm", detail: `${NO_RENDER}: ${codecs.problem}. ${USE}` };
   }
   const device = await voiceDevice();
-  if (!device) return { ok: false, device: "wasm", detail: `${NO_RENDER}: this build voices the script on WebGPU, which it lacks. ${USE}` };
+  if (!device)
+    return {
+      ok: false,
+      device: "wasm",
+      detail: `${NO_RENDER}: this build voices the script on WebGPU, which it lacks. ${USE}`,
+    };
   return {
     ok: true,
     device,
@@ -65,6 +75,10 @@ async function detect(): Promise<RenderSupport> {
 let support: Promise<RenderSupport> | undefined;
 
 export function renderSupport(): Promise<RenderSupport> {
-  support ??= detect().catch((error: unknown) => ({ ok: false, device: "wasm" as const, detail: `${NO_RENDER}: ${error instanceof Error ? error.message : String(error)}` }));
+  support ??= detect().catch((error: unknown) => ({
+    ok: false,
+    device: "wasm" as const,
+    detail: `${NO_RENDER}: ${error instanceof Error ? error.message : String(error)}`,
+  }));
   return support;
 }

@@ -1,12 +1,29 @@
 import { describe, expect, it } from "vitest";
 
-import { chunkText, chunkTranscript, cosine, formatTimestamp, hookFromText, hookFromTranscript, keywordScore, keywordTags, pacingOf, rankByCosine, styleProfile } from "./text";
+import {
+  chunkText,
+  chunkTranscript,
+  cosine,
+  formatTimestamp,
+  hookFromText,
+  hookFromTranscript,
+  keywordScore,
+  keywordTags,
+  pacingOf,
+  rankByCosine,
+  styleProfile,
+} from "./text";
 
 const seg = (startS: number, endS: number, text: string) => ({ startS, endS, text });
 
 describe("chunkTranscript", () => {
   it("groups segments into passages that keep their times", () => {
-    const segments = [seg(0, 2, "Stop scrolling."), seg(2, 5, "Here is the trick."), seg(5, 40, "a ".repeat(300).trim()), seg(40, 44, "Follow for more.")];
+    const segments = [
+      seg(0, 2, "Stop scrolling."),
+      seg(2, 5, "Here is the trick."),
+      seg(5, 40, "a ".repeat(300).trim()),
+      seg(40, 44, "Follow for more."),
+    ];
     const chunks = chunkTranscript(segments, { maxChars: 120, maxSpanS: 30 });
     expect(chunks[0]).toEqual({ text: "Stop scrolling. Here is the trick.", startS: 0, endS: 5 });
     expect(chunks.at(-1)).toEqual({ text: "Follow for more.", startS: 40, endS: 44 });
@@ -42,7 +59,15 @@ describe("cosine and ranking", () => {
   });
 
   it("ranks by similarity, best first, and keeps the limit", () => {
-    const ranked = rankByCosine([1, 0], [{ id: "a", embedding: [0, 1] }, { id: "b", embedding: [1, 0.1] }, { id: "c", embedding: [1, 1] }], 2);
+    const ranked = rankByCosine(
+      [1, 0],
+      [
+        { id: "a", embedding: [0, 1] },
+        { id: "b", embedding: [1, 0.1] },
+        { id: "c", embedding: [1, 1] },
+      ],
+      2,
+    );
     expect(ranked.map((r) => r.item.id)).toEqual(["b", "c"]);
     expect(ranked[0]!.score).toBeGreaterThan(ranked[1]!.score);
   });
@@ -50,16 +75,25 @@ describe("cosine and ranking", () => {
 
 describe("keywordScore", () => {
   it("counts query words, ignoring case and accents", () => {
-    expect(keywordScore("Café hooks", "the CAFE uses three hooks, hooks again")).toBeGreaterThan(keywordScore("café hooks", "a cafe"));
+    expect(keywordScore("Café hooks", "the CAFE uses three hooks, hooks again")).toBeGreaterThan(
+      keywordScore("café hooks", "a cafe"),
+    );
     expect(keywordScore("nothing", "unrelated text")).toBe(0);
   });
 });
 
 describe("hooks", () => {
   it("takes the whole phrases said in the first 3 seconds, and at least the first", () => {
-    expect(hookFromTranscript([seg(0, 1.5, "Stop."), seg(1.5, 6, "This one trick saves you an hour every day")])).toEqual({ text: "Stop.", endS: 3 });
-    expect(hookFromTranscript([seg(0, 1.2, "Stop."), seg(1.2, 2.8, "Look at this."), seg(2.9, 5, "Here is why.")])).toEqual({ text: "Stop. Look at this.", endS: 3 });
-    expect(hookFromTranscript([seg(0.4, 4.5, "Most people brew coffee wrong.")])).toEqual({ text: "Most people brew coffee wrong.", endS: 4.5 });
+    expect(
+      hookFromTranscript([seg(0, 1.5, "Stop."), seg(1.5, 6, "This one trick saves you an hour every day")]),
+    ).toEqual({ text: "Stop.", endS: 3 });
+    expect(
+      hookFromTranscript([seg(0, 1.2, "Stop."), seg(1.2, 2.8, "Look at this."), seg(2.9, 5, "Here is why.")]),
+    ).toEqual({ text: "Stop. Look at this.", endS: 3 });
+    expect(hookFromTranscript([seg(0.4, 4.5, "Most people brew coffee wrong.")])).toEqual({
+      text: "Most people brew coffee wrong.",
+      endS: 4.5,
+    });
     expect(hookFromTranscript([seg(9, 12, "Late start.")])).toBeNull();
   });
 
@@ -72,10 +106,32 @@ describe("hooks", () => {
 
 describe("pacingOf", () => {
   it("measures words per second and cuts per minute", () => {
-    const pace = pacingOf({ segments: [seg(0, 10, "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six twenty-seven twenty-eight twenty-nine thirty")], durationS: 30, cutsAtS: [5, 10, 15, 20, 25] });
+    const pace = pacingOf({
+      segments: [
+        seg(
+          0,
+          10,
+          "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six twenty-seven twenty-eight twenty-nine thirty",
+        ),
+      ],
+      durationS: 30,
+      cutsAtS: [5, 10, 15, 20, 25],
+    });
     expect(pace).toEqual({ wordsPerSecond: 3, cutsPerMinute: 10, pace: "fast" });
     expect(pacingOf({ segments: [], durationS: null, cutsAtS: [] })).toBeNull();
-    expect(pacingOf({ segments: [seg(0, 20, "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six twenty-seven twenty-eight twenty-nine thirty")], durationS: 20, cutsAtS: [] })?.pace).toBe("slow");
+    expect(
+      pacingOf({
+        segments: [
+          seg(
+            0,
+            20,
+            "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six twenty-seven twenty-eight twenty-nine thirty",
+          ),
+        ],
+        durationS: 20,
+        cutsAtS: [],
+      })?.pace,
+    ).toBe("slow");
   });
 });
 
@@ -89,7 +145,9 @@ describe("formatTimestamp", () => {
 
 describe("keywordTags", () => {
   it("picks the most frequent meaningful words", () => {
-    expect(keywordTags("Coffee coffee morning routine. The morning coffee, and the routine of the morning.", 3)).toEqual(["coffee", "morning", "routine"]);
+    expect(
+      keywordTags("Coffee coffee morning routine. The morning coffee, and the routine of the morning.", 3),
+    ).toEqual(["coffee", "morning", "routine"]);
   });
 });
 
@@ -100,8 +158,20 @@ describe("styleProfile", () => {
 
   it("sums up hooks, tone, pace and sentence length in a few lines", () => {
     const profile = styleProfile([
-      { title: "Cold brew", hook: "Stop buying coffee.", tone: ["playful", "direct"], wordsPerSecond: 3.1, text: "Stop buying coffee. Make it at home. It takes two minutes." },
-      { title: "Desk setup", hook: "Your desk is lying to you.", tone: ["direct"], wordsPerSecond: 2.9, text: "Your desk is lying to you. Fix the light first." },
+      {
+        title: "Cold brew",
+        hook: "Stop buying coffee.",
+        tone: ["playful", "direct"],
+        wordsPerSecond: 3.1,
+        text: "Stop buying coffee. Make it at home. It takes two minutes.",
+      },
+      {
+        title: "Desk setup",
+        hook: "Your desk is lying to you.",
+        tone: ["direct"],
+        wordsPerSecond: 2.9,
+        text: "Your desk is lying to you. Fix the light first.",
+      },
     ]);
     expect(profile).toContain("2 of your own pieces");
     expect(profile).toContain('"Stop buying coffee."');

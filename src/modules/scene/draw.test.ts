@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { sizeFor } from "~/modules/models/geometry";
 import { buildScene, type SceneInput } from "./build";
-import { drawFrame, portraitShotFor, portraitShots, type SceneContext, type SceneImage, type ScenePortraits } from "./draw";
+import {
+  drawFrame,
+  portraitShotFor,
+  portraitShots,
+  type SceneContext,
+  type SceneImage,
+  type ScenePortraits,
+} from "./draw";
 
 // Both renderers hand drawFrame a real canvas context: the browser's
 // OffscreenCanvas one must fit the interface (the Node one is checked where
@@ -25,7 +32,16 @@ function recorder(width: number, height: number) {
   const texts: TextCall[] = [];
   const fills: { x: number; y: number; width: number; height: number }[] = [];
   const rounds: { x: number; y: number; width: number; height: number; radius: number; fill: unknown }[] = [];
-  const images: { image: SceneImage; source: number[]; x: number; y: number; width: number; height: number; alpha: number; clipped: boolean }[] = [];
+  const images: {
+    image: SceneImage;
+    source: number[];
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    alpha: number;
+    clipped: boolean;
+  }[] = [];
   let clipped = false;
   const gradient = () => ({ addColorStop() {} });
   const ctx: SceneContext = {
@@ -166,7 +182,10 @@ describe("drawFrame", () => {
   for (const format of formats) {
     it(`keeps every word inside the frame for ${format}, even a long line`, () => {
       const { width, height } = sizeFor(format, "720p");
-      const long = "Honestly I did not expect a tiny grinder like this one to change every single morning of my week but here we are again ".repeat(3).trim();
+      const long =
+        "Honestly I did not expect a tiny grinder like this one to change every single morning of my week but here we are again "
+          .repeat(3)
+          .trim();
       const rec = draw(1, { width, height, lines: [{ role: "body", text: long, emotion: "neutral" }], speechS: [10] });
       const { captions } = rec.scene.layout;
       for (const t of rec.texts) {
@@ -188,10 +207,20 @@ describe("drawFrame", () => {
   }
 
   it("shows a line too long for the caption box a page of rows at a time, the word being said on it", () => {
-    const long = "Honestly I did not expect a tiny grinder like this one to change every single morning of my week but here we are again ".repeat(12).trim();
+    const long =
+      "Honestly I did not expect a tiny grinder like this one to change every single morning of my week but here we are again "
+        .repeat(12)
+        .trim();
     const count = long.split(" ").length;
     for (const captionsOnly of [false, true]) {
-      const scene = buildScene({ width: 720, height: 1280, fps: 24, actor, lines: [{ role: "body", text: long, emotion: "neutral" }], speechS: [60] });
+      const scene = buildScene({
+        width: 720,
+        height: 1280,
+        fps: 24,
+        actor,
+        lines: [{ role: "body", text: long, emotion: "neutral" }],
+        speechS: [60],
+      });
       const box = captionsOnly ? scene.layout.overlayCaptions : scene.layout.captions;
       for (const index of [0, Math.floor(count / 2), count - 1]) {
         const word = scene.cues[0]!.words[index]!;
@@ -238,7 +267,8 @@ describe("drawFrame", () => {
     });
 
     it("lights words up like the full frame, in the lower third", () => {
-      const word = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] }).cues[0]!.words[2]!;
+      const word = buildScene({ width: 720, height: 1280, fps: 24, actor, lines, speechS: [2.8, 1.2] }).cues[0]!
+        .words[2]!;
       const t = (word.startS + word.endS) / 2;
       const over = drawCaptions(t);
       const full = captionWords(draw(t));
@@ -246,7 +276,9 @@ describe("drawFrame", () => {
       expect(over.texts.map((w) => w.text)).toEqual(full.map((w) => w.text));
       expect(over.rounds.filter((r) => r.fill === palette.highlight)).toHaveLength(1);
       // Words still to come are brighter than on the plain background.
-      expect(over.texts.map((w) => w.fill)).toEqual(full.map((w) => (w.fill === palette.inkMuted ? palette.inkMutedOver : w.fill)));
+      expect(over.texts.map((w) => w.fill)).toEqual(
+        full.map((w) => (w.fill === palette.inkMuted ? palette.inkMutedOver : w.fill)),
+      );
       expect(over.texts.some((w) => w.fill === palette.inkMutedOver)).toBe(true);
       const box = layout.overlayCaptions;
       for (const w of over.texts) {
@@ -310,7 +342,11 @@ describe("drawFrame", () => {
       expect(draw(second!.endS - 0.01, {}, portraits).images.map((i) => i.image)).toEqual([calm]);
       // No calm picture: the front one.
       expect(draw(second!.endS - 0.01, {}, { front, excited }).images.map((i) => i.image)).toEqual([front]);
-      const serious = draw(0.5, { lines: [{ role: "body", text: "Listen.", emotion: "serious" }], speechS: [1] }, portraits);
+      const serious = draw(
+        0.5,
+        { lines: [{ role: "body", text: "Listen.", emotion: "serious" }], speechS: [1] },
+        portraits,
+      );
       expect(serious.images.map((i) => i.image)).toEqual([front]);
     });
 
@@ -334,9 +370,19 @@ describe("drawFrame", () => {
 
     it("names the pictures a scene needs: the front one and the lines' expressions", () => {
       expect(portraitShots(draw(0).scene)).toEqual(["front", "excited", "calm"]);
-      expect(portraitShots(draw(0, { lines: [{ role: "body", text: "Hi.", emotion: "serious" }], speechS: [1] }).scene)).toEqual(["front"]);
-      expect(["neutral", "serious", "disappointed"].map((e) => portraitShotFor(e as "neutral"))).toEqual(["front", "front", "front"]);
-      expect(["happy", "calm", "excited"].map((e) => portraitShotFor(e as "happy"))).toEqual(["happy", "calm", "excited"]);
+      expect(
+        portraitShots(draw(0, { lines: [{ role: "body", text: "Hi.", emotion: "serious" }], speechS: [1] }).scene),
+      ).toEqual(["front"]);
+      expect(["neutral", "serious", "disappointed"].map((e) => portraitShotFor(e as "neutral"))).toEqual([
+        "front",
+        "front",
+        "front",
+      ]);
+      expect(["happy", "calm", "excited"].map((e) => portraitShotFor(e as "happy"))).toEqual([
+        "happy",
+        "calm",
+        "excited",
+      ]);
     });
   });
 

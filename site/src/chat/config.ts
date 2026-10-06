@@ -48,11 +48,16 @@ export function parseChatConfig(env: Env, knownModels?: readonly string[]): Brow
   const defaults = DEFAULT_CHAT_CONFIG;
 
   const model = read("VITE_WEBLLM_MODEL");
-  if (model !== undefined && !/^[\w.-]+$/.test(model)) problems.push(`VITE_WEBLLM_MODEL must be a WebLLM model id such as ${defaults.model} (got "${model}").`);
-  else if (model !== undefined && knownModels && !knownModels.includes(model)) problems.push(`VITE_WEBLLM_MODEL "${model}" is not a WebLLM prebuilt model (see prebuiltAppConfig in @mlc-ai/web-llm).`);
+  if (model !== undefined && !/^[\w.-]+$/.test(model))
+    problems.push(`VITE_WEBLLM_MODEL must be a WebLLM model id such as ${defaults.model} (got "${model}").`);
+  else if (model !== undefined && knownModels && !knownModels.includes(model))
+    problems.push(
+      `VITE_WEBLLM_MODEL "${model}" is not a WebLLM prebuilt model (see prebuiltAppConfig in @mlc-ai/web-llm).`,
+    );
   const chosen = model ?? defaults.model;
   const sibling = /q4f16/.test(chosen) ? chosen.replace("q4f16", "q4f32") : null;
-  const f32Model = sibling && (knownModels ? knownModels.includes(sibling) : chosen === defaults.model) ? sibling : null;
+  const f32Model =
+    sibling && (knownModels ? knownModels.includes(sibling) : chosen === defaults.model) ? sibling : null;
 
   // A size only makes sense for the model it was measured on.
   let downloadMb = model === undefined || model === defaults.model ? defaults.downloadMb : 0;

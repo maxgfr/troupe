@@ -97,7 +97,12 @@ export function Shortcuts() {
           <h2 id="shortcuts-title" className="font-display text-xl font-semibold tracking-[-0.01em]">
             Keyboard shortcuts
           </h2>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="-mt-1 -mr-2 flex size-10 items-center justify-center rounded-lg text-muted transition-colors duration-150 hover:bg-fg/[0.06] hover:text-fg">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            className="-mt-1 -mr-2 flex size-10 items-center justify-center rounded-lg text-muted transition-colors duration-150 hover:bg-fg/[0.06] hover:text-fg"
+          >
             <CloseIcon className="size-4" />
           </button>
         </div>
@@ -113,7 +118,9 @@ export function ShortcutList({ className = "" }: { className?: string }) {
     <dl className={`space-y-3 text-sm ${className}`}>
       <div className="flex items-center justify-between gap-4">
         <dt>New project</dt>
-        <dd><Kbd>n</Kbd></dd>
+        <dd>
+          <Kbd>n</Kbd>
+        </dd>
       </div>
       {GO_TO.map((d) => (
         <div key={d.key} className="flex items-center justify-between gap-4">
@@ -125,11 +132,15 @@ export function ShortcutList({ className = "" }: { className?: string }) {
       ))}
       <div className="flex items-center justify-between gap-4">
         <dt>Search the library</dt>
-        <dd><Kbd>/</Kbd></dd>
+        <dd>
+          <Kbd>/</Kbd>
+        </dd>
       </div>
       <div className="flex items-center justify-between gap-4">
         <dt>This list</dt>
-        <dd><Kbd>?</Kbd></dd>
+        <dd>
+          <Kbd>?</Kbd>
+        </dd>
       </div>
     </dl>
   );

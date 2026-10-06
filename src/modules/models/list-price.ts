@@ -26,7 +26,11 @@ const VEO: Record<string, Record<string, number>> = {
 
 // Seedance 1.5 Pro bills video tokens, width x height x fps x seconds / 1024,
 // at $2.40 a million with audio and $1.20 without. Sizes are 9:16's.
-const SEEDANCE_SIZES: Record<string, [number, number]> = { "480p": [480, 864], "720p": [720, 1280], "1080p": [1080, 1920] };
+const SEEDANCE_SIZES: Record<string, [number, number]> = {
+  "480p": [480, 864],
+  "720p": [720, 1280],
+  "1080p": [1080, 1920],
+};
 
 export function listPriceUsd(model: PricedModel, clip: ClipSettings): number | null {
   // Local models cost what their owner says, nothing by default.

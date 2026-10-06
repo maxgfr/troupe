@@ -1,5 +1,12 @@
 import { sizeFor } from "~/modules/models/geometry";
-import { AdapterError, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
+import {
+  AdapterError,
+  validateRequest,
+  type ConnectionReport,
+  type JobScript,
+  type ModelCapabilities,
+  type VideoProviderAdapter,
+} from "../adapter";
 
 // The renderer of the browser edition (site/src/render): Kokoro voices the
 // script and the shared scene is drawn and encoded, all in the visitor's
@@ -44,7 +51,11 @@ export interface BrowserRenderer {
   check(): Promise<ConnectionReport>;
 }
 
-export function createBrowserAdapter(deps: { renderer: BrowserRenderer; modelKey?: string; fps?: number }): VideoProviderAdapter {
+export function createBrowserAdapter(deps: {
+  renderer: BrowserRenderer;
+  modelKey?: string;
+  fps?: number;
+}): VideoProviderAdapter {
   const { renderer } = deps;
   const fps = deps.fps ?? DEFAULT_FPS;
   return {
@@ -56,22 +67,49 @@ export function createBrowserAdapter(deps: { renderer: BrowserRenderer; modelKey
     capabilities: () => BROWSER_CAPABILITIES,
     async createJob(req) {
       validateRequest(BROWSER_CAPABILITIES, req);
-      if (!req.script) throw new AdapterError("SCRIPT_REQUIRED", "This model voices a script: launch it from a project with a script.");
+      if (!req.script)
+        throw new AdapterError(
+          "SCRIPT_REQUIRED",
+          "This model voices a script: launch it from a project with a script.",
+        );
       const { width, height } = sizeFor(req.aspectRatio, req.resolution);
       try {
         return { providerJobId: await renderer.start({ width, height, fps, script: req.script }) };
       } catch (error) {
-        throw new AdapterError("BROWSER_START_FAILED", error instanceof Error ? error.message : "The render could not start in this browser.");
+        throw new AdapterError(
+          "BROWSER_START_FAILED",
+          error instanceof Error ? error.message : "The render could not start in this browser.",
+        );
       }
     },
     async getJob(providerJobId) {
       const state = await renderer.state(providerJobId);
       if (!state) {
-        return { kind: "failed", providerJobId, eventType: "browser.failed", errorCode: "BROWSER_JOB_MISSING", detail: "This render is no longer in this browser. Relaunch it." };
+        return {
+          kind: "failed",
+          providerJobId,
+          eventType: "browser.failed",
+          errorCode: "BROWSER_JOB_MISSING",
+          detail: "This render is no longer in this browser. Relaunch it.",
+        };
       }
       // The scene draws the captions into every frame.
-      if (state.status === "succeeded") return { kind: "completed", providerJobId, eventType: "browser.completed", outputUrl: `${OUTPUT_PREFIX}${providerJobId}`, captions: "burned" };
-      if (state.status === "failed") return { kind: "failed", providerJobId, eventType: "browser.failed", errorCode: "BROWSER_RENDER_FAILED", detail: state.detail };
+      if (state.status === "succeeded")
+        return {
+          kind: "completed",
+          providerJobId,
+          eventType: "browser.completed",
+          outputUrl: `${OUTPUT_PREFIX}${providerJobId}`,
+          captions: "burned",
+        };
+      if (state.status === "failed")
+        return {
+          kind: "failed",
+          providerJobId,
+          eventType: "browser.failed",
+          errorCode: "BROWSER_RENDER_FAILED",
+          detail: state.detail,
+        };
       return { kind: "pending", ...(state.progress !== undefined ? { progress: state.progress } : {}) };
     },
     async downloadResult(url) {

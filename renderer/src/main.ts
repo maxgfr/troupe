@@ -40,7 +40,8 @@ try {
 
 // KEEP_RENDERS_HOURS: how long finished videos stay on disk (0: forever).
 const keepHours = Number(process.env.KEEP_RENDERS_HOURS?.trim() || KEEP_RENDERS_S / 3600);
-if (!Number.isFinite(keepHours) || keepHours < 0) refuse(`KEEP_RENDERS_HOURS must be a number of hours, 0 or more (got "${process.env.KEEP_RENDERS_HOURS}").`);
+if (!Number.isFinite(keepHours) || keepHours < 0)
+  refuse(`KEEP_RENDERS_HOURS must be a number of hours, 0 or more (got "${process.env.KEEP_RENDERS_HOURS}").`);
 
 // KOKORO_VOICES="female=af_heart,af_bella;male=am_michael" recasts the actors.
 let voices: VoicePools | undefined;
@@ -75,7 +76,14 @@ const WHISPER_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "whisper
 let whisper: WhisperSettings | undefined;
 if (process.argv.includes("--whisper") || ["1", "true", "yes"].includes(process.env.WHISPER_ENABLED ?? "")) {
   try {
-    whisper = whisperSettingsFromEnv(process.env, ["uv", "run", "--project", WHISPER_DIR, "python", join(WHISPER_DIR, "transcribe.py")]);
+    whisper = whisperSettingsFromEnv(process.env, [
+      "uv",
+      "run",
+      "--project",
+      WHISPER_DIR,
+      "python",
+      join(WHISPER_DIR, "transcribe.py"),
+    ]);
   } catch (error) {
     refuse((error as Error).message);
   }
@@ -101,7 +109,8 @@ const server = createRendererServer({
   ...(ltx
     ? {
         ltx: {
-          render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, sceneHue, settings: ltx, onProgress, log }),
+          render: (request, outFile, onProgress) =>
+            renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, sceneHue, settings: ltx, onProgress, log }),
           // A generation takes minutes.
           pollEveryS: 5,
           // The default command runs in renderer/ltx/.venv, made by the setup.
@@ -114,7 +123,11 @@ const server = createRendererServer({
         whisper: {
           model: whisper.model,
           maxBytes: whisper.maxBytes,
-          ready: () => whisperReadiness(whisper.command, process.env.WHISPER_COMMAND?.trim() ? undefined : join(WHISPER_DIR, ".venv")),
+          ready: () =>
+            whisperReadiness(
+              whisper.command,
+              process.env.WHISPER_COMMAND?.trim() ? undefined : join(WHISPER_DIR, ".venv"),
+            ),
           transcribe: (file: string, signal?: AbortSignal) => transcribeFile(whisper, file, signal),
         },
       }
@@ -143,7 +156,9 @@ server.listen(PORT, HOST, () => {
   if (whisper) log(`Transcription (faster-whisper ${whisper.model}, ${whisper.computeType}) on ${origin}/transcribe`);
   if (ltx) {
     const { width, height } = ltx.resolution;
-    log(`AI video mode (LTX-Video) on ${origin}${LTX_PREFIX}: ${width}x${height}, ${ltx.frames} frames at ${ltx.frameRate} fps, upscaled with ${ltx.upscale}`);
+    log(
+      `AI video mode (LTX-Video) on ${origin}${LTX_PREFIX}: ${width}x${height}, ${ltx.frames} frames at ${ltx.frameRate} fps, upscaled with ${ltx.upscale}`,
+    );
   }
   // Fetch the voices now so the first render does not wait for the download.
   log(`Loading the Kokoro voices (${dtype}, downloaded once)…`);

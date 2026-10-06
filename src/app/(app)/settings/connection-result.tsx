@@ -18,10 +18,15 @@ export function ConnectionResult({ report }: { report?: Report }) {
   const tone = report.ok === true ? "text-success" : report.ok === false ? "text-danger" : "text-muted";
   return (
     <div role="status" className={`text-xs ${tone}`}>
-      <p className="flex gap-1.5">{report.ok === null ? null : <Mark ok={report.ok} />}<span>{report.message}</span></p>
+      <p className="flex gap-1.5">
+        {report.ok === null ? null : <Mark ok={report.ok} />}
+        <span>{report.message}</span>
+      </p>
       {report.details?.length ? (
         <ul className="mt-1 list-disc pl-5 text-muted">
-          {report.details.map((d) => <li key={d}>{d}</li>)}
+          {report.details.map((d) => (
+            <li key={d}>{d}</li>
+          ))}
         </ul>
       ) : null}
     </div>

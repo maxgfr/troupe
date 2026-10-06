@@ -39,7 +39,17 @@ export interface SceneContext<Image extends SceneImage = SceneImage> {
   clearRect(x: number, y: number, width: number, height: number): void;
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };
-  drawImage(image: Image, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(
+    image: Image,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+  ): void;
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): SceneGradient;
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): SceneGradient;
 }
@@ -112,7 +122,10 @@ export function portraitShots(scene: Scene): PortraitShot[] {
 // How long the card takes to cross-fade to the next line's expression.
 const PORTRAIT_FADE_S = 0.25;
 
-function pictureFor<Image extends SceneImage>(portraits: ScenePortraits<Image>, cue: Cue | undefined): Image | undefined {
+function pictureFor<Image extends SceneImage>(
+  portraits: ScenePortraits<Image>,
+  cue: Cue | undefined,
+): Image | undefined {
   return (cue && portraits[portraitShotFor(cue.emotion)]) ?? portraits.front;
 }
 
@@ -133,7 +146,12 @@ function drawPicture<Image extends SceneImage>(ctx: SceneContext<Image>, scene: 
 
 // The portrait: the picture for the line on screen, faded in over the
 // previous line's when it changes; the initials on a disc without pictures.
-function drawPortrait<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, portraits: ScenePortraits<Image>) {
+function drawPortrait<Image extends SceneImage>(
+  ctx: SceneContext<Image>,
+  scene: Scene,
+  t: number,
+  portraits: ScenePortraits<Image>,
+) {
   const { layout, palette, actor } = scene;
   const { portrait: disc } = layout;
   const cue = cueAt(scene, t);
@@ -161,7 +179,12 @@ function drawPortrait<Image extends SceneImage>(ctx: SceneContext<Image>, scene:
 
 // A pill hugging the portrait and the name: concentric with the portrait,
 // as wide as the name needs, at most the layout's card box.
-function card<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, portraits: ScenePortraits<Image>) {
+function card<Image extends SceneImage>(
+  ctx: SceneContext<Image>,
+  scene: Scene,
+  t: number,
+  portraits: ScenePortraits<Image>,
+) {
   const { layout, palette, actor } = scene;
   const { card: box, portrait, padding } = layout;
   const textX = portrait.cx + portrait.r + padding;
@@ -268,7 +291,9 @@ function page(placed: Placed[], cue: Cue, t: number, box: Box, px: number): Plac
   let current = 0;
   for (const [i, word] of cue.words.entries()) if (word.startS <= t) current = i;
   const first = Math.floor((placed.find((w) => w.index === current)?.row ?? 0) / fit) * fit;
-  return placed.filter((w) => w.row >= first && w.row < first + fit).map((w) => ({ ...w, y: box.y + (w.row - first) * lineHeight }));
+  return placed
+    .filter((w) => w.row >= first && w.row < first + fit)
+    .map((w) => ({ ...w, y: box.y + (w.row - first) * lineHeight }));
 }
 
 function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
@@ -276,7 +301,12 @@ function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
   if (!cue) return;
   const { palette, layout } = scene;
   const box = shaded ? layout.overlayCaptions : layout.captions;
-  const wrapped = wrap(ctx, cue.words.map((w) => w.text), box, layout.captionSize);
+  const wrapped = wrap(
+    ctx,
+    cue.words.map((w) => w.text),
+    box,
+    layout.captionSize,
+  );
   const { px } = wrapped;
   const placed = page(wrapped.placed, cue, t, box, px);
   if (shaded && placed.length > 0) {
@@ -295,7 +325,13 @@ function captions(ctx: SceneContext, scene: Scene, t: number, shaded: boolean) {
       const height = px * 1.22;
       ctx.fillStyle = palette.highlight;
       ctx.beginPath();
-      ctx.roundRect(word.x - padX, word.y - px * 0.08, ctx.measureText(word.text).width + 2 * padX, height, height * 0.28);
+      ctx.roundRect(
+        word.x - padX,
+        word.y - px * 0.08,
+        ctx.measureText(word.text).width + 2 * padX,
+        height,
+        height * 0.28,
+      );
       ctx.fill();
     }
     ctx.fillStyle = saying || t >= timing.endS ? palette.ink : shaded ? palette.inkMutedOver : palette.inkMuted;
@@ -332,7 +368,12 @@ export interface DrawOptions<Image extends SceneImage = SceneImage> {
 }
 
 // Draws the frame at time t (seconds): background, actor card, captions.
-export function drawFrame<Image extends SceneImage>(ctx: SceneContext<Image>, scene: Scene, t: number, options: DrawOptions<Image> = {}): void {
+export function drawFrame<Image extends SceneImage>(
+  ctx: SceneContext<Image>,
+  scene: Scene,
+  t: number,
+  options: DrawOptions<Image> = {},
+): void {
   ctx.save();
   ctx.globalAlpha = 1;
   if (options.captionsOnly) {

@@ -52,12 +52,14 @@ export function parseLibraryConfig(env: Env): BrowserLibraryConfig {
   const d = DEFAULT_LIBRARY_CONFIG;
   const model = (name: string, fallback: string) => {
     const value = read(name);
-    if (value !== undefined && !MODEL.test(value)) problems.push(`${name} must be a Hugging Face model id such as ${fallback} (got "${value}").`);
+    if (value !== undefined && !MODEL.test(value))
+      problems.push(`${name} must be a Hugging Face model id such as ${fallback} (got "${value}").`);
     return value ?? fallback;
   };
   const dtype = (name: string, fallback: string) => {
     const value = read(name);
-    if (value !== undefined && !DTYPES.includes(value)) problems.push(`${name} must be one of ${DTYPES.join(", ")} (got "${value}").`);
+    if (value !== undefined && !DTYPES.includes(value))
+      problems.push(`${name} must be one of ${DTYPES.join(", ")} (got "${value}").`);
     return value ?? fallback;
   };
   const whole = (name: string, fallback: number, min: number, max: number) => {
@@ -71,7 +73,8 @@ export function parseLibraryConfig(env: Env): BrowserLibraryConfig {
   const whisperModel = model("VITE_LIBRARY_WHISPER_MODEL", d.whisperModel);
   const embedModel = model("VITE_LIBRARY_EMBED_MODEL", d.embedModel);
   const device = read("VITE_LIBRARY_DEVICE") ?? d.device;
-  if (device !== "auto" && device !== "webgpu" && device !== "wasm") problems.push(`VITE_LIBRARY_DEVICE must be auto, webgpu or wasm (got "${device}").`);
+  if (device !== "auto" && device !== "webgpu" && device !== "wasm")
+    problems.push(`VITE_LIBRARY_DEVICE must be auto, webgpu or wasm (got "${device}").`);
   // A size only makes sense for the models it was measured on.
   const known = whisperModel === d.whisperModel && embedModel === d.embedModel;
   const config: BrowserLibraryConfig = {

@@ -43,7 +43,9 @@ export interface LivePlan {
 // The shortest clip at the lowest resolution, silent where the model allows,
 // priced at the provider's list price for exactly those settings (the same
 // estimate pnpm verify:live prints).
-export function cheapestPlan(model: Pick<Model, "key" | "label" | "kind" | "capabilities" | "pricePerSecondUsd">): LivePlan {
+export function cheapestPlan(
+  model: Pick<Model, "key" | "label" | "kind" | "capabilities" | "pricePerSecondUsd">,
+): LivePlan {
   const durationS = Math.min(...model.capabilities.durationsS);
   const resolution = [...model.capabilities.resolutions].sort((a, b) => rank(a) - rank(b))[0]!;
   const audio = model.capabilities.audio === "always";
@@ -65,7 +67,8 @@ export function planTotal(plans: LivePlan[]): { usd: number; unknown: string[] }
   };
 }
 
-export const money = (usd: number | null) => (usd === null ? "price unknown" : usd === 0 ? "free" : `about $${usd.toFixed(2)}`);
+export const money = (usd: number | null) =>
+  usd === null ? "price unknown" : usd === 0 ? "free" : `about $${usd.toFixed(2)}`;
 
 // --model picks some; otherwise every model that can launch.
 export async function livePlans(ctx: Context, options: OptionValues): Promise<LivePlan[]> {
@@ -73,9 +76,18 @@ export async function livePlans(ctx: Context, options: OptionValues): Promise<Li
   const ready = models.filter((m) => m.status === "ready" && m.enabled && !m.archived);
   const refs = strings(options, "model");
   const chosen = refs.length
-    ? refs.map((ref) => pick(models, ref, { kind: "model", listCommand: "troupe models list", id: (m) => m.key, names: (m) => [m.label] }))
+    ? refs.map((ref) =>
+        pick(models, ref, {
+          kind: "model",
+          listCommand: "troupe models list",
+          id: (m) => m.key,
+          names: (m) => [m.label],
+        }),
+      )
     : ready;
-  for (const m of chosen) if (!ready.includes(m)) throw usageError(`${m.label} cannot launch now (${m.statusDetail ?? m.status}). Pick another with --model.`);
+  for (const m of chosen)
+    if (!ready.includes(m))
+      throw usageError(`${m.label} cannot launch now (${m.statusDetail ?? m.status}). Pick another with --model.`);
   return chosen.map(cheapestPlan);
 }
 
@@ -91,11 +103,30 @@ const run = promisify(execFile);
 
 async function ffprobe(file: string, env: Record<string, string | undefined>) {
   try {
-    const { stdout } = await run(env.FFPROBE_PATH || "ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height:format=duration", "-of", "json", file], { timeout: 30_000 });
-    const out = JSON.parse(stdout) as { streams?: { codec_name: string; width: number; height: number }[]; format?: { duration?: string } };
+    const { stdout } = await run(
+      env.FFPROBE_PATH || "ffprobe",
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,width,height:format=duration",
+        "-of",
+        "json",
+        file,
+      ],
+      { timeout: 30_000 },
+    );
+    const out = JSON.parse(stdout) as {
+      streams?: { codec_name: string; width: number; height: number }[];
+      format?: { duration?: string };
+    };
     const s = out.streams?.[0];
     const durationS = Number(out.format?.duration);
-    return s && Number.isFinite(durationS) ? { codec: s.codec_name, width: s.width, height: s.height, durationS } : null;
+    return s && Number.isFinite(durationS)
+      ? { codec: s.codec_name, width: s.width, height: s.height, durationS }
+      : null;
   } catch {
     return null;
   }
@@ -117,22 +148,49 @@ async function save(ctx: Context, path: string, target: string) {
 // A script short enough for a 2 s clip.
 const SCRIPT = { text: "Hi! Try this.", emotion: "happy" } as const;
 
-export async function runLive(ctx: Context, plans: LivePlan[], options: OptionValues): Promise<{ projectId: string; folder: string; results: LiveResult[]; chat: { ok: boolean; detail: string } }> {
+export async function runLive(
+  ctx: Context,
+  plans: LivePlan[],
+  options: OptionValues,
+): Promise<{ projectId: string; folder: string; results: LiveResult[]; chat: { ok: boolean; detail: string } }> {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
   const folder = resolve(ctx.io.cwd, str(options, "output") ?? `troupe-live-${stamp}`);
   await mkdir(folder, { recursive: true });
   const actor = (await ctx.api.actors.list.query())[0];
   if (!actor) throw usageError("The studio has no actor to cast. Open it once so it seeds its actors.");
-  const project = await ctx.api.studio.createFromWizard.mutate({ workspaceId: await ctx.workspaceId(), title: `Live check ${stamp}`, platform: "tiktok", format: "9:16", language: "en", actorId: actor.id });
-  const script = await ctx.api.script.paste.mutate({ projectId: project.id, text: SCRIPT.text, emotions: [SCRIPT.emotion] });
-  ctx.note(`Project "${project.title}" (${project.id}) holds the renders; delete it with troupe projects delete when done.`);
+  const project = await ctx.api.studio.createFromWizard.mutate({
+    workspaceId: await ctx.workspaceId(),
+    title: `Live check ${stamp}`,
+    platform: "tiktok",
+    format: "9:16",
+    language: "en",
+    actorId: actor.id,
+  });
+  const script = await ctx.api.script.paste.mutate({
+    projectId: project.id,
+    text: SCRIPT.text,
+    emotions: [SCRIPT.emotion],
+  });
+  ctx.note(
+    `Project "${project.title}" (${project.id}) holds the renders; delete it with troupe projects delete when done.`,
+  );
 
   // Launch everything first: the providers work in parallel.
   const launched: { plan: LivePlan; renderId: string | null; error: string | null }[] = [];
   for (const plan of plans) {
     try {
-      const render = await ctx.api.generation.launchText.mutate({ projectId: project.id, scriptId: script.id, modelKey: plan.modelKey, durationS: plan.durationS, resolution: plan.resolution, audio: plan.audio, language: "en" });
-      ctx.note(`Launched ${plan.label}: ${plan.durationS} s, ${plan.resolution}${plan.audio ? ", with audio" : ", silent"} (${money(plan.estimateUsd)}).`);
+      const render = await ctx.api.generation.launchText.mutate({
+        projectId: project.id,
+        scriptId: script.id,
+        modelKey: plan.modelKey,
+        durationS: plan.durationS,
+        resolution: plan.resolution,
+        audio: plan.audio,
+        language: "en",
+      });
+      ctx.note(
+        `Launched ${plan.label}: ${plan.durationS} s, ${plan.resolution}${plan.audio ? ", with audio" : ", silent"} (${money(plan.estimateUsd)}).`,
+      );
       launched.push({ plan, renderId: render.id, error: null });
     } catch (error) {
       launched.push({ plan, renderId: null, error: (error as Error).message });
@@ -142,8 +200,15 @@ export async function runLive(ctx: Context, plans: LivePlan[], options: OptionVa
   // The chat model, once: a proposal for the same project.
   let chat: { ok: boolean; detail: string };
   try {
-    const { assistant } = await ctx.api.chat.send.mutate({ projectId: project.id, message: "Make it a little warmer.", durationS: Math.max(4, ...plans.map((p) => p.durationS)) });
-    chat = { ok: Boolean(assistant.proposal), detail: `${assistant.provider ?? "chat"} (${assistant.model ?? "?"}) ${assistant.proposal ? "proposed a script" : "answered without a script"}.` };
+    const { assistant } = await ctx.api.chat.send.mutate({
+      projectId: project.id,
+      message: "Make it a little warmer.",
+      durationS: Math.max(4, ...plans.map((p) => p.durationS)),
+    });
+    chat = {
+      ok: Boolean(assistant.proposal),
+      detail: `${assistant.provider ?? "chat"} (${assistant.model ?? "?"}) ${assistant.proposal ? "proposed a script" : "answered without a script"}.`,
+    };
   } catch (error) {
     chat = { ok: false, detail: (error as Error).message };
   }
@@ -159,18 +224,39 @@ export async function runLive(ctx: Context, plans: LivePlan[], options: OptionVa
     try {
       ({ render } = await watchRender(ctx, project.id, renderId, { interval: str(options, "interval"), timeout }));
     } catch (watchError) {
-      results.push({ ...plan, renderId, status: "failed", detail: (watchError as Error).message, file: null, probe: null });
+      results.push({
+        ...plan,
+        renderId,
+        status: "failed",
+        detail: (watchError as Error).message,
+        file: null,
+        probe: null,
+      });
       continue;
     }
     if (render.status !== "completed" || !render.outputAssetUrl) {
-      results.push({ ...plan, renderId, status: "failed", detail: render.errorDetail ?? render.errorCode ?? "no reason given", file: null, probe: null });
+      results.push({
+        ...plan,
+        renderId,
+        status: "failed",
+        detail: render.errorDetail ?? render.errorCode ?? "no reason given",
+        file: null,
+        probe: null,
+      });
       continue;
     }
     const file = join(folder, `${plan.modelKey}.mp4`);
     try {
       await save(ctx, `${render.outputAssetUrl}?download=1`, file);
     } catch (saveError) {
-      results.push({ ...plan, renderId, status: "failed", detail: `Rendered, but the download failed: ${(saveError as Error).message}.`, file: null, probe: null });
+      results.push({
+        ...plan,
+        renderId,
+        status: "failed",
+        detail: `Rendered, but the download failed: ${(saveError as Error).message}.`,
+        file: null,
+        probe: null,
+      });
       continue;
     }
     const probe = await ffprobe(file, ctx.io.env);
@@ -179,7 +265,9 @@ export async function runLive(ctx: Context, plans: LivePlan[], options: OptionVa
       ...plan,
       renderId,
       status: probe ? "completed" : "failed",
-      detail: probe ? `${probe.codec} ${probe.width}x${probe.height}, ${probe.durationS.toFixed(2)} s, ${(bytes / 1_048_576).toFixed(1)} MB` : "Saved, but ffprobe could not read it (is ffprobe on PATH? FFPROBE_PATH sets it).",
+      detail: probe
+        ? `${probe.codec} ${probe.width}x${probe.height}, ${probe.durationS.toFixed(2)} s, ${(bytes / 1_048_576).toFixed(1)} MB`
+        : "Saved, but ffprobe could not read it (is ffprobe on PATH? FFPROBE_PATH sets it).",
       file,
       probe,
     });

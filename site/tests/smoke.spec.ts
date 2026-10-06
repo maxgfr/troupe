@@ -42,12 +42,16 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await picture.scrollIntoViewIfNeeded();
   // The copy the browser picked for the tile's width (front-160/320.webp),
   // decoded.
-  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0 && img.currentSrc)).toMatch(/\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front(-\d+)?\.webp$/);
+  await expect
+    .poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0 && img.currentSrc))
+    .toMatch(/\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front(-\d+)?\.webp$/);
   await actor.click();
   await page.getByRole("button", { name: /Create project/ }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}\/script$/);
 
-  await page.getByLabel(/Write or paste your script/).fill("Stop scrolling for a second.\nThis studio runs in your browser.\nTry it tonight.");
+  await page
+    .getByLabel(/Write or paste your script/)
+    .fill("Stop scrolling for a second.\nThis studio runs in your browser.\nTry it tonight.");
   await page.getByRole("button", { name: "Save as new version" }).click();
   await expect(page.getByText(/version 1 · written here/)).toBeVisible();
 
@@ -60,7 +64,9 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.goto(projectUrl);
   await expect(page.getByRole("heading", { name: "Smoke project" })).toBeVisible();
   // The in-browser model is offered, or the browser says why it cannot render.
-  await expect(page.getByText("Runs in this browser.").or(page.getByText(/This browser cannot render video/))).toBeVisible();
+  await expect(
+    page.getByText("Runs in this browser.").or(page.getByText(/This browser cannot render video/)),
+  ).toBeVisible();
   await page.goto(`${APP}/dashboard`);
   await expect(page.getByRole("link", { name: /Smoke project/ })).toBeVisible();
 
@@ -80,13 +86,22 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
     const bytes = new Uint8Array(1000).map((_, i) => i % 256);
     await new Promise<void>((resolve, reject) => {
       const open = indexedDB.open("troupe-media", 1);
-      open.onupgradeneeded = () => open.result.createObjectStore("files", { keyPath: "id" }).createIndex("storagePath", "storagePath");
+      open.onupgradeneeded = () =>
+        open.result.createObjectStore("files", { keyPath: "id" }).createIndex("storagePath", "storagePath");
       open.onerror = () => reject(open.error);
       open.onsuccess = () => {
         const tx = open.result.transaction("files", "readwrite");
-        tx.objectStore("files").put({ id: "smoke-asset", storagePath: "smoke-asset", blob: new Blob([bytes], { type: "video/mp4" }) });
+        tx.objectStore("files").put({
+          id: "smoke-asset",
+          storagePath: "smoke-asset",
+          blob: new Blob([bytes], { type: "video/mp4" }),
+        });
         // A file that is not a video must never be served as a page.
-        tx.objectStore("files").put({ id: "smoke-page", storagePath: "smoke-page", blob: new Blob(["<script>alert(1)</script>"], { type: "text/html" }) });
+        tx.objectStore("files").put({
+          id: "smoke-page",
+          storagePath: "smoke-page",
+          blob: new Blob(["<script>alert(1)</script>"], { type: "text/html" }),
+        });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       };
@@ -130,7 +145,9 @@ test("the media worker serves stored renders with byte ranges", async ({ page })
   });
 });
 
-test("settings says what needs the self-hosted studio, and deleting all local data empties the studio", async ({ page }) => {
+test("settings says what needs the self-hosted studio, and deleting all local data empties the studio", async ({
+  page,
+}) => {
   // The database is created twice here (first visit, then the deletion).
   test.slow();
   const errors = watchConsole(page);
@@ -138,7 +155,10 @@ test("settings says what needs the self-hosted studio, and deleting all local da
   await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible(MIGRATING);
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Set up the self-hosted studio", exact: true }).first()).toHaveAttribute("href", /docs\/SELF-HOSTING\.md$/);
+  await expect(page.getByRole("link", { name: "Set up the self-hosted studio", exact: true }).first()).toHaveAttribute(
+    "href",
+    /docs\/SELF-HOSTING\.md$/,
+  );
   await expect(page.locator("body")).not.toContainText(TRIAL_WORD);
 
   await page.goto(`${APP}/projects/new`);

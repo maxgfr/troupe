@@ -31,26 +31,37 @@ describe("studio.changeActor", () => {
   });
 
   it("refuses an unknown or unavailable actor as a bad request, with the guard's sentence", async () => {
-    await expect(asMember().studio.changeActor({ projectId: fx.projectId, actorId: "8aaaaaaa-1111-4111-8111-111111111111" })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/not found/) });
+    await expect(
+      asMember().studio.changeActor({ projectId: fx.projectId, actorId: "8aaaaaaa-1111-4111-8111-111111111111" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/not found/) });
     const [benched] = await db.select().from(actors).limit(1);
     await db.update(actors).set({ status: "unavailable" }).where(eq(actors.id, benched!.id));
-    await expect(asMember().studio.changeActor({ projectId: fx.projectId, actorId: benched!.id })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/is unavailable/) });
+    await expect(
+      asMember().studio.changeActor({ projectId: fx.projectId, actorId: benched!.id }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(/is unavailable/) });
     await db.update(actors).set({ status: "active" }).where(eq(actors.id, benched!.id));
   });
 
   it("keeps a stranger out", async () => {
-    await expect(testCaller({ db, userId: STRANGER }).studio.changeActor({ projectId: fx.projectId, actorId: fx.actorId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      testCaller({ db, userId: STRANGER }).studio.changeActor({ projectId: fx.projectId, actorId: fx.actorId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("lets any other failure through as an internal error, not a bad request", async () => {
     // The database fails as the actor is written.
     const failing = new Proxy(db, {
       get(target, prop, receiver) {
-        if (prop === "update") return () => { throw new Error("connection lost"); };
+        if (prop === "update")
+          return () => {
+            throw new Error("connection lost");
+          };
         const value = Reflect.get(target, prop, receiver);
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
-    await expect(asMember(failing).studio.changeActor({ projectId: fx.projectId, actorId: fx.actorId })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await expect(
+      asMember(failing).studio.changeActor({ projectId: fx.projectId, actorId: fx.actorId }),
+    ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 });

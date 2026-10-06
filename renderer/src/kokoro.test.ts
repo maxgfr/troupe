@@ -11,7 +11,9 @@ describe("parseKokoroDtype", () => {
   });
 
   it("refuses anything else, naming the choices", () => {
-    expect(() => parseKokoroDtype("int8")).toThrow('KOKORO_DTYPE must be one of fp32, fp16, q8, q4, q4f16 (got "int8").');
+    expect(() => parseKokoroDtype("int8")).toThrow(
+      'KOKORO_DTYPE must be one of fp32, fp16, q8, q4, q4f16 (got "int8").',
+    );
     expect(() => parseKokoroDtype("Q8")).toThrow(/KOKORO_DTYPE/);
   });
 });

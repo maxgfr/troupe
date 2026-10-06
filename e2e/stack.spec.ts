@@ -20,7 +20,15 @@ test("the browser edition is served with its security headers", async ({ request
   const page = await request.get(`${web}/troupe/app/dashboard`);
   expect(page.status()).toBe(200);
   const csp = page.headers()["content-security-policy"] ?? "";
-  for (const part of ["default-src 'self'", "'wasm-unsafe-eval'", "worker-src 'self' blob:", "frame-ancestors 'none'", "https://huggingface.co", "'sha256-"]) expect(csp).toContain(part);
+  for (const part of [
+    "default-src 'self'",
+    "'wasm-unsafe-eval'",
+    "worker-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "https://huggingface.co",
+    "'sha256-",
+  ])
+    expect(csp).toContain(part);
   expect(csp).not.toContain("'unsafe-eval'");
   expect(page.headers()["x-frame-options"]).toBe("DENY");
   expect(page.headers()["x-content-type-options"]).toBe("nosniff");
@@ -29,7 +37,9 @@ test("the browser edition is served with its security headers", async ({ request
 });
 
 test("a spoofed localhost Host header gets nothing", async ({ request, baseURL }) => {
-  const response = await request.get(`${baseURL}/api/trpc/identity.myWorkspaces`, { headers: { host: "localhost:3100" } });
+  const response = await request.get(`${baseURL}/api/trpc/identity.myWorkspaces`, {
+    headers: { host: "localhost:3100" },
+  });
   expect(response.status()).toBe(401);
 });
 
@@ -40,7 +50,10 @@ test("a restart keeps the access code, the projects and the renderer as they wer
   expect(compose("exec", "-T", "app", "cat", "/app/data/access-code").trim()).toBe(code);
   // The first-boot wiring found its model and changed nothing.
   expect(compose("logs", "--no-color", "app")).toMatch(/"event":"autoconfigure\.renderer","outcome":"exists"/);
-  const models = JSON.parse(troupe("--json", "models", "list").stdout) as { models: { key: string }[]; defaultModelKey: string | null };
+  const models = JSON.parse(troupe("--json", "models", "list").stdout) as {
+    models: { key: string }[];
+    defaultModelKey: string | null;
+  };
   expect(models.models.filter((m) => m.key.startsWith("local-"))).toHaveLength(1);
   expect(models.defaultModelKey).toBe("local-stack-renderer");
   expect(troupe("projects", "list").stdout).toContain(PROJECT);

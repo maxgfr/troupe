@@ -9,12 +9,18 @@ function fakeOrchestrator(results: ReconcileResult[]): JobOrchestrator {
 
 describe("reconcile trigger — fail-closed HTTP guard", () => {
   it("503 when RECONCILE_SECRET is not configured — never runs unauthenticated", async () => {
-    const res = await processReconcileRequest({ orchestrator: fakeOrchestrator([]), secret: undefined }, { secret: "anything" });
+    const res = await processReconcileRequest(
+      { orchestrator: fakeOrchestrator([]), secret: undefined },
+      { secret: "anything" },
+    );
     expect(res.status).toBe(503);
   });
 
   it("401 on a wrong secret", async () => {
-    const res = await processReconcileRequest({ orchestrator: fakeOrchestrator([]), secret: "s3cret" }, { secret: "wrong" });
+    const res = await processReconcileRequest(
+      { orchestrator: fakeOrchestrator([]), secret: "s3cret" },
+      { secret: "wrong" },
+    );
     expect(res.status).toBe(401);
   });
 
@@ -37,7 +43,14 @@ describe("reconcile trigger — fail-closed HTTP guard", () => {
   it("records a heartbeat with the processed count only on an authorized run", async () => {
     const record = vi.fn((_run: { at: Date; processed: number }) => Promise.resolve());
     const ok = await processReconcileRequest(
-      { orchestrator: fakeOrchestrator([{ generationId: "a", outcome: "completed" }, { generationId: "b", outcome: "pending" }]), secret: "s3cret", recordHeartbeat: record },
+      {
+        orchestrator: fakeOrchestrator([
+          { generationId: "a", outcome: "completed" },
+          { generationId: "b", outcome: "pending" },
+        ]),
+        secret: "s3cret",
+        recordHeartbeat: record,
+      },
       { secret: "s3cret" },
     );
     expect(ok.status).toBe(200);
@@ -48,8 +61,14 @@ describe("reconcile trigger — fail-closed HTTP guard", () => {
 
   it("never records a heartbeat when the guard fails closed (503/401)", async () => {
     const record = vi.fn((_run: { at: Date; processed: number }) => Promise.resolve());
-    await processReconcileRequest({ orchestrator: fakeOrchestrator([]), secret: undefined, recordHeartbeat: record }, { secret: "x" });
-    await processReconcileRequest({ orchestrator: fakeOrchestrator([]), secret: "s3cret", recordHeartbeat: record }, { secret: "wrong" });
+    await processReconcileRequest(
+      { orchestrator: fakeOrchestrator([]), secret: undefined, recordHeartbeat: record },
+      { secret: "x" },
+    );
+    await processReconcileRequest(
+      { orchestrator: fakeOrchestrator([]), secret: "s3cret", recordHeartbeat: record },
+      { secret: "wrong" },
+    );
     expect(record).not.toHaveBeenCalled();
   });
 

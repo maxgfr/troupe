@@ -1,5 +1,13 @@
 import type { LocalData } from "~/app/_components/edition";
-import { clearMediaFiles, deleteMediaFiles, mediaFileIds, readMediaFiles, saveMediaFile, saveMediaFiles, type MediaFile } from "../media";
+import {
+  clearMediaFiles,
+  deleteMediaFiles,
+  mediaFileIds,
+  readMediaFiles,
+  saveMediaFile,
+  saveMediaFiles,
+  type MediaFile,
+} from "../media";
 import { clearJobs } from "../render/jobs";
 import { checkMigrations, packBackup, summarize, unpackBackup, type Backup } from "./backup";
 import { storage } from "./storage";
@@ -62,7 +70,9 @@ export async function restoreBackup(backup: Backup): Promise<void> {
     try {
       await (await database()).restoreDatabase(backup.database);
     } catch (error) {
-      await deleteMediaFiles(added.map((file) => file.id)).catch((cleanup: unknown) => console.warn("The backup's files could not be taken out again:", cleanup));
+      await deleteMediaFiles(added.map((file) => file.id)).catch((cleanup: unknown) =>
+        console.warn("The backup's files could not be taken out again:", cleanup),
+      );
       throw error;
     }
     try {
@@ -118,7 +128,10 @@ export const localData: LocalData = {
   async readBackup(file) {
     const backup = await unpackBackup(file);
     const { MIGRATIONS } = await import("../db/migrations");
-    checkMigrations(backup, MIGRATIONS.map((migration) => migration.name));
+    checkMigrations(
+      backup,
+      MIGRATIONS.map((migration) => migration.name),
+    );
     return { summary: summarize(backup), restore: () => restoreBackup(backup) };
   },
   storage,

@@ -25,7 +25,10 @@ const NAV = [
 ] as const;
 
 function isActive(pathname: string, item: (typeof NAV)[number]): boolean {
-  return [item.href, ...item.also].some((href) => pathname === href || pathname.startsWith(`${href}/`)) && pathname !== "/projects/new";
+  return (
+    [item.href, ...item.also].some((href) => pathname === href || pathname.startsWith(`${href}/`)) &&
+    pathname !== "/projects/new"
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -47,7 +50,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // reaches the screen's edges (viewport-fit=cover).
     <div className="relative isolate flex min-h-dvh flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
       <StageProvider>
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"
+        >
           Skip to content
         </a>
         <header className="sticky top-0 z-30 bg-bg/75 shadow-[0_1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150">
@@ -93,16 +99,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} key={pathname} className={`${navigated ? "page-in " : ""}mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 outline-none sm:px-6 sm:pt-10 sm:pb-16`}>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          key={pathname}
+          className={`${navigated ? "page-in " : ""}mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 outline-none sm:px-6 sm:pt-10 sm:pb-16`}
+        >
           {workspace.status === "error" || workspace.status === "empty" ? (
             <div className="max-w-2xl space-y-4">
-              <ErrorNote>{workspace.status === "error" ? `The studio could not load: ${workspace.message}` : "The personal studio could not be initialized."}</ErrorNote>
+              <ErrorNote>
+                {workspace.status === "error"
+                  ? `The studio could not load: ${workspace.message}`
+                  : "The personal studio could not be initialized."}
+              </ErrorNote>
               <Button variant="primary" onClick={() => window.location.reload()}>
                 Reload studio
               </Button>
               {edition.kind === "browser" ? (
                 <div className="space-y-2 border-t border-line pt-4">
-                  <p className="max-w-[65ch] text-sm text-muted">If reloading does not help, the data saved in this browser may be damaged. Deleting it starts an empty studio.</p>
+                  <p className="max-w-[65ch] text-sm text-muted">
+                    If reloading does not help, the data saved in this browser may be damaged. Deleting it starts an
+                    empty studio.
+                  </p>
                   <DeleteLocalData deleteAll={edition.data.deleteAll} />
                 </div>
               ) : null}
@@ -127,7 +145,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-current={active ? "page" : undefined}
                     className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150 ${active ? "text-fg" : "text-muted"}`}
                   >
-                    <item.Icon className={`size-[22px] transition-colors duration-150 ${active ? "text-primary" : ""}`} />
+                    <item.Icon
+                      className={`size-[22px] transition-colors duration-150 ${active ? "text-primary" : ""}`}
+                    />
                     {item.label}
                   </Link>
                 </li>

@@ -31,7 +31,8 @@ describe("voiceFor", () => {
   });
 
   it("speeds up excitement and slows down disappointment", () => {
-    const speed = (emotion: (typeof SUPPORTED_EMOTIONS)[number]) => voiceFor({ id: "a", gender: "male" }, emotion).speed;
+    const speed = (emotion: (typeof SUPPORTED_EMOTIONS)[number]) =>
+      voiceFor({ id: "a", gender: "male" }, emotion).speed;
     expect(speed("neutral")).toBe(1);
     expect(speed("excited")).toBeGreaterThan(speed("happy"));
     expect(speed("happy")).toBeGreaterThan(1);
@@ -45,9 +46,15 @@ describe("voiceFor", () => {
 
   it("follows the tempo in the voice profile", () => {
     const base = voiceFor({ id: "a", gender: "female" }, "neutral").speed;
-    expect(voiceFor({ id: "a", gender: "female", voiceProfile: "bright and fast, upbeat" }, "neutral").speed).toBeGreaterThan(base);
-    expect(voiceFor({ id: "a", gender: "female", voiceProfile: "soft-spoken and intimate" }, "neutral").speed).toBeLessThan(base);
-    expect(voiceFor({ id: "a", gender: "female", voiceProfile: "warm and enthusiastic, mid-tempo" }, "neutral").speed).toBe(base);
+    expect(
+      voiceFor({ id: "a", gender: "female", voiceProfile: "bright and fast, upbeat" }, "neutral").speed,
+    ).toBeGreaterThan(base);
+    expect(
+      voiceFor({ id: "a", gender: "female", voiceProfile: "soft-spoken and intimate" }, "neutral").speed,
+    ).toBeLessThan(base);
+    expect(
+      voiceFor({ id: "a", gender: "female", voiceProfile: "warm and enthusiastic, mid-tempo" }, "neutral").speed,
+    ).toBe(base);
   });
 });
 

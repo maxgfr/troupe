@@ -81,7 +81,8 @@ body{font-family:Geist,sans-serif;color:oklch(0.93 0.01 250)}
 }
 
 const WORDMARK = `<div class="mark">tr<span class="ring">o<i></i></span>upe</div>`;
-const title = (lede: string, small: string) => `<div class="stage">${WORDMARK}<p class="lede">${lede}</p><p class="small">${small}</p></div>`;
+const title = (lede: string, small: string) =>
+  `<div class="stage">${WORDMARK}<p class="lede">${lede}</p><p class="small">${small}</p></div>`;
 
 function captionCard(name: string) {
   const match = /^cap-([a-z]+)(?:-x(\d+))?$/.exec(name);
@@ -93,7 +94,8 @@ function captionCard(name: string) {
 
 // 1200×630: the wordmark, the line, and six of the cast in a 3×2 grid.
 function socialCard({ repo, socialCast }: CardOptions) {
-  const picture = (slug: string) => `data:image/webp;base64,${readFileSync(join(repo, "public", "actors", slug, "v1", "front.webp")).toString("base64")}`;
+  const picture = (slug: string) =>
+    `data:image/webp;base64,${readFileSync(join(repo, "public", "actors", slug, "v1", "front.webp")).toString("base64")}`;
   return `<style>
 html,body{width:1200px;height:630px}
 .social{position:absolute;inset:0;background:#060c13;display:grid;grid-template-columns:1fr 470px;align-items:center;gap:56px;padding:0 64px 0 80px}
@@ -135,10 +137,23 @@ export async function drawCards(page: Page, options: CardOptions, captions: stri
     // Captions and title cards keep their transparency for the overlay.
     await page.screenshot({ path: join(dir, `${name}.png`), omitBackground: name !== "social", scale: "css" });
   };
-  await shoot("open", title("A video studio that runs in your browser.", "One project, start to finish, recorded in Chrome. Waits are sped up, and say so."));
-  await shoot("close", title("Open source. In your browser, or on your own server.", `<span class="url">${escapeHtml(options.link)}</span>`));
+  await shoot(
+    "open",
+    title(
+      "A video studio that runs in your browser.",
+      "One project, start to finish, recorded in Chrome. Waits are sped up, and say so.",
+    ),
+  );
+  await shoot(
+    "close",
+    title(
+      "Open source. In your browser, or on your own server.",
+      `<span class="url">${escapeHtml(options.link)}</span>`,
+    ),
+  );
   for (const name of new Set(captions)) await shoot(name, captionCard(name));
   await shoot("social", socialCard(options), { width: 1200, height: 630 });
   const poster = join(options.out, "poster.json");
-  if (existsSync(poster)) await shoot("poster", posterCard(options, JSON.parse(readFileSync(poster, "utf8")) as PosterSource));
+  if (existsSync(poster))
+    await shoot("poster", posterCard(options, JSON.parse(readFileSync(poster, "utf8")) as PosterSource));
 }

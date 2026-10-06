@@ -4,7 +4,16 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, actorPicturesMiddleware, fontPreloads, landingPage, pagesNotFoundMiddleware, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
+import {
+  actorPictures,
+  actorPicturesMiddleware,
+  fontPreloads,
+  landingPage,
+  pagesNotFoundMiddleware,
+  parseBasePath,
+  parseLandingConfig,
+  serverGuard,
+} from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -46,10 +55,14 @@ describe("server guard", () => {
 
   it("lets a dependency use the built-ins it is allowed, and only those", async () => {
     const root = project("guarded", `import fs from "fs";\nexport default fs;\n`);
-    await expect(bundle(root, serverGuard({ nodeBuiltinsAllowedIn: { guarded: { builtins: ["fs"], reason: "test" } } }))).resolves.toBeTruthy();
+    await expect(
+      bundle(root, serverGuard({ nodeBuiltinsAllowedIn: { guarded: { builtins: ["fs"], reason: "test" } } })),
+    ).resolves.toBeTruthy();
 
     const other = project("guarded", `import zlib from "zlib";\nexport default zlib;\n`);
-    await expect(bundle(other, serverGuard({ nodeBuiltinsAllowedIn: { guarded: { builtins: ["fs"], reason: "test" } } }))).rejects.toThrow(/zlib is a Node built-in/);
+    await expect(
+      bundle(other, serverGuard({ nodeBuiltinsAllowedIn: { guarded: { builtins: ["fs"], reason: "test" } } })),
+    ).rejects.toThrow(/zlib is a Node built-in/);
   });
 });
 
@@ -101,17 +114,29 @@ describe("actor pictures in vite dev", () => {
     writeFileSync(join(root, "lea-01", "v1", "front.webp"), "RIFF-front");
     writeFileSync(join(root, "secret.txt"), "no");
     const sent: { type?: string; body?: string; next: boolean } = { next: false };
-    const res = { setHeader: (_: string, v: string) => (sent.type = v), end: (b: Buffer) => (sent.body = b.toString()) };
+    const res = {
+      setHeader: (_: string, v: string) => (sent.type = v),
+      end: (b: Buffer) => (sent.body = b.toString()),
+    };
     actorPicturesMiddleware("/troupe/", root)({ url } as never, res as never, () => (sent.next = true));
     return sent;
   }
 
   it("serves a picture with its type", () => {
-    expect(serve("/troupe/actors/lea-01/v1/front.webp?x=1")).toEqual({ type: "image/webp", body: "RIFF-front", next: false });
+    expect(serve("/troupe/actors/lea-01/v1/front.webp?x=1")).toEqual({
+      type: "image/webp",
+      body: "RIFF-front",
+      next: false,
+    });
   });
 
   it("passes anything else on: other paths, other files, escapes and malformed URLs", () => {
-    for (const url of ["/troupe/app/", "/troupe/actors/secret.txt", "/troupe/actors/..%2F..%2Fetc%2Fpasswd.webp", "/troupe/actors/%E0%A4%A.webp"]) {
+    for (const url of [
+      "/troupe/app/",
+      "/troupe/actors/secret.txt",
+      "/troupe/actors/..%2F..%2Fetc%2Fpasswd.webp",
+      "/troupe/actors/%E0%A4%A.webp",
+    ]) {
       expect(serve(url), url).toEqual({ next: true });
     }
   });
@@ -126,17 +151,23 @@ describe("vite preview, answering like GitHub Pages", () => {
     mkdirSync(join(out, "app"));
     writeFileSync(join(out, "app", "index.html"), "");
     const sent: { status?: number; body?: string; next?: boolean } = {};
-    const res = { statusCode: 200, setHeader() {}, end: (body: Buffer) => Object.assign(sent, { status: res.statusCode, body: body.toString() }) };
+    const res = {
+      statusCode: 200,
+      setHeader() {},
+      end: (body: Buffer) => Object.assign(sent, { status: res.statusCode, body: body.toString() }),
+    };
     pagesNotFoundMiddleware("/troupe/", out)({ url } as never, res as never, () => (sent.next = true));
     return sent;
   }
 
   it("passes files and folders with an index on, and paths outside the base", () => {
-    for (const url of ["/troupe/sw.js", "/troupe/app/", "/troupe/app?x=1", "/elsewhere/%E0%A4%A"]) expect(serve(url), url).toEqual({ next: true });
+    for (const url of ["/troupe/sw.js", "/troupe/app/", "/troupe/app?x=1", "/elsewhere/%E0%A4%A"])
+      expect(serve(url), url).toEqual({ next: true });
   });
 
   it("answers anything else with 404.html and a 404, malformed URLs included", () => {
-    for (const url of ["/troupe/app/projects/123", "/troupe/%E0%A4%A", "/troupe/app/%"]) expect(serve(url), url).toEqual({ status: 404, body: "<p>the app</p>" });
+    for (const url of ["/troupe/app/projects/123", "/troupe/%E0%A4%A", "/troupe/app/%"])
+      expect(serve(url), url).toEqual({ status: 404, body: "<p>the app</p>" });
   });
 });
 
@@ -148,12 +179,16 @@ describe("landing page", () => {
     dirs.push(root);
     writeFileSync(join(root, "index.html"), html);
     mkdirSync(join(root, "app"));
-    writeFileSync(join(root, "app", "index.html"), "<!doctype html><html><head><title>%SITE_URL%</title></head><body><!--troupe:cast--></body></html>");
+    writeFileSync(
+      join(root, "app", "index.html"),
+      "<!doctype html><html><head><title>%SITE_URL%</title></head><body><!--troupe:cast--></body></html>",
+    );
     // Léa has thumbnails, Sam only the full picture.
     const portraits = join(root, "cast");
     mkdirSync(join(portraits, "lea-01", "v1"), { recursive: true });
     mkdirSync(join(portraits, "sam-13", "v1"), { recursive: true });
-    for (const file of ["front.webp", "front-160.webp", "front-320.webp"]) writeFileSync(join(portraits, "lea-01", "v1", file), "RIFF");
+    for (const file of ["front.webp", "front-160.webp", "front-320.webp"])
+      writeFileSync(join(portraits, "lea-01", "v1", file), "RIFF");
     writeFileSync(join(portraits, "sam-13", "v1", "front.webp"), "RIFF");
     const outDir = join(root, "dist");
     await build({
@@ -173,9 +208,15 @@ describe("landing page", () => {
           ],
         }),
       ],
-      build: { outDir, rollupOptions: { input: { landing: join(root, "index.html"), app: join(root, "app", "index.html") } } },
+      build: {
+        outDir,
+        rollupOptions: { input: { landing: join(root, "index.html"), app: join(root, "app", "index.html") } },
+      },
     });
-    return { landing: readFileSync(join(outDir, "index.html"), "utf8"), app: readFileSync(join(outDir, "app", "index.html"), "utf8") };
+    return {
+      landing: readFileSync(join(outDir, "index.html"), "utf8"),
+      app: readFileSync(join(outDir, "app", "index.html"), "utf8"),
+    };
   }
 
   it("fills in the site's address and the repository's, on the landing page only", async () => {
@@ -190,12 +231,16 @@ describe("landing page", () => {
   });
 
   it("lists the cast from the catalog, with the pictures the site serves", async () => {
-    const { landing, app } = await site("<!doctype html><html><head></head><body><ul><!--troupe:cast--></ul></body></html>");
+    const { landing, app } = await site(
+      "<!doctype html><html><head></head><body><ul><!--troupe:cast--></ul></body></html>",
+    );
     // Thumbnails when the cast folder has them, the full picture otherwise.
     expect(landing).toContain(
       '<img src="/troupe/actors/lea-01/v1/front-320.webp" srcset="/troupe/actors/lea-01/v1/front-160.webp 160w, /troupe/actors/lea-01/v1/front-320.webp 320w, /troupe/actors/lea-01/v1/front.webp 768w" sizes="(min-width: 1240px) 106px, (min-width: 720px) 14vw, 30vw" alt="" width="768" height="768" loading="lazy" decoding="async" />',
     );
-    expect(landing).toContain('<img src="/troupe/actors/sam-13/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />');
+    expect(landing).toContain(
+      '<img src="/troupe/actors/sam-13/v1/front.webp" alt="" width="768" height="768" loading="lazy" decoding="async" />',
+    );
     expect(landing).toContain("<span>Léa</span>");
     // Names are text, never markup.
     expect(landing).toContain("<span>Sam &amp; &lt;co&gt;</span>");
@@ -204,7 +249,9 @@ describe("landing page", () => {
   });
 
   it("points %ACTOR_THUMB:<slug>% at the smallest picture the cast folder has", async () => {
-    const { landing } = await site('<!doctype html><html><head></head><body><img src="%ACTOR_THUMB:lea-01%" alt="" /><img src="%ACTOR_THUMB:sam-13%" alt="" /></body></html>');
+    const { landing } = await site(
+      '<!doctype html><html><head></head><body><img src="%ACTOR_THUMB:lea-01%" alt="" /><img src="%ACTOR_THUMB:sam-13%" alt="" /></body></html>',
+    );
     expect(landing).toContain('<img src="/troupe/actors/lea-01/v1/front-160.webp" alt="" />');
     expect(landing).toContain('<img src="/troupe/actors/sam-13/v1/front.webp" alt="" />');
   });
@@ -212,11 +259,19 @@ describe("landing page", () => {
 
 describe("landing page settings", () => {
   it("defaults to the project's own addresses", () => {
-    expect(parseLandingConfig({})).toEqual({ siteUrl: "https://maxgfr.github.io/troupe/", repoUrl: "https://github.com/maxgfr/troupe" });
+    expect(parseLandingConfig({})).toEqual({
+      siteUrl: "https://maxgfr.github.io/troupe/",
+      repoUrl: "https://github.com/maxgfr/troupe",
+    });
   });
 
   it("takes a fork's addresses, normalised", () => {
-    expect(parseLandingConfig({ VITE_SITE_URL: "https://me.github.io/studio", VITE_REPO_URL: "https://github.com/me/studio/" })).toEqual({
+    expect(
+      parseLandingConfig({
+        VITE_SITE_URL: "https://me.github.io/studio",
+        VITE_REPO_URL: "https://github.com/me/studio/",
+      }),
+    ).toEqual({
       siteUrl: "https://me.github.io/studio/",
       repoUrl: "https://github.com/me/studio",
     });
@@ -250,23 +305,53 @@ describe("base path", () => {
 describe("font preloads", () => {
   type Hook = (html: string, ctx: { bundle?: Record<string, { fileName: string }> }) => unknown;
   const run = (plugin: ReturnType<typeof fontPreloads>, files: string[]) =>
-    (plugin.transformIndexHtml as unknown as { handler: Hook }).handler("", { bundle: Object.fromEntries(files.map((f) => [f, { fileName: f }])) });
+    (plugin.transformIndexHtml as unknown as { handler: Hook }).handler("", {
+      bundle: Object.fromEntries(files.map((f) => [f, { fileName: f }])),
+    });
 
   it("preloads the built files of the faces the first paint uses, under the base, and nothing else", () => {
-    const tags = run(fontPreloads({ base: "/troupe/", match: [/geist-latin-wght/, /bricolage-grotesque-latin-wght/] }), [
-      "assets/geist-latin-wght-normal-abc.woff2",
-      "assets/geist-latin-ext-wght-normal-def.woff2",
-      "assets/bricolage-grotesque-latin-wght-normal-ghi.woff2",
-      "assets/jetbrains-mono-latin-wght-normal-jkl.woff2",
-      "assets/app.js",
-    ]);
+    const tags = run(
+      fontPreloads({ base: "/troupe/", match: [/geist-latin-wght/, /bricolage-grotesque-latin-wght/] }),
+      [
+        "assets/geist-latin-wght-normal-abc.woff2",
+        "assets/geist-latin-ext-wght-normal-def.woff2",
+        "assets/bricolage-grotesque-latin-wght-normal-ghi.woff2",
+        "assets/jetbrains-mono-latin-wght-normal-jkl.woff2",
+        "assets/app.js",
+      ],
+    );
     expect(tags).toEqual([
-      { tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: "/troupe/assets/geist-latin-wght-normal-abc.woff2" }, injectTo: "head" },
-      { tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: "/troupe/assets/bricolage-grotesque-latin-wght-normal-ghi.woff2" }, injectTo: "head" },
+      {
+        tag: "link",
+        attrs: {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          crossorigin: "",
+          href: "/troupe/assets/geist-latin-wght-normal-abc.woff2",
+        },
+        injectTo: "head",
+      },
+      {
+        tag: "link",
+        attrs: {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          crossorigin: "",
+          href: "/troupe/assets/bricolage-grotesque-latin-wght-normal-ghi.woff2",
+        },
+        injectTo: "head",
+      },
     ]);
   });
 
   it("adds nothing in development, where nothing is bundled", () => {
-    expect((fontPreloads({ base: "/", match: [/geist/] }).transformIndexHtml as unknown as { handler: Hook }).handler("", {})).toEqual([]);
+    expect(
+      (fontPreloads({ base: "/", match: [/geist/] }).transformIndexHtml as unknown as { handler: Hook }).handler(
+        "",
+        {},
+      ),
+    ).toEqual([]);
   });
 });

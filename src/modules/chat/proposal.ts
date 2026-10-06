@@ -33,7 +33,8 @@ const MAX_SUMMARY_CHARS = 600;
 // required, enum, anyOf and arrays (no length or numeric bounds; zod checks
 // those). The actor is named, not given by id: small models copy names well.
 export function proposalJsonSchema(actorNames: readonly string[]) {
-  const actor = actorNames.length > 0 ? { anyOf: [{ type: "string", enum: [...actorNames] }, { type: "null" }] } : { type: "null" };
+  const actor =
+    actorNames.length > 0 ? { anyOf: [{ type: "string", enum: [...actorNames] }, { type: "null" }] } : { type: "null" };
   return {
     type: "object",
     additionalProperties: false,
@@ -63,13 +64,20 @@ export type ProposalJsonSchema = ReturnType<typeof proposalJsonSchema>;
 
 const ModelLine = z.object({
   role: z.enum(LINE_ROLES),
-  text: z.string().trim().min(1, "a line is empty").max(MAX_LINE_CHARS, `a line is longer than ${MAX_LINE_CHARS} characters`),
+  text: z
+    .string()
+    .trim()
+    .min(1, "a line is empty")
+    .max(MAX_LINE_CHARS, `a line is longer than ${MAX_LINE_CHARS} characters`),
   emotion: z.enum(SUPPORTED_EMOTIONS),
 });
 
 const ModelAnswer = z.object({
   summary: z.string().trim().min(1, "the summary is empty").max(MAX_SUMMARY_CHARS),
-  lines: z.array(ModelLine).min(1, "the script has no lines").max(MAX_LINES, `the script has more than ${MAX_LINES} lines`),
+  lines: z
+    .array(ModelLine)
+    .min(1, "the script has no lines")
+    .max(MAX_LINES, `the script has more than ${MAX_LINES} lines`),
   actor: z.string().nullish(),
 });
 
@@ -92,18 +100,21 @@ const TAG = new RegExp(`\\[[^\\]]*\\b(?:${[...LINE_ROLES, ...SUPPORTED_EMOTIONS]
 // pictograph ("👩‍💻"). There is nothing in them to say. A joiner inside a word
 // (Hindi's "क्‍ष") is not touched, nor are ©, ® and ™, which belong to the
 // names they follow; ✔ and ♥ go.
-const EMOJI = /(?:[#*0-9]\uFE0F?\u20E3|(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|[\u{E0020}-\u{E007F}]|\u200D(?=\p{Extended_Pictographic}))*/gu;
+const EMOJI =
+  /(?:[#*0-9]\uFE0F?\u20E3|(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|[\u{E0020}-\u{E007F}]|\u200D(?=\p{Extended_Pictographic}))*/gu;
 
 export function spoken(text: string): string {
-  return text
-    .replace(TAG, "")
-    .replace(/[*`]+/g, "")
-    .replace(EMOJI, "")
-    // A presentation selector left on a kept sign ("©️") shows nothing.
-    .replace(/\uFE0F/g, "")
-    .replace(/^\s*(?:[-•]|#+)\s+/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    text
+      .replace(TAG, "")
+      .replace(/[*`]+/g, "")
+      .replace(EMOJI, "")
+      // A presentation selector left on a kept sign ("©️") shows nothing.
+      .replace(/\uFE0F/g, "")
+      .replace(/^\s*(?:[-•]|#+)\s+/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 export function countWords(lines: readonly { text: string }[]): number {
@@ -115,9 +126,7 @@ export function wordBudget(durationS: number, wordsPerSecond: number): number {
   return Math.max(1, Math.floor(durationS * wordsPerSecond));
 }
 
-export type ProposalCheck =
-  | { ok: true; proposal: Proposal; overBudget: boolean }
-  | { ok: false; problem: string };
+export type ProposalCheck = { ok: true; proposal: Proposal; overBudget: boolean } | { ok: false; problem: string };
 
 // Reads the model's answer: valid JSON in the schema, an actor that exists,
 // and lines that fit the word budget. Over budget is reported, not refused:
@@ -140,7 +149,11 @@ export function checkProposal(
     if (!actor) return { ok: false, problem: `there is no actor named "${answer.actor}"` };
     if (actor.id !== context.currentActorId) actorId = actor.id;
   }
-  const lines: DraftLine[] = answer.lines.map((l) => ({ role: l.role, text: spoken(l.text), emotion: l.emotion as Emotion }));
+  const lines: DraftLine[] = answer.lines.map((l) => ({
+    role: l.role,
+    text: spoken(l.text),
+    emotion: l.emotion as Emotion,
+  }));
   if (lines.some((l) => !l.text)) return { ok: false, problem: "a line has no words to say" };
   const proposal: Proposal = { summary: answer.summary, lines, ...(actorId ? { actorId } : {}) };
   return { ok: true, proposal, overBudget: countWords(lines) > context.budgetWords };

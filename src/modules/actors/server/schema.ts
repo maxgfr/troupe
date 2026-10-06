@@ -21,7 +21,10 @@ export const actors = createTable(
     kind: d.text({ enum: ["library", "custom"] }).notNull(),
     consentRef: d.uuid(),
     assetVersion: d.integer().notNull().default(1),
-    status: d.text({ enum: ["active", "unavailable"] }).notNull().default("active"),
+    status: d
+      .text({ enum: ["active", "unavailable"] })
+      .notNull()
+      .default("active"),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
   (t) => [

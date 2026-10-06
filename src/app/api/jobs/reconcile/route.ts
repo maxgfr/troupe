@@ -15,7 +15,12 @@ export async function POST(req: NextRequest) {
   const result = await processReconcileRequest(
     {
       orchestrator: {
-        reconcileDue: async (input) => reconcileDueJobs(db as unknown as Db, { adapters: (await loadModelCatalog()).adapters, ingest: persistProviderRender, ...input }),
+        reconcileDue: async (input) =>
+          reconcileDueJobs(db as unknown as Db, {
+            adapters: (await loadModelCatalog()).adapters,
+            ingest: persistProviderRender,
+            ...input,
+          }),
       },
       secret: env.RECONCILE_SECRET,
       // Stamp the liveness beacon so Workspace Settings can prove the

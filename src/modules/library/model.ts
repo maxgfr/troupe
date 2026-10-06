@@ -92,12 +92,17 @@ export interface Transcriber {
 
 // Whatever the edition hands its transcriber: a file on the server, decoded
 // samples in the browser.
-export type AudioSource = { kind: "file"; path: string } | { kind: "samples"; samples: Float32Array; sampleRate: number };
+export type AudioSource =
+  | { kind: "file"; path: string }
+  | { kind: "samples"; samples: Float32Array; sampleRate: number };
 
 // A local vision model reading pictures.
 export interface Vision {
   model: string;
-  read(picture: { bytes: Uint8Array; mimeType: string }, options: { signal?: AbortSignal }): Promise<{ description: string; text: string }>;
+  read(
+    picture: { bytes: Uint8Array; mimeType: string },
+    options: { signal?: AbortSignal },
+  ): Promise<{ description: string; text: string }>;
 }
 
 // A local embedding model. `kind` lets models that expect a prefix
@@ -113,8 +118,14 @@ export interface MediaReader {
   probe(item: StoredItemFile): Promise<{ durationS: number | null; hasVideo: boolean; hasAudio: boolean }>;
   // The opening frame, one after each cut (up to `max`), stored as media
   // assets of the item; and every cut's time, for the pacing.
-  frames(item: StoredItemFile, options: { max: number; durationS: number | null; signal?: AbortSignal }): Promise<{ frames: { assetId: string; atS: number }[]; cutsAtS: number[] }>;
-  audio(item: StoredItemFile, options: { signal?: AbortSignal }): Promise<AudioSource & { dispose?: () => Promise<void> }>;
+  frames(
+    item: StoredItemFile,
+    options: { max: number; durationS: number | null; signal?: AbortSignal },
+  ): Promise<{ frames: { assetId: string; atS: number }[]; cutsAtS: number[] }>;
+  audio(
+    item: StoredItemFile,
+    options: { signal?: AbortSignal },
+  ): Promise<AudioSource & { dispose?: () => Promise<void> }>;
   // The bytes of a stored picture (a frame or an image item), for vision.
   picture(assetId: string): Promise<{ bytes: Uint8Array; mimeType: string }>;
   // Text out of a PDF.
@@ -164,7 +175,17 @@ export interface LibraryStatus {
 // A page or file fetched from a link (self-hosted only).
 export type FetchedSource =
   | { kind: "article"; url: string; title: string; text: string; siteName?: string | null }
-  | { kind: "file"; url: string; title: string; path: string; mimeType: string; bytes: number; checksum: string; durationS?: number | null; dispose: () => Promise<void> };
+  | {
+      kind: "file";
+      url: string;
+      title: string;
+      path: string;
+      mimeType: string;
+      bytes: number;
+      checksum: string;
+      durationS?: number | null;
+      dispose: () => Promise<void>;
+    };
 
 // An upload already stored by the edition (the browser edition's own files).
 export interface ClaimedUpload {
@@ -193,7 +214,10 @@ export interface LibraryBackend {
   // Browser edition only: an upload the page has already stored.
   claimUpload?(uploadId: string): Promise<ClaimedUpload>;
   // Stores a fetched file as a media asset of the workspace.
-  adoptFile?(source: Extract<FetchedSource, { kind: "file" }>, target: { workspaceId: string; itemId: string }): Promise<ClaimedUpload>;
+  adoptFile?(
+    source: Extract<FetchedSource, { kind: "file" }>,
+    target: { workspaceId: string; itemId: string },
+  ): Promise<ClaimedUpload>;
   // Deletes stored files once their rows are gone (best effort).
   removeFiles(files: { storagePath: string }[]): Promise<void>;
 }

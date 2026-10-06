@@ -25,7 +25,13 @@ import { createRendererServer, LTX_OFF, type RenderMode } from "./server";
 
 const run = promisify(execFile);
 const TOKEN = "renderer-secret";
-const caps = { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["480p", "720p"], durationsS: [4, 6, 8], audio: "optional" as const, dialogueLanguages: ["en"] };
+const caps = {
+  aspectRatios: ["9:16", "16:9", "1:1"],
+  resolutions: ["480p", "720p"],
+  durationsS: [4, 6, 8],
+  audio: "optional" as const,
+  dialogueLanguages: ["en"],
+};
 const RATE = 24000;
 
 // A quiet tone as long as the line would take to say at 3 words a second.
@@ -36,7 +42,13 @@ const tone: Speak = async (text, voice) => {
   return { samples, sampleRate: RATE };
 };
 
-const actor = { id: "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11", name: "Léa Martin", gender: "female" as const, ageRange: "18-24", voiceProfile: "warm and enthusiastic, mid-tempo" };
+const actor = {
+  id: "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11",
+  name: "Léa Martin",
+  gender: "female" as const,
+  ageRange: "18-24",
+  voiceProfile: "warm and enthusiastic, mid-tempo",
+};
 const lines = [
   { role: "hook" as const, text: "This ended my search.", emotion: "excited" as const },
   { role: "cta" as const, text: "Grab yours today.", emotion: "calm" as const },
@@ -46,14 +58,28 @@ let scratch = "";
 const servers: Server[] = [];
 
 async function start(speak: Speak, ltx?: RenderMode, portraitsDir?: string): Promise<string> {
-  const server = createRendererServer({ speak, outDir: scratch, token: TOKEN, ...(ltx ? { ltx } : {}), ...(portraitsDir ? { portraitsDir } : {}) });
+  const server = createRendererServer({
+    speak,
+    outDir: scratch,
+    token: TOKEN,
+    ...(ltx ? { ltx } : {}),
+    ...(portraitsDir ? { portraitsDir } : {}),
+  });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 
 function model(baseUrl: string, patch: Partial<HttpEndpointModel> = {}): HttpEndpointModel {
-  return { modelKey: "local-renderer", label: "Renderer", baseUrl, token: TOKEN, capabilities: caps, fps: 24, ...patch };
+  return {
+    modelKey: "local-renderer",
+    label: "Renderer",
+    baseUrl,
+    token: TOKEN,
+    capabilities: caps,
+    fps: 24,
+    ...patch,
+  };
 }
 
 async function renderThroughTroupe(baseUrl: string, request: CreateJobRequest) {
@@ -80,13 +106,28 @@ async function save(bytes: Buffer, name: string) {
 }
 
 async function probe(file: string) {
-  const { stdout } = await run("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height:format=duration", "-of", "json", file]);
-  return JSON.parse(stdout) as { streams: { codec_type: string; codec_name: string; width?: number; height?: number }[]; format: { duration: string } };
+  const { stdout } = await run("ffprobe", [
+    "-v",
+    "error",
+    "-show_entries",
+    "stream=codec_type,codec_name,width,height:format=duration",
+    "-of",
+    "json",
+    file,
+  ]);
+  return JSON.parse(stdout) as {
+    streams: { codec_type: string; codec_name: string; width?: number; height?: number }[];
+    format: { duration: string };
+  };
 }
 
 // One RGB pixel of the frame at `seconds`.
 async function pixel(file: string, seconds: number, x: number, y: number) {
-  const { stdout } = await run("ffmpeg", ["-v", "error", "-ss", String(seconds), "-i", file, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+  const { stdout } = await run(
+    "ffmpeg",
+    ["-v", "error", "-ss", String(seconds), "-i", file, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+    { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 },
+  );
   const { width } = (await probe(file)).streams.find((s) => s.codec_type === "video")!;
   const at = (Math.round(y) * width! + Math.round(x)) * 3;
   return [stdout[at]!, stdout[at + 1]!, stdout[at + 2]!];
@@ -109,28 +150,47 @@ describe("renderer (contract v1)", () => {
   it("passes Troupe's connection check with its token and refuses requests without it", async () => {
     // It renders in seconds, so it asks to be polled every second.
     expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toEqual({
-      ok: true, message: "Renderer is reachable and speaks contract 1.", details: ["It asks Troupe to check on renders every 1 s."], pollEveryS: 1,
+      ok: true,
+      message: "Renderer is reachable and speaks contract 1.",
+      details: ["It asks Troupe to check on renders every 1 s."],
+      pollEveryS: 1,
     });
-    const anonymous = await createHttpEndpointAdapter({ model: model(baseUrl, { token: undefined }) }).testConnection!();
+    const anonymous = await createHttpEndpointAdapter({ model: model(baseUrl, { token: undefined }) })
+      .testConnection!();
     expect(anonymous).toMatchObject({ ok: false, message: expect.stringMatching(/HTTP 401/) });
   });
 
   it("voices the script into an MP4 as long as the script, with the actor card drawn", async () => {
     const prompt = compilePrompt({ lines, voiceProfile: actor.voiceProfile, language: "en" });
-    const file = await save(await renderThroughTroupe(baseUrl, { prompt, aspectRatio: "9:16", resolution: "720p", durationS: 6, audio: true, script: { lines, actor, language: "en" } }), "script.mp4");
+    const file = await save(
+      await renderThroughTroupe(baseUrl, {
+        prompt,
+        aspectRatio: "9:16",
+        resolution: "720p",
+        durationS: 6,
+        audio: true,
+        script: { lines, actor, language: "en" },
+      }),
+      "script.mp4",
+    );
     const clip = await probe(file);
-    expect(clip.streams).toEqual(expect.arrayContaining([
-      expect.objectContaining({ codec_type: "video", codec_name: "h264", width: 720, height: 1280 }),
-      expect.objectContaining({ codec_type: "audio", codec_name: "aac" }),
-    ]));
+    expect(clip.streams).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ codec_type: "video", codec_name: "h264", width: 720, height: 1280 }),
+        expect.objectContaining({ codec_type: "audio", codec_name: "aac" }),
+      ]),
+    );
     // Each line lasts as long as its voice, at the emotion's speed.
-    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE));
+    const speechS = await Promise.all(
+      lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE),
+    );
     const scene = buildScene({ width: 720, height: 1280, actor, lines, speechS });
     expect(Number(clip.format.duration)).toBeCloseTo(scene.durationS, 1);
 
     const { cx, cy, r } = scene.layout.portrait;
     const disc = await pixel(file, 0.1, cx - r / 2, cy - r / 2);
-    for (const [i, channel] of rgb(paletteFor(actor.id).portrait).entries()) expect(Math.abs(disc[i]! - channel)).toBeLessThanOrEqual(12);
+    for (const [i, channel] of rgb(paletteFor(actor.id).portrait).entries())
+      expect(Math.abs(disc[i]! - channel)).toBeLessThanOrEqual(12);
   });
 
   it("draws the actor's pictures in the card, the line's expression when there is one", async () => {
@@ -147,10 +207,26 @@ describe("renderer (contract v1)", () => {
     await flat("front.webp", "#c08040");
     await flat("excited.webp", "#2060d0");
     const pictured = await start(tone, undefined, dir);
-    const portraits = { front: "actors/lea-01/v1/front.webp", excited: "actors/lea-01/v1/excited.webp", calm: "actors/lea-01/v1/calm.webp" };
+    const portraits = {
+      front: "actors/lea-01/v1/front.webp",
+      excited: "actors/lea-01/v1/excited.webp",
+      calm: "actors/lea-01/v1/calm.webp",
+    };
     const prompt = compilePrompt({ lines, voiceProfile: actor.voiceProfile, language: "en" });
-    const file = await save(await renderThroughTroupe(pictured, { prompt, aspectRatio: "9:16", resolution: "720p", durationS: 6, audio: true, script: { lines, actor: { ...actor, portraits }, language: "en" } }), "pictured.mp4");
-    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE));
+    const file = await save(
+      await renderThroughTroupe(pictured, {
+        prompt,
+        aspectRatio: "9:16",
+        resolution: "720p",
+        durationS: 6,
+        audio: true,
+        script: { lines, actor: { ...actor, portraits }, language: "en" },
+      }),
+      "pictured.mp4",
+    );
+    const speechS = await Promise.all(
+      lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE),
+    );
     const scene = buildScene({ width: 720, height: 1280, actor, lines, speechS });
     const { cx, cy } = scene.layout.portrait;
     const near = (got: number[], hex: string) => got.every((v, i) => Math.abs(v - rgb(hex)[i]!) <= 16);
@@ -162,24 +238,59 @@ describe("renderer (contract v1)", () => {
 
   it("falls back to the dialogue in the prompt when the job has no script", async () => {
     const prompt = compilePrompt({ lines, voiceProfile: actor.voiceProfile, language: "en" });
-    const clip = await probe(await save(await renderThroughTroupe(baseUrl, { prompt, aspectRatio: "1:1", resolution: "480p", durationS: 4, audio: true }), "prompt.mp4"));
+    const clip = await probe(
+      await save(
+        await renderThroughTroupe(baseUrl, {
+          prompt,
+          aspectRatio: "1:1",
+          resolution: "480p",
+          durationS: 4,
+          audio: true,
+        }),
+        "prompt.mp4",
+      ),
+    );
     expect(clip.streams.map((s) => s.codec_type).sort()).toEqual(["audio", "video"]);
     // The prompt's lines, voiced for the narrator its voice profile keys.
     const narrator = { id: `prompt:${actor.voiceProfile}`, name: "Narrator", voiceProfile: actor.voiceProfile };
-    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(narrator, l.emotion))).samples.length / RATE));
-    expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("1:1", "480p"), actor: narrator, lines, speechS }).durationS, 1);
+    const speechS = await Promise.all(
+      lines.map(async (l) => (await tone(l.text, voiceFor(narrator, l.emotion))).samples.length / RATE),
+    );
+    expect(Number(clip.format.duration)).toBeCloseTo(
+      buildScene({ ...sizeFor("1:1", "480p"), actor: narrator, lines, speechS }).durationS,
+      1,
+    );
   });
 
   it("renders silent video at the requested size when audio is off", async () => {
-    const clip = await probe(await save(await renderThroughTroupe(baseUrl, { prompt: "A presenter says hello.", aspectRatio: "16:9", resolution: "480p", durationS: 4, audio: false, script: { lines, actor, language: "en" } }), "silent.mp4"));
+    const clip = await probe(
+      await save(
+        await renderThroughTroupe(baseUrl, {
+          prompt: "A presenter says hello.",
+          aspectRatio: "16:9",
+          resolution: "480p",
+          durationS: 4,
+          audio: false,
+          script: { lines, actor, language: "en" },
+        }),
+        "silent.mp4",
+      ),
+    );
     expect(clip.streams).toEqual([expect.objectContaining({ codec_type: "video", ...sizeFor("16:9", "480p") })]);
     // Without a voice, lines take their estimated length (2.5 words a second).
-    expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS, 1);
+    expect(Number(clip.format.duration)).toBeCloseTo(
+      buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS,
+      1,
+    );
   });
 
   it("answers bad requests and unknown jobs with the documented errors", async () => {
     const auth = { authorization: `Bearer ${TOKEN}` };
-    const missing = await fetch(`${baseUrl}/jobs`, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ prompt: "x" }) });
+    const missing = await fetch(`${baseUrl}/jobs`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "x" }),
+    });
     expect(missing.status).toBe(400);
     expect(await missing.json()).toEqual({ error: "prompt, width, height and duration_s are required" });
     const notJson = await fetch(`${baseUrl}/jobs`, { method: "POST", headers: auth, body: "{" });
@@ -188,7 +299,9 @@ describe("renderer (contract v1)", () => {
     expect(tooBig.status).toBe(413);
     const unknown = await fetch(`${baseUrl}/jobs/00000000-0000-0000-0000-000000000000`, { headers: auth });
     expect(unknown.status).toBe(404);
-    await expect(createHttpEndpointAdapter({ model: model(baseUrl) }).getJob!("00000000-0000-0000-0000-000000000000")).rejects.toMatchObject({ code: "LOCAL_HTTP" });
+    await expect(
+      createHttpEndpointAdapter({ model: model(baseUrl) }).getJob!("00000000-0000-0000-0000-000000000000"),
+    ).rejects.toMatchObject({ code: "LOCAL_HTTP" });
   });
 
   it("says how to turn the AI video mode on when it is off", async () => {
@@ -212,8 +325,17 @@ describe("renderer (contract v1)", () => {
       servers.push(server);
       await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
       const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-      const body = { prompt: "x", width: 160, height: 160, duration_s: 4, audio: false, script: { language: "en", actor: { id: actor.id, name: actor.name }, lines } };
-      const { id } = (await (await fetch(`${origin}/jobs`, { method: "POST", body: JSON.stringify(body) })).json()) as { id: string };
+      const body = {
+        prompt: "x",
+        width: 160,
+        height: 160,
+        duration_s: 4,
+        audio: false,
+        script: { language: "en", actor: { id: actor.id, name: actor.name }, lines },
+      };
+      const { id } = (await (await fetch(`${origin}/jobs`, { method: "POST", body: JSON.stringify(body) })).json()) as {
+        id: string;
+      };
       const status = async () => {
         const res = await fetch(`${origin}/jobs/${id}`);
         return res.status === 404 ? "gone" : ((await res.json()) as { status: string }).status;
@@ -239,8 +361,16 @@ describe("renderer (contract v1)", () => {
     const broken = await start(async () => {
       throw new Error("Could not load the Kokoro voices.");
     });
-    await expect(renderThroughTroupe(broken, { prompt: "x", aspectRatio: "9:16", resolution: "480p", durationS: 4, audio: true, script: { lines, actor, language: "en" } }))
-      .rejects.toThrow("The renderer failed the job: Renderer reported: Could not load the Kokoro voices.");
+    await expect(
+      renderThroughTroupe(broken, {
+        prompt: "x",
+        aspectRatio: "9:16",
+        resolution: "480p",
+        durationS: 4,
+        audio: true,
+        script: { lines, actor, language: "en" },
+      }),
+    ).rejects.toThrow("The renderer failed the job: Renderer reported: Could not load the Kokoro voices.");
   });
 });
 
@@ -259,7 +389,8 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
     ...patch,
   });
   const ltxMode = (patch: Partial<LtxSettings> = {}): RenderMode => ({
-    render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: tone, settings: settings(patch), onProgress }),
+    render: (request, outFile, onProgress) =>
+      renderLtxVideo(request, outFile, { speak: tone, settings: settings(patch), onProgress }),
     pollEveryS: 5,
   });
 
@@ -275,20 +406,40 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
   });
 
   it("is its own model at /ltx, polled every 5 s, beside the fast mode", async () => {
-    expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toMatchObject({ ok: true, pollEveryS: 5 });
+    expect(await createHttpEndpointAdapter({ model: model(baseUrl) }).testConnection!()).toMatchObject({
+      ok: true,
+      pollEveryS: 5,
+    });
     const fast = baseUrl.replace(/\/ltx$/, "");
-    expect(await createHttpEndpointAdapter({ model: model(fast) }).testConnection!()).toMatchObject({ ok: true, pollEveryS: 1 });
+    expect(await createHttpEndpointAdapter({ model: model(fast) }).testConnection!()).toMatchObject({
+      ok: true,
+      pollEveryS: 1,
+    });
   });
 
   it("lays the captions and the voice over the generated clip, upscaled and as long as the script", async () => {
-    const file = await save(await renderThroughTroupe(baseUrl, { prompt: "x", aspectRatio: "9:16", resolution: "720p", durationS: 6, audio: true, script: { lines, actor, language: "en" } }), "ltx.mp4");
+    const file = await save(
+      await renderThroughTroupe(baseUrl, {
+        prompt: "x",
+        aspectRatio: "9:16",
+        resolution: "720p",
+        durationS: 6,
+        audio: true,
+        script: { lines, actor, language: "en" },
+      }),
+      "ltx.mp4",
+    );
     const clip = await probe(file);
-    expect(clip.streams).toEqual(expect.arrayContaining([
-      expect.objectContaining({ codec_type: "video", codec_name: "h264", width: 720, height: 1280 }),
-      expect.objectContaining({ codec_type: "audio", codec_name: "aac" }),
-    ]));
+    expect(clip.streams).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ codec_type: "video", codec_name: "h264", width: 720, height: 1280 }),
+        expect.objectContaining({ codec_type: "audio", codec_name: "aac" }),
+      ]),
+    );
     // The generated clip lasts about a second; the video lasts the script.
-    const speechS = await Promise.all(lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE));
+    const speechS = await Promise.all(
+      lines.map(async (l) => (await tone(l.text, voiceFor(actor, l.emotion))).samples.length / RATE),
+    );
     const scene = buildScene({ width: 720, height: 1280, actor, lines, speechS });
     expect(Number(clip.format.duration)).toBeCloseTo(scene.durationS, 1);
 
@@ -296,7 +447,8 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
     const { cx, cy } = scene.layout.portrait;
     for (const at of [0.2, scene.durationS - 0.2]) {
       const top = await pixel(file, at, cx, cy);
-      for (const [i, channel] of rgb(CLIP_COLOR).entries()) expect(Math.abs(top[i]! - channel), `at ${at} s`).toBeLessThanOrEqual(12);
+      for (const [i, channel] of rgb(CLIP_COLOR).entries())
+        expect(Math.abs(top[i]! - channel), `at ${at} s`).toBeLessThanOrEqual(12);
     }
     // Behind the captions, in the lower third: the clip under the shade,
     // darker but not hidden.
@@ -310,9 +462,24 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
 
   it("crops the clip to other formats, and plays it from the start again when asked", async () => {
     const server = `${await start(tone, ltxMode({ loop: "loop", upscale: "bicubic" }))}/ltx`;
-    const clip = await probe(await save(await renderThroughTroupe(server, { prompt: "x", aspectRatio: "16:9", resolution: "480p", durationS: 4, audio: false, script: { lines, actor, language: "en" } }), "ltx-wide.mp4"));
+    const clip = await probe(
+      await save(
+        await renderThroughTroupe(server, {
+          prompt: "x",
+          aspectRatio: "16:9",
+          resolution: "480p",
+          durationS: 4,
+          audio: false,
+          script: { lines, actor, language: "en" },
+        }),
+        "ltx-wide.mp4",
+      ),
+    );
     expect(clip.streams).toEqual([expect.objectContaining({ codec_type: "video", ...sizeFor("16:9", "480p") })]);
-    expect(Number(clip.format.duration)).toBeCloseTo(buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS, 1);
+    expect(Number(clip.format.duration)).toBeCloseTo(
+      buildScene({ ...sizeFor("16:9", "480p"), actor, lines }).durationS,
+      1,
+    );
   });
 
   it("tells Test why the mode cannot render yet", async () => {
@@ -324,7 +491,17 @@ describe("renderer AI video mode (/ltx, contract v1)", () => {
   });
 
   it("reports a generation failure as a failed job with the model's error", async () => {
-    await expect(renderThroughTroupe(failing, { prompt: "x", aspectRatio: "9:16", resolution: "480p", durationS: 4, audio: true, script: { lines, actor, language: "en" } }))
-      .rejects.toThrow("The renderer failed the job: Renderer reported: LTX failed: RuntimeError: MPS backend out of memory");
+    await expect(
+      renderThroughTroupe(failing, {
+        prompt: "x",
+        aspectRatio: "9:16",
+        resolution: "480p",
+        durationS: 4,
+        audio: true,
+        script: { lines, actor, language: "en" },
+      }),
+    ).rejects.toThrow(
+      "The renderer failed the job: Renderer reported: LTX failed: RuntimeError: MPS backend out of memory",
+    );
   });
 });

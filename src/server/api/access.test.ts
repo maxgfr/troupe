@@ -19,7 +19,8 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-const withCookie = (headers: Record<string, string>, code: string) => new Headers({ ...headers, cookie: `${ACCESS_COOKIE}=${accessCookieValue(code)}` });
+const withCookie = (headers: Record<string, string>, code: string) =>
+  new Headers({ ...headers, cookie: `${ACCESS_COOKIE}=${accessCookieValue(code)}` });
 
 describe("private studio access", () => {
   it("requires the code-derived cookie and rejects foreign origins even with a cookie", () => {
@@ -57,13 +58,27 @@ describe("private studio access", () => {
 
   it("works behind a TLS reverse proxy that rewrites Host", () => {
     vi.stubEnv("TROUPE_ACCESS_CODE", "proxied");
-    const headers = withCookie({ host: "app:3000", "x-forwarded-host": "troupe.example", "x-forwarded-proto": "https", origin: "https://troupe.example" }, "proxied");
+    const headers = withCookie(
+      {
+        host: "app:3000",
+        "x-forwarded-host": "troupe.example",
+        "x-forwarded-proto": "https",
+        origin: "https://troupe.example",
+      },
+      "proxied",
+    );
     expect(() => assertStudioRequest(headers)).not.toThrow();
   });
 
   it("sets a secure HttpOnly cookie only after the correct code", async () => {
-    vi.stubEnv("TROUPE_ACCESS_CODE", "fixture-access-code"); vi.stubEnv("NODE_ENV", "production");
-    const request = (code: string) => new Request("https://troupe.example/api/access", { method: "POST", headers: { host: "troupe.example", origin: "https://troupe.example" }, body: JSON.stringify({ code }) });
+    vi.stubEnv("TROUPE_ACCESS_CODE", "fixture-access-code");
+    vi.stubEnv("NODE_ENV", "production");
+    const request = (code: string) =>
+      new Request("https://troupe.example/api/access", {
+        method: "POST",
+        headers: { host: "troupe.example", origin: "https://troupe.example" },
+        body: JSON.stringify({ code }),
+      });
     expect((await POST(request("wrong"))).status).toBe(401);
     const response = await POST(request("fixture-access-code"));
     expect(response.status).toBe(200);
@@ -74,8 +89,14 @@ describe("private studio access", () => {
   });
 
   it("slows down guessing: after 5 wrong codes from one address, even the right code waits", async () => {
-    vi.stubEnv("TROUPE_ACCESS_CODE", "rate-limited-code"); vi.stubEnv("NODE_ENV", "production");
-    const request = (code: string, ip: string) => new Request("https://troupe.example/api/access", { method: "POST", headers: { host: "troupe.example", origin: "https://troupe.example", "x-forwarded-for": ip }, body: JSON.stringify({ code }) });
+    vi.stubEnv("TROUPE_ACCESS_CODE", "rate-limited-code");
+    vi.stubEnv("NODE_ENV", "production");
+    const request = (code: string, ip: string) =>
+      new Request("https://troupe.example/api/access", {
+        method: "POST",
+        headers: { host: "troupe.example", origin: "https://troupe.example", "x-forwarded-for": ip },
+        body: JSON.stringify({ code }),
+      });
     for (let i = 0; i < 5; i++) expect((await POST(request(`wrong-${i}`, "203.0.113.7"))).status).toBe(401);
     const blocked = await POST(request("rate-limited-code", "203.0.113.7"));
     expect(blocked.status).toBe(429);
@@ -84,12 +105,20 @@ describe("private studio access", () => {
   });
 
   it("marks the cookie Secure when a proxy terminated TLS", async () => {
-    vi.stubEnv("TROUPE_ACCESS_CODE", "code"); vi.stubEnv("NODE_ENV", "production");
-    const response = await POST(new Request("http://app:3000/api/access", {
-      method: "POST",
-      headers: { host: "app:3000", "x-forwarded-host": "troupe.example", "x-forwarded-proto": "https", origin: "https://troupe.example" },
-      body: JSON.stringify({ code: "code" }),
-    }));
+    vi.stubEnv("TROUPE_ACCESS_CODE", "code");
+    vi.stubEnv("NODE_ENV", "production");
+    const response = await POST(
+      new Request("http://app:3000/api/access", {
+        method: "POST",
+        headers: {
+          host: "app:3000",
+          "x-forwarded-host": "troupe.example",
+          "x-forwarded-proto": "https",
+          origin: "https://troupe.example",
+        },
+        body: JSON.stringify({ code: "code" }),
+      }),
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get("set-cookie")).toMatch(/Secure/);
   });

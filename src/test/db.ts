@@ -30,7 +30,10 @@ export function readMigrations(): Migration[] {
 // so a test can insert legacy rows before running the rest with migrateTestDb.
 export async function createTestDb(opts: { until?: string } = {}): Promise<TestDb> {
   const pg = new PGlite();
-  const applied = await migratePglite(pg, readMigrations().filter((m) => !opts.until || m.name.slice(0, 4) <= opts.until));
+  const applied = await migratePglite(
+    pg,
+    readMigrations().filter((m) => !opts.until || m.name.slice(0, 4) <= opts.until),
+  );
   return { db: drizzle(pg, { schema }), pg, applied };
 }
 

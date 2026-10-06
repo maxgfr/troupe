@@ -25,7 +25,9 @@ function watchConsole(page: Page) {
   return errors;
 }
 
-test("open the studio → new project → script → chat → render → play → export → download", async ({ page }, testInfo) => {
+test("open the studio → new project → script → chat → render → play → export → download", async ({
+  page,
+}, testInfo) => {
   expect(CODE, "E2E_ACCESS_CODE: run through pnpm e2e:docker").not.toBe("");
   // The flow's own deadline, inside Playwright's (15 min, e2e/playwright.config.ts):
   // a chat try (at most 5 min) starts only when it and the render after it
@@ -84,7 +86,10 @@ test("open the studio → new project → script → chat → render → play �
   // words, until a proposal has something to apply: two tries, each settled
   // by the server within TROUPE_CHAT_SEND_TIMEOUT_S (240 s here), with what
   // each did recorded.
-  const asks = ['Replace the first line with "Tired of slow mornings?" and keep the other two lines.', "Rewrite line 1 as: Tired of slow mornings?"];
+  const asks = [
+    'Replace the first line with "Tired of slow mornings?" and keep the other two lines.',
+    "Rewrite line 1 as: Tired of slow mornings?",
+  ];
   const apply = chat.getByRole("button", { name: "Apply & relaunch" });
   const answers = chat.getByRole("article", { name: /^Answer \d+$/ });
   const tried: string[] = [];
@@ -105,7 +110,9 @@ test("open the studio → new project → script → chat → render → play �
       (await alert.isVisible())
         ? `stopped: ${await alert.innerText()}`
         : (await answer.getByText(/^Compared with version 1$/).count())
-          ? (await apply.count()) ? "proposal to apply" : "proposal, same lines"
+          ? (await apply.count())
+            ? "proposal to apply"
+            : "proposal, same lines"
           : "not a script",
     );
     if (await apply.count()) break;
@@ -152,7 +159,21 @@ test("open the studio → new project → script → chat → render → play �
   await saved.saveAs(file);
 
   // A real MP4: H.264 and AAC, 720×1280, as long as the player said.
-  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height:format=duration", "-of", "json", file], { encoding: "utf8" }));
+  const probe = JSON.parse(
+    execFileSync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "stream=codec_type,codec_name,width,height:format=duration",
+        "-of",
+        "json",
+        file,
+      ],
+      { encoding: "utf8" },
+    ),
+  );
   const streams = probe.streams as { codec_type: string; codec_name: string; width?: number; height?: number }[];
   expect(streams.find((s) => s.codec_type === "video")).toMatchObject({ codec_name: "h264", width: 720, height: 1280 });
   expect(streams.find((s) => s.codec_type === "audio")).toMatchObject({ codec_name: "aac" });

@@ -13,7 +13,12 @@ const servers: Server[] = [];
 const silent = async () => ({ samples: new Float32Array(0), sampleRate: 24000 });
 
 async function start(options: Partial<Parameters<typeof createRendererServer>[0]> = {}): Promise<string> {
-  const server = createRendererServer({ speak: silent, outDir: join(import.meta.dirname, "..", "..", ".cache", "whisper-test"), log: () => {}, ...options });
+  const server = createRendererServer({
+    speak: silent,
+    outDir: join(import.meta.dirname, "..", "..", ".cache", "whisper-test"),
+    log: () => {},
+    ...options,
+  });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -43,9 +48,35 @@ function leaving(base: string, declared: number, sent: number) {
 describe("whisper settings", () => {
   it("defaults to faster-whisper base in int8 on the CPU, and checks each variable", () => {
     const settings = whisperSettingsFromEnv({}, ["uv", "run"]);
-    expect(settings).toMatchObject({ model: "base", computeType: "int8", device: "cpu", threads: 0, language: null, timeoutS: 1800, maxBytes: 300 * 1024 * 1024 });
-    expect(whisperArgs({ ...settings, command: ["uv", "run", "python", "t.py"] }, "/tmp/a.flac")).toEqual(["run", "python", "t.py", "/tmp/a.flac", "--model", "base", "--compute-type", "int8", "--device", "cpu", "--threads", "0"]);
-    expect(whisperSettingsFromEnv({ WHISPER_MODEL: "small", WHISPER_LANGUAGE: "fr", WHISPER_COMMAND: "/venv/bin/python t.py" }, [])).toMatchObject({ model: "small", language: "fr", command: ["/venv/bin/python", "t.py"] });
+    expect(settings).toMatchObject({
+      model: "base",
+      computeType: "int8",
+      device: "cpu",
+      threads: 0,
+      language: null,
+      timeoutS: 1800,
+      maxBytes: 300 * 1024 * 1024,
+    });
+    expect(whisperArgs({ ...settings, command: ["uv", "run", "python", "t.py"] }, "/tmp/a.flac")).toEqual([
+      "run",
+      "python",
+      "t.py",
+      "/tmp/a.flac",
+      "--model",
+      "base",
+      "--compute-type",
+      "int8",
+      "--device",
+      "cpu",
+      "--threads",
+      "0",
+    ]);
+    expect(
+      whisperSettingsFromEnv(
+        { WHISPER_MODEL: "small", WHISPER_LANGUAGE: "fr", WHISPER_COMMAND: "/venv/bin/python t.py" },
+        [],
+      ),
+    ).toMatchObject({ model: "small", language: "fr", command: ["/venv/bin/python", "t.py"] });
     expect(() => whisperSettingsFromEnv({ WHISPER_MODEL: "base; rm -rf /" }, [])).toThrow("WHISPER_MODEL");
     expect(() => whisperSettingsFromEnv({ WHISPER_DEVICE: "tpu" }, [])).toThrow("WHISPER_DEVICE");
     expect(() => whisperSettingsFromEnv({ WHISPER_LANGUAGE: "english" }, [])).toThrow("WHISPER_LANGUAGE");
@@ -60,7 +91,12 @@ describe("whisper settings", () => {
 
 describe("/transcribe", () => {
   const settings = { ...whisperSettingsFromEnv({}, FAKE), threads: 2, maxBytes: 64 };
-  const whisper = { model: "base", maxBytes: 64, ready: () => null, transcribe: (file: string) => transcribeFile(settings, file) };
+  const whisper = {
+    model: "base",
+    maxBytes: 64,
+    ready: () => null,
+    transcribe: (file: string) => transcribeFile(settings, file),
+  };
 
   it("is off unless enabled, and says how to turn it on", async () => {
     const base = await start();
@@ -74,12 +110,24 @@ describe("/transcribe", () => {
     const base = await start({ whisper, token: "secret" });
     expect((await fetch(`${base}/transcribe/health`)).status).toBe(401);
     const auth = { authorization: "Bearer secret" };
-    expect(await (await fetch(`${base}/transcribe/health`, { headers: auth })).json()).toEqual({ ok: true, model: "faster-whisper base" });
+    expect(await (await fetch(`${base}/transcribe/health`, { headers: auth })).json()).toEqual({
+      ok: true,
+      model: "faster-whisper base",
+    });
     const answer = await fetch(`${base}/transcribe`, { method: "POST", headers: auth, body: new Uint8Array(40) });
     expect(answer.status).toBe(200);
-    expect(await answer.json()).toEqual({ language: "en", model: "faster-whisper base", duration: 2, segments: [{ start: 0, end: 2, text: "40 bytes, threads 2" }] });
-    expect((await fetch(`${base}/transcribe`, { method: "POST", headers: auth, body: new Uint8Array(65) })).status).toBe(413);
-    expect((await fetch(`${base}/transcribe`, { method: "POST", headers: auth, body: new Uint8Array(0) })).status).toBe(400);
+    expect(await answer.json()).toEqual({
+      language: "en",
+      model: "faster-whisper base",
+      duration: 2,
+      segments: [{ start: 0, end: 2, text: "40 bytes, threads 2" }],
+    });
+    expect(
+      (await fetch(`${base}/transcribe`, { method: "POST", headers: auth, body: new Uint8Array(65) })).status,
+    ).toBe(413);
+    expect((await fetch(`${base}/transcribe`, { method: "POST", headers: auth, body: new Uint8Array(0) })).status).toBe(
+      400,
+    );
   });
 
   it("cleans up after a client that leaves mid-upload, and stops a transcription nobody waits for", async () => {
@@ -122,7 +170,13 @@ describe("/transcribe", () => {
   });
 
   it("passes on Whisper's error and its readiness problem", async () => {
-    const failing = { ...whisper, transcribe: (file: string) => transcribeFile({ ...settings, command: [...FAKE] }, file).then(() => transcribeFile({ ...settings, command: [...FAKE, "--fail", "CUDA out of memory"] }, file)) };
+    const failing = {
+      ...whisper,
+      transcribe: (file: string) =>
+        transcribeFile({ ...settings, command: [...FAKE] }, file).then(() =>
+          transcribeFile({ ...settings, command: [...FAKE, "--fail", "CUDA out of memory"] }, file),
+        ),
+    };
     const base = await start({ whisper: failing });
     const answer = await fetch(`${base}/transcribe`, { method: "POST", body: new Uint8Array(4) });
     expect(answer.status).toBe(500);

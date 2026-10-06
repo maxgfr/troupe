@@ -5,7 +5,11 @@
 
 type IconProps = { className?: string };
 
-function Icon({ className = "size-5", children, filled = false }: IconProps & { children: React.ReactNode; filled?: boolean }) {
+function Icon({
+  className = "size-5",
+  children,
+  filled = false,
+}: IconProps & { children: React.ReactNode; filled?: boolean }) {
   return (
     <svg
       aria-hidden="true"

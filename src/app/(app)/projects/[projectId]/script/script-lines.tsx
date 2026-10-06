@@ -23,7 +23,9 @@ export function ScriptLines({
     <ol className="space-y-3">
       {lines.map((line) => (
         <li key={line.index} className="rounded-2xl bg-surface px-4 py-4 sm:px-5">
-          <p className="font-mono text-[11px] tracking-wide text-muted uppercase">{line.role === "cta" ? "call to action" : line.role}</p>
+          <p className="font-mono text-[11px] tracking-wide text-muted uppercase">
+            {line.role === "cta" ? "call to action" : line.role}
+          </p>
           <p className="mt-1 text-pretty text-base leading-snug">{line.text}</p>
           <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={`Emotion for line ${line.index + 1}`}>
             {EMOTIONS.map((emotion) => (
@@ -44,4 +46,3 @@ export function ScriptLines({
     </ol>
   );
 }
-

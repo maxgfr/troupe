@@ -8,7 +8,8 @@ import { projects } from "~/modules/studio/server/schema";
 import type { DraftLine } from "~/modules/script";
 import type { Citation, ItemAnalysis } from "../model";
 
-const memberOf = (workspaceId: unknown) => sql`exists (select 1 from troupe_workspace_member m where m."workspaceId" = ${workspaceId} and m."userId" = auth.uid())`;
+const memberOf = (workspaceId: unknown) =>
+  sql`exists (select 1 from troupe_workspace_member m where m."workspaceId" = ${workspaceId} and m."userId" = auth.uid())`;
 
 // Something the user saved for inspiration: a file, a pasted text or a link.
 // The original file is a media asset of the workspace (kind "library"); the
@@ -34,7 +35,10 @@ export const libraryItems = createTable(
     body: d.text(),
     // "My content": the user's own work, read for the style profile.
     mine: d.boolean().notNull().default(false),
-    status: d.text({ enum: ["queued", "analyzing", "ready", "failed"] }).notNull().default("queued"),
+    status: d
+      .text({ enum: ["queued", "analyzing", "ready", "failed"] })
+      .notNull()
+      .default("queued"),
     // The step running now (for the page), and a sentence about what failed
     // or was skipped.
     stage: d.text(),

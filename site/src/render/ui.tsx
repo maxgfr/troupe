@@ -25,12 +25,24 @@ function describe(stage: RenderStage | undefined): { label: string; figure: stri
     case "model":
       // The small config files come first; sizes mean something past a megabyte.
       return stage.totalBytes >= 1_000_000
-        ? { label: "Loading the voice model", figure: `${mb(stage.loadedBytes)} / ${mb(stage.totalBytes)} MB`, fraction: stage.loadedBytes / stage.totalBytes }
+        ? {
+            label: "Loading the voice model",
+            figure: `${mb(stage.loadedBytes)} / ${mb(stage.totalBytes)} MB`,
+            fraction: stage.loadedBytes / stage.totalBytes,
+          }
         : { label: "Loading the voice model", figure: null, fraction: 0 };
     case "voice":
-      return { label: "Voicing the script", figure: `line ${Math.min(stage.line + 1, stage.lines)} of ${stage.lines}`, fraction: overallProgress(stage) };
+      return {
+        label: "Voicing the script",
+        figure: `line ${Math.min(stage.line + 1, stage.lines)} of ${stage.lines}`,
+        fraction: overallProgress(stage),
+      };
     case "frames":
-      return { label: "Drawing the video", figure: `${Math.round(overallProgress(stage) * 100)}%`, fraction: overallProgress(stage) };
+      return {
+        label: "Drawing the video",
+        figure: `${Math.round(overallProgress(stage) * 100)}%`,
+        fraction: overallProgress(stage),
+      };
     case "saving":
       return { label: "Saving the video", figure: null, fraction: 1 };
   }
@@ -73,7 +85,10 @@ function LaunchNote() {
     ? "The voice model is already in this browser."
     : `The first render downloads the Kokoro voice model (about ${weightsFor(support.device).mb} MB) and keeps it in this browser.`;
   if (support.device === "wasm") {
-    const why = RENDER_CONFIG.device === "wasm" ? "This studio makes the voices on the CPU" : "This browser has no WebGPU, so the voices are made on the CPU";
+    const why =
+      RENDER_CONFIG.device === "wasm"
+        ? "This studio makes the voices on the CPU"
+        : "This browser has no WebGPU, so the voices are made on the CPU";
     return (
       <ProviderWarning>
         {why}, several times slower than on a GPU. {download} Keep this tab open until the video appears.

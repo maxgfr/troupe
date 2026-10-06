@@ -55,7 +55,12 @@ export async function watchGeneration(db: Db, input: WatchInput): Promise<void> 
     .onConflictDoNothing();
 }
 
-export type RenderIngestor = (db: Db, generation: typeof generations.$inferSelect, status: JobOutcome, adapter: VideoProviderAdapter) => Promise<void>;
+export type RenderIngestor = (
+  db: Db,
+  generation: typeof generations.$inferSelect,
+  status: JobOutcome,
+  adapter: VideoProviderAdapter,
+) => Promise<void>;
 
 export interface ReconcileResult {
   generationId: string;
@@ -75,9 +80,15 @@ export async function reconcileDueJobs(
   return db.transaction(async (tx) => {
     // A process can stop between recording a submission and saving its job ID.
     // Never resubmit automatically: the provider may already have charged it.
-    const abandoned = await tx.update(generations)
+    const abandoned = await tx
+      .update(generations)
       .set({ status: "failed", errorCode: "SUBMISSION_UNKNOWN", completedAt: now })
-      .where(and(eq(generations.status, "queued"), lt(generations.createdAt, new Date(now.getTime() - SUBMISSION_TIMEOUT_MS))))
+      .where(
+        and(
+          eq(generations.status, "queued"),
+          lt(generations.createdAt, new Date(now.getTime() - SUBMISSION_TIMEOUT_MS)),
+        ),
+      )
       .returning({ generationId: generations.id });
     const due = await tx
       .select()
@@ -117,7 +128,13 @@ export async function reconcileDueJobs(
         } catch (error) {
           // Said once per attempt in the server log, the only place an
           // operator can see why a finished video is not saved yet.
-          console.warn(JSON.stringify({ event: "jobs.ingest.failed", generationId: gen.id, error: error instanceof Error ? error.message : "unknown" }));
+          console.warn(
+            JSON.stringify({
+              event: "jobs.ingest.failed",
+              generationId: gen.id,
+              error: error instanceof Error ? error.message : "unknown",
+            }),
+          );
           // Keep the job watched: retry the download, never the paid generation.
           await tx.update(generations).set({ errorCode: "DOWNLOAD_RETRY" }).where(eq(generations.id, gen.id));
           status = { kind: "pending" };
@@ -139,7 +156,8 @@ export async function reconcileDueJobs(
           kind: "failed",
           eventType: "reconcile.download",
           errorCode: "DOWNLOAD_FAILED",
-          detail: "The model finished this video but it could not be downloaded. Get it from the provider's dashboard instead of relaunching.",
+          detail:
+            "The model finished this video but it could not be downloaded. Get it from the provider's dashboard instead of relaunching.",
         });
         results.push({ generationId: gen.id, outcome: "timeout-failed" });
         continue;
@@ -160,7 +178,10 @@ export async function reconcileDueJobs(
 
       // What the model said about how far along it is, for the timeline.
       if (status.kind === "pending" && status.progress !== undefined && Number.isFinite(status.progress)) {
-        await tx.update(generations).set({ progress: Math.min(1, Math.max(0, status.progress)) }).where(eq(generations.id, gen.id));
+        await tx
+          .update(generations)
+          .set({ progress: Math.min(1, Math.max(0, status.progress)) })
+          .where(eq(generations.id, gen.id));
       }
 
       const attempts = watch.attempts + 1;
@@ -182,7 +203,11 @@ export interface JobOrchestrator {
 
 // Default driver: the in-repo Postgres reconciliation queue. Zero external
 // vendor, same guarantees.
-export function createPgOrchestrator(deps: { db: Db; adapters: AdapterLookup; ingest?: RenderIngestor }): JobOrchestrator {
+export function createPgOrchestrator(deps: {
+  db: Db;
+  adapters: AdapterLookup;
+  ingest?: RenderIngestor;
+}): JobOrchestrator {
   return {
     watch: (input) => watchGeneration(deps.db, input),
     reconcileDue: (input) => reconcileDueJobs(deps.db, { adapters: deps.adapters, ingest: deps.ingest, ...input }),

@@ -46,7 +46,11 @@ function libraryWorker(): Worker {
   worker.onmessage = ({ data }: MessageEvent<FromLibraryWorker>) => {
     if (data.type === "download") {
       // Shown only while there is a size to show and bytes still to come.
-      setDownload(data.totalBytes > 0 && data.loadedBytes < data.totalBytes ? { model: data.model, loadedBytes: data.loadedBytes, totalBytes: data.totalBytes } : null);
+      setDownload(
+        data.totalBytes > 0 && data.loadedBytes < data.totalBytes
+          ? { model: data.model, loadedBytes: data.loadedBytes, totalBytes: data.totalBytes }
+          : null,
+      );
       return;
     }
     const pending = waiting.get(data.id);
@@ -59,7 +63,8 @@ function libraryWorker(): Worker {
       pending.reject(new Error(data.message));
     }
   };
-  worker.onerror = (event) => stopWorker(new Error(`The library's worker stopped: ${event.message || "it failed to load"}`));
+  worker.onerror = (event) =>
+    stopWorker(new Error(`The library's worker stopped: ${event.message || "it failed to load"}`));
   return worker;
 }
 
@@ -76,5 +81,7 @@ function ask<T>(message: Request, transfer: Transferable[] = [], signal?: AbortS
   }).finally(() => signal?.removeEventListener("abort", stop));
 }
 
-export const transcribeInWorker = (samples: Float32Array, signal?: AbortSignal) => ask<WorkerTranscript>({ type: "transcribe", samples }, [samples.buffer], signal);
-export const embedInWorker = (texts: string[], kind: "query" | "passage", signal?: AbortSignal) => ask<number[][]>({ type: "embed", texts, kind }, [], signal);
+export const transcribeInWorker = (samples: Float32Array, signal?: AbortSignal) =>
+  ask<WorkerTranscript>({ type: "transcribe", samples }, [samples.buffer], signal);
+export const embedInWorker = (texts: string[], kind: "query" | "passage", signal?: AbortSignal) =>
+  ask<number[][]>({ type: "embed", texts, kind }, [], signal);

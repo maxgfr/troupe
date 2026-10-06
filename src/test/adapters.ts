@@ -1,7 +1,15 @@
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
-import { generations, type CreateJobRequest, type JobOutcome, type ModelCapabilities, type ModelFamily, type ProviderJobStatus, type VideoProviderAdapter } from "~/modules/generation";
+import {
+  generations,
+  type CreateJobRequest,
+  type JobOutcome,
+  type ModelCapabilities,
+  type ModelFamily,
+  type ProviderJobStatus,
+  type VideoProviderAdapter,
+} from "~/modules/generation";
 import { applyJobOutcome } from "~/modules/generation/server/outcome";
 import { sanitizeDefaults, type ModelCatalog, type ResolvedModel } from "~/modules/models";
 
@@ -18,19 +26,25 @@ export const TEST_CAPS: ModelCapabilities = {
 
 // A scriptable video model: records every submission and answers status polls
 // with `getJob` (pending by default). Job ids are `${jobId}` or `${jobId}-<n>`.
-export function fakeAdapter(opts: {
-  modelKey?: string;
-  family?: ModelFamily;
-  modelId?: string;
-  aspectRatios?: string[];
-  capabilities?: Partial<ModelCapabilities>;
-  jobId?: string;
-  getJob?: (providerJobId: string) => Promise<ProviderJobStatus>;
-  createJob?: (req: CreateJobRequest) => Promise<{ providerJobId: string }>;
-} = {}): FakeAdapter {
+export function fakeAdapter(
+  opts: {
+    modelKey?: string;
+    family?: ModelFamily;
+    modelId?: string;
+    aspectRatios?: string[];
+    capabilities?: Partial<ModelCapabilities>;
+    jobId?: string;
+    getJob?: (providerJobId: string) => Promise<ProviderJobStatus>;
+    createJob?: (req: CreateJobRequest) => Promise<{ providerJobId: string }>;
+  } = {},
+): FakeAdapter {
   const calls: CreateJobRequest[] = [];
   const base = opts.jobId ?? `job-${Math.random().toString(36).slice(2)}`;
-  const capabilities: ModelCapabilities = { ...TEST_CAPS, ...(opts.aspectRatios ? { aspectRatios: opts.aspectRatios } : {}), ...opts.capabilities };
+  const capabilities: ModelCapabilities = {
+    ...TEST_CAPS,
+    ...(opts.aspectRatios ? { aspectRatios: opts.aspectRatios } : {}),
+    ...opts.capabilities,
+  };
   return {
     modelKey: opts.modelKey ?? "veo",
     family: opts.family ?? "http",
@@ -50,13 +64,31 @@ export function fakeAdapter(opts: {
 export const asModels = (adapters: VideoProviderAdapter[]) => adapters.map((adapter) => ({ adapter }));
 
 // A catalog where every given adapter is a ready, enabled model.
-export function catalogOf(adapters: VideoProviderAdapter[], opts: { defaultModelKey?: string | null; patch?: Record<string, Partial<ResolvedModel>> } = {}): ModelCatalog {
-  const models = adapters.map((a): ResolvedModel => ({
-    key: a.modelKey, family: a.family, label: a.modelKey, vendor: "Test", kind: "cloud", credential: null,
-    modelId: a.modelId, capabilities: a.capabilities(), defaults: sanitizeDefaults(a.capabilities(), null),
-    pricePerSecondUsd: null, timeoutS: 1800, enabled: true, archived: false, status: "ready", statusDetail: null, lastTest: null,
-    ...opts.patch?.[a.modelKey],
-  }));
+export function catalogOf(
+  adapters: VideoProviderAdapter[],
+  opts: { defaultModelKey?: string | null; patch?: Record<string, Partial<ResolvedModel>> } = {},
+): ModelCatalog {
+  const models = adapters.map(
+    (a): ResolvedModel => ({
+      key: a.modelKey,
+      family: a.family,
+      label: a.modelKey,
+      vendor: "Test",
+      kind: "cloud",
+      credential: null,
+      modelId: a.modelId,
+      capabilities: a.capabilities(),
+      defaults: sanitizeDefaults(a.capabilities(), null),
+      pricePerSecondUsd: null,
+      timeoutS: 1800,
+      enabled: true,
+      archived: false,
+      status: "ready",
+      statusDetail: null,
+      lastTest: null,
+      ...opts.patch?.[a.modelKey],
+    }),
+  );
   return {
     models,
     adapters: new Map(adapters.map((a) => [a.modelKey, a])),
@@ -66,7 +98,11 @@ export function catalogOf(adapters: VideoProviderAdapter[], opts: { defaultModel
 
 // Drive a generation to a terminal state through the same transition the
 // reconciler uses.
-export async function finishGeneration(db: Db, generationId: string, outcome: Partial<JobOutcome> & { kind: JobOutcome["kind"] }) {
+export async function finishGeneration(
+  db: Db,
+  generationId: string,
+  outcome: Partial<JobOutcome> & { kind: JobOutcome["kind"] },
+) {
   const [gen] = await db.select().from(generations).where(eq(generations.id, generationId)).limit(1);
   if (!gen) throw new Error(`generation ${generationId} not found`);
   return applyJobOutcome(db, gen, { providerJobId: gen.providerJobId ?? "", eventType: "test", ...outcome });

@@ -27,17 +27,18 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
   const enabled = workspace.status === "ready";
   const utils = api.useUtils();
 
-  const history = api.script.history.useQuery(
-    { projectId },
-    { enabled, retry: false },
-  );
+  const history = api.script.history.useQuery({ projectId }, { enabled, retry: false });
   // The model the project launches on, for its longest clip.
   const project = api.studio.getProject.useQuery({ projectId }, { enabled, retry: false });
   const models = api.studio.modelOptions.useQuery(
     { format: project.data?.format ?? "9:16", language: project.data?.language },
     { enabled: Boolean(project.data), retry: false },
   );
-  const model = pickModel((models.data?.models ?? []) as ModelOptionView[], project.data?.modelKey, models.data?.defaultModelKey);
+  const model = pickModel(
+    (models.data?.models ?? []) as ModelOptionView[],
+    project.data?.modelKey,
+    models.data?.defaultModelKey,
+  );
   const longestS = model ? Math.max(0, ...model.capabilities.durationsS) : 0;
   const limit = model && longestS > 0 ? { seconds: longestS, modelLabel: model.label } : null;
 
@@ -64,27 +65,33 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
       ) : (
         <div className="max-w-2xl space-y-10">
           <p className="-mt-2 max-w-[65ch] text-pretty text-sm text-muted">
-            One line per sentence: the first is the hook, the last the call to action. Each line&apos;s emotion directs the voice; saving new text keeps a new version.
+            One line per sentence: the first is the hook, the last the call to action. Each line&apos;s emotion directs
+            the voice; saving new text keeps a new version.
           </p>
           {latest ? (
             <div className="space-y-4">
               <ScriptLines
                 lines={latest.lines as ScriptLineView[]}
-                onEmotion={paste.isPending ? undefined : (lineIndex, emotion) =>
-                  workspace.workspaceId &&
-                  setEmotion.mutate({
-                    projectId,
-                    scriptId: latest.id,
-                    lineIndex,
-                    emotion,
-                  })
+                onEmotion={
+                  paste.isPending
+                    ? undefined
+                    : (lineIndex, emotion) =>
+                        workspace.workspaceId &&
+                        setEmotion.mutate({
+                          projectId,
+                          scriptId: latest.id,
+                          lineIndex,
+                          emotion,
+                        })
                 }
               />
               {/* The next step: render this version. */}
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-2">
                 <p className="font-mono text-xs tabular-nums text-muted">
                   version {latest.version} · {latest.origin === "chat" ? "from the chat" : "written here"} ·{" "}
-                  <span className={latestTooLong ? "text-warning" : undefined}>≈{latest.estimatedDurationS} s to say</span>
+                  <span className={latestTooLong ? "text-warning" : undefined}>
+                    ≈{latest.estimatedDurationS} s to say
+                  </span>
                 </p>
                 <ButtonLink href={`/projects/${projectId}#launch`} variant="outline">
                   Launch a render
@@ -93,7 +100,8 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
               </div>
               {latestTooLong && limit ? (
                 <ProviderWarning>
-                  Version {latest.version} takes about {latest.estimatedDurationS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Shorten it below, or pick another model on the Video tab.
+                  Version {latest.version} takes about {latest.estimatedDurationS} s to say, but {limit.modelLabel}{" "}
+                  renders at most {limit.seconds} s. Shorten it below, or pick another model on the Video tab.
                 </ProviderWarning>
               ) : null}
             </div>
@@ -119,7 +127,9 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
             busy={restore.isPending || paste.isPending}
             onRestore={(scriptId) => restore.mutate({ projectId, scriptId })}
           />
-          {setEmotion.error ?? restore.error ? <ErrorNote>{(setEmotion.error ?? restore.error)!.message}</ErrorNote> : null}
+          {(setEmotion.error ?? restore.error) ? (
+            <ErrorNote>{(setEmotion.error ?? restore.error)!.message}</ErrorNote>
+          ) : null}
         </div>
       )}
     </ProjectGate>

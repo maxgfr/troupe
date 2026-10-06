@@ -54,7 +54,10 @@ export async function readConfig(env: Env): Promise<ConfigFile> {
   }
   try {
     const parsed = JSON.parse(text) as Partial<ConfigFile>;
-    return { profile: parsed.profile, profiles: parsed.profiles && typeof parsed.profiles === "object" ? parsed.profiles : {} };
+    return {
+      profile: parsed.profile,
+      profiles: parsed.profiles && typeof parsed.profiles === "object" ? parsed.profiles : {},
+    };
   } catch {
     throw new CliError(`${configPath(env)} is not valid JSON. Fix it or delete it and run troupe login again.`);
   }
@@ -91,7 +94,11 @@ export async function writeConfig(env: Env, config: ConfigFile): Promise<void> {
 export const LOCK_TIMING = { staleMs: 3_000, waitMs: 8_000 } as const;
 
 const pause = () => new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 40));
-const ageOf = (file: string) => stat(file).then((s) => Date.now() - s.mtimeMs, () => null);
+const ageOf = (file: string) =>
+  stat(file).then(
+    (s) => Date.now() - s.mtimeMs,
+    () => null,
+  );
 
 // Removes the lock if it is (still) stale. Two commands may both find it
 // stale; the second must not then remove the lock the first has just taken,
@@ -125,7 +132,10 @@ export async function updateConfig(env: Env, change: (config: ConfigFile) => voi
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       if (((await ageOf(lock)) ?? 0) > LOCK_TIMING.staleMs) await clearStaleLock(lock).then(pause);
-      else if (Date.now() > deadline) throw new CliError(`Another troupe command holds ${lock}. If none is running, delete that file.`, { code: "CONFIG_LOCKED" });
+      else if (Date.now() > deadline)
+        throw new CliError(`Another troupe command holds ${lock}. If none is running, delete that file.`, {
+          code: "CONFIG_LOCKED",
+        });
       else await pause();
     }
   }
@@ -158,7 +168,8 @@ export function normalizeUrl(input: string): string {
   } catch {
     throw usageError(`"${input}" is not a URL. Example: http://127.0.0.1:3000`);
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw usageError(`Use an http:// or https:// address, not ${url.protocol}`);
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    throw usageError(`Use an http:// or https:// address, not ${url.protocol}`);
   return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 

@@ -11,7 +11,21 @@ const STORE = "files";
 // HTML or SVG would run as one of its pages.
 // Renders, named with mediaDisposition's copy below.
 const PLAYABLE = new Set(["video/mp4", "video/webm"]);
-const INLINE = new Set(["video/mp4", "video/webm", "video/quicktime", "audio/mp4", "audio/mpeg", "audio/aac", "audio/wav", "audio/ogg", "audio/flac", "image/png", "image/jpeg", "image/gif", "image/webp"]);
+const INLINE = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/aac",
+  "audio/wav",
+  "audio/ogg",
+  "audio/flac",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
 // Kept, but always a download.
 const DOWNLOAD_ONLY = new Set(["application/pdf"]);
 
@@ -25,7 +39,8 @@ worker.addEventListener("activate", (/** @type {any} */ event) => event.waitUnti
 worker.addEventListener("fetch", (/** @type {any} */ event) => {
   const url = new URL(event.request.url);
   const prefix = new URL("media/", worker.registration.scope).pathname;
-  if (event.request.method !== "GET" || url.origin !== worker.location.origin || !url.pathname.startsWith(prefix)) return;
+  if (event.request.method !== "GET" || url.origin !== worker.location.origin || !url.pathname.startsWith(prefix))
+    return;
   const id = decodeURIComponent(url.pathname.slice(prefix.length));
   event.respondWith(serve(id, event.request.headers.get("range"), url.searchParams.get("download")));
 });
@@ -44,13 +59,20 @@ function disposition(download, ext) {
 function readFile(id) {
   return new Promise((resolve, reject) => {
     const open = indexedDB.open(DB_NAME, 1);
-    open.onupgradeneeded = () => open.result.createObjectStore(STORE, { keyPath: "id" }).createIndex("storagePath", "storagePath");
+    open.onupgradeneeded = () =>
+      open.result.createObjectStore(STORE, { keyPath: "id" }).createIndex("storagePath", "storagePath");
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const db = open.result;
       const get = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
-      get.onsuccess = () => { db.close(); resolve(get.result); };
-      get.onerror = () => { db.close(); reject(get.error); };
+      get.onsuccess = () => {
+        db.close();
+        resolve(get.result);
+      };
+      get.onerror = () => {
+        db.close();
+        reject(get.error);
+      };
     };
   });
 }
@@ -94,7 +116,8 @@ async function serve(id, range, download) {
     } else {
       start = Math.max(0, size - Number(match[2]));
     }
-    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) return unsatisfiable();
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size)
+      return unsatisfiable();
     headers.set("content-range", `bytes ${start}-${end}/${size}`);
   }
   headers.set("content-length", String(end - start + 1));

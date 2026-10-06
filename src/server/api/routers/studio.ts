@@ -2,7 +2,14 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, projectProcedure, protectedProcedure, workspaceProcedure } from "~/server/api/trpc";
-import { changeProjectActor, createProjectFromWizard, formatOptionsFor, getProject, modelOptionsFor, updateProjectChoices } from "~/modules/studio";
+import {
+  changeProjectActor,
+  createProjectFromWizard,
+  formatOptionsFor,
+  getProject,
+  modelOptionsFor,
+  updateProjectChoices,
+} from "~/modules/studio";
 import type { ModelCatalog } from "~/modules/models";
 import { MODEL_KEY } from "./generation";
 import { deleteProjectData } from "~/server/projects";
@@ -33,7 +40,16 @@ export const studioRouter = createTRPCRouter({
   getProject: projectProcedure.query(({ ctx, input }) => getProject(ctx.db, input.projectId)),
 
   createFromWizard: workspaceProcedure
-    .input(z.object({ title: z.string().trim().min(1).max(200), platform: PLATFORM, format: FORMAT, language: z.string().min(1).max(20), actorId: z.string().uuid(), modelKey: MODEL_KEY.nullish() }))
+    .input(
+      z.object({
+        title: z.string().trim().min(1).max(200),
+        platform: PLATFORM,
+        format: FORMAT,
+        language: z.string().min(1).max(20),
+        actorId: z.string().uuid(),
+        modelKey: MODEL_KEY.nullish(),
+      }),
+    )
     .mutation(({ ctx, input }) => {
       assertKnownModel(ctx.catalog, input.modelKey);
       return createProjectFromWizard(ctx.db, input);
@@ -45,27 +61,35 @@ export const studioRouter = createTRPCRouter({
     try {
       await ctx.media.remove(files);
     } catch (error) {
-      console.error(JSON.stringify({ event: "media.remove.failed", projectId: input.projectId, message: (error as Error).message }));
+      console.error(
+        JSON.stringify({ event: "media.remove.failed", projectId: input.projectId, message: (error as Error).message }),
+      );
     }
     return { deleted: true };
   }),
 
   updateChoices: projectProcedure
-    .input(z.object({ title: z.string().trim().min(1).max(200).optional(), format: FORMAT.optional(), platform: PLATFORM.optional(), language: z.string().optional(), modelKey: MODEL_KEY.nullish() }))
+    .input(
+      z.object({
+        title: z.string().trim().min(1).max(200).optional(),
+        format: FORMAT.optional(),
+        platform: PLATFORM.optional(),
+        language: z.string().optional(),
+        modelKey: MODEL_KEY.nullish(),
+      }),
+    )
     .mutation(({ ctx, input }) => {
       assertKnownModel(ctx.catalog, input.modelKey);
       return updateProjectChoices(ctx.db, input);
     }),
 
   // Recast the project; renders already made keep the actor they were made with.
-  changeActor: projectProcedure
-    .input(z.object({ actorId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        return await changeProjectActor(ctx.db, input);
-      } catch (error) {
-        if (error instanceof ActorUnavailableError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
-        throw error;
-      }
-    }),
+  changeActor: projectProcedure.input(z.object({ actorId: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    try {
+      return await changeProjectActor(ctx.db, input);
+    } catch (error) {
+      if (error instanceof ActorUnavailableError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+      throw error;
+    }
+  }),
 });

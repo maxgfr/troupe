@@ -15,7 +15,11 @@ function slug(text: string): string {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function renderFileName(input: { project?: string | null; model?: string | null; createdAt: string | Date }): string {
+export function renderFileName(input: {
+  project?: string | null;
+  model?: string | null;
+  createdAt: string | Date;
+}): string {
   const at = new Date(input.createdAt);
   const stamp = Number.isNaN(at.getTime())
     ? null

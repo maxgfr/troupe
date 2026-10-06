@@ -45,7 +45,13 @@ export function chunkText(text: string, { maxChars = 700 }: { maxChars?: number 
     if (!paragraph) continue;
     if (paragraph.length > maxChars) {
       flush();
-      pack(paragraph.split(/(?<=[.!?…])\s+/).map(squash).filter(Boolean), " ");
+      pack(
+        paragraph
+          .split(/(?<=[.!?…])\s+/)
+          .map(squash)
+          .filter(Boolean),
+        " ",
+      );
     } else current.push(paragraph);
   }
   flush();
@@ -55,7 +61,10 @@ export function chunkText(text: string, { maxChars = 700 }: { maxChars?: number 
 // Transcript segments grouped into passages of at most `maxChars` and
 // `maxSpanS`, each keeping its start and end; a segment longer than a
 // passage is split with times in proportion to its text.
-export function chunkTranscript(segments: readonly TranscriptSegment[], { maxChars = 500, maxSpanS = 45 }: { maxChars?: number; maxSpanS?: number } = {}): TimedPassage[] {
+export function chunkTranscript(
+  segments: readonly TranscriptSegment[],
+  { maxChars = 500, maxSpanS = 45 }: { maxChars?: number; maxSpanS?: number } = {},
+): TimedPassage[] {
   const out: TimedPassage[] = [];
   let current: TimedPassage | null = null;
   for (const segment of segments) {
@@ -104,7 +113,11 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
 
 // Exact nearest neighbours: every candidate is scored. A personal library
 // holds thousands of passages, not millions (docs/LIBRARY.md).
-export function rankByCosine<T extends { embedding: readonly number[] }>(query: readonly number[], candidates: readonly T[], limit: number): { item: T; score: number }[] {
+export function rankByCosine<T extends { embedding: readonly number[] }>(
+  query: readonly number[],
+  candidates: readonly T[],
+  limit: number,
+): { item: T; score: number }[] {
   return candidates
     .map((item) => ({ item, score: cosine(query, item.embedding) }))
     .sort((a, b) => b.score - a.score)
@@ -134,12 +147,18 @@ export function keywordScore(query: string, text: string): number {
 // The hook: what is said in the first `seconds`, in whole segments (Whisper
 // cuts on phrases): every segment that starts in the window and is said
 // mostly inside it, and at least the first one.
-export function hookFromTranscript(segments: readonly TranscriptSegment[], seconds = 3): { text: string; endS: number } | null {
+export function hookFromTranscript(
+  segments: readonly TranscriptSegment[],
+  seconds = 3,
+): { text: string; endS: number } | null {
   const spoken = segments.filter((s) => s.text.trim());
   const first = spoken[0];
   if (!first || first.startS >= seconds * 2) return null;
   const inside = spoken.filter((s, i) => i === 0 || (s.startS < seconds && (s.startS + s.endS) / 2 <= seconds));
-  return { text: inside.map((s) => squash(s.text)).join(" "), endS: Math.round(Math.max(seconds, inside.at(-1)!.endS) * 100) / 100 };
+  return {
+    text: inside.map((s) => squash(s.text)).join(" "),
+    endS: Math.round(Math.max(seconds, inside.at(-1)!.endS) * 100) / 100,
+  };
 }
 
 // A text's hook: its first sentence (or its first 160 characters).
@@ -153,16 +172,27 @@ export function hookFromText(text: string): string | null {
 
 // Words a second over the time someone speaks, and cuts a minute over the
 // whole video; "fast" past 2.8 words a second or 20 cuts a minute.
-export function pacingOf(input: { segments: readonly TranscriptSegment[]; durationS: number | null; cutsAtS: readonly number[] }): { wordsPerSecond?: number; cutsPerMinute?: number; pace: Pace } | null {
+export function pacingOf(input: {
+  segments: readonly TranscriptSegment[];
+  durationS: number | null;
+  cutsAtS: readonly number[];
+}): { wordsPerSecond?: number; cutsPerMinute?: number; pace: Pace } | null {
   const spoken = input.segments.reduce((sum, s) => sum + Math.max(0, s.endS - s.startS), 0);
   const count = input.segments.reduce((sum, s) => sum + squash(s.text).split(" ").filter(Boolean).length, 0);
   const wordsPerSecond = spoken > 0 && count > 0 ? Math.round((count / spoken) * 10) / 10 : undefined;
-  const cutsPerMinute = input.durationS && input.durationS > 0 ? Math.round((input.cutsAtS.length / input.durationS) * 600) / 10 : undefined;
+  const cutsPerMinute =
+    input.durationS && input.durationS > 0
+      ? Math.round((input.cutsAtS.length / input.durationS) * 600) / 10
+      : undefined;
   if (wordsPerSecond === undefined && cutsPerMinute === undefined) return null;
   let pace: Pace = "steady";
   if ((wordsPerSecond ?? 0) >= 2.8 || (cutsPerMinute ?? 0) >= 20) pace = "fast";
   else if (wordsPerSecond !== undefined ? wordsPerSecond < 2 : (cutsPerMinute ?? 0) <= 6) pace = "slow";
-  return { ...(wordsPerSecond !== undefined ? { wordsPerSecond } : {}), ...(cutsPerMinute !== undefined ? { cutsPerMinute } : {}), pace };
+  return {
+    ...(wordsPerSecond !== undefined ? { wordsPerSecond } : {}),
+    ...(cutsPerMinute !== undefined ? { cutsPerMinute } : {}),
+    pace,
+  };
 }
 
 // 72.6 → "1:12"; 3723 → "1:02:03".
@@ -214,11 +244,16 @@ export function styleProfile(samples: readonly VoiceSample[], maxChars = 600): s
   if (hooks.length) parts.push(`Hooks you open with: ${hooks.join("; ")}.`);
   const tones = new Map<string, number>();
   for (const s of samples) for (const t of s.tone) tones.set(t.toLowerCase(), (tones.get(t.toLowerCase()) ?? 0) + 1);
-  const topTones = [...tones.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4).map(([t]) => t);
+  const topTones = [...tones.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 4)
+    .map(([t]) => t);
   if (topTones.length) parts.push(`Tone: ${topTones.join(", ")}.`);
   const rates = samples.map((s) => s.wordsPerSecond).filter((r): r is number => r !== null && r > 0);
   if (rates.length) parts.push(`Pace: about ${one(rates.reduce((a, b) => a + b, 0) / rates.length)} words a second.`);
-  const sentences = samples.flatMap((s) => squash(s.text).split(/(?<=[.!?…])\s+/)).filter((s) => s.split(" ").length > 1);
+  const sentences = samples
+    .flatMap((s) => squash(s.text).split(/(?<=[.!?…])\s+/))
+    .filter((s) => s.split(" ").length > 1);
   if (sentences.length) {
     const average = sentences.reduce((sum, s) => sum + s.split(" ").length, 0) / sentences.length;
     parts.push(`Sentences: about ${Math.round(average)} words.`);

@@ -1,7 +1,15 @@
 import { z } from "zod";
 
 import { sizeFor } from "~/modules/models/geometry";
-import { AdapterError, clampPollEveryS, validateRequest, type ConnectionReport, type JobScript, type ModelCapabilities, type VideoProviderAdapter } from "../adapter";
+import {
+  AdapterError,
+  clampPollEveryS,
+  validateRequest,
+  type ConnectionReport,
+  type JobScript,
+  type ModelCapabilities,
+  type VideoProviderAdapter,
+} from "../adapter";
 import { videoBytes } from "./download";
 
 // Contract v1 for a self-hosted video model behind plain HTTP
@@ -45,7 +53,11 @@ function scriptBody(script: JobScript) {
   return {
     language: script.language,
     actor: {
-      id: actor.id, name: actor.name, gender: actor.gender, age_range: actor.ageRange, voice_profile: actor.voiceProfile,
+      id: actor.id,
+      name: actor.name,
+      gender: actor.gender,
+      age_range: actor.ageRange,
+      voice_profile: actor.voiceProfile,
       ...(actor.portraits ? { portraits: actor.portraits } : {}),
     },
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
@@ -63,26 +75,43 @@ function sameOrigin(candidate: string, base: string) {
 function excerpt(text: unknown): string | null {
   if (typeof text !== "string") return null;
   // eslint-disable-next-line no-control-regex
-  const clean = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  const clean = text
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return clean ? (clean.length > 200 ? `${clean.slice(0, 199)}…` : clean) : null;
 }
 
-export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetch?: typeof fetch }): VideoProviderAdapter {
+export function createHttpEndpointAdapter(deps: {
+  model: HttpEndpointModel;
+  fetch?: typeof fetch;
+}): VideoProviderAdapter {
   const { model } = deps;
   const doFetch = deps.fetch ?? fetch;
   const origin = new URL(model.baseUrl).origin;
-  const headers = (extra: Record<string, string> = {}) => ({ ...extra, ...(model.token ? { authorization: `Bearer ${model.token}` } : {}) });
+  const headers = (extra: Record<string, string> = {}) => ({
+    ...extra,
+    ...(model.token ? { authorization: `Bearer ${model.token}` } : {}),
+  });
 
   async function call(path: string, init: RequestInit & { timeoutMs?: number } = {}) {
     try {
-      return await doFetch(`${model.baseUrl}${path}`, { ...init, redirect: "error", signal: AbortSignal.timeout(init.timeoutMs ?? 30_000) });
+      return await doFetch(`${model.baseUrl}${path}`, {
+        ...init,
+        redirect: "error",
+        signal: AbortSignal.timeout(init.timeoutMs ?? 30_000),
+      });
     } catch {
-      throw new AdapterError("LOCAL_UNREACHABLE", `Could not reach ${origin}. Is the server running and reachable from Troupe?`);
+      throw new AdapterError(
+        "LOCAL_UNREACHABLE",
+        `Could not reach ${origin}. Is the server running and reachable from Troupe?`,
+      );
     }
   }
 
   function statusError(status: number): AdapterError {
-    if (status === 401 || status === 403) return new AdapterError("LOCAL_AUTH", `${model.label} refused the token (HTTP ${status}). Check it in Settings.`);
+    if (status === 401 || status === 403)
+      return new AdapterError("LOCAL_AUTH", `${model.label} refused the token (HTTP ${status}). Check it in Settings.`);
     return new AdapterError("LOCAL_HTTP", `${model.label} returned HTTP ${status}.`);
   }
 
@@ -100,37 +129,78 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
         method: "POST",
         headers: headers({ "content-type": "application/json" }),
         body: JSON.stringify({
-          prompt: req.prompt, aspect_ratio: req.aspectRatio, resolution: req.resolution, width, height,
-          duration_s: req.durationS, ...(model.fps ? { fps: model.fps } : {}), audio: req.audio,
+          prompt: req.prompt,
+          aspect_ratio: req.aspectRatio,
+          resolution: req.resolution,
+          width,
+          height,
+          duration_s: req.durationS,
+          ...(model.fps ? { fps: model.fps } : {}),
+          audio: req.audio,
           ...(req.script ? { script: scriptBody(req.script) } : {}),
         }),
       });
       if (!response.ok) throw statusError(response.status);
       const created = Created.safeParse(await response.json().catch(() => null));
-      if (!created.success) throw new AdapterError("LOCAL_BAD_RESPONSE", `${model.label} did not return a job id. Check that it follows contract v${HTTP_CONTRACT_VERSION}.`);
+      if (!created.success)
+        throw new AdapterError(
+          "LOCAL_BAD_RESPONSE",
+          `${model.label} did not return a job id. Check that it follows contract v${HTTP_CONTRACT_VERSION}.`,
+        );
       return { providerJobId: created.data.id };
     },
     async getJob(providerJobId) {
       const response = await call(`/jobs/${encodeURIComponent(providerJobId)}`, { headers: headers() });
       if (!response.ok) throw statusError(response.status);
       const status = Status.parse(await response.json());
-      if (status.status === "queued" || status.status === "running") return { kind: "pending", ...(status.progress !== undefined ? { progress: status.progress } : {}) };
+      if (status.status === "queued" || status.status === "running")
+        return { kind: "pending", ...(status.progress !== undefined ? { progress: status.progress } : {}) };
       if (status.status === "failed") {
         const said = excerpt(status.error);
-        return { kind: "failed", providerJobId, eventType: "local.failed", errorCode: "LOCAL_JOB_FAILED", detail: said ? `${model.label} reported: ${said}` : `${model.label} reported the job as failed.` };
+        return {
+          kind: "failed",
+          providerJobId,
+          eventType: "local.failed",
+          errorCode: "LOCAL_JOB_FAILED",
+          detail: said ? `${model.label} reported: ${said}` : `${model.label} reported the job as failed.`,
+        };
       }
-      if (!status.video_url) return { kind: "failed", providerJobId, eventType: "local.failed", errorCode: "NO_VIDEO_RETURNED", detail: `${model.label} finished without a video_url.` };
+      if (!status.video_url)
+        return {
+          kind: "failed",
+          providerJobId,
+          eventType: "local.failed",
+          errorCode: "NO_VIDEO_RETURNED",
+          detail: `${model.label} finished without a video_url.`,
+        };
       const outputUrl = new URL(status.video_url, `${model.baseUrl}/`).toString();
       if (!sameOrigin(outputUrl, model.baseUrl)) {
-        return { kind: "failed", providerJobId, eventType: "local.failed", errorCode: "OUTPUT_FOREIGN_ORIGIN", detail: `${model.label} pointed to a video on another server; serve it from ${origin}.` };
+        return {
+          kind: "failed",
+          providerJobId,
+          eventType: "local.failed",
+          errorCode: "OUTPUT_FOREIGN_ORIGIN",
+          detail: `${model.label} pointed to a video on another server; serve it from ${origin}.`,
+        };
       }
-      return { kind: "completed", providerJobId, eventType: "local.completed", outputUrl, ...(status.captions === "burned" ? { captions: "burned" as const } : {}) };
+      return {
+        kind: "completed",
+        providerJobId,
+        eventType: "local.completed",
+        outputUrl,
+        ...(status.captions === "burned" ? { captions: "burned" as const } : {}),
+      };
     },
     async downloadResult(url) {
-      if (!sameOrigin(url, model.baseUrl)) throw new Error(`Refusing to download a video from another origin than ${origin}.`);
+      if (!sameOrigin(url, model.baseUrl))
+        throw new Error(`Refusing to download a video from another origin than ${origin}.`);
       let response: Response;
       try {
-        response = await doFetch(url, { headers: headers(), redirect: "error", signal: AbortSignal.timeout(10 * 60_000) });
+        response = await doFetch(url, {
+          headers: headers(),
+          redirect: "error",
+          signal: AbortSignal.timeout(10 * 60_000),
+        });
       } catch {
         throw new Error(`Could not download the video from ${origin}; it will be retried.`);
       }
@@ -147,14 +217,20 @@ export function createHttpEndpointAdapter(deps: { model: HttpEndpointModel; fetc
         // A server may say why it is not ready (a mode turned off, weights
         // missing). Bodies of auth refusals are never shown.
         const refused = response.status === 401 || response.status === 403;
-        const said = refused ? null : excerpt(((await response.json().catch(() => null)) as { error?: unknown } | null)?.error);
+        const said = refused
+          ? null
+          : excerpt(((await response.json().catch(() => null)) as { error?: unknown } | null)?.error);
         const detail = statusError(response.status).detail;
         return { ok: false, message: said ? `${detail.replace(/\.$/, "")}: ${said}` : detail };
       }
       const health = Health.safeParse(await response.json().catch(() => null));
-      if (!health.success || !health.data.ok) return { ok: false, message: `${origin}/health did not answer { ok: true }.` };
+      if (!health.success || !health.data.ok)
+        return { ok: false, message: `${origin}/health did not answer { ok: true }.` };
       if (health.data.contract !== undefined && health.data.contract !== HTTP_CONTRACT_VERSION) {
-        return { ok: false, message: `The server speaks contract ${health.data.contract}; Troupe expects contract ${HTTP_CONTRACT_VERSION}.` };
+        return {
+          ok: false,
+          message: `The server speaks contract ${health.data.contract}; Troupe expects contract ${HTTP_CONTRACT_VERSION}.`,
+        };
       }
       const message = `${model.label} is reachable and speaks contract ${HTTP_CONTRACT_VERSION}.`;
       const pace = clampPollEveryS(health.data.poll_every_s);

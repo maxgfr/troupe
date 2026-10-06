@@ -12,7 +12,9 @@ export function startLoop(name: string, tick: () => Promise<unknown>, intervalMs
     try {
       await tick();
     } catch (error) {
-      console.error(JSON.stringify({ event: `${name}.error`, message: error instanceof Error ? error.message : String(error) }));
+      console.error(
+        JSON.stringify({ event: `${name}.error`, message: error instanceof Error ? error.message : String(error) }),
+      );
     }
     if (!stopped) timer = setTimeout(() => void run(), intervalMs);
   };

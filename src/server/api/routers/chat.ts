@@ -32,7 +32,12 @@ function asTrpcError(error: unknown): never {
   if (error instanceof TRPCError) throw error;
   if (error instanceof ChatProviderError) throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
   if (error instanceof ChatMessageNotFoundError) throw new TRPCError({ code: "NOT_FOUND", message: error.message });
-  if (error instanceof NothingToApplyError || error instanceof ScriptTooLongError || error instanceof ActorUnavailableError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+  if (
+    error instanceof NothingToApplyError ||
+    error instanceof ScriptTooLongError ||
+    error instanceof ActorUnavailableError
+  )
+    throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   throw error;
 }
 
@@ -51,7 +56,16 @@ export const chatRouter = createTRPCRouter({
     const messages = await listChatMessages(ctx.db, input.projectId);
     if (!ctx.chat) return { messages, provider: null };
     const setup = await ctx.chat.load();
-    return { messages, provider: { id: setup.provider, label: setup.label, modelId: setup.modelId, problem: setup.problem, wordsPerSecond: setup.wordsPerSecond } };
+    return {
+      messages,
+      provider: {
+        id: setup.provider,
+        label: setup.label,
+        modelId: setup.modelId,
+        problem: setup.problem,
+        wordsPerSecond: setup.wordsPerSecond,
+      },
+    };
   }),
 
   send: projectProcedure
@@ -60,22 +74,50 @@ export const chatRouter = createTRPCRouter({
       const loaded = await backend(ctx.chat).load();
       // "In my voice": the style of the library items marked as the user's own.
       const { profile } = await voiceProfile(ctx.db, ctx.workspaceId);
-      const setup = profile ? { ...loaded, instructions: [loaded.instructions.trim(), `Write in the creator's own voice: ${profile}`].filter(Boolean).join(" ") } : loaded;
+      const setup = profile
+        ? {
+            ...loaded,
+            instructions: [loaded.instructions.trim(), `Write in the creator's own voice: ${profile}`]
+              .filter(Boolean)
+              .join(" "),
+          }
+        : loaded;
       // The answer and its retry together get setup.sendTimeoutMs: a small
       // model on a slow CPU must not hold the panel for ever. Past it, the
       // model's calls stop, nothing is stored, and the chat says so.
       const limit = AbortSignal.timeout(setup.sendTimeoutMs);
       try {
-        return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal, limit });
+        return await sendChatMessage(ctx.db, {
+          projectId: input.projectId,
+          message: input.message,
+          durationS: input.durationS,
+          setup,
+          signal,
+          limit,
+        });
       } catch (error) {
         if (limit.aborted && !signal?.aborted) {
-          throw new TRPCError({ code: "TIMEOUT", message: `${setup.modelId} took longer than ${Math.max(1, Math.round(setup.sendTimeoutMs / 1000))} s to write a new version and was stopped. Try again, perhaps in fewer words.` });
+          throw new TRPCError({
+            code: "TIMEOUT",
+            message: `${setup.modelId} took longer than ${Math.max(1, Math.round(setup.sendTimeoutMs / 1000))} s to write a new version and was stopped. Try again, perhaps in fewer words.`,
+          });
         }
-        if (signal?.aborted) throw new TRPCError({ code: "CLIENT_CLOSED_REQUEST", message: "The request was stopped." });
+        if (signal?.aborted)
+          throw new TRPCError({ code: "CLIENT_CLOSED_REQUEST", message: "The request was stopped." });
         if (error instanceof ChatProviderError) asTrpcError(error);
         // The details stay in the server's log: they may name hosts or data.
-        console.error(JSON.stringify({ event: "chat.send.failed", provider: setup.provider, model: setup.modelId, message: (error as Error).message }));
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `${setup.label} could not answer. Try again; the server's log has the details.` });
+        console.error(
+          JSON.stringify({
+            event: "chat.send.failed",
+            provider: setup.provider,
+            model: setup.modelId,
+            message: (error as Error).message,
+          }),
+        );
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `${setup.label} could not answer. Try again; the server's log has the details.`,
+        });
       }
     }),
 
@@ -101,8 +143,14 @@ export const chatRouter = createTRPCRouter({
       const estimatedS = estimateDurationS(proposal.data.lines.map((l) => l.text).join(" "));
       if (estimatedS > input.launch.durationS) asTrpcError(new ScriptTooLongError(estimatedS, input.launch.durationS));
 
-      const applied = await applyChatProposal(ctx.db, { projectId: input.projectId, messageId: input.messageId }).catch(asTrpcError);
-      const generation = await launchText(ctx, { projectId: input.projectId, scriptId: applied.script.id, ...input.launch });
+      const applied = await applyChatProposal(ctx.db, { projectId: input.projectId, messageId: input.messageId }).catch(
+        asTrpcError,
+      );
+      const generation = await launchText(ctx, {
+        projectId: input.projectId,
+        scriptId: applied.script.id,
+        ...input.launch,
+      });
       return { ...applied, generation };
     }),
 });

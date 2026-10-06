@@ -20,20 +20,39 @@ function address(target: TranscribeTarget, path: string): string {
   return `${url.base}${path}`;
 }
 
-const auth = (target: TranscribeTarget): Record<string, string> => (target.token ? { authorization: `Bearer ${target.token}` } : {});
+const auth = (target: TranscribeTarget): Record<string, string> =>
+  target.token ? { authorization: `Bearer ${target.token}` } : {};
 
 // The model it runs, or why it cannot transcribe.
-export async function transcriberHealth(target: TranscribeTarget): Promise<{ ok: true; model: string } | { ok: false; problem: string }> {
+export async function transcriberHealth(
+  target: TranscribeTarget,
+): Promise<{ ok: true; model: string } | { ok: false; problem: string }> {
   let response: Response;
   try {
-    response = await (target.fetch ?? fetch)(address(target, "/transcribe/health"), { headers: auth(target), redirect: "error", signal: AbortSignal.timeout(10_000) });
+    response = await (target.fetch ?? fetch)(address(target, "/transcribe/health"), {
+      headers: auth(target),
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
   } catch (error) {
-    return { ok: false, problem: error instanceof Error && error.message.startsWith("The transcription address") ? error.message : `The renderer is not answering at ${target.baseUrl}, so videos are not transcribed.` };
+    return {
+      ok: false,
+      problem:
+        error instanceof Error && error.message.startsWith("The transcription address")
+          ? error.message
+          : `The renderer is not answering at ${target.baseUrl}, so videos are not transcribed.`,
+    };
   }
   const body = (await response.json().catch(() => ({}))) as { ok?: unknown; model?: unknown; error?: unknown };
-  if (response.status === 401 || response.status === 403) return { ok: false, problem: "The renderer refused the token (TROUPE_TRANSCRIBE_TOKEN)." };
-  if (response.status === 404) return { ok: false, problem: `The renderer at ${target.baseUrl} has no transcription; update it.` };
-  if (!response.ok || body.ok !== true) return { ok: false, problem: typeof body.error === "string" ? body.error : `The renderer cannot transcribe (${response.status}).` };
+  if (response.status === 401 || response.status === 403)
+    return { ok: false, problem: "The renderer refused the token (TROUPE_TRANSCRIBE_TOKEN)." };
+  if (response.status === 404)
+    return { ok: false, problem: `The renderer at ${target.baseUrl} has no transcription; update it.` };
+  if (!response.ok || body.ok !== true)
+    return {
+      ok: false,
+      problem: typeof body.error === "string" ? body.error : `The renderer cannot transcribe (${response.status}).`,
+    };
   return { ok: true, model: typeof body.model === "string" ? body.model : "whisper" };
 }
 
@@ -50,14 +69,24 @@ export function rendererTranscriber(target: TranscribeTarget, model: string): Tr
         redirect: "error",
         signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
       });
-      const body = (await response.json().catch(() => ({}))) as { language?: unknown; model?: unknown; segments?: unknown; error?: unknown };
-      if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `the renderer answered ${response.status}`);
+      const body = (await response.json().catch(() => ({}))) as {
+        language?: unknown;
+        model?: unknown;
+        segments?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok)
+        throw new Error(typeof body.error === "string" ? body.error : `the renderer answered ${response.status}`);
       const segments = Array.isArray(body.segments) ? body.segments : [];
       const out: Transcript = {
         language: typeof body.language === "string" ? body.language : null,
         model: typeof body.model === "string" ? body.model : model,
         segments: segments
-          .map((s: { start?: unknown; end?: unknown; text?: unknown }) => ({ startS: Number(s.start), endS: Number(s.end), text: typeof s.text === "string" ? s.text.trim() : "" }))
+          .map((s: { start?: unknown; end?: unknown; text?: unknown }) => ({
+            startS: Number(s.start),
+            endS: Number(s.end),
+            text: typeof s.text === "string" ? s.text.trim() : "",
+          }))
           .filter((s) => Number.isFinite(s.startS) && Number.isFinite(s.endS) && s.text),
       };
       return out;

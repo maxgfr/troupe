@@ -27,7 +27,11 @@ describe("loadPortraits", () => {
     const log: string[] = [];
     const portraits = await loadPortraits(
       dir,
-      { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp", excited: "actors/lea-01/v1/excited.webp" },
+      {
+        front: "actors/lea-01/v1/front.webp",
+        happy: "actors/lea-01/v1/happy.webp",
+        excited: "actors/lea-01/v1/excited.webp",
+      },
       ["front", "happy"],
       (m) => log.push(m),
     );
@@ -40,7 +44,11 @@ describe("loadPortraits", () => {
     const log: string[] = [];
     const portraits = await loadPortraits(
       dir,
-      { front: "actors/lea-01/v1/front.webp", calm: "actors/lea-01/v1/calm.webp", excited: "actors/lea-01/v1/excited.webp" },
+      {
+        front: "actors/lea-01/v1/front.webp",
+        calm: "actors/lea-01/v1/calm.webp",
+        excited: "actors/lea-01/v1/excited.webp",
+      },
       ["front", "calm", "excited"],
       (m) => log.push(m),
     );

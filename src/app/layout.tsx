@@ -9,7 +9,8 @@ import { THEME_SCRIPT } from "./theme-script";
 // The same name and description as the browser edition's (site/app/index.html).
 export const metadata: Metadata = {
   title: { default: "Troupe", template: "%s · Troupe" },
-  description: "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
+  description:
+    "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
@@ -32,9 +33,7 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jbmono",
 });
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"

@@ -24,7 +24,8 @@ export const DEFAULT_LTX_PROMPT =
   "like a casual social media review. Head-and-shoulders framing in a bright, tidy living room with soft daylight from a window. " +
   "Natural skin texture, casual clothes, small natural head movements and hand gestures, a warm and friendly expression. " +
   "The scene appears to be real-life footage.";
-export const DEFAULT_LTX_NEGATIVE_PROMPT = "worst quality, inconsistent motion, blurry, jittery, distorted, deformed face, extra fingers, text, subtitles, watermark";
+export const DEFAULT_LTX_NEGATIVE_PROMPT =
+  "worst quality, inconsistent motion, blurry, jittery, distorted, deformed face, extra fingers, text, subtitles, watermark";
 
 export interface LtxSettings {
   // The program and arguments that run generate.py; the job goes to stdin.
@@ -51,14 +52,16 @@ function wholeNumber(env: Env, name: string, fallback: number, min: number, max:
   const raw = env[name]?.trim();
   if (!raw) return fallback;
   const n = Number(raw);
-  if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${name} must be a whole number between ${min} and ${max} (got "${raw}").`);
+  if (!Number.isInteger(n) || n < min || n > max)
+    throw new Error(`${name} must be a whole number between ${min} and ${max} (got "${raw}").`);
   return n;
 }
 
 function oneOf<T extends string>(env: Env, name: string, allowed: readonly T[], fallback: T): T {
   const raw = env[name]?.trim();
   if (!raw) return fallback;
-  if (!(allowed as readonly string[]).includes(raw)) throw new Error(`${name} must be one of ${allowed.join(", ")} (got "${raw}").`);
+  if (!(allowed as readonly string[]).includes(raw))
+    throw new Error(`${name} must be one of ${allowed.join(", ")} (got "${raw}").`);
   return raw as T;
 }
 
@@ -73,7 +76,8 @@ export function ltxSettingsFromEnv(env: Env, defaultCommand: string[]): LtxSetti
     throw new Error(`LTX_RESOLUTION sides must be multiples of 32 between 64 and 1280 (got "${env.LTX_RESOLUTION}").`);
   }
   const frames = wholeNumber(env, "LTX_FRAMES", 121, 9, 257);
-  if ((frames - 1) % 8 !== 0) throw new Error(`LTX_FRAMES must be a multiple of 8, plus 1, such as 97 or 121 (got ${frames}).`);
+  if ((frames - 1) % 8 !== 0)
+    throw new Error(`LTX_FRAMES must be a multiple of 8, plus 1, such as 97 or 121 (got ${frames}).`);
   const seed = env.LTX_SEED?.trim() ? wholeNumber(env, "LTX_SEED", 0, 0, 2 ** 31 - 1) : undefined;
   return {
     command,
@@ -108,7 +112,8 @@ export function installed(program: string): boolean {
 // minutes installing PyTorch. /ltx/health reports it, so Test shows it.
 export function ltxReadiness(command: string[], venv?: string): string | null {
   const program = command[0] ?? "";
-  if (!installed(program)) return `The AI video mode needs "${program}", which is not installed here. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.`;
+  if (!installed(program))
+    return `The AI video mode needs "${program}", which is not installed here. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.`;
   if (venv && !existsSync(join(venv, "pyvenv.cfg"))) {
     return "The AI video mode's Python environment is not set up yet. Run pnpm renderer:ltx:setup on the renderer's machine (it also downloads the weights).";
   }
@@ -119,7 +124,11 @@ const round32 = (n: number) => Math.max(32, Math.round(n / 32) * 32);
 
 // The size to generate for a video of width × height: its shape, with about
 // the pixels of `resolution`, in multiples of 32 as the model needs.
-export function generationSize(resolution: LtxSettings["resolution"], width: number, height: number): { width: number; height: number } {
+export function generationSize(
+  resolution: LtxSettings["resolution"],
+  width: number,
+  height: number,
+): { width: number; height: number } {
   const area = resolution.width * resolution.height;
   const aspect = width / height;
   return { width: round32(Math.sqrt(area * aspect)), height: round32(Math.sqrt(area / aspect)) };
@@ -194,7 +203,9 @@ const STAGES: Record<string, number> = { text: 0.02, load: 0.25, denoise: 0.3, d
 const STEPS = [0.3, 0.35] as const;
 const DECODES = [0.35, 0.97] as const;
 const along = ([from, to]: readonly [number, number], done: unknown, total: unknown) =>
-  typeof done === "number" && typeof total === "number" && total > 0 ? from + ((to - from) * Math.min(done, total)) / total : undefined;
+  typeof done === "number" && typeof total === "number" && total > 0
+    ? from + ((to - from) * Math.min(done, total)) / total
+    : undefined;
 
 // Generations running now, by process group. generate.py runs in its own
 // group so that stopping it reaches Python under `uv run` too, which may
@@ -217,7 +228,11 @@ export function stopGenerators(): void {
 
 // Runs generate.py on `job` and resolves once the clip is written.
 // `onProgress` gets values in [0, 1].
-export async function generateClip(settings: LtxSettings, job: GenerateJob, onProgress: (progress: number) => void = () => {}): Promise<GenerateReport> {
+export async function generateClip(
+  settings: LtxSettings,
+  job: GenerateJob,
+  onProgress: (progress: number) => void = () => {},
+): Promise<GenerateReport> {
   const [program, ...args] = settings.command;
   if (!program) throw new Error("LTX_COMMAND is empty.");
   const child = spawn(program, args, { stdio: ["pipe", "pipe", "pipe"], detached: true });
@@ -269,7 +284,12 @@ export async function generateClip(settings: LtxSettings, job: GenerateJob, onPr
     if (timedOut) throw new Error(`LTX took longer than ${settings.timeoutS} s and was stopped (LTX_TIMEOUT_S).`);
     if (code === null) throw new Error("LTX was stopped.");
     if (code !== 0) {
-      const last = stderr.trim().split("\n").filter((l) => l.trim()).at(-1)?.trim();
+      const last = stderr
+        .trim()
+        .split("\n")
+        .filter((l) => l.trim())
+        .at(-1)
+        ?.trim();
       throw new Error(last ? `LTX failed: ${last.slice(0, 300)}` : `LTX exited with ${code}.`);
     }
     if (!report) throw new Error("LTX finished without saying it wrote the clip.");

@@ -9,7 +9,8 @@ describe.each(COMFY_TEMPLATES.map((t) => [t.id, t] as const))("bundled ComfyUI t
 
   it("is a valid API workflow whose placeholders Troupe fills", () => {
     expect(workflowProblems(workflow, template.bindings)).toEqual([]);
-    for (const p of ["prompt", "width", "height", "frames", "seed", "filename_prefix"]) expect(placeholdersIn(workflow)).toContain(p);
+    for (const p of ["prompt", "width", "height", "frames", "seed", "filename_prefix"])
+      expect(placeholdersIn(workflow)).toContain(p);
   });
 
   it("saves an H.264 MP4 from the declared output node", () => {
@@ -27,7 +28,8 @@ describe.each(COMFY_TEMPLATES.map((t) => [t.id, t] as const))("bundled ComfyUI t
         expect(height % 32).toBe(0);
       }
     }
-    for (const d of template.capabilities.durationsS) expect(framesFor(d, template.fps, template.frameRule)).toBeGreaterThan(d * template.fps * 0.9);
+    for (const d of template.capabilities.durationsS)
+      expect(framesFor(d, template.fps, template.frameRule)).toBeGreaterThan(d * template.fps * 0.9);
   });
 
   it("lists loaders that are really in the workflow for each model file", () => {

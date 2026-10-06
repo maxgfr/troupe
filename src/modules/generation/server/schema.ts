@@ -30,7 +30,10 @@ export const generations = createTable(
     aspectRatio: d.text().notNull(),
     durationS: d.integer().notNull(),
     resolution: d.text().notNull(),
-    status: d.text({ enum: ["queued", "in_progress", "completed", "failed"] }).notNull().default("queued"),
+    status: d
+      .text({ enum: ["queued", "in_progress", "completed", "failed"] })
+      .notNull()
+      .default("queued"),
     providerJobId: d.text(),
     costUsd: d.numeric(),
     // "estimate": price × duration at launch; "provider": reported upstream.

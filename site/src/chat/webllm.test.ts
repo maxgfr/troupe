@@ -44,7 +44,9 @@ describe("the in-browser chat model", () => {
     engine.load = () => new Promise(() => {});
     const { webllmChat } = await import("./webllm");
     const started = Date.now();
-    await expect(webllmChat("tiny").propose(turns, { schema, signal: AbortSignal.timeout(50) })).rejects.toMatchObject({ name: "AbortError" });
+    await expect(webllmChat("tiny").propose(turns, { schema, signal: AbortSignal.timeout(50) })).rejects.toMatchObject({
+      name: "AbortError",
+    });
     expect(Date.now() - started).toBeLessThan(2000);
   });
 

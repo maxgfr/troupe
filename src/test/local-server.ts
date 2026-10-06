@@ -16,7 +16,12 @@ export async function startServer(handler: (req: RecordedRequest, res: ServerRes
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));
     req.on("end", () => {
-      const recorded = { method: req.method ?? "GET", path: req.url ?? "/", headers: req.headers, body: Buffer.concat(chunks).toString("utf8") };
+      const recorded = {
+        method: req.method ?? "GET",
+        path: req.url ?? "/",
+        headers: req.headers,
+        body: Buffer.concat(chunks).toString("utf8"),
+      };
       requests.push(recorded);
       Promise.resolve(handler(recorded, res)).catch(() => {
         res.statusCode = 500;

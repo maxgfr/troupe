@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import { createComfyAdapter, type ComfyModel } from "~/modules/generation/server/adapters/comfyui/adapter";
-import { NodeBindingSchema, parseWorkflow, workflowProblems, type ApiWorkflow } from "~/modules/generation/server/adapters/comfyui/bindings";
+import {
+  NodeBindingSchema,
+  parseWorkflow,
+  workflowProblems,
+  type ApiWorkflow,
+} from "~/modules/generation/server/adapters/comfyui/bindings";
 import { findComfyTemplate } from "~/modules/generation/server/adapters/comfyui/templates";
 import { createHttpEndpointAdapter } from "~/modules/generation/server/adapters/http-endpoint";
 import type { ModelCapabilities, VideoProviderAdapter } from "~/modules/generation";
@@ -45,7 +50,9 @@ export function sealModelToken(modelKey: string, token: string) {
   return { ciphertext: box.seal(token, secretAad(modelKey)), fingerprint: box.fingerprint };
 }
 
-function openToken(row: Pick<ModelConfigRow, "id" | "secretCiphertext" | "secretFingerprint">): string | undefined | Veto {
+function openToken(
+  row: Pick<ModelConfigRow, "id" | "secretCiphertext" | "secretFingerprint">,
+): string | undefined | Veto {
   if (!row.secretCiphertext) return undefined;
   try {
     const box = loadSecretBox();
@@ -68,13 +75,20 @@ export interface LocalDraft {
 
 export function buildHttpAdapter(draft: LocalDraft): VideoProviderAdapter | Veto {
   const connection = HttpConnection.safeParse(draft.connection);
-  if (!connection.success) return { status: "invalid", detail: "The endpoint settings are incomplete. Edit the model." };
+  if (!connection.success)
+    return { status: "invalid", detail: "The endpoint settings are incomplete. Edit the model." };
   const url = checkLocalUrl(connection.data.baseUrl);
   if (!url.ok) return { status: "unsupported-host", detail: url.reason };
   return createHttpEndpointAdapter({
     model: {
-      modelKey: draft.modelKey, label: draft.label, baseUrl: url.base, token: draft.token, capabilities: draft.capabilities,
-      fps: connection.data.fps, sizeMultiple: connection.data.sizeMultiple, pollEveryS: connection.data.pollEveryS,
+      modelKey: draft.modelKey,
+      label: draft.label,
+      baseUrl: url.base,
+      token: draft.token,
+      capabilities: draft.capabilities,
+      fps: connection.data.fps,
+      sizeMultiple: connection.data.sizeMultiple,
+      pollEveryS: connection.data.pollEveryS,
       maxDownloadBytes: connection.data.maxDownloadMb ? connection.data.maxDownloadMb * 1024 * 1024 : undefined,
     },
   });
@@ -86,14 +100,32 @@ export function comfyModelFrom(draft: LocalDraft): ComfyModel | Veto {
   const url = checkLocalUrl(connection.data.baseUrl);
   if (!url.ok) return { status: "unsupported-host", detail: url.reason };
   const c = connection.data;
-  const common = { modelKey: draft.modelKey, label: draft.label, baseUrl: url.base, token: draft.token, capabilities: draft.capabilities };
+  const common = {
+    modelKey: draft.modelKey,
+    label: draft.label,
+    baseUrl: url.base,
+    token: draft.token,
+    capabilities: draft.capabilities,
+  };
   if (c.templateId) {
     const template = findComfyTemplate(c.templateId);
-    if (!template) return { status: "invalid", detail: `The template "${c.templateId}" is not bundled with this version of Troupe.` };
+    if (!template)
+      return {
+        status: "invalid",
+        detail: `The template "${c.templateId}" is not bundled with this version of Troupe.`,
+      };
     return {
-      ...common, workflow: template.workflow, bindings: template.bindings, fps: template.fps, frameRule: template.frameRule,
-      sizeTable: template.sizeTable, sizeMultiple: template.sizeMultiple, negativePrompt: c.negativePrompt ?? template.negativePrompt,
-      outputNodeId: template.outputNodeId, requiredFiles: template.requiredFiles, vramGb: template.vramGb,
+      ...common,
+      workflow: template.workflow,
+      bindings: template.bindings,
+      fps: template.fps,
+      frameRule: template.frameRule,
+      sizeTable: template.sizeTable,
+      sizeMultiple: template.sizeMultiple,
+      negativePrompt: c.negativePrompt ?? template.negativePrompt,
+      outputNodeId: template.outputNodeId,
+      requiredFiles: template.requiredFiles,
+      vramGb: template.vramGb,
     };
   }
   let workflow: ApiWorkflow;
@@ -105,8 +137,14 @@ export function comfyModelFrom(draft: LocalDraft): ComfyModel | Veto {
   const problems = workflowProblems(workflow, c.bindings);
   if (problems.length) return { status: "invalid", detail: problems[0]! };
   return {
-    ...common, workflow, bindings: c.bindings, fps: c.fps ?? 24, frameRule: c.frameRule ?? "any",
-    sizeMultiple: c.sizeMultiple, outputNodeId: c.outputNodeId, negativePrompt: c.negativePrompt,
+    ...common,
+    workflow,
+    bindings: c.bindings,
+    fps: c.fps ?? 24,
+    frameRule: c.frameRule ?? "any",
+    sizeMultiple: c.sizeMultiple,
+    outputNodeId: c.outputNodeId,
+    negativePrompt: c.negativePrompt,
   };
 }
 
@@ -120,7 +158,13 @@ export function localAdapterFromRow(row: ModelConfigRow): VideoProviderAdapter |
   if (!row.capabilities) return null;
   const token = openToken(row);
   if (isVeto(token)) return token;
-  const draft = { modelKey: row.id, label: row.label ?? row.id, capabilities: row.capabilities, connection: row.connection, token };
+  const draft = {
+    modelKey: row.id,
+    label: row.label ?? row.id,
+    capabilities: row.capabilities,
+    connection: row.connection,
+    token,
+  };
   if (row.family === "http") return buildHttpAdapter(draft);
   if (row.family === "comfyui") return buildComfyAdapter(draft);
   return null;

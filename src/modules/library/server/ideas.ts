@@ -6,7 +6,15 @@ import { countWords, parseJsonAnswer } from "~/modules/chat";
 import { saveScriptLines } from "~/modules/script";
 import { createProjectFromWizard, formatOptionsFor, type Platform } from "~/modules/studio";
 import { LibraryError, type ItemAnalysis } from "../model";
-import { buildIdeasPrompt, completeItems, ideasSchema, readIdeas, type IdeaKind, type IdeaSource, type WrittenIdea } from "../prompts";
+import {
+  buildIdeasPrompt,
+  completeItems,
+  ideasSchema,
+  readIdeas,
+  type IdeaKind,
+  type IdeaSource,
+  type WrittenIdea,
+} from "../prompts";
 import { formatTimestamp } from "../text";
 import { voiceProfile, type ItemRow } from "./items";
 import { libraryIdeas, libraryItems } from "./schema";
@@ -50,23 +58,50 @@ export async function listIdeas(db: Db, input: { workspaceId: string; itemId?: s
   const rows = await db
     .select()
     .from(libraryIdeas)
-    .where(and(eq(libraryIdeas.workspaceId, input.workspaceId), input.itemId ? sql`${input.itemId}::uuid = any(${libraryIdeas.itemIds})` : undefined))
+    .where(
+      and(
+        eq(libraryIdeas.workspaceId, input.workspaceId),
+        input.itemId ? sql`${input.itemId}::uuid = any(${libraryIdeas.itemIds})` : undefined,
+      ),
+    )
     .orderBy(desc(libraryIdeas.createdAt));
   return rows.map(ideaView);
 }
 
 export async function deleteIdea(db: Db, input: { workspaceId: string; ideaId: string }): Promise<void> {
-  const deleted = await db.delete(libraryIdeas).where(and(eq(libraryIdeas.id, input.ideaId), eq(libraryIdeas.workspaceId, input.workspaceId))).returning({ id: libraryIdeas.id });
+  const deleted = await db
+    .delete(libraryIdeas)
+    .where(and(eq(libraryIdeas.id, input.ideaId), eq(libraryIdeas.workspaceId, input.workspaceId)))
+    .returning({ id: libraryIdeas.id });
   if (deleted.length === 0) throw new LibraryError("This idea is not in your library.", "NOT_FOUND");
 }
 
 const describeStructure = (a: ItemAnalysis | null) =>
-  a?.structure?.length ? a.structure.map((p) => `${p.part}${p.startS !== undefined ? ` (${formatTimestamp(p.startS)})` : ""}: ${p.summary}`).join("; ") : null;
+  a?.structure?.length
+    ? a.structure
+        .map((p) => `${p.part}${p.startS !== undefined ? ` (${formatTimestamp(p.startS)})` : ""}: ${p.summary}`)
+        .join("; ")
+    : null;
 
 function ideaSource(row: ItemRow): IdeaSource {
   const a = row.analysis;
-  const words = a?.transcript?.segments.map((s) => s.text.trim()).join(" ") ?? row.body ?? a?.frames?.map((f) => f.text).filter(Boolean).join(" ") ?? "";
-  return { title: row.title, kind: row.kind, hook: a?.hook?.text ?? null, summary: a?.summary ?? null, structure: describeStructure(a), tone: a?.tone ?? [], excerpt: words.replace(/\s+/g, " ").trim().slice(0, 1500) };
+  const words =
+    a?.transcript?.segments.map((s) => s.text.trim()).join(" ") ??
+    row.body ??
+    a?.frames
+      ?.map((f) => f.text)
+      .filter(Boolean)
+      .join(" ") ??
+    "";
+  return {
+    title: row.title,
+    kind: row.kind,
+    hook: a?.hook?.text ?? null,
+    summary: a?.summary ?? null,
+    structure: describeStructure(a),
+    tone: a?.tone ?? [],
+    excerpt: words.replace(/\s+/g, " ").trim().slice(0, 1500),
+  };
 }
 
 export async function generateIdeas(
@@ -86,13 +121,22 @@ export async function generateIdeas(
   },
 ): Promise<IdeaView[]> {
   const rows = input.itemIds.length
-    ? await db.select().from(libraryItems).where(and(eq(libraryItems.workspaceId, input.workspaceId), inArray(libraryItems.id, input.itemIds)))
+    ? await db
+        .select()
+        .from(libraryItems)
+        .where(and(eq(libraryItems.workspaceId, input.workspaceId), inArray(libraryItems.id, input.itemIds)))
     : [];
-  if (rows.length !== new Set(input.itemIds).size) throw new LibraryError("An item you picked is not in your library.", "NOT_FOUND");
-  if (rows.length === 0 && !input.brief?.trim()) throw new LibraryError("Pick an item from your library, or say what you want.");
+  if (rows.length !== new Set(input.itemIds).size)
+    throw new LibraryError("An item you picked is not in your library.", "NOT_FOUND");
+  if (rows.length === 0 && !input.brief?.trim())
+    throw new LibraryError("Pick an item from your library, or say what you want.");
   if (input.kind !== "ideas" && rows.length === 0) throw new LibraryError("Pick the item to work from.");
   const unready = rows.find((r) => r.status !== "ready");
-  if (unready) throw new LibraryError(`"${unready.title}" is not analysed yet. Wait for its analysis, then try again.`, "PRECONDITION_FAILED");
+  if (unready)
+    throw new LibraryError(
+      `"${unready.title}" is not analysed yet. Wait for its analysis, then try again.`,
+      "PRECONDITION_FAILED",
+    );
 
   let actor: Awaited<ReturnType<typeof listActors>>[number] | null = null;
   if (input.actorId) {
@@ -109,7 +153,15 @@ export async function generateIdeas(
     durationS: input.durationS,
     wordsPerSecond: input.wordsPerSecond,
     language,
-    actor: actor ? { name: actor.name, gender: actor.gender, ageRange: actor.ageRange, style: actor.style, voiceProfile: actor.voiceProfile } : null,
+    actor: actor
+      ? {
+          name: actor.name,
+          gender: actor.gender,
+          ageRange: actor.ageRange,
+          style: actor.style,
+          voiceProfile: actor.voiceProfile,
+        }
+      : null,
     voice: voice.profile,
     brief: input.brief?.trim() || null,
   });
@@ -145,7 +197,14 @@ export async function generateIdeas(
     try {
       const shorter = await ask(
         input.writer,
-        [...turns, { role: "assistant", content: answer.text }, { role: "user", content: `Those scripts are too long for ${input.durationS} seconds: each must have at most ${budget} words in all. Write the ${count} idea${count === 1 ? "" : "s"} again, much shorter, as the same JSON object.` }],
+        [
+          ...turns,
+          { role: "assistant", content: answer.text },
+          {
+            role: "user",
+            content: `Those scripts are too long for ${input.durationS} seconds: each must have at most ${budget} words in all. Write the ${count} idea${count === 1 ? "" : "s"} again, much shorter, as the same JSON object.`,
+          },
+        ],
         ideasSchema(),
         readSome,
         { signal: input.signal, maxTokens },
@@ -158,8 +217,17 @@ export async function generateIdeas(
   ideas = [...ideas.filter(fits), ...ideas.filter((idea) => !fits(idea))];
   if (ideas.length === 0) {
     // The answer stays in the log (the server's, or the browser's console).
-    console.warn(JSON.stringify({ event: "library.ideas.unreadable", model: input.writer.modelId, answer: answer.text.slice(0, 4000) }));
-    throw new LibraryError(`${input.writer.modelId} did not write usable scripts. Try again, or ask for fewer.`, "PRECONDITION_FAILED");
+    console.warn(
+      JSON.stringify({
+        event: "library.ideas.unreadable",
+        model: input.writer.modelId,
+        answer: answer.text.slice(0, 4000),
+      }),
+    );
+    throw new LibraryError(
+      `${input.writer.modelId} did not write usable scripts. Try again, or ask for fewer.`,
+      "PRECONDITION_FAILED",
+    );
   }
   const inserted = await db
     .insert(libraryIdeas)
@@ -185,9 +253,20 @@ export async function generateIdeas(
 // A second click opens the same project.
 export async function createProjectFromIdea(
   db: Db,
-  input: { workspaceId: string; ideaId: string; actorId?: string | null; platform?: Platform; title?: string | null; modelKey?: string | null },
+  input: {
+    workspaceId: string;
+    ideaId: string;
+    actorId?: string | null;
+    platform?: Platform;
+    title?: string | null;
+    modelKey?: string | null;
+  },
 ): Promise<{ projectId: string; created: boolean }> {
-  const [idea] = await db.select().from(libraryIdeas).where(and(eq(libraryIdeas.id, input.ideaId), eq(libraryIdeas.workspaceId, input.workspaceId))).limit(1);
+  const [idea] = await db
+    .select()
+    .from(libraryIdeas)
+    .where(and(eq(libraryIdeas.id, input.ideaId), eq(libraryIdeas.workspaceId, input.workspaceId)))
+    .limit(1);
   if (!idea) throw new LibraryError("This idea is not in your library.", "NOT_FOUND");
   if (idea.projectId) return { projectId: idea.projectId, created: false };
   const actors = (await listActors(db, {})).filter((a) => a.status === "active");

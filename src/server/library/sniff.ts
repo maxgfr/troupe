@@ -35,7 +35,8 @@ export function sniffType(head: Uint8Array): string | null {
 }
 
 export const EMPTY_FILE = "The file is empty.";
-export const UNREAD_FILE = "This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.";
+export const UNREAD_FILE =
+  "This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.";
 
 // Why the library cannot save a file, from its size and first bytes, or null:
 // the same answer from the studio's upload route and the browser edition.

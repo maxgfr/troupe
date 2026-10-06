@@ -12,7 +12,13 @@ it("runs queries and changes while the browser is offline", async () => {
   onlineManager.setOnline(false);
   const client = createBrowserQueryClient();
   const read = client.fetchQuery({ queryKey: ["projects"], queryFn: async () => ["Cold brew"] });
-  const saved = client.getMutationCache().build(client, { mutationFn: async (title: string) => title }).execute("Spring drop");
-  const settled = await Promise.race([Promise.all([read, saved]), new Promise((resolve) => setTimeout(() => resolve("paused"), 500))]);
+  const saved = client
+    .getMutationCache()
+    .build(client, { mutationFn: async (title: string) => title })
+    .execute("Spring drop");
+  const settled = await Promise.race([
+    Promise.all([read, saved]),
+    new Promise((resolve) => setTimeout(() => resolve("paused"), 500)),
+  ]);
   expect(settled).toEqual([["Cold brew"], "Spring drop"]);
 });

@@ -37,7 +37,10 @@ export type Received = { kind: "file"; file: ClaimedUpload } | { kind: "text"; t
 // Writes a stream to disk, counting bytes (refused past `maxBytes`) and
 // hashing them, then decides from the first bytes what it is. A text file
 // comes back as its words; anything else moves to the item's folder.
-export async function receiveUpload(source: AsyncIterable<Uint8Array>, input: { itemId: string; fileName: string; maxBytes: number }): Promise<Received> {
+export async function receiveUpload(
+  source: AsyncIterable<Uint8Array>,
+  input: { itemId: string; fileName: string; maxBytes: number },
+): Promise<Received> {
   const temporary = await incomingFile();
   const hash = createHash("sha256");
   let size = 0;
@@ -47,7 +50,10 @@ export async function receiveUpload(source: AsyncIterable<Uint8Array>, input: { 
       new Transform({
         transform(chunk: Buffer, _encoding, done) {
           size += chunk.length;
-          if (size > input.maxBytes) return done(new UploadRefused(`The file is larger than ${mb(input.maxBytes)} (TROUPE_LIBRARY_MAX_UPLOAD_MB).`));
+          if (size > input.maxBytes)
+            return done(
+              new UploadRefused(`The file is larger than ${mb(input.maxBytes)} (TROUPE_LIBRARY_MAX_UPLOAD_MB).`),
+            );
           hash.update(chunk);
           done(null, chunk);
         },
@@ -55,20 +61,32 @@ export async function receiveUpload(source: AsyncIterable<Uint8Array>, input: { 
       createWriteStream(temporary, { mode: 0o600 }),
     );
     if (size === 0) throw new UploadRefused(EMPTY_FILE);
-    return await settle(temporary, { itemId: input.itemId, fileName: input.fileName, bytes: size, checksum: hash.digest("hex") });
+    return await settle(temporary, {
+      itemId: input.itemId,
+      fileName: input.fileName,
+      bytes: size,
+      checksum: hash.digest("hex"),
+    });
   } finally {
     await rm(temporary, { force: true });
   }
 }
 
 // A file already on disk (yt-dlp's download, a fetched file), copied in.
-export async function receiveFile(path: string, input: { itemId: string; fileName: string; maxBytes: number }): Promise<Received> {
+export async function receiveFile(
+  path: string,
+  input: { itemId: string; fileName: string; maxBytes: number },
+): Promise<Received> {
   const { size } = await stat(path);
-  if (size > input.maxBytes) throw new UploadRefused(`The file is larger than ${mb(input.maxBytes)} (TROUPE_LIBRARY_MAX_UPLOAD_MB).`);
+  if (size > input.maxBytes)
+    throw new UploadRefused(`The file is larger than ${mb(input.maxBytes)} (TROUPE_LIBRARY_MAX_UPLOAD_MB).`);
   return receiveUpload(createReadStream(path), input);
 }
 
-async function settle(temporary: string, input: { itemId: string; fileName: string; bytes: number; checksum: string }): Promise<Received> {
+async function settle(
+  temporary: string,
+  input: { itemId: string; fileName: string; bytes: number; checksum: string },
+): Promise<Received> {
   const handle = await open(temporary, "r");
   const head = new Uint8Array(SNIFF_BYTES);
   const { bytesRead } = await handle.read(head, 0, SNIFF_BYTES, 0);
@@ -77,7 +95,10 @@ async function settle(temporary: string, input: { itemId: string; fileName: stri
   if (!mimeType) throw new UploadRefused(UNREAD_FILE);
   if (mimeType === "text/plain") {
     // A character takes at most four bytes: past that, the text cannot fit.
-    if (input.bytes > MAX_TEXT_CHARS * 4) throw new UploadRefused(`The text is longer than ${MAX_TEXT_CHARS.toLocaleString("en")} characters. Save a shorter part of it.`);
+    if (input.bytes > MAX_TEXT_CHARS * 4)
+      throw new UploadRefused(
+        `The text is longer than ${MAX_TEXT_CHARS.toLocaleString("en")} characters. Save a shorter part of it.`,
+      );
     const text = await readFile(temporary, "utf8");
     return { kind: "text", text, fileName: input.fileName };
   }
@@ -85,12 +106,26 @@ async function settle(temporary: string, input: { itemId: string; fileName: stri
   const destination = mediaFilePath(storagePath);
   await mkdir(dirname(destination), { recursive: true });
   await rename(temporary, destination);
-  return { kind: "file", file: { assetId: randomUUID(), storagePath, mimeType, bytes: input.bytes, checksum: input.checksum, fileName: input.fileName } };
+  return {
+    kind: "file",
+    file: {
+      assetId: randomUUID(),
+      storagePath,
+      mimeType,
+      bytes: input.bytes,
+      checksum: input.checksum,
+      fileName: input.fileName,
+    },
+  };
 }
 
 // A name fit to show: no folders, no control characters, at most 200 characters.
 export function cleanFileName(raw: string | null | undefined): string {
-  const name = (raw ?? "").split(/[\\/]/).pop()!.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  const name = (raw ?? "")
+    .split(/[\\/]/)
+    .pop()!
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim();
   return name.slice(0, 200) || "upload";
 }
 

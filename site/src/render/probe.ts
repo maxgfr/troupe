@@ -16,11 +16,15 @@ function probeVideo(blob: Blob): Promise<VideoProbe> {
   video.preload = "metadata";
   video.muted = true;
   return new Promise<VideoProbe>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("The rendered video could not be read in time.")), PROBE_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => reject(new Error("The rendered video could not be read in time.")),
+      PROBE_TIMEOUT_MS,
+    );
     video.onloadedmetadata = () => {
       clearTimeout(timer);
       const probe = { durationS: video.duration, width: video.videoWidth, height: video.videoHeight };
-      if (!Number.isFinite(probe.durationS) || probe.durationS <= 0 || probe.width <= 0 || probe.height <= 0) reject(new Error("The rendered video has no playable picture."));
+      if (!Number.isFinite(probe.durationS) || probe.durationS <= 0 || probe.width <= 0 || probe.height <= 0)
+        reject(new Error("The rendered video has no playable picture."));
       else resolve(probe);
     };
     video.onerror = () => {

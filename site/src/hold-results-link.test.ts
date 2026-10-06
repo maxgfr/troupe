@@ -12,17 +12,21 @@ const router = t.router({
 });
 
 // Answers every call at once.
-const backend: TRPCLink<typeof router> = () => ({ op }) =>
-  observable((observer) => {
-    queueMicrotask(() => {
-      observer.next({ result: { type: "data", data: op.path } });
-      observer.complete();
+const backend: TRPCLink<typeof router> =
+  () =>
+  ({ op }) =>
+    observable((observer) => {
+      queueMicrotask(() => {
+        observer.next({ result: { type: "data", data: op.path } });
+        observer.complete();
+      });
+      return () => {};
     });
-    return () => {};
-  });
 
 function client(ready: () => Promise<void>, above: TRPCLink<typeof router>[] = []) {
-  return createTRPCClient<typeof router>({ links: [...above, holdResultsUntil<typeof router>((path) => path === "held", ready), backend] });
+  return createTRPCClient<typeof router>({
+    links: [...above, holdResultsUntil<typeof router>((path) => path === "held", ready), backend],
+  });
 }
 
 describe("results held back until something is ready", () => {
@@ -41,16 +45,18 @@ describe("results held back until something is ready", () => {
   });
 
   it("end the call with the error when passing a result on throws, instead of leaving it stuck", async () => {
-    const throwing: TRPCLink<typeof router> = () => ({ op, next }) =>
-      observable((observer) =>
-        next(op).subscribe({
-          next() {
-            throw new Error("a bug further up");
-          },
-          error: (error) => observer.error(error),
-          complete: () => observer.complete(),
-        }),
-      );
+    const throwing: TRPCLink<typeof router> =
+      () =>
+      ({ op, next }) =>
+        observable((observer) =>
+          next(op).subscribe({
+            next() {
+              throw new Error("a bug further up");
+            },
+            error: (error) => observer.error(error),
+            complete: () => observer.complete(),
+          }),
+        );
     await expect(client(async () => {}, [throwing]).held.query()).rejects.toThrow("a bug further up");
   });
 });

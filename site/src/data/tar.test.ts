@@ -27,14 +27,19 @@ describe("tar archives", () => {
     const read = await readTar(archive);
     expect(read.map((e) => e.name)).toEqual(entries.map((e) => e.name));
     for (const [i, entry] of read.entries()) {
-      expect(new Uint8Array(await entry.data.arrayBuffer())).toEqual(new Uint8Array(await entries[i]!.data.arrayBuffer()));
+      expect(new Uint8Array(await entry.data.arrayBuffer())).toEqual(
+        new Uint8Array(await entries[i]!.data.arrayBuffer()),
+      );
     }
   });
 
   it("writes an archive the system tar lists and unpacks", async () => {
     dir = mkdtempSync(join(tmpdir(), "troupe-tar-"));
     const file = join(dir, "backup.tar");
-    writeFileSync(file, new Uint8Array(await writeTar([{ name: "media/clip", data: new Blob([bytes(2000)]) }]).arrayBuffer()));
+    writeFileSync(
+      file,
+      new Uint8Array(await writeTar([{ name: "media/clip", data: new Blob([bytes(2000)]) }]).arrayBuffer()),
+    );
     expect(execFileSync("tar", ["-tf", file], { encoding: "utf8" }).trim()).toBe("media/clip");
     execFileSync("tar", ["-xf", file, "-C", dir]);
     expect(new Uint8Array(readFileSync(join(dir, "media", "clip")))).toEqual(bytes(2000));

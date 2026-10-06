@@ -24,7 +24,10 @@ export interface ChatModel {
   // stops there); providers may raise it (Claude keeps room for its
   // thinking, WebLLM its configured length) or hold it to what their model
   // allows. It is a bound, never a promise of room.
-  propose(messages: ChatTurn[], options: { schema: AnswerSchema; signal?: AbortSignal; maxTokens?: number }): Promise<ChatAnswer>;
+  propose(
+    messages: ChatTurn[],
+    options: { schema: AnswerSchema; signal?: AbortSignal; maxTokens?: number },
+  ): Promise<ChatAnswer>;
 }
 
 export const CHAT_PROVIDERS = ["ollama", "anthropic", "webllm"] as const;

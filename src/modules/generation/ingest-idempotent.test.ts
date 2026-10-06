@@ -34,13 +34,25 @@ async function launchAndFinish(jobId: string, kind: "completed" | "failed") {
 describe("ingestRender idempotence and status guard", () => {
   it("ingesting the same render twice returns the same asset and stores one row", async () => {
     const gen = await launchAndFinish("ingest-idem-1", "completed");
-    const first = await ingestRender(t.db, { generationId: gen.id, bytes: 10, checksum: "c", probe: async () => ({ durationS: 8 }) });
-    const second = await ingestRender(t.db, { generationId: gen.id, bytes: 10, checksum: "c", probe: async () => ({ durationS: 8 }) });
+    const first = await ingestRender(t.db, {
+      generationId: gen.id,
+      bytes: 10,
+      checksum: "c",
+      probe: async () => ({ durationS: 8 }),
+    });
+    const second = await ingestRender(t.db, {
+      generationId: gen.id,
+      bytes: 10,
+      checksum: "c",
+      probe: async () => ({ durationS: 8 }),
+    });
     expect(second.id).toBe(first.id);
     const renders = await t.db
       .select()
       .from(mediaAssets)
-      .where(and(eq(mediaAssets.kind, "render"), eq(mediaAssets.storagePath, `renders/${gen.projectId}/${gen.id}.mp4`)));
+      .where(
+        and(eq(mediaAssets.kind, "render"), eq(mediaAssets.storagePath, `renders/${gen.projectId}/${gen.id}.mp4`)),
+      );
     expect(renders).toHaveLength(1);
   });
 

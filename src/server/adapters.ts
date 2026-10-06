@@ -23,22 +23,37 @@ export const httpFetch: HttpLike = async (url, init) => {
 
 export function builtinAdapter(model: BuiltinModel, apiKey: string, http: HttpLike = httpFetch): VideoProviderAdapter {
   if (model.family === "veo") {
-    return createVeoTextAdapter({ model: { modelKey: model.key, modelId: model.modelId, capabilities: model.capabilities }, http, apiKey });
+    return createVeoTextAdapter({
+      model: { modelKey: model.key, modelId: model.modelId, capabilities: model.capabilities },
+      http,
+      apiKey,
+    });
   }
   return createFalAdapter({
-    model: { modelKey: model.key, endpoint: model.modelId, capabilities: model.capabilities, sendsResolution: model.sendsResolution ?? false, promptMaxChars: model.promptMaxChars },
+    model: {
+      modelKey: model.key,
+      endpoint: model.modelId,
+      capabilities: model.capabilities,
+      sendsResolution: model.sendsResolution ?? false,
+      promptMaxChars: model.promptMaxChars,
+    },
     http,
     apiKey,
   });
 }
 
 export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog> {
-  const [credentials, rows, savedDefault] = await Promise.all([readCredentials(db), listModelConfigs(db), getDefaultModelKey(db)]);
+  const [credentials, rows, savedDefault] = await Promise.all([
+    readCredentials(db),
+    listModelConfigs(db),
+    getDefaultModelKey(db),
+  ]);
   const adapters = new Map<string, VideoProviderAdapter>();
   const builtins = builtinModels(process.env);
   for (const model of builtins) {
     const credential = credentials[model.credential];
-    if (credential.source === "saved" || credential.source === "environment") adapters.set(model.key, builtinAdapter(model, credential.key));
+    if (credential.source === "saved" || credential.source === "environment")
+      adapters.set(model.key, builtinAdapter(model, credential.key));
   }
   const builtinKeys = new Set(builtins.map((m) => m.key));
   const vetoes = new Map<string, { status: ModelStatus; detail: string }>();

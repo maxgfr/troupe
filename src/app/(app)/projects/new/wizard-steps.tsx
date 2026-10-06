@@ -46,7 +46,10 @@ function FormatGlyph({ format }: { format: Format }) {
   const scale = 18 / Math.max(w, h);
   return (
     <span aria-hidden className="flex size-6 items-center justify-center">
-      <span className="rounded-[3px] shadow-[inset_0_0_0_1.5px_currentColor] text-muted" style={{ width: `${w * scale}px`, height: `${h * scale}px` }} />
+      <span
+        className="rounded-[3px] shadow-[inset_0_0_0_1.5px_currentColor] text-muted"
+        style={{ width: `${w * scale}px`, height: `${h * scale}px` }}
+      />
     </span>
   );
 }
@@ -152,7 +155,11 @@ export function LanguageStep({
       <p className="mt-2 text-sm text-muted">
         Write your dialogue in this language. The model uses it to guide the voice.
       </p>
-      {warnings.map((w) => <div key={w} className="mt-2"><ProviderWarning>{w}</ProviderWarning></div>)}
+      {warnings.map((w) => (
+        <div key={w} className="mt-2">
+          <ProviderWarning>{w}</ProviderWarning>
+        </div>
+      ))}
     </fieldset>
   );
 }
@@ -193,7 +200,9 @@ export function ActorStep({
           body={`Troupe adds its 30 actor presets when the studio opens. If the list stays empty, ${restart}; your project choices are kept until you leave this page.`}
         />
       ) : actors.every((a) => a.status === "unavailable") ? (
-        <ErrorNote>Every actor is unavailable because their portraits are missing. To restore the library, {restart}.</ErrorNote>
+        <ErrorNote>
+          Every actor is unavailable because their portraits are missing. To restore the library, {restart}.
+        </ErrorNote>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 sm:gap-4">
           {actors.map((actor) => (
@@ -221,12 +230,19 @@ export function ActorStep({
                 sizes="(min-width: 640px) 170px, 45vw"
                 className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]"
+              />
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-2.5 pt-8 pb-2 text-xs text-white">
-                <strong className="font-semibold">{actor.name}</strong> <span className="text-white/75">· {actor.style}</span>
+                <strong className="font-semibold">{actor.name}</strong>{" "}
+                <span className="text-white/75">· {actor.style}</span>
               </span>
               {actorId === actor.id ? (
-                <span aria-hidden className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card">
+                <span
+                  aria-hidden
+                  className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card"
+                >
                   <CheckIcon className="size-3.5 [&_path]:stroke-[2.2]" />
                 </span>
               ) : null}

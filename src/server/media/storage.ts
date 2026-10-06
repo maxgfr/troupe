@@ -11,7 +11,9 @@ import { apiMediaLinks, type MediaStore, type StoredFile } from "./store";
 import { ingestRender, type RenderIngestor } from "~/modules/generation";
 
 const run = promisify(execFile);
-export function mediaRoot() { return resolve(process.env.TROUPE_DATA_DIR ?? "data"); }
+export function mediaRoot() {
+  return resolve(process.env.TROUPE_DATA_DIR ?? "data");
+}
 
 export function mediaFilePath(storagePath: string) {
   const root = mediaRoot();
@@ -38,11 +40,29 @@ export const persistProviderRender: RenderIngestor = async (db, gen, status, ada
   const temporary = join(scratch, "video.mp4");
   try {
     await writeFile(temporary, bytes, { mode: 0o600 });
-    const { stdout } = await run(ffprobePath(), ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", temporary], { timeout: 15_000 });
-    const probe = JSON.parse(stdout) as { streams?: { width: number; height: number }[]; format?: { duration: string } };
+    const { stdout } = await run(
+      ffprobePath(),
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height:format=duration",
+        "-of",
+        "json",
+        temporary,
+      ],
+      { timeout: 15_000 },
+    );
+    const probe = JSON.parse(stdout) as {
+      streams?: { width: number; height: number }[];
+      format?: { duration: string };
+    };
     const stream = probe.streams?.[0];
     const durationS = Number(probe.format?.duration);
-    if (!stream || !Number.isFinite(durationS) || durationS <= 0) throw new Error("Downloaded video could not be read.");
+    if (!stream || !Number.isFinite(durationS) || durationS <= 0)
+      throw new Error("Downloaded video could not be read.");
     const remote = await uploadToSupabase(storagePath, bytes);
     if (!remote) {
       if (process.env.VERCEL) throw new Error("Supabase storage must be configured on Vercel.");
@@ -55,7 +75,12 @@ export const persistProviderRender: RenderIngestor = async (db, gen, status, ada
       generationId: gen.id,
       bytes: bytes.length,
       checksum: createHash("sha256").update(bytes).digest("hex"),
-      probe: async () => ({ durationS, width: stream.width, height: stream.height, storage: remote ? "supabase" : "local" }),
+      probe: async () => ({
+        durationS,
+        width: stream.width,
+        height: stream.height,
+        storage: remote ? "supabase" : "local",
+      }),
     });
   } finally {
     await rm(scratch, { recursive: true, force: true });
@@ -65,7 +90,9 @@ export const persistProviderRender: RenderIngestor = async (db, gen, status, ada
 // Delete stored render files after their rows are gone. Best effort: a file
 // that is already missing is fine.
 export async function removeStoredMedia(files: StoredFile[]) {
-  await Promise.all(files.filter((f) => f.storage === "local").map((f) => rm(mediaFilePath(f.storagePath), { force: true })));
+  await Promise.all(
+    files.filter((f) => f.storage === "local").map((f) => rm(mediaFilePath(f.storagePath), { force: true })),
+  );
   await removeFromSupabase(files.filter((f) => f.storage === "supabase").map((f) => f.storagePath));
 }
 

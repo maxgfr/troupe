@@ -38,4 +38,7 @@ export function redirect(href: string): never {
 }
 
 // Fails the typecheck when Next's signatures move away from these.
-({ useRouter, usePathname, useSearchParams, redirect }) satisfies Pick<typeof NextNavigation, "useRouter" | "usePathname" | "useSearchParams" | "redirect">;
+({ useRouter, usePathname, useSearchParams, redirect }) satisfies Pick<
+  typeof NextNavigation,
+  "useRouter" | "usePathname" | "useSearchParams" | "redirect"
+>;

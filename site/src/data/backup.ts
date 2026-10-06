@@ -70,7 +70,10 @@ export function backupFilename(now: Date): string {
   return `troupe-backup-${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}.tar`;
 }
 
-export function packBackup(input: { database: PgliteSnapshot; media: readonly MediaFile[]; now?: Date }): { blob: Blob; filename: string } {
+export function packBackup(input: { database: PgliteSnapshot; media: readonly MediaFile[]; now?: Date }): {
+  blob: Blob;
+  filename: string;
+} {
   const now = input.now ?? new Date();
   const manifest: Manifest = {
     format: BACKUP_FORMAT,
@@ -78,7 +81,12 @@ export function packBackup(input: { database: PgliteSnapshot; media: readonly Me
     createdAt: now.toISOString(),
     database: input.database,
     // The media service worker serves an untyped file as MP4 too.
-    media: input.media.map((file) => ({ id: file.id, storagePath: file.storagePath, type: file.blob.type || "video/mp4", size: file.blob.size })),
+    media: input.media.map((file) => ({
+      id: file.id,
+      storagePath: file.storagePath,
+      type: file.blob.type || "video/mp4",
+      size: file.blob.size,
+    })),
   };
   const blob = writeTar(
     [
@@ -90,14 +98,18 @@ export function packBackup(input: { database: PgliteSnapshot; media: readonly Me
   return { blob, filename: backupFilename(now) };
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 const isString = (value: unknown): value is string => typeof value === "string";
 
 export function checkManifest(value: unknown): Manifest {
   if (!isRecord(value) || value.format !== BACKUP_FORMAT) throw new BackupError(NOT_A_BACKUP);
-  if (typeof value.version !== "number" || !Number.isInteger(value.version) || value.version < 1) throw new BackupError(NOT_A_BACKUP);
+  if (typeof value.version !== "number" || !Number.isInteger(value.version) || value.version < 1)
+    throw new BackupError(NOT_A_BACKUP);
   if (value.version > BACKUP_VERSION) {
-    throw new BackupError("This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.");
+    throw new BackupError(
+      "This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.",
+    );
   }
   const { database, media, createdAt } = value;
   const valid =
@@ -144,7 +156,8 @@ export async function unpackBackup(file: Blob): Promise<Backup> {
   const manifest = checkManifest(parsed);
   const media = manifest.media.map((entry) => {
     const data = files.get(mediaPath(entry.id));
-    if (!data || data.size !== entry.size) throw new BackupError("This backup is incomplete: a video it lists is missing or cut short.");
+    if (!data || data.size !== entry.size)
+      throw new BackupError("This backup is incomplete: a video it lists is missing or cut short.");
     return { id: entry.id, storagePath: entry.storagePath, blob: new Blob([data], { type: entry.type }) };
   });
   return { createdAt: new Date(manifest.createdAt), database: manifest.database, media };

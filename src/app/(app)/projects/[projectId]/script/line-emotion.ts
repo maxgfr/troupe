@@ -19,7 +19,9 @@ export function useLineEmotion(projectId: string) {
       await utils.script.history.cancel({ projectId });
       const previous = utils.script.history.getData({ projectId });
       utils.script.history.setData({ projectId }, (versions) =>
-        versions?.map((v) => (v.id === scriptId ? { ...v, lines: v.lines.map((l) => (l.index === lineIndex ? { ...l, emotion } : l)) } : v)),
+        versions?.map((v) =>
+          v.id === scriptId ? { ...v, lines: v.lines.map((l) => (l.index === lineIndex ? { ...l, emotion } : l)) } : v,
+        ),
       );
       return { previous };
     },

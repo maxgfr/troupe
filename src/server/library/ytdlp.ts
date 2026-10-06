@@ -48,7 +48,16 @@ export interface YtDlpLimits {
 // What both runs share: no configuration, plugins or playlists, the
 // platforms' extractors only, and the proxy if there is one.
 function guardArgs(proxy: string | null | undefined): string[] {
-  return ["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--use-extractors", "default,-generic", "--socket-timeout", "30", ...(proxy ? ["--proxy", proxy] : [])];
+  return [
+    "--ignore-config",
+    "--no-plugin-dirs",
+    "--no-playlist",
+    "--use-extractors",
+    "default,-generic",
+    "--socket-timeout",
+    "30",
+    ...(proxy ? ["--proxy", proxy] : []),
+  ];
 }
 
 // The video's details only (its length, whether it is live), to refuse it
@@ -99,12 +108,25 @@ export class YtDlpError extends Error {
 
 // Only what yt-dlp needs: none of the studio's secrets reach it.
 function ytDlpEnv(): NodeJS.ProcessEnv {
-  return { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: process.env.HOME ?? "/tmp", LANG: "C.UTF-8" } as unknown as NodeJS.ProcessEnv;
+  return {
+    PATH: process.env.PATH ?? "/usr/bin:/bin",
+    HOME: process.env.HOME ?? "/tmp",
+    LANG: "C.UTF-8",
+  } as unknown as NodeJS.ProcessEnv;
 }
 
-function run(program: string, args: string[], options: { timeoutMs: number; signal?: AbortSignal }): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function run(
+  program: string,
+  args: string[],
+  options: { timeoutMs: number; signal?: AbortSignal },
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(program, args, { stdio: ["ignore", "pipe", "pipe"], signal: options.signal, timeout: options.timeoutMs, env: ytDlpEnv() });
+    const child = spawn(program, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      signal: options.signal,
+      timeout: options.timeoutMs,
+      env: ytDlpEnv(),
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => {
@@ -144,21 +166,38 @@ export interface VideoInfo {
 
 // Why the library will not download this video, or null when it will.
 export function videoRefusal(info: VideoInfo, maxDurationS: number): string | null {
-  if (info.live_status === "is_upcoming") return "That live stream has not started yet, so its length is not known. Save it once it has ended.";
-  if (info.is_live === true || info.live_status === "is_live" || info.live_status === "post_live") return "That is a live stream (or one still being processed), so its length is not known. Save it once it has ended and the platform has the full video.";
-  if (typeof info.duration !== "number" || !Number.isFinite(info.duration)) return "The video's length is not known, so the library does not download it (it takes videos up to TROUPE_LIBRARY_MAX_DURATION_S). Download it yourself and upload the file.";
-  if (info.duration > maxDurationS) return `The video is ${clock(info.duration)} long; the library takes up to ${clock(maxDurationS)} (TROUPE_LIBRARY_MAX_DURATION_S).`;
+  if (info.live_status === "is_upcoming")
+    return "That live stream has not started yet, so its length is not known. Save it once it has ended.";
+  if (info.is_live === true || info.live_status === "is_live" || info.live_status === "post_live")
+    return "That is a live stream (or one still being processed), so its length is not known. Save it once it has ended and the platform has the full video.";
+  if (typeof info.duration !== "number" || !Number.isFinite(info.duration))
+    return "The video's length is not known, so the library does not download it (it takes videos up to TROUPE_LIBRARY_MAX_DURATION_S). Download it yourself and upload the file.";
+  if (info.duration > maxDurationS)
+    return `The video is ${clock(info.duration)} long; the library takes up to ${clock(maxDurationS)} (TROUPE_LIBRARY_MAX_DURATION_S).`;
   return null;
 }
 
 // yt-dlp's last ERROR line, said plainly.
 function explain(stderr: string): string {
-  const line = stderr.split("\n").reverse().find((l) => l.startsWith("ERROR:")) ?? stderr.trim().split("\n").at(-1) ?? "";
-  const said = line.replace(/^ERROR:\s*/, "").replace(/\s+/g, " ").slice(0, 300);
-  if (/does not pass filter/i.test(stderr)) return "The video is longer than the library takes, or its length is not known (TROUPE_LIBRARY_MAX_DURATION_S).";
-  if (/larger than max-filesize|File is larger/i.test(stderr)) return "The video is larger than the library takes (TROUPE_LIBRARY_MAX_UPLOAD_MB).";
-  if (/No suitable extractor|Unsupported URL/i.test(said)) return "yt-dlp does not know that page as a video. Download the video and upload the file.";
-  if (/sign in|login|private|cookies/i.test(said)) return `The platform refused the download: ${said}. Only public videos can be saved; download it yourself and upload the file.`;
+  const line =
+    stderr
+      .split("\n")
+      .reverse()
+      .find((l) => l.startsWith("ERROR:")) ??
+    stderr.trim().split("\n").at(-1) ??
+    "";
+  const said = line
+    .replace(/^ERROR:\s*/, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 300);
+  if (/does not pass filter/i.test(stderr))
+    return "The video is longer than the library takes, or its length is not known (TROUPE_LIBRARY_MAX_DURATION_S).";
+  if (/larger than max-filesize|File is larger/i.test(stderr))
+    return "The video is larger than the library takes (TROUPE_LIBRARY_MAX_UPLOAD_MB).";
+  if (/No suitable extractor|Unsupported URL/i.test(said))
+    return "yt-dlp does not know that page as a video. Download the video and upload the file.";
+  if (/sign in|login|private|cookies/i.test(said))
+    return `The platform refused the download: ${said}. Only public videos can be saved; download it yourself and upload the file.`;
   return said || "yt-dlp could not download it.";
 }
 
@@ -166,13 +205,23 @@ async function runYtDlp(program: string, args: string[], options: { timeoutMs: n
   try {
     return await run(program, args, options);
   } catch (error) {
-    if ((error as { code?: string }).code === "ENOENT") throw new YtDlpError("yt-dlp is not installed on this server, so links to video platforms cannot be saved. Install it (docs/LIBRARY.md), or download the video and upload the file.");
+    if ((error as { code?: string }).code === "ENOENT")
+      throw new YtDlpError(
+        "yt-dlp is not installed on this server, so links to video platforms cannot be saved. Install it (docs/LIBRARY.md), or download the video and upload the file.",
+      );
     throw new YtDlpError(`yt-dlp could not run: ${(error as Error).message}`);
   }
 }
 
-export async function downloadWithYtDlp(program: string, url: string, limits: YtDlpLimits & { timeoutMs: number; signal?: AbortSignal }): Promise<YtDlpResult> {
-  const details = await runYtDlp(program, ytDlpInfoArgs(url, limits), { timeoutMs: Math.min(limits.timeoutMs, 120_000), signal: limits.signal });
+export async function downloadWithYtDlp(
+  program: string,
+  url: string,
+  limits: YtDlpLimits & { timeoutMs: number; signal?: AbortSignal },
+): Promise<YtDlpResult> {
+  const details = await runYtDlp(program, ytDlpInfoArgs(url, limits), {
+    timeoutMs: Math.min(limits.timeoutMs, 120_000),
+    signal: limits.signal,
+  });
   if (details.code !== 0) throw new YtDlpError(explain(details.stderr));
   let about: VideoInfo = {};
   try {
@@ -186,7 +235,12 @@ export async function downloadWithYtDlp(program: string, url: string, limits: Yt
   if (result.code !== 0) throw new YtDlpError(explain(result.stderr));
   const files = await readdir(limits.dir);
   const media = files.find((f) => f.startsWith("media.") && !f.endsWith(".json") && !f.endsWith(".part"));
-  if (!media) throw new YtDlpError(/does not pass filter/i.test(result.stdout + result.stderr) ? explain(result.stdout + result.stderr) : "yt-dlp finished without a video. The link may not be a video.");
+  if (!media)
+    throw new YtDlpError(
+      /does not pass filter/i.test(result.stdout + result.stderr)
+        ? explain(result.stdout + result.stderr)
+        : "yt-dlp finished without a video. The link may not be a video.",
+    );
   let info: { title?: unknown; duration?: unknown; webpage_url?: unknown } = {};
   try {
     info = JSON.parse(await readFile(join(limits.dir, "media.info.json"), "utf8"));

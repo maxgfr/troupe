@@ -22,13 +22,21 @@ beforeAll(async () => {
   `);
   await migrateTestDb(t);
 });
-afterAll(async () => { await t.pg.close(); });
+afterAll(async () => {
+  await t.pg.close();
+});
 
 describe("model catalog migration", () => {
   it("backfills catalog keys from the legacy provider columns", async () => {
-    const project = (await t.pg.query<{ modelKey: string }>(`select "modelKey" from troupe_project where id = '${PROJECT}'`)).rows[0]!;
+    const project = (
+      await t.pg.query<{ modelKey: string }>(`select "modelKey" from troupe_project where id = '${PROJECT}'`)
+    ).rows[0]!;
     expect(project.modelKey).toBe("kling-3.0");
-    const gens = (await t.pg.query<{ id: string; modelKey: string; costSource: string | null }>(`select id, "modelKey", "costSource" from troupe_generation order by id`)).rows;
+    const gens = (
+      await t.pg.query<{ id: string; modelKey: string; costSource: string | null }>(
+        `select id, "modelKey", "costSource" from troupe_generation order by id`,
+      )
+    ).rows;
     expect(gens).toEqual([
       { id: KLING, modelKey: "kling-3.0", costSource: null },
       { id: SORA, modelKey: "legacy-sora2", costSource: "provider" },
@@ -36,7 +44,11 @@ describe("model catalog migration", () => {
   });
 
   it("keeps an in-flight job on the 30-minute deadline it was submitted under", async () => {
-    const watch = (await t.pg.query<{ modelKey: string; deadlineAt: Date }>(`select "modelKey", "deadlineAt" from troupe_generation_watch`)).rows[0]!;
+    const watch = (
+      await t.pg.query<{ modelKey: string; deadlineAt: Date }>(
+        `select "modelKey", "deadlineAt" from troupe_generation_watch`,
+      )
+    ).rows[0]!;
     expect(watch.modelKey).toBe("kling-3.0");
     expect(new Date(watch.deadlineAt).toISOString()).toBe("2026-01-01T10:30:00.000Z");
   });

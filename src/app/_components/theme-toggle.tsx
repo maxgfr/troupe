@@ -33,10 +33,7 @@ export function ThemeToggle() {
     <fieldset className="flex items-center gap-2" aria-label="Theme">
       <legend className="sr-only">Theme</legend>
       {(["dark", "light"] as const).map((option) => (
-        <label
-          key={option}
-          className={chipClass(theme === option, "min-w-20")}
-        >
+        <label key={option} className={chipClass(theme === option, "min-w-20")}>
           <input
             type="radio"
             name="theme"

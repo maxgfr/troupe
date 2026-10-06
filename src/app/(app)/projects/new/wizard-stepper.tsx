@@ -8,7 +8,9 @@ export function WizardStepper({ current }: { current: number }) {
       {STEPS.map((step, i) => (
         <li key={step} className="space-y-2">
           <span aria-hidden className="block h-1 overflow-hidden rounded-full bg-fg/[0.1]">
-            <span className={`block h-full rounded-full bg-primary transition-[width] duration-250 ease-out motion-reduce:transition-none ${i <= current ? "w-full" : "w-0"}`} />
+            <span
+              className={`block h-full rounded-full bg-primary transition-[width] duration-250 ease-out motion-reduce:transition-none ${i <= current ? "w-full" : "w-0"}`}
+            />
           </span>
           <span
             aria-current={i === current ? "step" : undefined}
@@ -21,4 +23,3 @@ export function WizardStepper({ current }: { current: number }) {
     </ol>
   );
 }
-

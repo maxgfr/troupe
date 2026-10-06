@@ -52,8 +52,10 @@ export function ScriptComposer({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-muted">
           One line per sentence ·{" "}
-          <span className={`font-mono tabular-nums ${tooLong ? "text-warning" : ""}`}>≈{spokenS} s spoken{limit ? ` of ${limit.seconds} s` : ""}</span>
-          {" "}· unchanged lines keep their emotion
+          <span className={`font-mono tabular-nums ${tooLong ? "text-warning" : ""}`}>
+            ≈{spokenS} s spoken{limit ? ` of ${limit.seconds} s` : ""}
+          </span>{" "}
+          · unchanged lines keep their emotion
         </span>
         <Button type="submit" variant="primary" disabled={pending || !draft.trim() || !changed || !enabled}>
           {pending ? "Saving…" : "Save as new version"}
@@ -61,7 +63,8 @@ export function ScriptComposer({
       </div>
       {tooLong && limit ? (
         <ProviderWarning>
-          This takes about {spokenS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Cut a few words, or pick another model on the Video tab.
+          This takes about {spokenS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Cut a few
+          words, or pick another model on the Video tab.
         </ProviderWarning>
       ) : null}
       {errorMessage ? <ErrorNote>{errorMessage}</ErrorNote> : null}

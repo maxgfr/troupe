@@ -12,14 +12,39 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 // The ideas' label names how many a set holds (the studio's setting).
 const ACTIONS: { kind: Kind; label: (n: number) => string; busy: (n: number) => string; hint: string }[] = [
-  { kind: "ideas", label: (n) => `${plural(n, "idea")} in this style`, busy: (n) => `Writing ${plural(n, "idea")}…`, hint: "New subjects, the same kind of hook, structure and pace." },
-  { kind: "remix", label: () => "Remix the hook", busy: () => "Remixing the hook…", hint: "Openings that work the way this one does." },
-  { kind: "repurpose", label: () => "Cut into short scripts", busy: () => "Cutting it up…", hint: "Short scripts, each built on one moment of it." },
+  {
+    kind: "ideas",
+    label: (n) => `${plural(n, "idea")} in this style`,
+    busy: (n) => `Writing ${plural(n, "idea")}…`,
+    hint: "New subjects, the same kind of hook, structure and pace.",
+  },
+  {
+    kind: "remix",
+    label: () => "Remix the hook",
+    busy: () => "Remixing the hook…",
+    hint: "Openings that work the way this one does.",
+  },
+  {
+    kind: "repurpose",
+    label: () => "Cut into short scripts",
+    busy: () => "Cutting it up…",
+    hint: "Short scripts, each built on one moment of it.",
+  },
 ];
 
 // What the library writes from this item: idea cards, each a whole script
 // that becomes a project in one click (the list below the actions).
-export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId: string; itemId: string; ready: boolean; browser: boolean }) {
+export function MakeIdeas({
+  workspaceId,
+  itemId,
+  ready,
+  browser,
+}: {
+  workspaceId: string;
+  itemId: string;
+  ready: boolean;
+  browser: boolean;
+}) {
   const actorField = useId();
   const hintId = useId();
   const utils = api.useUtils();
@@ -48,7 +73,8 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
   // remixes and cuts too, within its context. Asked for explicitly, so a set
   // cut short can say how many it has.
   const ideaCount = status.data?.ideas ?? null;
-  const count = (kind: Kind) => ({ ideas: ideaCount ?? 1, remix: browser ? 3 : 5, script: 1, repurpose: browser ? 2 : 3 })[kind];
+  const count = (kind: Kind) =>
+    ({ ideas: ideaCount ?? 1, remix: browser ? 3 : 5, script: 1, repurpose: browser ? 2 : 3 })[kind];
   const run = (kind: Kind, extra: { actorId?: string } = {}) => {
     setError(null);
     setShort(null);
@@ -65,7 +91,11 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
             {a.kind === "ideas" && ideaCount === null && !statusProblem ? (
               <Skeleton className="h-10 w-44 rounded-lg" />
             ) : (
-              <Button aria-describedby={`${hintId}-${a.kind}`} disabled={!usable || generate.isPending} onClick={() => run(a.kind)}>
+              <Button
+                aria-describedby={`${hintId}-${a.kind}`}
+                disabled={!usable || generate.isPending}
+                onClick={() => run(a.kind)}
+              >
                 {pending === a.kind ? a.busy(count(a.kind)) : a.label(count(a.kind))}
               </Button>
             )}
@@ -84,7 +114,13 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
       >
         <label htmlFor={actorField} className="block text-sm">
           <span className="mb-1 block text-xs text-muted">A script for one actor</span>
-          <select data-field id={actorField} value={actorId} onChange={(e) => setActorId(e.target.value)} className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}>
+          <select
+            data-field
+            id={actorField}
+            value={actorId}
+            onChange={(e) => setActorId(e.target.value)}
+            className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}
+          >
             <option value="">Choose an actor</option>
             {available.map((a) => (
               <option key={a.id} value={a.id}>
@@ -98,7 +134,13 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
         </Button>
       </form>
       {statusProblem ? <ErrorNote>Ideas cannot be written right now: {statusProblem}</ErrorNote> : null}
-      {!ready ? <p className="text-xs text-muted">Available once the item is read.</p> : noWriter ? <p className="text-pretty text-xs text-muted">Ideas are written by the chat model, which cannot run: {noWriter}</p> : null}
+      {!ready ? (
+        <p className="text-xs text-muted">Available once the item is read.</p>
+      ) : noWriter ? (
+        <p className="text-pretty text-xs text-muted">
+          Ideas are written by the chat model, which cannot run: {noWriter}
+        </p>
+      ) : null}
       {generate.isPending ? (
         <div role="status" className="space-y-2">
           <p className="text-xs text-muted">The chat model is writing; small models on a CPU can take a minute.</p>

@@ -15,10 +15,24 @@ let projectModels: ModelOptionView[] = [];
 let scriptSeconds = 12;
 
 const option = (key: string, patch: Partial<ModelOptionView> = {}): ModelOptionView => ({
-  key, label: key, vendor: "v", kind: "cloud",
-  capabilities: { aspectRatios: ["1:1"], resolutions: ["720p"], durationsS: [5, 10, 15], audio: "optional", dialogueLanguages: null },
+  key,
+  label: key,
+  vendor: "v",
+  kind: "cloud",
+  capabilities: {
+    aspectRatios: ["1:1"],
+    resolutions: ["720p"],
+    durationsS: [5, 10, 15],
+    audio: "optional",
+    dialogueLanguages: null,
+  },
   defaults: { resolution: "720p", durationS: 10, audio: true },
-  pricePerSecondUsd: null, available: true, unavailableReason: null, compatible: true, warnings: [], ...patch,
+  pricePerSecondUsd: null,
+  available: true,
+  unavailableReason: null,
+  compatible: true,
+  warnings: [],
+  ...patch,
 });
 
 vi.mock("~/app/_components/workspace-context", () => ({
@@ -33,7 +47,21 @@ vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({}),
     benchmark: {
-      list: { useQuery: () => ({ isPending: false, error: null, data: [{ id: "11111111-1111-4111-8111-111111111111", brief: "Adopt brief", createdAt: "2026-07-12T10:00:00Z", entryCount: 2, winnerLabel: null }] }) },
+      list: {
+        useQuery: () => ({
+          isPending: false,
+          error: null,
+          data: [
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              brief: "Adopt brief",
+              createdAt: "2026-07-12T10:00:00Z",
+              entryCount: 2,
+              winnerLabel: null,
+            },
+          ],
+        }),
+      },
       get: {
         useQuery: () => ({
           isPending: false,
@@ -55,7 +83,10 @@ vi.mock("~/trpc/react", () => ({
     },
     studio: {
       getProject: {
-        useQuery: () => ({ isPending: false, data: { id: "p1", format: "1:1", platform: "instagram", language: "en" } }),
+        useQuery: () => ({
+          isPending: false,
+          data: { id: "p1", format: "1:1", platform: "instagram", language: "en" },
+        }),
       },
       modelOptions: {
         useQuery: (input: unknown) => {
@@ -78,7 +109,10 @@ vi.mock("~/trpc/react", () => ({
         useQuery: () => ({
           isPending: false,
           error: null,
-          data: [{ id: "s0", estimatedDurationS: 4 }, { id: "s1", estimatedDurationS: scriptSeconds }],
+          data: [
+            { id: "s0", estimatedDurationS: 4 },
+            { id: "s1", estimatedDurationS: scriptSeconds },
+          ],
         }),
       },
     },
@@ -91,7 +125,11 @@ function openRun() {
   fireEvent.click(screen.getByRole("button", { name: /Adopt brief/ }));
 }
 
-const warnings = () => screen.queryAllByRole("status").map((el) => el.textContent ?? "").join(" ");
+const warnings = () =>
+  screen
+    .queryAllByRole("status")
+    .map((el) => el.textContent ?? "")
+    .join(" ");
 
 afterEach(cleanup);
 beforeEach(() => {

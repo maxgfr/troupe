@@ -7,7 +7,9 @@ describe("renderFileName", () => {
   const createdAt = new Date(2026, 9, 5, 9, 45);
 
   it("names the file after the project, the model and the time of the render", () => {
-    expect(renderFileName({ project: "Spring drop — short video", model: "Local renderer", createdAt })).toBe("spring-drop-short-video-local-renderer-2026-10-05-0945.mp4");
+    expect(renderFileName({ project: "Spring drop — short video", model: "Local renderer", createdAt })).toBe(
+      "spring-drop-short-video-local-renderer-2026-10-05-0945.mp4",
+    );
   });
 
   it("keeps accented names readable and drops what is missing", () => {

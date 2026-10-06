@@ -25,7 +25,9 @@ describe("model catalog loading", () => {
       expect([...catalog.adapters.keys()]).toEqual(["veo-3.1-fast", "veo-3.1-lite"]);
       expect(catalog.defaultModelKey).toBe("veo-3.1-fast");
       expect(catalog.models.find((m) => m.key === "kling-3.0")?.status).toBe("missing-credentials");
-    } finally { await t.pg.close(); }
+    } finally {
+      await t.pg.close();
+    }
   });
 
   it("keeps a disabled model's adapter so its running jobs still finish, but never defaults to it", async () => {
@@ -37,6 +39,8 @@ describe("model catalog loading", () => {
       expect(catalog.adapters.has("kling-3.0")).toBe(true);
       expect(catalog.models.find((m) => m.key === "kling-3.0")?.enabled).toBe(false);
       expect(catalog.defaultModelKey).toBe("seedance-1.5-pro");
-    } finally { await t.pg.close(); }
+    } finally {
+      await t.pg.close();
+    }
   });
 });

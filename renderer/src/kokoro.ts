@@ -16,7 +16,10 @@ export function parseKokoroDtype(value: string | undefined): KokoroDtype {
   return known;
 }
 
-export function kokoroVoice(options: { cacheDir: string; dtype?: KokoroDtype; log?: (message: string) => void }): { speak: Speak; load: () => Promise<void> } {
+export function kokoroVoice(options: { cacheDir: string; dtype?: KokoroDtype; log?: (message: string) => void }): {
+  speak: Speak;
+  load: () => Promise<void>;
+} {
   let model: Promise<import("kokoro-js").KokoroTTS> | undefined;
 
   function load() {
@@ -27,7 +30,9 @@ export function kokoroVoice(options: { cacheDir: string; dtype?: KokoroDtype; lo
       env.cacheDir = options.cacheDir;
       const started = Date.now();
       const tts = await KokoroTTS.from_pretrained(KOKORO_MODEL, { dtype: options.dtype ?? "q8", device: "cpu" });
-      options.log?.(`Kokoro voices ready (${options.dtype ?? "q8"}) in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+      options.log?.(
+        `Kokoro voices ready (${options.dtype ?? "q8"}) in ${((Date.now() - started) / 1000).toFixed(1)} s`,
+      );
       return tts;
     })().catch((error: Error) => {
       model = undefined;

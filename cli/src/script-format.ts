@@ -18,7 +18,14 @@ export type Emotion = Inputs["script"]["setLineEmotion"]["emotion"];
 // What every script call returns (history rows carry a few more columns).
 export type Script = Outputs["script"]["paste"];
 
-export const EMOTIONS = ["neutral", "excited", "calm", "serious", "happy", "disappointed"] as const satisfies readonly Emotion[];
+export const EMOTIONS = [
+  "neutral",
+  "excited",
+  "calm",
+  "serious",
+  "happy",
+  "disappointed",
+] as const satisfies readonly Emotion[];
 // Fails to compile when the server adds an emotion this list lacks.
 const everyEmotion: Record<Exclude<Emotion, (typeof EMOTIONS)[number]>, never> = {};
 void everyEmotion;
@@ -34,7 +41,8 @@ const TAG = /^\[([a-zA-Z]+)\]\s*/;
 
 function asEmotion(value: string, where: string): Emotion {
   const emotion = value.toLowerCase();
-  if (!(EMOTIONS as readonly string[]).includes(emotion)) throw usageError(`${where}: unknown emotion "${value}". Use one of: ${EMOTIONS.join(", ")}.`);
+  if (!(EMOTIONS as readonly string[]).includes(emotion))
+    throw usageError(`${where}: unknown emotion "${value}". Use one of: ${EMOTIONS.join(", ")}.`);
   return emotion as Emotion;
 }
 
@@ -46,13 +54,18 @@ function parseJsonScript(text: string): ScriptLineInput[] {
     throw usageError(`The script looks like JSON but does not parse: ${(error as Error).message}`);
   }
   const lines = (data as { lines?: unknown })?.lines;
-  if (!Array.isArray(lines)) throw usageError('A JSON script needs a "lines" array: { "lines": [{ "text": "…", "emotion": "calm" }] }.');
+  if (!Array.isArray(lines))
+    throw usageError('A JSON script needs a "lines" array: { "lines": [{ "text": "…", "emotion": "calm" }] }.');
   return lines.map((line, i) => {
     const where = `lines[${i}]`;
     const { text, emotion } = (line ?? {}) as { text?: unknown; emotion?: unknown };
     if (typeof text !== "string" || !text.trim()) throw usageError(`${where}: "text" must be a non-empty string.`);
-    if (emotion !== undefined && emotion !== null && typeof emotion !== "string") throw usageError(`${where}: "emotion" must be a string.`);
-    return { text: text.replace(/\s+/g, " ").trim(), ...(typeof emotion === "string" ? { emotion: asEmotion(emotion, where) } : {}) };
+    if (emotion !== undefined && emotion !== null && typeof emotion !== "string")
+      throw usageError(`${where}: "emotion" must be a string.`);
+    return {
+      text: text.replace(/\s+/g, " ").trim(),
+      ...(typeof emotion === "string" ? { emotion: asEmotion(emotion, where) } : {}),
+    };
   });
 }
 
@@ -86,7 +99,10 @@ export function wordCount(lines: readonly { text: string }[]): number {
   return lines.reduce((sum, l) => sum + l.text.split(/\s+/).filter(Boolean).length, 0);
 }
 
-export function formatScript(script: Pick<Script, "version" | "origin" | "estimatedDurationS" | "lines">, title?: string): string {
+export function formatScript(
+  script: Pick<Script, "version" | "origin" | "estimatedDurationS" | "lines">,
+  title?: string,
+): string {
   const head = `# ${title ? `${title}, ` : ""}version ${script.version} (${script.origin}), about ${script.estimatedDurationS} s to say`;
   return [head, ...script.lines.map((l) => `[${l.emotion}] ${l.text}`)].join("\n");
 }

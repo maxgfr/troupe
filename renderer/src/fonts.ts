@@ -14,10 +14,14 @@ let registered = false;
 export function registerSceneFonts(file?: string): void {
   if (registered) return;
   if (file) {
-    if (!existsSync(file) || !GlobalFonts.registerFromPath(file, SCENE_FONT)) throw new Error(`SCENE_FONT_FILE: no font could be read from ${file}.`);
+    if (!existsSync(file) || !GlobalFonts.registerFromPath(file, SCENE_FONT))
+      throw new Error(`SCENE_FONT_FILE: no font could be read from ${file}.`);
   } else {
     for (const weight of [500, 600, 700]) {
-      GlobalFonts.registerFromPath(require.resolve(`@fontsource/geist-sans/files/geist-sans-latin-${weight}-normal.woff2`), SCENE_FONT);
+      GlobalFonts.registerFromPath(
+        require.resolve(`@fontsource/geist-sans/files/geist-sans-latin-${weight}-normal.woff2`),
+        SCENE_FONT,
+      );
     }
   }
   registered = true;

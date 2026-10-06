@@ -21,10 +21,20 @@ beforeAll(async () => {
   ws = (await createWorkspace(t.db, { userId: USER, name: "Export" })).id;
   await seedActorLibrary(t.db);
   const actor = (await listActors(t.db, {}))[0]!;
-  const [p] = await t.db.insert(projects).values({ workspaceId: ws, title: "Exportable", format: "9:16", platform: "tiktok", language: "en" }).returning();
+  const [p] = await t.db
+    .insert(projects)
+    .values({ workspaceId: ws, title: "Exportable", format: "9:16", platform: "tiktok", language: "en" })
+    .returning();
   await attachActorToProject(t.db, { projectId: p!.id, actorId: actor.id });
   const scriptId = (await pasteScript(t.db, { projectId: p!.id, text: "Export me." })).id;
-  const gen = await launchGeneration(t.db, { projectId: p!.id, scriptId, adapter: fakeAdapter(), tier: "final", durationS: 8, resolution: "720p" });
+  const gen = await launchGeneration(t.db, {
+    projectId: p!.id,
+    scriptId,
+    adapter: fakeAdapter(),
+    tier: "final",
+    durationS: 8,
+    resolution: "720p",
+  });
   await finishGeneration(t.db, gen.id, { kind: "completed" });
   await ingestRender(t.db, { generationId: gen.id, bytes: 100, checksum: "e", probe: async () => ({ durationS: 8 }) });
   genId = gen.id;
@@ -32,13 +42,17 @@ beforeAll(async () => {
 
 describe("platform export presets", () => {
   it("a TikTok export bundles file, caption+hashtags and the disclosure flag preset ON, recorded for audit", async () => {
-    const exp = await createExport(t.db, {
-      generationId: genId,
-      platform: "tiktok",
-      caption: "Morning routine upgrade",
-      hashtags: ["#coffee", "#morning"],
-      qualityConfirmedBy: USER,
-    }, apiMediaLinks);
+    const exp = await createExport(
+      t.db,
+      {
+        generationId: genId,
+        platform: "tiktok",
+        caption: "Morning routine upgrade",
+        hashtags: ["#coffee", "#morning"],
+        qualityConfirmedBy: USER,
+      },
+      apiMediaLinks,
+    );
     expect(exp.filePath).toMatch(/renders\//);
     expect(exp.caption).toBe("Morning routine upgrade");
     expect(exp.hashtags).toEqual(["#coffee", "#morning"]);
@@ -52,20 +66,30 @@ describe("platform export presets", () => {
     expect(check.ok).toBe(false);
     expect(check.mismatches.join(" ")).toMatch(/9:16.*linkedin|linkedin.*(1:1|16:9)/i);
     await expect(
-      createExport(t.db, { generationId: genId, platform: "linkedin", caption: "x", hashtags: [], qualityConfirmedBy: USER }, apiMediaLinks),
+      createExport(
+        t.db,
+        { generationId: genId, platform: "linkedin", caption: "x", hashtags: [], qualityConfirmedBy: USER },
+        apiMediaLinks,
+      ),
     ).rejects.toThrowError(/spec/i);
-    const forced = await createExport(t.db, {
-      generationId: genId,
-      platform: "linkedin",
-      caption: "x",
-      hashtags: [],
-      qualityConfirmedBy: USER,
-      acknowledgeSpecMismatch: true,
-    }, apiMediaLinks);
+    const forced = await createExport(
+      t.db,
+      {
+        generationId: genId,
+        platform: "linkedin",
+        caption: "x",
+        hashtags: [],
+        qualityConfirmedBy: USER,
+        acknowledgeSpecMismatch: true,
+      },
+      apiMediaLinks,
+    );
     expect(forced.platform).toBe("linkedin");
   });
 
   it("the export is refused without an explicit quality confirmation", async () => {
-    await expect(createExport(t.db, { generationId: genId, platform: "tiktok", caption: "y", hashtags: [] }, apiMediaLinks)).rejects.toThrowError(/watched the video/i);
+    await expect(
+      createExport(t.db, { generationId: genId, platform: "tiktok", caption: "y", hashtags: [] }, apiMediaLinks),
+    ).rejects.toThrowError(/watched the video/i);
   });
 });

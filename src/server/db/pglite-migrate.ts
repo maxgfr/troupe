@@ -39,7 +39,8 @@ const GRANTS = `
 
 type Tx = Pick<PGliteInterface, "exec" | "query">;
 
-const byName = (migrations: readonly Migration[]) => [...migrations].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+const byName = (migrations: readonly Migration[]) =>
+  [...migrations].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 async function apply(tx: Tx, migration: Migration) {
   for (const statement of migration.sql.split("--> statement-breakpoint")) {
@@ -53,7 +54,9 @@ async function apply(tx: Tx, migration: Migration) {
 // Returns the names it applied, in order.
 export async function migratePglite(pg: Pg, migrations: readonly Migration[]): Promise<string[]> {
   await pg.exec(AUTH_PREAMBLE);
-  const done = new Set((await pg.query<{ name: string }>("select name from troupe_static_migrations")).rows.map((r) => r.name));
+  const done = new Set(
+    (await pg.query<{ name: string }>("select name from troupe_static_migrations")).rows.map((r) => r.name),
+  );
   const pending = byName(migrations.filter((m) => !done.has(m.name)));
   for (const migration of pending) await pg.transaction((tx) => apply(tx, migration));
   await pg.exec(GRANTS);
@@ -85,7 +88,9 @@ export interface PgliteSnapshot {
 // The backup comes from a build with migrations this one does not have.
 export class BackupTooNewError extends Error {
   constructor(readonly unknownMigrations: string[]) {
-    super("This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.");
+    super(
+      "This backup was made by a newer version of Troupe. Reload the page to get the latest version, then import it again.",
+    );
     this.name = "BackupTooNewError";
   }
 }
@@ -105,10 +110,14 @@ async function publicTables(tx: Tx): Promise<string[]> {
 // Reads the whole database in one transaction, so the tables agree.
 export function snapshotPglite(pg: Pg): Promise<PgliteSnapshot> {
   return pg.transaction(async (tx) => {
-    const migrations = (await tx.query<{ name: string }>("select name from troupe_static_migrations order by name")).rows.map((r) => r.name);
+    const migrations = (
+      await tx.query<{ name: string }>("select name from troupe_static_migrations order by name")
+    ).rows.map((r) => r.name);
     const tables: Record<string, unknown[]> = {};
     for (const name of await publicTables(tx)) {
-      const { rows } = await tx.query<{ rows: unknown[] }>(`select coalesce(json_agg(t), '[]'::json) as rows from ${ident(name)} t`);
+      const { rows } = await tx.query<{ rows: unknown[] }>(
+        `select coalesce(json_agg(t), '[]'::json) as rows from ${ident(name)} t`,
+      );
       tables[name] = rows[0]?.rows ?? [];
     }
     return { migrations, tables };
@@ -127,12 +136,16 @@ async function checkForeignKeys(tx: Tx) {
   );
   for (const fk of rows) {
     try {
-      await tx.exec(`alter table ${fk.tbl} drop constraint ${ident(fk.name)}, add constraint ${ident(fk.name)} ${fk.def}`);
+      await tx.exec(
+        `alter table ${fk.tbl} drop constraint ${ident(fk.name)}, add constraint ${ident(fk.name)} ${fk.def}`,
+      );
     } catch (error) {
       // Only a violation (foreign_key_violation) says the backup is damaged;
       // anything else goes up as it is.
       if ((error as { code?: unknown }).code !== FOREIGN_KEY_VIOLATION) throw error;
-      throw new Error(`This backup is damaged: rows in ${fk.tbl.replaceAll('"', "")} point at rows it does not contain (${fk.name}). Nothing was changed.`);
+      throw new Error(
+        `This backup is damaged: rows in ${fk.tbl.replaceAll('"', "")} point at rows it does not contain (${fk.name}). Nothing was changed.`,
+      );
     }
   }
 }
@@ -142,7 +155,11 @@ async function checkForeignKeys(tx: Tx) {
 // migrations it predates run on them, exactly as an upgrade would. A snapshot
 // from a newer build, or rows that do not fit, change nothing. Returns the
 // migrations applied after the rows.
-export async function restorePglite(pg: Pg, migrations: readonly Migration[], snapshot: PgliteSnapshot): Promise<string[]> {
+export async function restorePglite(
+  pg: Pg,
+  migrations: readonly Migration[],
+  snapshot: PgliteSnapshot,
+): Promise<string[]> {
   const known = new Set(migrations.map((m) => m.name));
   const unknown = snapshot.migrations.filter((name) => !known.has(name));
   if (unknown.length > 0) throw new BackupTooNewError(unknown);
@@ -155,14 +172,18 @@ export async function restorePglite(pg: Pg, migrations: readonly Migration[], sn
     for (const migration of all.filter((m) => recorded.has(m.name))) await apply(tx, migration);
     const tables = await publicTables(tx);
     const missing = Object.keys(snapshot.tables).filter((name) => !tables.includes(name));
-    if (missing.length > 0) throw new Error(`This backup does not fit its own database version (unknown tables: ${missing.join(", ")}).`);
+    if (missing.length > 0)
+      throw new Error(`This backup does not fit its own database version (unknown tables: ${missing.join(", ")}).`);
     // Rows go in whatever the order of the tables: foreign keys are checked
     // by triggers, which a restore skips (they held when the snapshot was taken).
     if (tables.length > 0) await tx.exec(`truncate ${tables.map(ident).join(", ")}`);
     await tx.exec("set local session_replication_role = replica");
     for (const [name, rows] of Object.entries(snapshot.tables)) {
       if (rows.length === 0) continue;
-      await tx.query(`insert into ${ident(name)} select * from json_populate_recordset(null::${ident(name)}, $1::json)`, [JSON.stringify(rows)]);
+      await tx.query(
+        `insert into ${ident(name)} select * from json_populate_recordset(null::${ident(name)}, $1::json)`,
+        [JSON.stringify(rows)],
+      );
     }
     await tx.exec("set local session_replication_role = origin");
     await checkForeignKeys(tx);

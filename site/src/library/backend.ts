@@ -1,5 +1,11 @@
 import type { ChatBackend } from "~/modules/chat";
-import { requeueStale, runLibraryQueue, type AnalysisTools, type LibraryBackend, type LibraryStatus } from "~/modules/library";
+import {
+  requeueStale,
+  runLibraryQueue,
+  type AnalysisTools,
+  type LibraryBackend,
+  type LibraryStatus,
+} from "~/modules/library";
 import type { Db } from "~/server/db/types";
 import { browserMedia } from "../media";
 import { embedInWorker, transcribeInWorker } from "./client";
@@ -13,9 +19,10 @@ import { browserMediaReader } from "./media";
 // means no link fetching, and no vision model small enough to run here yet,
 // which the status says.
 
-const NO_LINKS = "A page in your browser cannot fetch other sites. Save the video or the page to a file and upload it, or paste its text.";
-const NO_VISION = "Pictures are taken from videos, but describing them needs a vision model, which runs in the self-hosted studio.";
-
+const NO_LINKS =
+  "A page in your browser cannot fetch other sites. Save the video or the page to a file and upload it, or paste its text.";
+const NO_VISION =
+  "Pictures are taken from videos, but describing them needs a vision model, which runs in the self-hosted studio.";
 
 // The analysis queue: one tab at a time analyses (Web Locks); while it holds
 // the lock nobody else analyses, so an item still "analyzing" was cut short.
@@ -46,8 +53,16 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
         },
       },
       vision: { ready: false, problem: NO_VISION },
-      embedder: { ready: true, tool: { model: MODEL(LIBRARY_CONFIG.embedModel), embed: (texts, kind, options) => embedInWorker(texts, kind, options?.signal) } },
-      writer: setup.model ? { ready: true, tool: setup.model, label: setup.label, modelId: setup.modelId } : { ready: false, problem: setup.problem ?? "The in-browser chat model cannot run here." },
+      embedder: {
+        ready: true,
+        tool: {
+          model: MODEL(LIBRARY_CONFIG.embedModel),
+          embed: (texts, kind, options) => embedInWorker(texts, kind, options?.signal),
+        },
+      },
+      writer: setup.model
+        ? { ready: true, tool: setup.model, label: setup.label, modelId: setup.modelId }
+        : { ready: false, problem: setup.problem ?? "The in-browser chat model cannot run here." },
     };
   }
 
@@ -61,7 +76,12 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
         await requeueStale(db, 0);
         do {
           again = false;
-          await runLibraryQueue(db, tools, { maxFrames: LIBRARY_CONFIG.frames, writeTimeoutMs: WRITING.timeoutMs, removeFiles: (files) => browserMedia.remove(files.map((f) => ({ storagePath: f.storagePath, storage: "local" as const }))) });
+          await runLibraryQueue(db, tools, {
+            maxFrames: LIBRARY_CONFIG.frames,
+            writeTimeoutMs: WRITING.timeoutMs,
+            removeFiles: (files) =>
+              browserMedia.remove(files.map((f) => ({ storagePath: f.storagePath, storage: "local" as const }))),
+          });
         } while (again);
       };
       if (navigator.locks) await navigator.locks.request(LOCK, work);
@@ -85,10 +105,30 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
         maxUploadBytes: LIBRARY_CONFIG.maxUploadMb * 1024 * 1024,
         ideas: WRITING.ideas,
         tools: [
-          { name: "transcription", label: "Transcription", ready: true, model: MODEL(LIBRARY_CONFIG.whisperModel), detail: "Speech is transcribed in this tab, by Whisper on your computer." },
+          {
+            name: "transcription",
+            label: "Transcription",
+            ready: true,
+            model: MODEL(LIBRARY_CONFIG.whisperModel),
+            detail: "Speech is transcribed in this tab, by Whisper on your computer.",
+          },
           { name: "vision", label: "Pictures", ready: false, model: null, detail: NO_VISION },
-          { name: "embeddings", label: "Search by meaning", ready: true, model: MODEL(LIBRARY_CONFIG.embedModel), detail: "Passages are indexed by meaning in this tab." },
-          { name: "writer", label: "Analysis and ideas", ready: t.writer.ready, model: t.writer.ready ? (t.writer.modelId ?? null) : null, detail: t.writer.ready ? "Hooks, structure, tags, the library chat and ideas are written by the in-browser chat model, on your GPU." : t.writer.problem },
+          {
+            name: "embeddings",
+            label: "Search by meaning",
+            ready: true,
+            model: MODEL(LIBRARY_CONFIG.embedModel),
+            detail: "Passages are indexed by meaning in this tab.",
+          },
+          {
+            name: "writer",
+            label: "Analysis and ideas",
+            ready: t.writer.ready,
+            model: t.writer.ready ? (t.writer.modelId ?? null) : null,
+            detail: t.writer.ready
+              ? "Hooks, structure, tags, the library chat and ideas are written by the in-browser chat model, on your GPU."
+              : t.writer.problem,
+          },
           { name: "links", label: "Links", ready: false, model: null, detail: NO_LINKS },
         ],
       };

@@ -13,7 +13,12 @@ const absolute = (ctx: Context, path: string | null) => (path ? new URL(path, `$
 
 export async function findActor(ctx: Context, ref: string): Promise<Actor> {
   const actors = await ctx.api.actors.list.query();
-  return pick(actors, ref, { kind: "actor", listCommand: "troupe actors list", id: (a) => a.id, names: (a) => [a.name] });
+  return pick(actors, ref, {
+    kind: "actor",
+    listCommand: "troupe actors list",
+    id: (a) => a.id,
+    names: (a) => [a.name],
+  });
 }
 
 const actorsList: Command = {
@@ -26,10 +31,16 @@ const actorsList: Command = {
   },
   async run(ctx, { options }) {
     const filter = { gender: str(options, "gender"), ageRange: str(options, "age"), style: str(options, "style") };
-    const actors = (await ctx.api.actors.list.query(filter)).map((a) => ({ ...a, portraitUrl: absolute(ctx, a.portraitUrl) }));
+    const actors = (await ctx.api.actors.list.query(filter)).map((a) => ({
+      ...a,
+      portraitUrl: absolute(ctx, a.portraitUrl),
+    }));
     return {
       data: actors,
-      text: table(["ID", "NAME", "GENDER", "AGE", "STYLE", "VOICE", "STATUS"], actors.map((a) => [shortId(a.id), a.name, a.gender, a.ageRange, a.style, a.voiceProfile, a.status])),
+      text: table(
+        ["ID", "NAME", "GENDER", "AGE", "STYLE", "VOICE", "STATUS"],
+        actors.map((a) => [shortId(a.id), a.name, a.gender, a.ageRange, a.style, a.voiceProfile, a.status]),
+      ),
     };
   },
 };
@@ -45,8 +56,15 @@ const actorsShow: Command = {
     return {
       data,
       text: fields([
-        ["Name", actor.name], ["Id", actor.id], ["Gender", actor.gender], ["Age", actor.ageRange], ["Style", actor.style],
-        ["Voice", actor.voiceProfile], ["Status", actor.status], ["Pictures", `${actor.portraitCount} (set v${actor.assetVersion})`], ["Front picture", data.portraitUrl],
+        ["Name", actor.name],
+        ["Id", actor.id],
+        ["Gender", actor.gender],
+        ["Age", actor.ageRange],
+        ["Style", actor.style],
+        ["Voice", actor.voiceProfile],
+        ["Status", actor.status],
+        ["Pictures", `${actor.portraitCount} (set v${actor.assetVersion})`],
+        ["Front picture", data.portraitUrl],
       ]),
     };
   },
@@ -62,7 +80,20 @@ const projectsList: Command = {
     return {
       data: projects,
       text: projects.length
-        ? table(["", "ID", "TITLE", "STAGE", "PLATFORM", "FORMAT", "LANG", "MODEL", "CREATED"], projects.map((p) => [p.id === current ? "*" : " ", shortId(p.id), p.title, p.status, p.platform, p.format, p.language, p.modelKey ?? "default", when(p.createdAt)]))
+        ? table(
+            ["", "ID", "TITLE", "STAGE", "PLATFORM", "FORMAT", "LANG", "MODEL", "CREATED"],
+            projects.map((p) => [
+              p.id === current ? "*" : " ",
+              shortId(p.id),
+              p.title,
+              p.status,
+              p.platform,
+              p.format,
+              p.language,
+              p.modelKey ?? "default",
+              when(p.createdAt),
+            ]),
+          )
         : "No projects yet. Create one with troupe projects create --title <title> --actor <name>.",
     };
   },
@@ -74,13 +105,28 @@ const projectsCreate: Command = {
   options: {
     title: { type: "string", value: "<title>", description: "Project title (required)." },
     actor: { type: "string", value: "<actor>", description: "Actor name or id (required; see troupe actors list)." },
-    platform: { type: "string", value: "<platform>", description: "tiktok, instagram, youtube or linkedin (default tiktok)." },
-    format: { type: "string", value: "<ratio>", description: "9:16, 1:1 or 16:9 (default: the platform's preferred one)." },
+    platform: {
+      type: "string",
+      value: "<platform>",
+      description: "tiktok, instagram, youtube or linkedin (default tiktok).",
+    },
+    format: {
+      type: "string",
+      value: "<ratio>",
+      description: "9:16, 1:1 or 16:9 (default: the platform's preferred one).",
+    },
     language: { type: "string", value: "<code>", description: "Dialogue language code (default en)." },
-    model: { type: "string", value: "<model>", description: "Video model for this project (default: the studio's default)." },
+    model: {
+      type: "string",
+      value: "<model>",
+      description: "Video model for this project (default: the studio's default).",
+    },
     "no-use": { type: "boolean", description: "Do not make it the current project." },
   },
-  examples: ["troupe projects create --title \"Spring drop\" --actor Maya --platform instagram", "troupe projects create --title Teaser --actor 3f2a --format 16:9 --model local-renderer-1a2b"],
+  examples: [
+    'troupe projects create --title "Spring drop" --actor Maya --platform instagram',
+    "troupe projects create --title Teaser --actor 3f2a --format 16:9 --model local-renderer-1a2b",
+  ],
   async run(ctx, { options }) {
     const title = str(options, "title");
     const actorRef = str(options, "actor");
@@ -93,10 +139,21 @@ const projectsCreate: Command = {
     let modelKey: string | undefined;
     if (str(options, "model")) {
       const { models } = await ctx.api.settings.models.list.query();
-      modelKey = pick(models, str(options, "model")!, { kind: "model", listCommand: "troupe models list", id: (m) => m.key, names: (m) => [m.label] }).key;
+      modelKey = pick(models, str(options, "model")!, {
+        kind: "model",
+        listCommand: "troupe models list",
+        id: (m) => m.key,
+        names: (m) => [m.label],
+      }).key;
     }
     const project = await ctx.api.studio.createFromWizard.mutate({
-      workspaceId: await ctx.workspaceId(), title, platform, format, language: str(options, "language") ?? "en", actorId: actor.id, ...(modelKey ? { modelKey } : {}),
+      workspaceId: await ctx.workspaceId(),
+      title,
+      platform,
+      format,
+      language: str(options, "language") ?? "en",
+      actorId: actor.id,
+      ...(modelKey ? { modelKey } : {}),
     });
     const current = !flag(options, "no-use") && (await ctx.rememberProject(project.id));
     if (warning) ctx.note(`Note: ${warning}.`);
@@ -126,12 +183,26 @@ const projectsShow: Command = {
     const script = history.at(-1) ?? null;
     const latest = renders[0] ?? null;
     return {
-      data: { project: { ...project, status: stage }, actor: actor ?? null, script, renders: renders.length, latestRender: latest },
+      data: {
+        project: { ...project, status: stage },
+        actor: actor ?? null,
+        script,
+        renders: renders.length,
+        latestRender: latest,
+      },
       text: fields([
-        ["Title", project.title], ["Id", project.id], ["Stage", stage], ["Platform", `${project.platform} ${project.format}, language ${project.language}`],
+        ["Title", project.title],
+        ["Id", project.id],
+        ["Stage", stage],
+        ["Platform", `${project.platform} ${project.format}, language ${project.language}`],
         ["Actor", actor ? `${actor.name} (${actor.gender}, ${actor.ageRange}, ${actor.voiceProfile})` : "none"],
         ["Model", project.modelKey ?? "studio default"],
-        ["Script", script ? `version ${script.version}, ${script.lines.length} lines, about ${script.estimatedDurationS} s` : "none yet"],
+        [
+          "Script",
+          script
+            ? `version ${script.version}, ${script.lines.length} lines, about ${script.estimatedDurationS} s`
+            : "none yet",
+        ],
         ["Renders", latest ? `${renders.length}; newest ${shortId(latest.id)} ${latest.status}` : "none yet"],
       ]),
     };
@@ -145,8 +216,14 @@ const projectsUse: Command = {
   summary: "Make a project the current one for this profile.",
   async run(ctx, { positionals }) {
     const project = await ctx.project(positionals[0]);
-    if (!(await ctx.rememberProject(project.id))) throw usageError(`--url points at another studio than profile "${ctx.profileName}"; sign in to it with troupe login --url ${ctx.url} --profile <name> first.`);
-    return { data: { project: { id: project.id, title: project.title } }, text: `Current project: ${project.title} (${project.id}).` };
+    if (!(await ctx.rememberProject(project.id)))
+      throw usageError(
+        `--url points at another studio than profile "${ctx.profileName}"; sign in to it with troupe login --url ${ctx.url} --profile <name> first.`,
+      );
+    return {
+      data: { project: { id: project.id, title: project.title } },
+      text: `Current project: ${project.title} (${project.id}).`,
+    };
   },
 };
 
@@ -158,12 +235,26 @@ const projectsDelete: Command = {
   options: { yes: { type: "boolean", description: "Confirm the deletion; it cannot be undone." } },
   async run(ctx, { positionals, options }) {
     const project = await ctx.project(positionals[0]);
-    if (!flag(options, "yes")) throw usageError(`Deleting "${project.title}" removes its scripts, renders and videos for good. Run again with --yes to confirm.`);
+    if (!flag(options, "yes"))
+      throw usageError(
+        `Deleting "${project.title}" removes its scripts, renders and videos for good. Run again with --yes to confirm.`,
+      );
     await ctx.api.studio.deleteProject.mutate({ projectId: project.id });
     const config = await ctx.readConfig();
     if (config.profiles[ctx.profileName]?.project === project.id) await ctx.rememberProject(null);
-    return { data: { deleted: true, project: { id: project.id, title: project.title } }, text: `Deleted "${project.title}".` };
+    return {
+      data: { deleted: true, project: { id: project.id, title: project.title } },
+      text: `Deleted "${project.title}".`,
+    };
   },
 };
 
-export const projectCommands: Command[] = [actorsList, actorsShow, projectsList, projectsCreate, projectsShow, projectsUse, projectsDelete];
+export const projectCommands: Command[] = [
+  actorsList,
+  actorsShow,
+  projectsList,
+  projectsCreate,
+  projectsShow,
+  projectsUse,
+  projectsDelete,
+];

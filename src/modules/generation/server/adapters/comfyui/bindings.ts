@@ -1,9 +1,23 @@
 import { z } from "zod";
 
 // A ComfyUI workflow in API format ("Export (API)"): node id → node.
-export type ApiWorkflow = Record<string, { class_type: string; inputs: Record<string, unknown>; _meta?: { title?: string } }>;
+export type ApiWorkflow = Record<
+  string,
+  { class_type: string; inputs: Record<string, unknown>; _meta?: { title?: string } }
+>;
 
-export const COMFY_PARAMS = ["prompt", "negative_prompt", "width", "height", "frames", "fps", "duration_s", "seed", "audio", "filename_prefix"] as const;
+export const COMFY_PARAMS = [
+  "prompt",
+  "negative_prompt",
+  "width",
+  "height",
+  "frames",
+  "fps",
+  "duration_s",
+  "seed",
+  "audio",
+  "filename_prefix",
+] as const;
 export type ComfyParam = (typeof COMFY_PARAMS)[number];
 export type ComfyValues = Record<ComfyParam, string | number | boolean>;
 
@@ -14,17 +28,29 @@ export interface NodeBinding {
   input: string;
 }
 
-export const NodeBindingSchema = z.object({ param: z.enum(COMFY_PARAMS), nodeId: z.string().min(1).max(32), input: z.string().min(1).max(100) });
+export const NodeBindingSchema = z.object({
+  param: z.enum(COMFY_PARAMS),
+  nodeId: z.string().min(1).max(32),
+  input: z.string().min(1).max(100),
+});
 
-const ApiNode = z.object({ class_type: z.string().min(1), inputs: z.record(z.unknown()), _meta: z.object({ title: z.string().optional() }).passthrough().optional() }).passthrough();
+const ApiNode = z
+  .object({
+    class_type: z.string().min(1),
+    inputs: z.record(z.unknown()),
+    _meta: z.object({ title: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
 
 export function parseWorkflow(json: unknown): ApiWorkflow {
-  if (typeof json !== "object" || json === null || Array.isArray(json)) throw new Error("The workflow must be a JSON object.");
+  if (typeof json !== "object" || json === null || Array.isArray(json))
+    throw new Error("The workflow must be a JSON object.");
   if ("nodes" in json && "links" in json) {
     throw new Error("This is a UI workflow. In ComfyUI, use Workflow → Export (API) and import that file instead.");
   }
   const parsed = z.record(ApiNode).safeParse(json);
-  if (!parsed.success || Object.keys(parsed.data).length === 0) throw new Error("This file is not a ComfyUI API workflow (expected node ids mapped to { class_type, inputs }).");
+  if (!parsed.success || Object.keys(parsed.data).length === 0)
+    throw new Error("This file is not a ComfyUI API workflow (expected node ids mapped to { class_type, inputs }).");
   return parsed.data as ApiWorkflow;
 }
 
@@ -45,10 +71,13 @@ export function workflowProblems(workflow: ApiWorkflow, bindings: NodeBinding[])
   for (const b of bindings) {
     const node = workflow[b.nodeId];
     if (!node) problems.push(`Binding for ${b.param} points to node ${b.nodeId}, which is not in the workflow.`);
-    else if (!(b.input in node.inputs)) problems.push(`Node ${b.nodeId} (${node.class_type}) has no input "${b.input}" for ${b.param}.`);
+    else if (!(b.input in node.inputs))
+      problems.push(`Node ${b.nodeId} (${node.class_type}) has no input "${b.input}" for ${b.param}.`);
   }
   const placeholders = placeholdersIn(workflow);
-  for (const p of placeholders) if (!(COMFY_PARAMS as readonly string[]).includes(p)) problems.push(`Unknown placeholder {{${p}}}. Known: ${COMFY_PARAMS.join(", ")}.`);
+  for (const p of placeholders)
+    if (!(COMFY_PARAMS as readonly string[]).includes(p))
+      problems.push(`Unknown placeholder {{${p}}}. Known: ${COMFY_PARAMS.join(", ")}.`);
   if (!placeholders.has("prompt") && !bindings.some((b) => b.param === "prompt")) {
     problems.push("Nothing receives the prompt: put {{prompt}} in a text input or bind it to a node.");
   }
@@ -68,7 +97,9 @@ export function bindWorkflow(workflow: ApiWorkflow, bindings: NodeBinding[], val
         node.inputs[key] = values[whole[1] as ComfyParam];
         continue;
       }
-      node.inputs[key] = value.replace(PLACEHOLDER, (m, name: string) => (name in values ? String(values[name as ComfyParam]) : m));
+      node.inputs[key] = value.replace(PLACEHOLDER, (m, name: string) =>
+        name in values ? String(values[name as ComfyParam]) : m,
+      );
     }
   }
   for (const b of bindings) {

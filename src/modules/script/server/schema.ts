@@ -19,7 +19,10 @@ export const scripts = createTable(
     origin: d.text({ enum: ["chat", "pasted"] }).notNull(),
     // Word count ÷ 2.5 words/second, recomputed whenever lines change.
     estimatedDurationS: d.integer().notNull(),
-    status: d.text({ enum: ["draft", "final"] }).notNull().default("draft"),
+    status: d
+      .text({ enum: ["draft", "final"] })
+      .notNull()
+      .default("draft"),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
   (t) => [

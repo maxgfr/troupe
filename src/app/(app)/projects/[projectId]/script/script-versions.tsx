@@ -10,7 +10,12 @@ export interface ScriptVersionView {
 }
 
 // Pure view — earlier versions, newest first, each restorable.
-export function ScriptVersions({ versions, currentId, busy, onRestore }: {
+export function ScriptVersions({
+  versions,
+  currentId,
+  busy,
+  onRestore,
+}: {
   versions: ScriptVersionView[];
   currentId: string | null;
   busy?: boolean;
@@ -28,7 +33,9 @@ export function ScriptVersions({ versions, currentId, busy, onRestore }: {
         {older.map((v) => (
           <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
             <span className="min-w-0 flex-1 truncate">
-              <span className="font-mono text-xs text-muted">v{v.version} · ≈{v.estimatedDurationS}s · </span>
+              <span className="font-mono text-xs text-muted">
+                v{v.version} · ≈{v.estimatedDurationS}s ·{" "}
+              </span>
               {v.lines.map((l) => l.text).join(" ")}
             </span>
             <Button size="sm" disabled={busy} onClick={() => onRestore(v.id)}>

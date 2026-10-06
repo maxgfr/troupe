@@ -8,14 +8,39 @@ import type { ModelOptionView } from "../model-choice";
 afterEach(cleanup);
 
 const base = {
-  capabilities: { aspectRatios: ["9:16"], resolutions: ["720p"], durationsS: [8], audio: "always" as const, dialogueLanguages: null },
+  capabilities: {
+    aspectRatios: ["9:16"],
+    resolutions: ["720p"],
+    durationsS: [8],
+    audio: "always" as const,
+    dialogueLanguages: null,
+  },
   defaults: { resolution: "720p", durationS: 8, audio: true },
-  pricePerSecondUsd: null, unavailableReason: null, compatible: true, warnings: [] as string[],
+  pricePerSecondUsd: null,
+  unavailableReason: null,
+  compatible: true,
+  warnings: [] as string[],
 };
 const OPTIONS: ModelOptionView[] = [
-  { ...base, key: "veo-3.1-fast", label: "Veo 3.1 Fast", vendor: "Google", kind: "cloud", available: true, warnings: ["Veo 3.1 Fast has only been tried with English dialogue."] },
+  {
+    ...base,
+    key: "veo-3.1-fast",
+    label: "Veo 3.1 Fast",
+    vendor: "Google",
+    kind: "cloud",
+    available: true,
+    warnings: ["Veo 3.1 Fast has only been tried with English dialogue."],
+  },
   { ...base, key: "kling-3.0", label: "Kling 3.0", vendor: "Kling via fal.ai", kind: "cloud", available: true },
-  { ...base, key: "local-wan", label: "Wan 2.2", vendor: "ComfyUI", kind: "local", available: false, unavailableReason: "ComfyUI is not reachable." },
+  {
+    ...base,
+    key: "local-wan",
+    label: "Wan 2.2",
+    vendor: "ComfyUI",
+    kind: "local",
+    available: false,
+    unavailableReason: "ComfyUI is not reachable.",
+  },
 ];
 
 describe("model picker", () => {

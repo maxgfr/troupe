@@ -27,7 +27,9 @@ describe("boot", () => {
   it("warns when DATABASE_URL is Supabase's transaction pooler", async () => {
     const warn = quietStart("postgresql://postgres.ref:pw@aws-0-eu-west-1.pooler.supabase.com:6543/postgres");
     await boot();
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^Troupe: DATABASE_URL is Supabase's transaction pooler \(port 6543\)/));
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/^Troupe: DATABASE_URL is Supabase's transaction pooler \(port 6543\)/),
+    );
     expect(warn.mock.calls[0]![0]).toMatch(/session pooler \(port 5432\)/);
   });
 

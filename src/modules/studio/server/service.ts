@@ -31,11 +31,23 @@ export function formatOptionsFor(platform: Platform): FormatOption[] {
     preselected: format === preferred,
     ...(format === preferred
       ? {}
-      : { warning: `${platformName(platform)} prefers ${preferred} — a ${format} video may need cropping or letterboxing in your video editor` }),
+      : {
+          warning: `${platformName(platform)} prefers ${preferred} — a ${format} video may need cropping or letterboxing in your video editor`,
+        }),
   }));
 }
 
-const LANGUAGE_NAMES: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", zh: "Chinese", ja: "Japanese", ko: "Korean", pt: "Portuguese" };
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  zh: "Chinese",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+};
 const languageName = (code: string) => LANGUAGE_NAMES[code] ?? code.toUpperCase();
 
 export interface ModelOption {
@@ -63,16 +75,29 @@ export function modelOptionsFor(models: ResolvedModel[], input: { format?: Forma
       const compatible = !input.format || m.capabilities.aspectRatios.includes(input.format);
       const warnings: string[] = [];
       if (!compatible) warnings.push(`${m.label} renders ${m.capabilities.aspectRatios.join(" and ")} only.`);
-      if (m.capabilities.audio === "none") warnings.push(`${m.label} makes silent video: the actor will not speak. Add a voice track in your editor.`);
-      else if (input.language && m.capabilities.dialogueLanguages && !m.capabilities.dialogueLanguages.includes(input.language)) {
-        warnings.push(`${m.label} has only been tried with ${m.capabilities.dialogueLanguages.map(languageName).join(" and ")} dialogue; ${languageName(input.language)} may come out in another language.`);
+      if (m.capabilities.audio === "none")
+        warnings.push(`${m.label} makes silent video: the actor will not speak. Add a voice track in your editor.`);
+      else if (
+        input.language &&
+        m.capabilities.dialogueLanguages &&
+        !m.capabilities.dialogueLanguages.includes(input.language)
+      ) {
+        warnings.push(
+          `${m.label} has only been tried with ${m.capabilities.dialogueLanguages.map(languageName).join(" and ")} dialogue; ${languageName(input.language)} may come out in another language.`,
+        );
       }
       return {
-        key: m.key, label: m.label, vendor: m.vendor, kind: m.kind,
-        capabilities: m.capabilities, defaults: m.defaults, pricePerSecondUsd: m.pricePerSecondUsd,
+        key: m.key,
+        label: m.label,
+        vendor: m.vendor,
+        kind: m.kind,
+        capabilities: m.capabilities,
+        defaults: m.defaults,
+        pricePerSecondUsd: m.pricePerSecondUsd,
         available: canLaunch(m),
         unavailableReason: canLaunch(m) ? null : (m.statusDetail ?? "Not ready. Check it in Settings."),
-        compatible, warnings,
+        compatible,
+        warnings,
       };
     });
 }
@@ -81,7 +106,13 @@ export async function createDraftProject(db: Db, input: { workspaceId: string; t
   const platform = input.platform ?? "tiktok";
   const [project] = await db
     .insert(projects)
-    .values({ workspaceId: input.workspaceId, title: input.title, platform, format: PLATFORM_PREFERRED[platform], language: "en" })
+    .values({
+      workspaceId: input.workspaceId,
+      title: input.title,
+      platform,
+      format: PLATFORM_PREFERRED[platform],
+      language: "en",
+    })
     .returning();
   return project!;
 }
@@ -90,7 +121,14 @@ export async function createDraftProject(db: Db, input: { workspaceId: string; t
 // restores exactly. `modelKey: null` returns the project to the studio default.
 export async function updateProjectChoices(
   db: Db,
-  input: { projectId: string; format?: Format; platform?: Platform; language?: string; modelKey?: string | null; title?: string },
+  input: {
+    projectId: string;
+    format?: Format;
+    platform?: Platform;
+    language?: string;
+    modelKey?: string | null;
+    title?: string;
+  },
 ) {
   const patch: Partial<typeof projects.$inferInsert> = {};
   if (input.format) patch.format = input.format;
@@ -115,7 +153,11 @@ export async function getProject(db: Db, projectId: string) {
 export async function completeWizard(db: Db, input: { projectId: string; actorId: string }) {
   await getProject(db, input.projectId);
   await attachActorToProject(db, { projectId: input.projectId, actorId: input.actorId });
-  const [done] = await db.update(projects).set({ status: "scripting" }).where(eq(projects.id, input.projectId)).returning();
+  const [done] = await db
+    .update(projects)
+    .set({ status: "scripting" })
+    .where(eq(projects.id, input.projectId))
+    .returning();
   return done!;
 }
 
@@ -128,10 +170,18 @@ export async function changeProjectActor(db: Db, input: { projectId: string; act
 }
 
 // One commit for the wizard: invalid choices never leave an orphan project.
-export async function createProjectFromWizard(db: Db, input: {
-  workspaceId: string; title: string; platform: Platform; format: Format;
-  language: string; actorId: string; modelKey?: string | null;
-}) {
+export async function createProjectFromWizard(
+  db: Db,
+  input: {
+    workspaceId: string;
+    title: string;
+    platform: Platform;
+    format: Format;
+    language: string;
+    actorId: string;
+    modelKey?: string | null;
+  },
+) {
   return db.transaction(async (tx) => {
     const connection = tx as unknown as Db;
     const project = await createDraftProject(connection, input);

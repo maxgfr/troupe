@@ -55,7 +55,16 @@ async function measure(codec: AudioCodec, bitrate: number): Promise<number> {
     error: () => {},
   });
   encoder.configure({ codec: name, sampleRate: RATE, numberOfChannels: 1, bitrate });
-  encoder.encode(new AudioData({ format: "f32", sampleRate: RATE, numberOfFrames: PROBE.length, numberOfChannels: 1, timestamp: 0, data: probeSignal() }));
+  encoder.encode(
+    new AudioData({
+      format: "f32",
+      sampleRate: RATE,
+      numberOfFrames: PROBE.length,
+      numberOfChannels: 1,
+      timestamp: 0,
+      data: probeSignal(),
+    }),
+  );
   await encoder.flush();
   encoder.close();
   if (!config) return 0;
@@ -91,7 +100,10 @@ export function encoderDelayS(codec: AudioCodec, bitrate: number): Promise<numbe
   const key = `${codec}@${bitrate}`;
   let delay = measured.get(key);
   if (!delay) {
-    delay = measure(codec, bitrate).then((samples) => samples / RATE, () => 0);
+    delay = measure(codec, bitrate).then(
+      (samples) => samples / RATE,
+      () => 0,
+    );
     measured.set(key, delay);
   }
   return delay;

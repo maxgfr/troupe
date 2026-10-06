@@ -62,12 +62,20 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
     <ProviderWarning>
       {browser ? (
         <>
-          {readiness.reason ?? "This browser cannot render videos."} You can still write projects and scripts here; to render them on your machine,{" "}
-          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">set up the self-hosted studio</a>.
+          {readiness.reason ?? "This browser cannot render videos."} You can still write projects and scripts here; to
+          render them on your machine,{" "}
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+            set up the self-hosted studio
+          </a>
+          .
         </>
       ) : (
         <>
-          No video model can render yet. <Link href="/settings" className="underline underline-offset-2">Add an API key or a local model in Settings</Link> — projects and scripts work in the meantime.
+          No video model can render yet.{" "}
+          <Link href="/settings" className="underline underline-offset-2">
+            Add an API key or a local model in Settings
+          </Link>{" "}
+          — projects and scripts work in the meantime.
         </>
       )}
     </ProviderWarning>
@@ -79,7 +87,15 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
 // The grid's column width, for the pictures' sizes.
 export const POSTER_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw";
 
-function ProjectCard({ project, actor, priority }: { project: DashboardProject; actor?: DashboardActor; priority: boolean }) {
+function ProjectCard({
+  project,
+  actor,
+  priority,
+}: {
+  project: DashboardProject;
+  actor?: DashboardActor;
+  priority: boolean;
+}) {
   const [active, setActive] = useState(false);
   const meta = `${project.platform ? platformName(project.platform) : "platform —"} · ${project.format ?? "format —"}${project.createdAt ? ` · ${new Date(project.createdAt).toLocaleDateString()}` : ""}`;
   return (
@@ -102,7 +118,10 @@ function ProjectCard({ project, actor, priority }: { project: DashboardProject; 
             className="aspect-[3/4] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
           {/* The hairline that keeps a dark frame from melting into the stage. */}
-          <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]"
+          />
           {project.latestVideoUrl ? (
             <span
               aria-hidden
@@ -160,7 +179,16 @@ function FirstProject({ actors, browser }: { actors: DashboardActor[]; browser: 
         cast.length ? (
           <span className="flex -space-x-3">
             {cast.map((a) => (
-              <ActorPortrait key={a.id} id={a.id} name={a.name} src={a.portraitUrl} label="" sizes="64px" priority className="size-14 rounded-full shadow-[0_0_0_3px_var(--troupe-color-surface)] sm:size-16" />
+              <ActorPortrait
+                key={a.id}
+                id={a.id}
+                name={a.name}
+                src={a.portraitUrl}
+                label=""
+                sizes="64px"
+                priority
+                className="size-14 rounded-full shadow-[0_0_0_3px_var(--troupe-color-surface)] sm:size-16"
+              />
             ))}
           </span>
         ) : undefined

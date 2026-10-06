@@ -35,7 +35,9 @@ describe("ActorPortrait", () => {
   it("offers the 160 and 320 px copies for the width it shows, early when asked", () => {
     render(<ActorPortrait {...props} src="/actors/lea-01/v1/front.webp" sizes="80px" priority />);
     const picture = screen.getByRole("img", { name: props.label });
-    expect(picture.getAttribute("srcset")).toBe("/actors/lea-01/v1/front-160.webp 160w, /actors/lea-01/v1/front-320.webp 320w, /actors/lea-01/v1/front.webp 768w");
+    expect(picture.getAttribute("srcset")).toBe(
+      "/actors/lea-01/v1/front-160.webp 160w, /actors/lea-01/v1/front-320.webp 320w, /actors/lea-01/v1/front.webp 768w",
+    );
     expect(picture.getAttribute("sizes")).toBe("80px");
     expect(picture.getAttribute("loading")).toBe("eager");
     expect(picture.getAttribute("fetchpriority")).toBe("high");

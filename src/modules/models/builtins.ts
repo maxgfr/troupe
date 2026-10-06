@@ -40,7 +40,13 @@ export const BUILTIN_MODELS: readonly BuiltinModel[] = [
     credential: "google",
     modelId: "veo-3.1-fast-generate-preview",
     // 1080p and 4k exist upstream but only for 8 s clips; 720p keeps every duration valid.
-    capabilities: { aspectRatios: ["9:16", "16:9"], resolutions: ["720p"], durationsS: [4, 6, 8], audio: "always", dialogueLanguages: ["en"] },
+    capabilities: {
+      aspectRatios: ["9:16", "16:9"],
+      resolutions: ["720p"],
+      durationsS: [4, 6, 8],
+      audio: "always",
+      dialogueLanguages: ["en"],
+    },
     defaults: { resolution: "720p", durationS: 8, audio: true },
     // $0.10 a second at 720p ($0.12 at 1080p).
     pricePerSecondUsd: 0.1,
@@ -54,7 +60,13 @@ export const BUILTIN_MODELS: readonly BuiltinModel[] = [
     credential: "google",
     modelId: "veo-3.1-lite-generate-preview",
     // 1080p exists upstream but only for 8 s clips.
-    capabilities: { aspectRatios: ["9:16", "16:9"], resolutions: ["720p"], durationsS: [4, 6, 8], audio: "always", dialogueLanguages: ["en"] },
+    capabilities: {
+      aspectRatios: ["9:16", "16:9"],
+      resolutions: ["720p"],
+      durationsS: [4, 6, 8],
+      audio: "always",
+      dialogueLanguages: ["en"],
+    },
     defaults: { resolution: "720p", durationS: 8, audio: true },
     // $0.05 a second at 720p ($0.08 at 1080p).
     pricePerSecondUsd: 0.05,
@@ -68,7 +80,13 @@ export const BUILTIN_MODELS: readonly BuiltinModel[] = [
     credential: "fal",
     modelId: "fal-ai/kling-video/v3/standard/text-to-video",
     // The standard tier takes no resolution parameter; 720p is its nominal output.
-    capabilities: { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["720p"], durationsS: range(3, 15), audio: "optional", dialogueLanguages: ["en", "zh"] },
+    capabilities: {
+      aspectRatios: ["9:16", "16:9", "1:1"],
+      resolutions: ["720p"],
+      durationsS: range(3, 15),
+      audio: "optional",
+      dialogueLanguages: ["en", "zh"],
+    },
     defaults: { resolution: "720p", durationS: 8, audio: true },
     // $0.126 a second with audio, $0.084 without.
     pricePerSecondUsd: 0.126,
@@ -83,7 +101,13 @@ export const BUILTIN_MODELS: readonly BuiltinModel[] = [
     vendor: "ByteDance via fal.ai",
     credential: "fal",
     modelId: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-    capabilities: { aspectRatios: ["9:16", "16:9", "1:1"], resolutions: ["480p", "720p", "1080p"], durationsS: range(4, 12), audio: "optional", dialogueLanguages: ["en", "zh"] },
+    capabilities: {
+      aspectRatios: ["9:16", "16:9", "1:1"],
+      resolutions: ["480p", "720p", "1080p"],
+      durationsS: range(4, 12),
+      audio: "optional",
+      dialogueLanguages: ["en", "zh"],
+    },
     defaults: { resolution: "720p", durationS: 8, audio: true },
     // Billed by video tokens (width x height x fps x seconds / 1024) at $2.40
     // per million with audio, $1.20 without: about $0.052 a second at 720p.

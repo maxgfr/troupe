@@ -13,10 +13,20 @@ import {
 } from "./service";
 
 let t: TestDb;
-beforeAll(async () => { t = await createTestDb(); });
-afterAll(async () => { await t.pg.close(); });
+beforeAll(async () => {
+  t = await createTestDb();
+});
+afterAll(async () => {
+  await t.pg.close();
+});
 
-const caps = { aspectRatios: ["16:9"], resolutions: ["480p"], durationsS: [5], audio: "none" as const, dialogueLanguages: null };
+const caps = {
+  aspectRatios: ["16:9"],
+  resolutions: ["480p"],
+  durationsS: [5],
+  audio: "none" as const,
+  dialogueLanguages: null,
+};
 const credentials = { google: "saved", fal: "none" } as const;
 
 describe("model catalog persistence", () => {
@@ -28,7 +38,12 @@ describe("model catalog persistence", () => {
   });
 
   it("creates, edits and archives a local model without touching built-ins", async () => {
-    const key = await createLocalModel(t.db, { family: "http", label: "My GPU box", capabilities: caps, connection: { baseUrl: "http://gpu.lan:8000" } });
+    const key = await createLocalModel(t.db, {
+      family: "http",
+      label: "My GPU box",
+      capabilities: caps,
+      connection: { baseUrl: "http://gpu.lan:8000" },
+    });
     expect(key).toMatch(/^local-my-gpu-box-[0-9a-f]{6}$/);
     await updateLocalModel(t.db, key, { label: "GPU box" });
     await archiveLocalModel(t.db, key);

@@ -14,7 +14,11 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("~/trpc/react", () => ({
   api: {
-    useUtils: () => ({ identity: { myWorkspaces: { invalidate: vi.fn() } }, generation: { forProject: { invalidate: vi.fn() } }, script: { history: { invalidate: vi.fn() } } }),
+    useUtils: () => ({
+      identity: { myWorkspaces: { invalidate: vi.fn() } },
+      generation: { forProject: { invalidate: vi.fn() } },
+      script: { history: { invalidate: vi.fn() } },
+    }),
     identity: {
       myWorkspaces: { useQuery: () => ({ isPending: true }) },
     },

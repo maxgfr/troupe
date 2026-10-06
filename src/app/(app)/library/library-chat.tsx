@@ -15,13 +15,35 @@ interface Citation {
   startS: number | null;
 }
 
-const LIBRARY_SUGGESTIONS = ["Which hooks open with a question?", "What do these videos have in common?", "Which structures keep people watching?"];
-const ITEM_SUGGESTIONS = ["Why does this hook work?", "Walk me through its structure", "What could I reuse in my own videos?"];
+const LIBRARY_SUGGESTIONS = [
+  "Which hooks open with a question?",
+  "What do these videos have in common?",
+  "Which structures keep people watching?",
+];
+const ITEM_SUGGESTIONS = [
+  "Why does this hook work?",
+  "Walk me through its structure",
+  "What could I reuse in my own videos?",
+];
 
 // An answer with its [n] markers as links to the passages they cite.
 // A citation of the item whose page this is, without a time, points nowhere
 // else: it is shown, not linked.
-function CitationLink({ citation, href, follow, className, children, label }: { citation: Citation; href: (c: Citation) => string | null; follow: (c: Citation) => (event: React.MouseEvent) => void; className: string; children: ReactNode; label?: string }) {
+function CitationLink({
+  citation,
+  href,
+  follow,
+  className,
+  children,
+  label,
+}: {
+  citation: Citation;
+  href: (c: Citation) => string | null;
+  follow: (c: Citation) => (event: React.MouseEvent) => void;
+  className: string;
+  children: ReactNode;
+  label?: string;
+}) {
   const to = href(citation);
   if (to === null) {
     return (
@@ -44,7 +66,17 @@ function CitationLink({ citation, href, follow, className, children, label }: { 
   );
 }
 
-function Cited({ text, citations, href, follow }: { text: string; citations: Citation[]; href: (c: Citation) => string | null; follow: (c: Citation) => (event: React.MouseEvent) => void }) {
+function Cited({
+  text,
+  citations,
+  href,
+  follow,
+}: {
+  text: string;
+  citations: Citation[];
+  href: (c: Citation) => string | null;
+  follow: (c: Citation) => (event: React.MouseEvent) => void;
+}) {
   const parts = text.split(/(\[\d{1,2}\])/g);
   return (
     <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed">
@@ -101,7 +133,9 @@ export function LibraryChat({
       setDraft((current) => current || input.message);
     },
   });
-  const clear = api.library.chat.clear.useMutation({ onSuccess: () => utils.library.chat.history.invalidate({ workspaceId, itemId: itemId ?? null }) });
+  const clear = api.library.chat.clear.useMutation({
+    onSuccess: () => utils.library.chat.history.invalidate({ workspaceId, itemId: itemId ?? null }),
+  });
 
   function submit(text = draft) {
     const message = text.trim();
@@ -119,10 +153,17 @@ export function LibraryChat({
   }, [messages.length, send.isPending]);
 
   // Said once the history is in: while it loads, nothing is known yet.
-  const unavailable = !history.data ? null : writer === null ? "No chat model is set up, and the library chat answers with it." : writer.problem;
+  const unavailable = !history.data
+    ? null
+    : writer === null
+      ? "No chat model is set up, and the library chat answers with it."
+      : writer.problem;
   // On the item's own page a timed citation seeks the player (its link still
   // names the moment); an untimed one has nowhere to go.
-  const href = (c: Citation) => (c.itemId === itemId && onSeek && c.startS === null ? null : `/library/${c.itemId}${c.startS !== null ? `?t=${Math.floor(c.startS)}` : ""}`);
+  const href = (c: Citation) =>
+    c.itemId === itemId && onSeek && c.startS === null
+      ? null
+      : `/library/${c.itemId}${c.startS !== null ? `?t=${Math.floor(c.startS)}` : ""}`;
   const follow = (c: Citation) => (event: React.MouseEvent) => {
     if (c.itemId === itemId && onSeek && c.startS !== null) {
       event.preventDefault();
@@ -140,13 +181,25 @@ export function LibraryChat({
           </p>
         </div>
         {messages.length > 0 ? (
-          <Button variant="quiet" size="sm" onClick={() => clear.mutate({ workspaceId, itemId: itemId ?? null })} disabled={clear.isPending || send.isPending} className="-mr-2 shrink-0">
+          <Button
+            variant="quiet"
+            size="sm"
+            onClick={() => clear.mutate({ workspaceId, itemId: itemId ?? null })}
+            disabled={clear.isPending || send.isPending}
+            className="-mr-2 shrink-0"
+          >
             Clear
           </Button>
         ) : null}
       </div>
 
-      <div ref={log} role="log" aria-live="polite" aria-label={itemId ? "The chat about this item" : "The library chat"} className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
+      <div
+        ref={log}
+        role="log"
+        aria-live="polite"
+        aria-label={itemId ? "The chat about this item" : "The library chat"}
+        className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2"
+      >
         {history.isPending ? (
           <div className="space-y-2" role="status" aria-label="Loading the chat">
             <Skeleton className="h-10 w-2/3" />
@@ -168,7 +221,10 @@ export function LibraryChat({
         ) : (
           messages.map((m) =>
             m.role === "user" ? (
-              <p key={m.id} className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">
+              <p
+                key={m.id}
+                className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm"
+              >
                 {m.content}
               </p>
             ) : (
@@ -178,23 +234,34 @@ export function LibraryChat({
                   <ul aria-label="Sources" className="flex flex-wrap gap-1.5">
                     {m.citations.map((c) => (
                       <li key={c.n}>
-                        <CitationLink citation={c} href={href} follow={follow} className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-full px-2.5 text-xs shadow-[inset_0_0_0_1px_var(--troupe-color-line)] transition-colors duration-150 hover:bg-fg/[0.06]">
+                        <CitationLink
+                          citation={c}
+                          href={href}
+                          follow={follow}
+                          className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-full px-2.5 text-xs shadow-[inset_0_0_0_1px_var(--troupe-color-line)] transition-colors duration-150 hover:bg-fg/[0.06]"
+                        >
                           <span className="font-mono tabular-nums text-primary">{c.n}</span>
                           <span className="truncate">{c.title}</span>
-                          {c.startS !== null ? <span className="font-mono tabular-nums text-muted">{clock(c.startS)}</span> : null}
+                          {c.startS !== null ? (
+                            <span className="font-mono tabular-nums text-muted">{clock(c.startS)}</span>
+                          ) : null}
                         </CitationLink>
                       </li>
                     ))}
                   </ul>
                 ) : null}
-                {m.model && writer && m.model !== writer.modelId ? <p className="font-mono text-[11px] text-muted">{m.model}</p> : null}
+                {m.model && writer && m.model !== writer.modelId ? (
+                  <p className="font-mono text-[11px] text-muted">{m.model}</p>
+                ) : null}
               </article>
             ),
           )
         )}
         {send.isPending ? (
           <>
-            <p className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">{send.variables?.message}</p>
+            <p className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">
+              {send.variables?.message}
+            </p>
             <div className="space-y-2" role="status">
               <p className="text-xs text-muted">{writer?.label ?? "The model"} is reading your library…</p>
               {browserChat ? <browserChat.Progress /> : null}
@@ -232,7 +299,12 @@ export function LibraryChat({
         {history.data && messages.length === 0 && !send.isPending && !unavailable ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {(itemId ? ITEM_SUGGESTIONS : LIBRARY_SUGGESTIONS).map((s) => (
-              <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-left max-lg:min-h-11", "sm")}>
+              <button
+                key={s}
+                type="button"
+                onClick={() => submit(s)}
+                className={chipClass(false, "text-left max-lg:min-h-11", "sm")}
+              >
                 {s}
               </button>
             ))}
@@ -259,7 +331,12 @@ export function LibraryChat({
         />
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="text-xs text-muted max-sm:hidden">Enter sends · Shift+Enter for a new line</span>
-          <Button type="submit" variant="primary" disabled={send.isPending || !draft.trim() || Boolean(unavailable)} className="ml-auto">
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={send.isPending || !draft.trim() || Boolean(unavailable)}
+            className="ml-auto"
+          >
             {send.isPending ? "Reading…" : "Ask"}
           </Button>
         </div>

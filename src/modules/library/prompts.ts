@@ -11,8 +11,19 @@ import { formatTimestamp } from "./text";
 // additionalProperties false, required, enum, anyOf and arrays); zod checks
 // lengths and counts afterwards.
 
-const LANGUAGES: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", zh: "Chinese", ja: "Japanese", ko: "Korean", pt: "Portuguese" };
-export const languageName = (code: string | null | undefined) => (code ? (LANGUAGES[code] ?? code) : "the language of the source");
+const LANGUAGES: Record<string, string> = {
+  en: "English",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  zh: "Chinese",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+};
+export const languageName = (code: string | null | undefined) =>
+  code ? (LANGUAGES[code] ?? code) : "the language of the source";
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
@@ -63,7 +74,10 @@ export function buildInsightPrompt(input: InsightInput): ChatTurn[] {
   const frames = input.frames
     .filter((f) => f.description || f.text)
     .slice(0, 12)
-    .map((f) => `[${formatTimestamp(f.atS)}] ${[f.description, f.text ? `on screen: "${f.text}"` : null].filter(Boolean).join("; ")}`)
+    .map(
+      (f) =>
+        `[${formatTimestamp(f.atS)}] ${[f.description, f.text ? `on screen: "${f.text}"` : null].filter(Boolean).join("; ")}`,
+    )
     .join("\n");
   const system = [
     "You study short-form content (TikTok, Reels, Shorts, posts, articles) for a creator who saved it for inspiration.",
@@ -73,7 +87,9 @@ export function buildInsightPrompt(input: InsightInput): ChatTurn[] {
   const user = [
     `A ${input.kind}${input.durationS ? ` of ${Math.round(input.durationS)} seconds` : ""}: "${input.title}".`,
     input.hook ? `It opens with: "${input.hook}"` : null,
-    input.transcript ? `${input.kind === "video" || input.kind === "audio" ? "Transcript" : "Text"}:\n${clip(input.transcript, INSIGHT_SOURCE_CHARS)}` : "(no words)",
+    input.transcript
+      ? `${input.kind === "video" || input.kind === "audio" ? "Transcript" : "Text"}:\n${clip(input.transcript, INSIGHT_SOURCE_CHARS)}`
+      : "(no words)",
     frames ? `What the pictures show:\n${frames}` : null,
   ]
     .filter(Boolean)
@@ -88,7 +104,13 @@ const Insight = z.object({
   summary: z.string().trim().min(1).max(1200),
   hook_why: z.string().trim().max(600).default(""),
   structure: z
-    .array(z.object({ part: z.enum(["hook", "body", "cta"]), start_s: z.number().min(0).nullable(), summary: z.string().trim().min(1).max(400) }))
+    .array(
+      z.object({
+        part: z.enum(["hook", "body", "cta"]),
+        start_s: z.number().min(0).nullable(),
+        summary: z.string().trim().min(1).max(400),
+      }),
+    )
     .max(12)
     .default([]),
   tone: z.array(z.string().trim().min(1).max(40)).max(8).default([]),
@@ -120,7 +142,8 @@ export function readInsights(raw: unknown, durationS: number | null): Insights |
   // Times all crammed into the first few percent of a long video are not
   // times (a small model counting lines, or minutes as seconds): dropped.
   const timed = a.structure.map((p) => p.start_s).filter((s): s is number => s !== null);
-  const implausible = durationS !== null && durationS > 60 && timed.length >= 3 && Math.max(...timed) < durationS * 0.05;
+  const implausible =
+    durationS !== null && durationS > 60 && timed.length >= 3 && Math.max(...timed) < durationS * 0.05;
   const inside = (s: number | null) => (s === null || implausible || (durationS !== null && s > durationS) ? null : s);
   return {
     summary: a.summary,
@@ -151,7 +174,11 @@ export function chatAnswerSchema() {
     required: ["answer", "sources"],
     properties: {
       answer: { type: "string", description: "The answer, citing passages as [1], [2]." },
-      sources: { type: "array", items: { type: "number" }, description: "The numbers of the passages the answer uses." },
+      sources: {
+        type: "array",
+        items: { type: "number" },
+        description: "The numbers of the passages the answer uses.",
+      },
     },
   } as const;
 }
@@ -195,14 +222,19 @@ export function buildLibraryChatPrompt(input: {
   ];
 }
 
-const ChatAnswer = z.object({ answer: z.string().trim().min(1).max(4000), sources: z.array(z.number()).max(20).default([]) });
+const ChatAnswer = z.object({
+  answer: z.string().trim().min(1).max(4000),
+  sources: z.array(z.number()).max(20).default([]),
+});
 
 // The answer and the passages it cites: those listed, and any [n] in the text.
 export function readChatAnswer(raw: unknown, known: readonly number[]): { answer: string; cited: number[] } | null {
   const parsed = ChatAnswer.safeParse(raw);
   if (!parsed.success) return null;
   const inText = [...parsed.data.answer.matchAll(/\[(\d{1,2})\]/g)].map((m) => Number(m[1]));
-  const cited = [...new Set([...inText, ...parsed.data.sources.map(Math.round)])].filter((n) => known.includes(n)).sort((a, b) => a - b);
+  const cited = [...new Set([...inText, ...parsed.data.sources.map(Math.round)])]
+    .filter((n) => known.includes(n))
+    .sort((a, b) => a - b);
   return { answer: parsed.data.answer, cited };
 }
 
@@ -275,10 +307,14 @@ export interface IdeaRequest {
 export const IDEA_SOURCE_CHARS = 4500;
 
 const ASKS: Record<IdeaKind, (n: number) => string> = {
-  ideas: (n) => `Write ${n} new video ideas in the style of the source${n === 1 ? "" : "s"}: the same kind of hook, structure, pacing and tone, on new subjects. Do not copy their words.`,
-  remix: (n) => `Write ${n} remixes of the source's hook: ${n} different openings that work the way it does (same mechanism, new words), each followed by a short script that delivers on it.`,
-  script: () => "Turn the source into one script for the actor below to say to camera: keep what makes it work, in new words.",
-  repurpose: (n) => `Cut the source into ${n} separate short scripts, each built around a different moment or point of it, each standing on its own.`,
+  ideas: (n) =>
+    `Write ${n} new video ideas in the style of the source${n === 1 ? "" : "s"}: the same kind of hook, structure, pacing and tone, on new subjects. Do not copy their words.`,
+  remix: (n) =>
+    `Write ${n} remixes of the source's hook: ${n} different openings that work the way it does (same mechanism, new words), each followed by a short script that delivers on it.`,
+  script: () =>
+    "Turn the source into one script for the actor below to say to camera: keep what makes it work, in new words.",
+  repurpose: (n) =>
+    `Cut the source into ${n} separate short scripts, each built around a different moment or point of it, each standing on its own.`,
 };
 
 export function buildIdeasPrompt(input: IdeaRequest): ChatTurn[] {
@@ -321,8 +357,16 @@ export function buildIdeasPrompt(input: IdeaRequest): ChatTurn[] {
   ];
 }
 
-const IdeaLine = z.object({ role: z.enum(LINE_ROLES), text: z.string().trim().min(1).max(400), emotion: z.enum(SUPPORTED_EMOTIONS) });
-const Idea = z.object({ title: z.string().trim().min(1).max(200), hook: z.string().trim().max(400).default(""), lines: z.array(IdeaLine).min(1).max(12) });
+const IdeaLine = z.object({
+  role: z.enum(LINE_ROLES),
+  text: z.string().trim().min(1).max(400),
+  emotion: z.enum(SUPPORTED_EMOTIONS),
+});
+const Idea = z.object({
+  title: z.string().trim().min(1).max(200),
+  hook: z.string().trim().max(400).default(""),
+  lines: z.array(IdeaLine).min(1).max(12),
+});
 const IdeaAnswer = z.object({ ideas: z.array(z.unknown()).min(1).max(20) });
 
 // The complete objects of `key`'s list in an answer cut off mid-way (a
@@ -380,9 +424,14 @@ export function readIdeas(raw: unknown, max: number): WrittenIdea[] {
     const checked = Idea.safeParse(item);
     if (!checked.success) continue;
     const idea = checked.data;
-    const lines = idea.lines.map((l) => ({ role: l.role, text: spoken(l.text), emotion: l.emotion as Emotion })).filter((l) => l.text);
+    const lines = idea.lines
+      .map((l) => ({ role: l.role, text: spoken(l.text), emotion: l.emotion as Emotion }))
+      .filter((l) => l.text);
     if (lines.length === 0) continue;
-    const roled: DraftLine[] = lines.map((l, i) => ({ ...l, role: i === 0 ? "hook" : i === lines.length - 1 && lines.length > 1 ? "cta" : "body" }));
+    const roled: DraftLine[] = lines.map((l, i) => ({
+      ...l,
+      role: i === 0 ? "hook" : i === lines.length - 1 && lines.length > 1 ? "cta" : "body",
+    }));
     out.push({ title: idea.title, hook: spoken(idea.hook) || roled[0]!.text, lines: roled });
     if (out.length >= max) break;
   }

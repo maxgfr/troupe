@@ -14,7 +14,11 @@ export const benchmarkRouter = createTRPCRouter({
     .input(
       z.object({
         scriptId: z.string().uuid(),
-        modelKeys: z.array(MODEL_KEY).min(2).max(3).refine((keys) => new Set(keys).size === keys.length, "Choose different models"),
+        modelKeys: z
+          .array(MODEL_KEY)
+          .min(2)
+          .max(3)
+          .refine((keys) => new Set(keys).size === keys.length, "Choose different models"),
         durationS: z.number().int().positive(),
         resolution: z.string().min(1),
       }),
@@ -25,30 +29,33 @@ export const benchmarkRouter = createTRPCRouter({
       return startBenchmark(ctx.db, {
         projectId: input.projectId,
         scriptId: input.scriptId,
-        models: picked.map(({ adapter, model }) => ({ adapter, timeoutS: model.timeoutS, estimatedCostUsd: estimateCostUsd(model, input.durationS) })),
+        models: picked.map(({ adapter, model }) => ({
+          adapter,
+          timeoutS: model.timeoutS,
+          estimatedCostUsd: estimateCostUsd(model, input.durationS),
+        })),
         durationS: input.durationS,
         resolution: input.resolution,
       });
     }),
 
   // The workspace's runs, newest first; bounded page + createdAt cursor.
-  list: workspaceProcedure
-    .input(z.object({ before: z.coerce.date().optional() }))
-    .query(async ({ ctx, input }) => {
-      const runs = await listBenchmarkRuns(ctx.db, input.workspaceId, { before: input.before });
-      const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
-      return runs.map((run) => ({ ...run, winnerLabel: run.winnerModelKey ? (labels.get(run.winnerModelKey) ?? run.winnerModelKey) : null }));
-    }),
+  list: workspaceProcedure.input(z.object({ before: z.coerce.date().optional() })).query(async ({ ctx, input }) => {
+    const runs = await listBenchmarkRuns(ctx.db, input.workspaceId, { before: input.before });
+    const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
+    return runs.map((run) => ({
+      ...run,
+      winnerLabel: run.winnerModelKey ? (labels.get(run.winnerModelKey) ?? run.winnerModelKey) : null,
+    }));
+  }),
 
-  get: workspaceProcedure
-    .input(z.object({ runId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      await assertRunInWorkspace(ctx.db, input.runId, input.workspaceId);
-      if (ctx.ingest) await reconcileDueJobs(ctx.db, { adapters: ctx.catalog.adapters, ingest: ctx.ingest, limit: 1 });
-      const run = await getBenchmarkRun(ctx.db, input.runId, ctx.media);
-      const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
-      return { ...run, entries: run.entries.map((e) => ({ ...e, label: labels.get(e.modelKey) ?? e.modelKey })) };
-    }),
+  get: workspaceProcedure.input(z.object({ runId: z.string().uuid() })).query(async ({ ctx, input }) => {
+    await assertRunInWorkspace(ctx.db, input.runId, input.workspaceId);
+    if (ctx.ingest) await reconcileDueJobs(ctx.db, { adapters: ctx.catalog.adapters, ingest: ctx.ingest, limit: 1 });
+    const run = await getBenchmarkRun(ctx.db, input.runId, ctx.media);
+    const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
+    return { ...run, entries: run.entries.map((e) => ({ ...e, label: labels.get(e.modelKey) ?? e.modelKey })) };
+  }),
 
   vote: workspaceProcedure
     .input(z.object({ runId: z.string().uuid(), entryId: z.string().uuid(), score: z.number().int() }))

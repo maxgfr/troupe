@@ -5,4 +5,5 @@ import { parseChatConfig, type BrowserChatConfig } from "./config";
 // (site/vite.config.ts). Tests run without the build: defaults then.
 declare const __CHAT_CONFIG__: BrowserChatConfig | undefined;
 
-export const CHAT_CONFIG: BrowserChatConfig = typeof __CHAT_CONFIG__ === "undefined" ? parseChatConfig({}) : __CHAT_CONFIG__;
+export const CHAT_CONFIG: BrowserChatConfig =
+  typeof __CHAT_CONFIG__ === "undefined" ? parseChatConfig({}) : __CHAT_CONFIG__;

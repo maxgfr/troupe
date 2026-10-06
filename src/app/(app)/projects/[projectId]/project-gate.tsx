@@ -9,7 +9,10 @@ import { api } from "~/trpc/react";
 // with its way back. Any other state is the tab's own to show.
 export function ProjectGate({ projectId, children }: { projectId: string; children: React.ReactNode }) {
   const workspace = useWorkspace();
-  const project = api.studio.getProject.useQuery({ projectId }, { enabled: workspace.status === "ready", retry: false });
+  const project = api.studio.getProject.useQuery(
+    { projectId },
+    { enabled: workspace.status === "ready", retry: false },
+  );
   if (project.error?.data?.code === "NOT_FOUND") return <NotFoundPage />;
   return children;
 }

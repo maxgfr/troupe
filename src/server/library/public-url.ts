@@ -13,7 +13,13 @@ import { isIP, type LookupFunction } from "node:net";
 // resolves to a private address, or changes its answer between two lookups,
 // is refused too. Redirects are followed by hand, each hop checked again.
 
-const METADATA_HOSTS = new Set(["metadata.google.internal", "metadata.goog", "metadata", "instance-data", "instance-data.ec2.internal"]);
+const METADATA_HOSTS = new Set([
+  "metadata.google.internal",
+  "metadata.goog",
+  "metadata",
+  "instance-data",
+  "instance-data.ec2.internal",
+]);
 const PORTS = new Set(["", "80", "443", "8080", "8443"]);
 
 function v4(ip: string): number[] {
@@ -30,7 +36,12 @@ function v4Problem(ip: string, allowPrivate: boolean): string | null {
   if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return "a private network address";
   if (a === 100 && b >= 64 && b <= 127) return "a shared network address (100.64.0.0/10)";
   if (a === 198 && (b === 18 || b === 19)) return "a benchmarking network address";
-  if ((a === 192 && b === 0 && (c === 0 || c === 2)) || (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113)) return "a reserved address";
+  if (
+    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
+  )
+    return "a reserved address";
   return null;
 }
 
@@ -52,7 +63,10 @@ function v6Groups(ip: string): number[] | null {
 }
 
 // Why an IP address may not be fetched, or null when it may.
-export function checkPublicAddress(ip: string, { allowPrivate = false }: { allowPrivate?: boolean } = {}): string | null {
+export function checkPublicAddress(
+  ip: string,
+  { allowPrivate = false }: { allowPrivate?: boolean } = {},
+): string | null {
   const family = isIP(ip);
   if (family === 4) return v4Problem(ip, allowPrivate);
   if (family !== 6) return "not an IP address";
@@ -89,19 +103,39 @@ export function checkPublicUrl(raw: string, options: PublicUrlOptions = {}): Pub
   try {
     url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`);
   } catch {
-    return { ok: false, reason: "That is not a link. Paste the whole address, such as https://www.youtube.com/shorts/…" };
+    return {
+      ok: false,
+      reason: "That is not a link. Paste the whole address, such as https://www.youtube.com/shorts/…",
+    };
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return { ok: false, reason: "Only http:// and https:// links can be saved." };
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    return { ok: false, reason: "Only http:// and https:// links can be saved." };
   if (url.username || url.password) return { ok: false, reason: "Remove the user name and password from the link." };
-  const host = url.hostname.replace(/^\[|\]$/g, "").replace(/\.+$/, "").toLowerCase();
-  if (METADATA_HOSTS.has(host) || host === "169.254.169.254") return { ok: false, reason: "Cloud metadata addresses are not allowed." };
+  const host = url.hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.+$/, "")
+    .toLowerCase();
+  if (METADATA_HOSTS.has(host) || host === "169.254.169.254")
+    return { ok: false, reason: "Cloud metadata addresses are not allowed." };
   if (isIP(host)) {
     const problem = checkPublicAddress(host, options);
     if (problem) return { ok: false, reason: `That link points at ${problem}, which the library does not fetch.` };
-  } else if (!options.allowPrivate && (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local") || !host.includes("."))) {
-    return { ok: false, reason: "That link points at this server or your network, which the library does not fetch. Use a public link, or upload the file." };
+  } else if (
+    !options.allowPrivate &&
+    (host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".internal") ||
+      host.endsWith(".local") ||
+      !host.includes("."))
+  ) {
+    return {
+      ok: false,
+      reason:
+        "That link points at this server or your network, which the library does not fetch. Use a public link, or upload the file.",
+    };
   }
-  if (!options.allowPrivate && !PORTS.has(url.port)) return { ok: false, reason: `Links on port ${url.port} are not fetched; use the site's usual address.` };
+  if (!options.allowPrivate && !PORTS.has(url.port))
+    return { ok: false, reason: `Links on port ${url.port} are not fetched; use the site's usual address.` };
   return { ok: true, url };
 }
 
@@ -114,9 +148,15 @@ function guardedLookup(options: PublicUrlOptions): LookupFunction {
       const list = addresses as unknown as LookupAddress[];
       for (const entry of list) {
         const problem = checkPublicAddress(entry.address, options);
-        if (problem) return callback(Object.assign(new Error(`${hostname} resolves to ${problem}`), { code: "TROUPE_FORBIDDEN_ADDRESS" }), "", 4);
+        if (problem)
+          return callback(
+            Object.assign(new Error(`${hostname} resolves to ${problem}`), { code: "TROUPE_FORBIDDEN_ADDRESS" }),
+            "",
+            4,
+          );
       }
-      if ((lookupOptions as { all?: boolean }).all) return (callback as unknown as (e: null, a: LookupAddress[]) => void)(null, list);
+      if ((lookupOptions as { all?: boolean }).all)
+        return (callback as unknown as (e: null, a: LookupAddress[]) => void)(null, list);
       const first = list[0];
       if (!first) return callback(Object.assign(new Error(`${hostname} has no address`), { code: "ENOTFOUND" }), "", 4);
       callback(null, first.address, first.family);
@@ -149,14 +189,19 @@ const USER_AGENT = "Mozilla/5.0 (compatible; TroupeLibrary/1.0; +https://github.
 // included, ends within `timeoutMs` (unless the caller gives the body more
 // with keepFor): a server that sends a byte now and then never trips the
 // socket's idle timeout, but does trip this one.
-export async function openPublicUrl(raw: string, options: PublicUrlOptions & { timeoutMs: number; accept?: string; signal?: AbortSignal }): Promise<PublicResponse> {
+export async function openPublicUrl(
+  raw: string,
+  options: PublicUrlOptions & { timeoutMs: number; accept?: string; signal?: AbortSignal },
+): Promise<PublicResponse> {
   const lookup = guardedLookup(options);
   const current: { host: string; request?: ClientRequest; response?: IncomingMessage } = { host: "" };
   let timer: NodeJS.Timeout | undefined;
   const arm = (ms: number) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      const reason = new FetchRefused(`${current.host} took longer than ${Math.max(1, Math.round(ms / 1000))} s to answer.`);
+      const reason = new FetchRefused(
+        `${current.host} took longer than ${Math.max(1, Math.round(ms / 1000))} s to answer.`,
+      );
       if (current.response) current.response.destroy(reason);
       else current.request?.destroy(reason);
     }, ms);
@@ -180,13 +225,28 @@ export async function openPublicUrl(raw: string, options: PublicUrlOptions & { t
       const response = await new Promise<IncomingMessage>((resolve, reject) => {
         const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
           url,
-          { method: "GET", lookup, headers: { "user-agent": USER_AGENT, accept: options.accept ?? "*/*", "accept-encoding": "identity" }, signal: options.signal, timeout: options.timeoutMs },
+          {
+            method: "GET",
+            lookup,
+            headers: { "user-agent": USER_AGENT, accept: options.accept ?? "*/*", "accept-encoding": "identity" },
+            signal: options.signal,
+            timeout: options.timeoutMs,
+          },
           resolve,
         );
         current.request = request;
-        request.on("timeout", () => request.destroy(new FetchRefused(`${url.host} took longer than ${Math.round(options.timeoutMs / 1000)} s to answer.`)));
+        request.on("timeout", () =>
+          request.destroy(
+            new FetchRefused(`${url.host} took longer than ${Math.round(options.timeoutMs / 1000)} s to answer.`),
+          ),
+        );
         request.on("error", (error: Error & { code?: string }) => {
-          if (error.code === "TROUPE_FORBIDDEN_ADDRESS") reject(new FetchRefused(`That link leads to ${error.message.replace(/^.* resolves to /, "")}, which the library does not fetch.`));
+          if (error.code === "TROUPE_FORBIDDEN_ADDRESS")
+            reject(
+              new FetchRefused(
+                `That link leads to ${error.message.replace(/^.* resolves to /, "")}, which the library does not fetch.`,
+              ),
+            );
           else if (error instanceof FetchRefused) reject(error);
           else reject(new FetchRefused(`${url.host} could not be reached (${error.code ?? error.message}).`));
         });
@@ -201,7 +261,14 @@ export async function openPublicUrl(raw: string, options: PublicUrlOptions & { t
       current.response = response;
       response.once("close", () => clearTimeout(timer));
       const length = Number(response.headers["content-length"]);
-      return { url, status, contentType: (response.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase(), contentLength: Number.isFinite(length) ? length : null, body: response, keepFor: arm };
+      return {
+        url,
+        status,
+        contentType: (response.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase(),
+        contentLength: Number.isFinite(length) ? length : null,
+        body: response,
+        keepFor: arm,
+      };
     }
     throw new FetchRefused("That link redirects too many times.");
   }

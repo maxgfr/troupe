@@ -92,12 +92,21 @@ export function strings(options: OptionValues, name: string): string[] {
   return Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
 }
 
-export function int(options: OptionValues, name: string, opts: { min?: number; max?: number } = {}): number | undefined {
+export function int(
+  options: OptionValues,
+  name: string,
+  opts: { min?: number; max?: number } = {},
+): number | undefined {
   const raw = str(options, name);
   if (raw === undefined) return undefined;
   const n = Number(raw);
   if (!Number.isInteger(n) || (opts.min !== undefined && n < opts.min) || (opts.max !== undefined && n > opts.max)) {
-    const range = opts.min !== undefined && opts.max !== undefined ? ` between ${opts.min} and ${opts.max}` : opts.min !== undefined ? ` of at least ${opts.min}` : "";
+    const range =
+      opts.min !== undefined && opts.max !== undefined
+        ? ` between ${opts.min} and ${opts.max}`
+        : opts.min !== undefined
+          ? ` of at least ${opts.min}`
+          : "";
     throw usageError(`--${name} takes a whole number${range}, not "${raw}".`);
   }
   return n;
@@ -105,10 +114,14 @@ export function int(options: OptionValues, name: string, opts: { min?: number; m
 
 // "4,6,8" → [4, 6, 8]; "9:16, 1:1" → ["9:16", "1:1"].
 export function list(value: string): string[] {
-  return value.split(",").map((part) => part.trim()).filter(Boolean);
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 export function oneOf<T extends string>(value: string, allowed: readonly T[], name: string): T {
-  if (!(allowed as readonly string[]).includes(value)) throw usageError(`--${name} takes one of ${allowed.join(", ")}, not "${value}".`);
+  if (!(allowed as readonly string[]).includes(value))
+    throw usageError(`--${name} takes one of ${allowed.join(", ")}, not "${value}".`);
   return value as T;
 }

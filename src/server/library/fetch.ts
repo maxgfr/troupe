@@ -30,18 +30,44 @@ function charsetOf(contentType: string | undefined): string {
   }
 }
 
-export async function fetchSource(raw: string, env: LibraryEnvironment, options: { signal?: AbortSignal } = {}): Promise<FetchedSource> {
+export async function fetchSource(
+  raw: string,
+  env: LibraryEnvironment,
+  options: { signal?: AbortSignal } = {},
+): Promise<FetchedSource> {
   const checked = checkPublicUrl(raw, { allowPrivate: env.allowPrivateUrls });
   if (!checked.ok) throw new LibraryError(checked.reason);
   const url = checked.url;
 
   if (isVideoPlatform(url)) {
-    if (!env.ytDlpPath) throw new LibraryError("Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off). Download the video and upload the file.", "PRECONDITION_FAILED");
+    if (!env.ytDlpPath)
+      throw new LibraryError(
+        "Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off). Download the video and upload the file.",
+        "PRECONDITION_FAILED",
+      );
     const dir = await mkdtemp(join(tmpdir(), "troupe-ytdlp-"));
     const dispose = () => rm(dir, { recursive: true, force: true });
     try {
-      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), { dir, maxBytes: env.maxUploadBytes, maxDurationS: env.maxDurationS, ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined, proxy: env.ytDlpProxy, timeoutMs: FILE_DEADLINE_MS, signal: options.signal });
-      return { kind: "file", url: video.webpageUrl, title: video.title, path: video.path, mimeType: "video/mp4", bytes: 0, checksum: "", durationS: video.durationS, dispose };
+      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), {
+        dir,
+        maxBytes: env.maxUploadBytes,
+        maxDurationS: env.maxDurationS,
+        ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined,
+        proxy: env.ytDlpProxy,
+        timeoutMs: FILE_DEADLINE_MS,
+        signal: options.signal,
+      });
+      return {
+        kind: "file",
+        url: video.webpageUrl,
+        title: video.title,
+        path: video.path,
+        mimeType: "video/mp4",
+        bytes: 0,
+        checksum: "",
+        durationS: video.durationS,
+        dispose,
+      };
     } catch (error) {
       await dispose();
       if (error instanceof YtDlpError) throw new LibraryError(error.message, "PRECONDITION_FAILED");
@@ -51,14 +77,21 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
 
   let response: Awaited<ReturnType<typeof openPublicUrl>>;
   try {
-    response = await openPublicUrl(url.toString(), { allowPrivate: env.allowPrivateUrls, timeoutMs: env.fetchTimeoutMs, accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8", signal: options.signal });
+    response = await openPublicUrl(url.toString(), {
+      allowPrivate: env.allowPrivateUrls,
+      timeoutMs: env.fetchTimeoutMs,
+      accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+      signal: options.signal,
+    });
   } catch (error) {
     if (error instanceof FetchRefused) throw new LibraryError(error.message);
     throw error;
   }
   if (response.status !== 200) {
     response.body.resume();
-    throw new LibraryError(`${response.url.host} answered HTTP ${response.status}${response.status === 403 || response.status === 401 ? ": the page is not public" : ""}.`);
+    throw new LibraryError(
+      `${response.url.host} answered HTTP ${response.status}${response.status === 403 || response.status === 401 ? ": the page is not public" : ""}.`,
+    );
   }
   const type = response.contentType;
   if (type === "text/html" || type === "application/xhtml+xml" || type === "text/plain" || type === "") {
@@ -66,10 +99,25 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
       throw error instanceof FetchRefused ? new LibraryError(error.message) : error;
     });
     const text = new TextDecoder(charsetOf(response.body.headers["content-type"])).decode(bytes);
-    if (type === "text/plain") return { kind: "article", url: response.url.toString(), title: response.url.pathname.split("/").pop() || response.url.host, text: text.trim() };
+    if (type === "text/plain")
+      return {
+        kind: "article",
+        url: response.url.toString(),
+        title: response.url.pathname.split("/").pop() || response.url.host,
+        text: text.trim(),
+      };
     const article = extractArticle(text, response.url.toString());
-    if (!article.text.trim()) throw new LibraryError("That page has no readable text (it may need JavaScript or a sign-in). Copy the text and paste it instead.");
-    return { kind: "article", url: response.url.toString(), title: article.title, text: article.text, siteName: article.siteName };
+    if (!article.text.trim())
+      throw new LibraryError(
+        "That page has no readable text (it may need JavaScript or a sign-in). Copy the text and paste it instead.",
+      );
+    return {
+      kind: "article",
+      url: response.url.toString(),
+      title: article.title,
+      text: article.text,
+      siteName: article.siteName,
+    };
   }
   if (!FILE_TYPES.test(type)) {
     response.body.resume();
@@ -77,7 +125,9 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
   }
   if (response.contentLength !== null && response.contentLength > env.maxUploadBytes) {
     response.body.destroy();
-    throw new LibraryError(`That file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`);
+    throw new LibraryError(
+      `That file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`,
+    );
   }
   // A file may take longer than a page: as long as yt-dlp's downloads.
   response.keepFor(FILE_DEADLINE_MS);
@@ -91,7 +141,12 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
       new Transform({
         transform(chunk: Buffer, _encoding, done) {
           size += chunk.length;
-          if (size > env.maxUploadBytes) return done(new LibraryError(`That file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`));
+          if (size > env.maxUploadBytes)
+            return done(
+              new LibraryError(
+                `That file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`,
+              ),
+            );
           done(null, chunk);
         },
       }),
@@ -102,5 +157,15 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
     throw error;
   }
   const name = decodeURIComponent(response.url.pathname.split("/").pop() || "") || response.url.host;
-  return { kind: "file", url: response.url.toString(), title: name.replace(/\.[A-Za-z0-9]{1,5}$/, ""), path, mimeType: type, bytes: size, checksum: "", durationS: null, dispose };
+  return {
+    kind: "file",
+    url: response.url.toString(),
+    title: name.replace(/\.[A-Za-z0-9]{1,5}$/, ""),
+    path,
+    mimeType: type,
+    bytes: size,
+    checksum: "",
+    durationS: null,
+    dispose,
+  };
 }

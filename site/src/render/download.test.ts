@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest";
 import { trackDownload } from "./download";
 import type { DownloadProgress } from "./tts";
 
-const progress = (file: string, loaded: number, total: number) => ({ status: "progress" as const, name: "m", file, progress: (100 * loaded) / total, loaded, total });
+const progress = (file: string, loaded: number, total: number) => ({
+  status: "progress" as const,
+  name: "m",
+  file,
+  progress: (100 * loaded) / total,
+  loaded,
+  total,
+});
 
 describe("trackDownload", () => {
   it("adds up every file of one load", () => {

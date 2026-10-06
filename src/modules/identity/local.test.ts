@@ -4,7 +4,9 @@ import { ensureLocalStudio, LOCAL_USER_ID, LOCAL_WORKSPACE_ID, listWorkspacesFor
 import { listActors } from "~/modules/actors";
 
 let t: TestDb;
-afterAll(async () => { await t?.pg.close(); });
+afterAll(async () => {
+  await t?.pg.close();
+});
 
 describe("personal studio bootstrap", () => {
   it("creates one usable workspace and actor catalog without a signup, and survives a restart", async () => {

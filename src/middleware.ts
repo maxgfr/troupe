@@ -8,7 +8,10 @@ import { currentAccessCode } from "~/server/access-code";
 // those requests to loopback).
 export function middleware(req: NextRequest) {
   const code = currentAccessCode();
-  if (!code) return process.env.NODE_ENV === "production" ? NextResponse.redirect(new URL("/access", req.url)) : NextResponse.next();
+  if (!code)
+    return process.env.NODE_ENV === "production"
+      ? NextResponse.redirect(new URL("/access", req.url))
+      : NextResponse.next();
   const cookie = req.cookies.get("troupe-access")?.value;
   if (cookie && sameSecret(cookie, accessCookieValue(code))) return NextResponse.next();
   return NextResponse.redirect(new URL("/access", req.url));

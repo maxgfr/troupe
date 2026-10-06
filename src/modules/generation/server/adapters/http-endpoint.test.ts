@@ -4,10 +4,19 @@ import { afterEach, describe, expect, it } from "vitest";
 import { json, startServer } from "~/test/local-server";
 import { createHttpEndpointAdapter, type HttpEndpointModel } from "./http-endpoint";
 
-const caps = { aspectRatios: ["9:16", "16:9"], resolutions: ["480p", "720p"], durationsS: [4, 5, 8], audio: "optional" as const, dialogueLanguages: null };
+const caps = {
+  aspectRatios: ["9:16", "16:9"],
+  resolutions: ["480p", "720p"],
+  durationsS: [4, 5, 8],
+  audio: "optional" as const,
+  dialogueLanguages: null,
+};
 const req = { prompt: "Hello there.", aspectRatio: "9:16", resolution: "720p", durationS: 5, audio: false };
 let close: (() => Promise<void>) | undefined;
-afterEach(async () => { await close?.(); close = undefined; });
+afterEach(async () => {
+  await close?.();
+  close = undefined;
+});
 
 function model(baseUrl: string, patch: Partial<HttpEndpointModel> = {}): HttpEndpointModel {
   return { modelKey: "local-box", label: "Box", baseUrl, capabilities: caps, fps: 24, ...patch };
@@ -19,8 +28,17 @@ describe("generic HTTP endpoint adapter", () => {
     let polls = 0;
     const server = await startServer((r, res) => {
       if (r.method === "POST" && r.path === "/jobs") return json(res, 200, { id: "job-1" });
-      if (r.path === "/jobs/job-1") return json(res, 200, ++polls === 1 ? { status: "running", progress: 0.4 } : { status: "succeeded", video_url: "/files/job-1.mp4" });
-      if (r.path === "/files/job-1.mp4") { res.writeHead(200, { "content-type": "video/mp4" }); res.end(clip); return; }
+      if (r.path === "/jobs/job-1")
+        return json(
+          res,
+          200,
+          ++polls === 1 ? { status: "running", progress: 0.4 } : { status: "succeeded", video_url: "/files/job-1.mp4" },
+        );
+      if (r.path === "/files/job-1.mp4") {
+        res.writeHead(200, { "content-type": "video/mp4" });
+        res.end(clip);
+        return;
+      }
       json(res, 404, {});
     });
     close = server.close;
@@ -29,7 +47,14 @@ describe("generic HTTP endpoint adapter", () => {
     const { providerJobId } = await adapter.createJob(req);
     expect(providerJobId).toBe("job-1");
     expect(JSON.parse(server.requests[0]!.body)).toEqual({
-      prompt: "Hello there.", aspect_ratio: "9:16", resolution: "720p", width: 720, height: 1280, duration_s: 5, fps: 24, audio: false,
+      prompt: "Hello there.",
+      aspect_ratio: "9:16",
+      resolution: "720p",
+      width: 720,
+      height: 1280,
+      duration_s: 5,
+      fps: 24,
+      audio: false,
     });
     expect(server.requests[0]!.headers.authorization).toBe("Bearer local-secret");
     expect(await adapter.getJob!(providerJobId)).toEqual({ kind: "pending", progress: 0.4 });
@@ -59,18 +84,33 @@ describe("generic HTTP endpoint adapter", () => {
         { role: "cta" as const, text: "Try it today.", emotion: "calm" as const },
       ],
       actor: {
-        id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm and enthusiastic, mid-tempo",
+        id: "a1111111-1111-4111-8111-111111111111",
+        name: "Léa",
+        gender: "female" as const,
+        ageRange: "25-34",
+        voiceProfile: "warm and enthusiastic, mid-tempo",
         portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
       },
       language: "fr",
     };
     await createHttpEndpointAdapter({ model: model(server.url) }).createJob({ ...req, script });
     expect(JSON.parse(server.requests[0]!.body)).toEqual({
-      prompt: "Hello there.", aspect_ratio: "9:16", resolution: "720p", width: 720, height: 1280, duration_s: 5, fps: 24, audio: false,
+      prompt: "Hello there.",
+      aspect_ratio: "9:16",
+      resolution: "720p",
+      width: 720,
+      height: 1280,
+      duration_s: 5,
+      fps: 24,
+      audio: false,
       script: {
         language: "fr",
         actor: {
-          id: "a1111111-1111-4111-8111-111111111111", name: "Léa", gender: "female", age_range: "25-34", voice_profile: "warm and enthusiastic, mid-tempo",
+          id: "a1111111-1111-4111-8111-111111111111",
+          name: "Léa",
+          gender: "female",
+          age_range: "25-34",
+          voice_profile: "warm and enthusiastic, mid-tempo",
           portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
         },
         lines: [
@@ -82,7 +122,9 @@ describe("generic HTTP endpoint adapter", () => {
   });
 
   it("refuses a video URL on another origin", async () => {
-    const server = await startServer((_r, res) => json(res, 200, { status: "succeeded", video_url: "http://evil.example/x.mp4" }));
+    const server = await startServer((_r, res) =>
+      json(res, 200, { status: "succeeded", video_url: "http://evil.example/x.mp4" }),
+    );
     close = server.close;
     const adapter = createHttpEndpointAdapter({ model: model(server.url, { token: "t" }) });
     expect(await adapter.getJob!("job-2")).toMatchObject({ kind: "failed", errorCode: "OUTPUT_FOREIGN_ORIGIN" });
@@ -90,7 +132,9 @@ describe("generic HTTP endpoint adapter", () => {
   });
 
   it("reports a failed job with a short excerpt of the endpoint's own message", async () => {
-    const server = await startServer((_r, res) => json(res, 200, { status: "failed", error: "CUDA out of memory\n".repeat(30) }));
+    const server = await startServer((_r, res) =>
+      json(res, 200, { status: "failed", error: "CUDA out of memory\n".repeat(30) }),
+    );
     close = server.close;
     const failed = await createHttpEndpointAdapter({ model: model(server.url) }).getJob!("job-3");
     expect(failed).toMatchObject({ kind: "failed", errorCode: "LOCAL_JOB_FAILED" });
@@ -101,7 +145,9 @@ describe("generic HTTP endpoint adapter", () => {
   it("validates requests before calling the server", async () => {
     const server = await startServer((_r, res) => json(res, 200, { id: "x" }));
     close = server.close;
-    await expect(createHttpEndpointAdapter({ model: model(server.url) }).createJob({ ...req, durationS: 6 })).rejects.toMatchObject({ code: "UNSUPPORTED_DURATION" });
+    await expect(
+      createHttpEndpointAdapter({ model: model(server.url) }).createJob({ ...req, durationS: 6 }),
+    ).rejects.toMatchObject({ code: "UNSUPPORTED_DURATION" });
     expect(server.requests).toHaveLength(0);
   });
 
@@ -127,12 +173,20 @@ describe("generic HTTP endpoint adapter", () => {
 
   it("shows why /health refused, from the server's own error, but never on an auth refusal", async () => {
     let status = 503;
-    const server = await startServer((_r, res) => json(res, status, { ok: false, error: "The AI video mode is off on this renderer.\nStart it first." }));
+    const server = await startServer((_r, res) =>
+      json(res, status, { ok: false, error: "The AI video mode is off on this renderer.\nStart it first." }),
+    );
     close = server.close;
     const adapter = createHttpEndpointAdapter({ model: model(server.url) });
-    expect(await adapter.testConnection!()).toEqual({ ok: false, message: "Box returned HTTP 503: The AI video mode is off on this renderer. Start it first." });
+    expect(await adapter.testConnection!()).toEqual({
+      ok: false,
+      message: "Box returned HTTP 503: The AI video mode is off on this renderer. Start it first.",
+    });
     status = 401;
-    expect(await adapter.testConnection!()).toEqual({ ok: false, message: "Box refused the token (HTTP 401). Check it in Settings." });
+    expect(await adapter.testConnection!()).toEqual({
+      ok: false,
+      message: "Box refused the token (HTTP 401). Check it in Settings.",
+    });
   });
 
   it("takes the polling pace a server advertises on /health, within 1 to 60 s", async () => {

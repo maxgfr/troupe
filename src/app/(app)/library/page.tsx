@@ -7,7 +7,17 @@ import { usePageTitle } from "~/app/_components/page-title";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { SearchIcon } from "~/app/_components/icons";
-import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows, chipClass, fieldSurface } from "~/app/_components/ui";
+import {
+  EmptyState,
+  ErrorNote,
+  PageHeader,
+  Section,
+  SignedOutNotice,
+  Skeleton,
+  SkeletonRows,
+  chipClass,
+  fieldSurface,
+} from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { AddBar } from "./add-bar";
 import { KIND_LABELS, type ItemKind } from "./format";
@@ -46,7 +56,11 @@ export default function LibraryPage() {
   const status = api.library.status.useQuery(undefined, { enabled: ready, retry: false, staleTime: 30_000 });
   const items = api.library.list.useQuery(
     { workspaceId, ...(kind ? { kind } : {}), ...(onlyMine ? { mine: true } : {}), ...(tag ? { tag } : {}) },
-    { enabled: ready, refetchInterval: (q) => (q.state.data?.some((i) => i.status === "queued" || i.status === "analyzing") ? 2000 : false) },
+    {
+      enabled: ready,
+      refetchInterval: (q) =>
+        q.state.data?.some((i) => i.status === "queued" || i.status === "analyzing") ? 2000 : false,
+    },
   );
   const uploader = edition.kind === "browser" ? edition.library : serverUploader;
   const filtered = Boolean(kind || onlyMine || tag);
@@ -57,7 +71,10 @@ export default function LibraryPage() {
 
   return (
     <>
-      <PageHeader title="Library" lede="Videos, posts and articles you saved for inspiration, read by your own models. Search them by meaning, ask about them, and turn what works into scripts." />
+      <PageHeader
+        title="Library"
+        lede="Videos, posts and articles you saved for inspiration, read by your own models. Search them by meaning, ask about them, and turn what works into scripts."
+      />
 
       {workspace.status === "loading" ? (
         <SkeletonRows rows={4} />
@@ -77,7 +94,13 @@ export default function LibraryPage() {
           <div className="mb-6 space-y-3">
             {status.data ? (
               <>
-                <AddBar workspaceId={workspaceId} uploader={uploader} canFetchLinks={status.data.edition === "self-hosted"} maxUploadBytes={status.data.maxUploadBytes} onAdded={() => setQuery("")} />
+                <AddBar
+                  workspaceId={workspaceId}
+                  uploader={uploader}
+                  canFetchLinks={status.data.edition === "self-hosted"}
+                  maxUploadBytes={status.data.maxUploadBytes}
+                  onAdded={() => setQuery("")}
+                />
                 {uploader.Note ? <uploader.Note /> : null}
                 <ToolStatus tools={status.data.tools} />
               </>
@@ -116,7 +139,13 @@ export default function LibraryPage() {
                       <label htmlFor={kindId} className="sr-only">
                         Kind
                       </label>
-                      <select data-field id={kindId} value={kind} onChange={(e) => setKind(e.target.value as ItemKind | "")} className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}>
+                      <select
+                        data-field
+                        id={kindId}
+                        value={kind}
+                        onChange={(e) => setKind(e.target.value as ItemKind | "")}
+                        className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}
+                      >
                         <option value="">All kinds</option>
                         {(Object.keys(KIND_LABELS) as ItemKind[]).map((k) => (
                           <option key={k} value={k}>
@@ -125,7 +154,12 @@ export default function LibraryPage() {
                         ))}
                       </select>
                       <label className={chipClass(onlyMine)}>
-                        <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="size-4 accent-[var(--troupe-color-primary)]" />
+                        <input
+                          type="checkbox"
+                          checked={onlyMine}
+                          onChange={(e) => setOnlyMine(e.target.checked)}
+                          className="size-4 accent-[var(--troupe-color-primary)]"
+                        />
                         Mine
                       </label>
                     </>
@@ -134,7 +168,11 @@ export default function LibraryPage() {
                 {tag && !searching ? (
                   <p className="text-xs text-muted">
                     Tagged <span className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{tag}</span>{" "}
-                    <button type="button" onClick={() => setTag(null)} className="ml-1 min-h-8 rounded px-1 text-primary underline-offset-4 hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => setTag(null)}
+                      className="ml-1 min-h-8 rounded px-1 text-primary underline-offset-4 hover:underline"
+                    >
                       Show all
                     </button>
                   </p>
@@ -148,7 +186,9 @@ export default function LibraryPage() {
                   <ErrorNote>The library failed to load: {items.error.message}</ErrorNote>
                 ) : items.data.length === 0 ? (
                   filtered ? (
-                    <p className="rounded-2xl bg-surface/70 px-5 py-8 text-center text-sm text-muted">Nothing here matches these filters.</p>
+                    <p className="rounded-2xl bg-surface/70 px-5 py-8 text-center text-sm text-muted">
+                      Nothing here matches these filters.
+                    </p>
                   ) : (
                     <EmptyState
                       title="Save your first piece"
@@ -165,13 +205,19 @@ export default function LibraryPage() {
               </section>
 
               <Section title="Ideas" className="mb-0">
-                <IdeaCards workspaceId={workspaceId} empty="Open a saved item and ask for ideas in its style, a remix of its hook or a script for one of your actors. Each idea becomes a project in one click." />
+                <IdeaCards
+                  workspaceId={workspaceId}
+                  empty="Open a saved item and ask for ideas in its style, a remix of its hook or a script for one of your actors. Each idea becomes a project in one click."
+                />
               </Section>
 
               {!wide && chat ? <section className="border-t border-line pt-6">{chat}</section> : null}
             </div>
             {wide && chat ? (
-              <aside aria-label="Ask your library" className="sticky top-24 h-[calc(100dvh-8rem)] max-h-[48rem] min-h-[28rem] border-l border-line pl-6">
+              <aside
+                aria-label="Ask your library"
+                className="sticky top-24 h-[calc(100dvh-8rem)] max-h-[48rem] min-h-[28rem] border-l border-line pl-6"
+              >
                 {chat}
               </aside>
             ) : null}

@@ -20,7 +20,9 @@ export function diffLines(current: readonly DraftLine[], proposed: readonly Draf
   const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      lcs[i]![j] = sameText(current[i]!, proposed[j]!) ? lcs[i + 1]![j + 1]! + 1 : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
+      lcs[i]![j] = sameText(current[i]!, proposed[j]!)
+        ? lcs[i + 1]![j + 1]! + 1
+        : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
     }
   }
   const raw: LineChange[] = [];
@@ -28,7 +30,11 @@ export function diffLines(current: readonly DraftLine[], proposed: readonly Draf
   let j = 0;
   while (i < n || j < m) {
     if (i < n && j < m && sameText(current[i]!, proposed[j]!)) {
-      raw.push(sameLine(current[i]!, proposed[j]!) ? { kind: "same", line: proposed[j]! } : { kind: "changed", before: current[i]!, after: proposed[j]! });
+      raw.push(
+        sameLine(current[i]!, proposed[j]!)
+          ? { kind: "same", line: proposed[j]! }
+          : { kind: "changed", before: current[i]!, after: proposed[j]! },
+      );
       i++;
       j++;
     } else if (i < n && (j >= m || lcs[i + 1]![j]! >= lcs[i]![j + 1]!)) {

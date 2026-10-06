@@ -42,7 +42,10 @@ export function serverGuard({ nodeBuiltinsAllowedIn = {} }: ServerGuardOptions =
         if (!isBuiltin(source)) return null;
         const owner = packageOf(importer);
         const allowed = nodeBuiltinsAllowedIn[owner]?.builtins.includes(source.replace(/^node:/, ""));
-        if (!allowed) this.error(`${source} is a Node built-in (imported by ${owner}). Allow it in site/vite.config.ts with a reason, or keep the dependency out of the browser bundle.`);
+        if (!allowed)
+          this.error(
+            `${source} is a Node built-in (imported by ${owner}). Allow it in site/vite.config.ts with a reason, or keep the dependency out of the browser bundle.`,
+          );
         return null;
       }
       const name = source.startsWith("@") ? source.split("/").slice(0, 2).join("/") : source.split("/")[0]!;
@@ -53,7 +56,10 @@ export function serverGuard({ nodeBuiltinsAllowedIn = {} }: ServerGuardOptions =
           : name === "next"
             ? "is a Next.js module without a shim"
             : null;
-      if (reason) this.error(`${source} ${reason} (imported by ${show(importer)}). Shim it in site/vite.config.ts or pass it through the request context.`);
+      if (reason)
+        this.error(
+          `${source} ${reason} (imported by ${show(importer)}). Shim it in site/vite.config.ts or pass it through the request context.`,
+        );
       return null;
     },
     transform(code, id) {
@@ -103,7 +109,11 @@ export function fontPreloads({ base, match }: { base: string; match: RegExp[] })
         return match
           .map((pattern) => files.find((file) => file.endsWith(".woff2") && pattern.test(file)))
           .filter((file): file is string => Boolean(file))
-          .map((file) => ({ tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: `${base}${file}` }, injectTo: "head" as const }));
+          .map((file) => ({
+            tag: "link",
+            attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: `${base}${file}` },
+            injectTo: "head" as const,
+          }));
       },
     },
   };
@@ -123,7 +133,8 @@ export function pagesNotFoundMiddleware(base: string, outDir: string): Connect.N
       path = null;
     }
     const file = path === null ? null : join(outDir, path.slice(base.length));
-    const exists = file !== null && existsSync(file) && (statSync(file).isFile() || existsSync(join(file, "index.html")));
+    const exists =
+      file !== null && existsSync(file) && (statSync(file).isFile() || existsSync(join(file, "index.html")));
     if (exists) return next();
     res.statusCode = 404;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -155,7 +166,12 @@ export function pagesFallback({ base, outDir }: { base: string; outDir: string }
   };
 }
 
-const PICTURE_TYPES: Record<string, string> = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };
+const PICTURE_TYPES: Record<string, string> = {
+  ".webp": "image/webp",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
 const pictureType = (file: string): string | undefined => PICTURE_TYPES[extname(file).toLowerCase()];
 
 // `vite dev`: answers <base>actors/<file> with that picture from `dir`, and
@@ -192,7 +208,10 @@ export function actorPictures({ base, dir, outDir }: { base: string; dir: string
     writeBundle() {
       if (!existsSync(dir)) this.error(`The actors' pictures folder ${dir} does not exist (VITE_PORTRAITS_DIR).`);
       // Pictures only: no stray notes or .DS_Store files on the site.
-      cpSync(dir, join(outDir, "actors"), { recursive: true, filter: (from) => statSync(from).isDirectory() || pictureType(from) !== undefined });
+      cpSync(dir, join(outDir, "actors"), {
+        recursive: true,
+        filter: (from) => statSync(from).isDirectory() || pictureType(from) !== undefined,
+      });
     },
   };
 }
@@ -225,7 +244,8 @@ function absoluteUrl(name: string, value: string): URL {
   } catch {
     throw new Error(`${name} must be an absolute http(s) URL, got "${value}".`);
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error(`${name} must be an absolute http(s) URL, got "${value}".`);
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    throw new Error(`${name} must be an absolute http(s) URL, got "${value}".`);
   return url;
 }
 
@@ -235,7 +255,8 @@ export function parseLandingConfig(env: Record<string, string | undefined>): Lan
   return { siteUrl: site.href.endsWith("/") ? site.href : `${site.href}/`, repoUrl: repo.href.replace(/\/+$/, "") };
 }
 
-const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // The landing page (the site's root index.html). Before Vite reads the page,
 // %SITE_URL%, %REPO_URL% and %BASE% become the configured addresses and
@@ -258,7 +279,8 @@ export function landingPage({
 }: LandingConfig & { base: string; portraitsDir: string; cast: { slug: string; name: string }[] }): Plugin[] {
   const isLanding = (path: string) => path === "/index.html";
   const url = (slug: string, file: string) => `${base}actors/${encodeURIComponent(slug)}/v1/${file}`;
-  const hasThumbs = (slug: string) => THUMBS.every((w) => existsSync(join(portraitsDir, slug, "v1", `front-${w}.webp`)));
+  const hasThumbs = (slug: string) =>
+    THUMBS.every((w) => existsSync(join(portraitsDir, slug, "v1", `front-${w}.webp`)));
   const picture = (slug: string) =>
     hasThumbs(slug)
       ? `<img src="${url(slug, "front-320.webp")}" srcset="${THUMBS.map((w) => `${url(slug, `front-${w}.webp`)} ${w}w`).join(", ")}, ${url(slug, "front.webp")} 768w" sizes="${CAST_SIZES}" alt="" width="768" height="768" loading="lazy" decoding="async" />`
@@ -274,7 +296,9 @@ export function landingPage({
                 .replaceAll("%SITE_URL%", siteUrl)
                 .replaceAll("%REPO_URL%", repoUrl)
                 .replaceAll("%BASE%", base)
-                .replace(/%ACTOR_THUMB:([a-z0-9-]+)%/g, (_, slug: string) => url(slug, hasThumbs(slug) ? "front-160.webp" : "front.webp"))
+                .replace(/%ACTOR_THUMB:([a-z0-9-]+)%/g, (_, slug: string) =>
+                  url(slug, hasThumbs(slug) ? "front-160.webp" : "front.webp"),
+                )
             : html,
       },
     },
@@ -282,7 +306,13 @@ export function landingPage({
       name: "troupe:landing-cast",
       transformIndexHtml: {
         order: "post",
-        handler: (html, { path }) => (isLanding(path) ? html.replace("<!--troupe:cast-->", cast.map(({ slug, name }) => `<li>${picture(slug)}<span>${escapeHtml(name)}</span></li>`).join("")) : html),
+        handler: (html, { path }) =>
+          isLanding(path)
+            ? html.replace(
+                "<!--troupe:cast-->",
+                cast.map(({ slug, name }) => `<li>${picture(slug)}<span>${escapeHtml(name)}</span></li>`).join(""),
+              )
+            : html,
       },
     },
   ];

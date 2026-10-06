@@ -45,22 +45,34 @@ export type ChatSupport = { ok: true; model: string; gpu: string } | { ok: false
 const USE = "Open Troupe in a recent Chrome or Edge on a computer with a GPU.";
 
 async function detect(): Promise<ChatSupport> {
-  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ features: ReadonlySet<string>; info?: { vendor?: string } } | null> } }).gpu;
-  if (!gpu) return { ok: false, detail: `The chat runs its model on the GPU through WebGPU, which this browser lacks. ${USE}` };
+  const gpu = (
+    navigator as Navigator & {
+      gpu?: { requestAdapter(): Promise<{ features: ReadonlySet<string>; info?: { vendor?: string } } | null> };
+    }
+  ).gpu;
+  if (!gpu)
+    return { ok: false, detail: `The chat runs its model on the GPU through WebGPU, which this browser lacks. ${USE}` };
   let adapter: Awaited<ReturnType<typeof gpu.requestAdapter>> = null;
   try {
     adapter = await gpu.requestAdapter();
   } catch {}
-  if (!adapter) return { ok: false, detail: `The chat runs on a GPU through WebGPU, and this browser offered none. ${USE}` };
+  if (!adapter)
+    return { ok: false, detail: `The chat runs on a GPU through WebGPU, and this browser offered none. ${USE}` };
   // 16-bit models need the GPU's shader-f16; the 32-bit build of the same
   // model runs on the rest.
-  const model = /q4f16/.test(CHAT_CONFIG.model) && !adapter.features.has("shader-f16") && CHAT_CONFIG.f32Model ? CHAT_CONFIG.f32Model : CHAT_CONFIG.model;
+  const model =
+    /q4f16/.test(CHAT_CONFIG.model) && !adapter.features.has("shader-f16") && CHAT_CONFIG.f32Model
+      ? CHAT_CONFIG.f32Model
+      : CHAT_CONFIG.model;
   return { ok: true, model, gpu: adapter.info?.vendor ?? "" };
 }
 
 let support: Promise<ChatSupport> | undefined;
 export function chatSupport(): Promise<ChatSupport> {
-  support ??= detect().catch((error: unknown) => ({ ok: false as const, detail: `The chat cannot start here: ${error instanceof Error ? error.message : String(error)}` }));
+  support ??= detect().catch((error: unknown) => ({
+    ok: false as const,
+    detail: `The chat cannot start here: ${error instanceof Error ? error.message : String(error)}`,
+  }));
   return support;
 }
 

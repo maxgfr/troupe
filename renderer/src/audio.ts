@@ -17,6 +17,7 @@ export function wavBytes({ samples, sampleRate }: Speech): Buffer {
   wav.writeUInt16LE(16, 34);
   wav.write("data", 36, "ascii");
   wav.writeUInt32LE(data, 40);
-  for (const [i, s] of samples.entries()) wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, s)) * 32767), 44 + 2 * i);
+  for (const [i, s] of samples.entries())
+    wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, s)) * 32767), 44 + 2 * i);
   return wav;
 }

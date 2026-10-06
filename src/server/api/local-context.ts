@@ -33,5 +33,15 @@ export async function createLocalContext(headers: Headers) {
   });
   await initialization;
   const chat = createServerChat(db);
-  return createTRPCContext({ headers, db, media: serverMedia, userId: LOCAL_USER_ID, catalog: await loadModelCatalog(db), ingest: persistProviderRender, machine, chat, library: createServerLibrary(db, chat) });
+  return createTRPCContext({
+    headers,
+    db,
+    media: serverMedia,
+    userId: LOCAL_USER_ID,
+    catalog: await loadModelCatalog(db),
+    ingest: persistProviderRender,
+    machine,
+    chat,
+    library: createServerLibrary(db, chat),
+  });
 }

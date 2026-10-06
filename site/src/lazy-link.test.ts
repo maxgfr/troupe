@@ -13,15 +13,20 @@ const router = t.router({
 type R = typeof router;
 
 // Answers each call with its path, after a link above has tagged it.
-const backend: TRPCLink<R> = () => ({ op }) =>
-  observable((observer) => {
-    queueMicrotask(() => {
-      observer.next({ result: { type: "data", data: `${op.path}${(op.context.tag as string | undefined) ?? ""}` } });
-      observer.complete();
+const backend: TRPCLink<R> =
+  () =>
+  ({ op }) =>
+    observable((observer) => {
+      queueMicrotask(() => {
+        observer.next({ result: { type: "data", data: `${op.path}${(op.context.tag as string | undefined) ?? ""}` } });
+        observer.complete();
+      });
+      return () => {};
     });
-    return () => {};
-  });
-const tagging: TRPCLink<R> = () => ({ op, next }) => next({ ...op, context: { ...op.context, tag: "!" } });
+const tagging: TRPCLink<R> =
+  () =>
+  ({ op, next }) =>
+    next({ ...op, context: { ...op.context, tag: "!" } });
 
 describe("links loaded with the first call", () => {
   it("loads them once, on the first call, and runs every call through them in order", async () => {

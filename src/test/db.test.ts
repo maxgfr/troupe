@@ -9,7 +9,9 @@ describe("migrateTestDb", () => {
     await setAuthUser(t, userId);
     await migrateTestDb(t);
     expect(t.applied).toEqual(readMigrations().map((m) => m.name));
-    const { rows } = await t.pg.query<{ role: string; claims: string }>("select current_user as role, current_setting('request.jwt.claims', true) as claims");
+    const { rows } = await t.pg.query<{ role: string; claims: string }>(
+      "select current_user as role, current_setting('request.jwt.claims', true) as claims",
+    );
     expect(rows[0]).toEqual({ role: "authenticated", claims: JSON.stringify({ sub: userId }) });
   });
 });

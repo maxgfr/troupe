@@ -31,14 +31,26 @@ function mutation(run: (input: { provider: "google" }) => unknown) {
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({
-      settings: { credentials: { status: { invalidate: async () => {} } }, models: { list: { invalidate: async () => {} } }, chat: { get: { invalidate: async () => {} } } },
+      settings: {
+        credentials: { status: { invalidate: async () => {} } },
+        models: { list: { invalidate: async () => {} } },
+        chat: { get: { invalidate: async () => {} } },
+      },
       studio: { modelOptions: { invalidate: async () => {} } },
     }),
     settings: {
       credentials: {
         status: { useQuery: () => ({ data: status(), error: null }) },
-        save: { useMutation: mutation(() => { state.google = "saved"; }) },
-        clear: { useMutation: mutation(() => { state.google = "none"; }) },
+        save: {
+          useMutation: mutation(() => {
+            state.google = "saved";
+          }),
+        },
+        clear: {
+          useMutation: mutation(() => {
+            state.google = "none";
+          }),
+        },
         test: { useMutation: mutation(() => ({ ok: false, message: "Google rejected this API key." })) },
       },
     },

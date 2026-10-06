@@ -3,10 +3,38 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { installFakeLocks } from "./fake-locks";
-import { clearJobs, failInterruptedJobs, holdJobLock, INTERRUPTED, jobState, knownJob, pruneJobs, readJob, saveJob, updateJob, type JobRecord, type JobSettlement } from "./jobs";
+import {
+  clearJobs,
+  failInterruptedJobs,
+  holdJobLock,
+  INTERRUPTED,
+  jobState,
+  knownJob,
+  pruneJobs,
+  readJob,
+  saveJob,
+  updateJob,
+  type JobRecord,
+  type JobSettlement,
+} from "./jobs";
 
-const job = { width: 720, height: 1280, fps: 24, script: { lines: [], actor: { id: "a", name: "A", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm" }, language: "en" } };
-const record = (id: string, patch: Partial<JobRecord> = {}): JobRecord => ({ id, status: "running", job, createdAt: Date.now(), ...patch });
+const job = {
+  width: 720,
+  height: 1280,
+  fps: 24,
+  script: {
+    lines: [],
+    actor: { id: "a", name: "A", gender: "female" as const, ageRange: "25-34", voiceProfile: "warm" },
+    language: "en",
+  },
+};
+const record = (id: string, patch: Partial<JobRecord> = {}): JobRecord => ({
+  id,
+  status: "running",
+  job,
+  createdAt: Date.now(),
+  ...patch,
+});
 
 beforeEach(async () => {
   installFakeLocks();
@@ -79,7 +107,9 @@ describe("render jobs", () => {
     );
     expect(asked.sort()).toEqual(["failed", "not-yet-stored", "stored", "unknown-new", "unknown-old"]);
     // The file is kept before the job (and its copy of the MP4) goes.
-    expect(kept).toEqual([{ assetId: "asset-1", storagePath: "renders/p/g.mp4", blob: expect.any(Blob), jobStillThere: true }]);
+    expect(kept).toEqual([
+      { assetId: "asset-1", storagePath: "renders/p/g.mp4", blob: expect.any(Blob), jobStillThere: true },
+    ]);
     expect(await readJob("stored")).toBeUndefined();
     expect(await readJob("failed")).toBeUndefined();
     expect(await readJob("unknown-old")).toBeUndefined();
@@ -93,7 +123,10 @@ describe("render jobs", () => {
     expect(knownJob("seen")).toBeUndefined();
     await jobState("seen");
     expect(knownJob("seen")).toMatchObject({ id: "seen", checksum: "abc" });
-    await pruneJobs(async () => new Map([["seen", { state: "settled" }]]), async () => {});
+    await pruneJobs(
+      async () => new Map([["seen", { state: "settled" }]]),
+      async () => {},
+    );
     expect(knownJob("seen")).toBeUndefined();
   });
 
@@ -114,7 +147,10 @@ describe("render jobs", () => {
         tx.onerror = () => reject(tx.error);
       };
     });
-    await pruneJobs(async () => new Map(), async () => {});
+    await pruneJobs(
+      async () => new Map(),
+      async () => {},
+    );
     expect(knownJob("elsewhere")).toBeUndefined();
   });
 });

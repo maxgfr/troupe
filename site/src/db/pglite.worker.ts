@@ -6,7 +6,8 @@ import { INIT_FAILED } from "./protocol";
 // One tab is elected leader and runs Postgres here; every tab, the leader
 // included, talks to it through PGliteWorker (site/src/db/client.ts).
 
-const fail = (reason: unknown) => self.postMessage({ type: INIT_FAILED, message: reason instanceof Error ? reason.message : String(reason) });
+const fail = (reason: unknown) =>
+  self.postMessage({ type: INIT_FAILED, message: reason instanceof Error ? reason.message : String(reason) });
 
 void worker({
   async init({ dataDir }) {

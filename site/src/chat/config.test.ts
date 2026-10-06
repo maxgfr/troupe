@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CHAT_CONFIG, parseChatConfig } from "./config";
 import { readProgress } from "./webllm";
 
-const KNOWN = ["Qwen2.5-1.5B-Instruct-q4f16_1-MLC", "Qwen2.5-1.5B-Instruct-q4f32_1-MLC", "Qwen3-1.7B-q4f16_1-MLC", "Llama-3.2-1B-Instruct-q4f32_1-MLC"];
+const KNOWN = [
+  "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+  "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
+  "Qwen3-1.7B-q4f16_1-MLC",
+  "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+];
 
 describe("parseChatConfig", () => {
   it("uses the defaults when nothing is set", () => {
@@ -12,7 +17,17 @@ describe("parseChatConfig", () => {
   });
 
   it("reads a fork's model, size, house style and speaking rate", () => {
-    expect(parseChatConfig({ VITE_WEBLLM_MODEL: "Qwen3-1.7B-q4f16_1-MLC", VITE_WEBLLM_DOWNLOAD_MB: "1100", VITE_CHAT_INSTRUCTIONS: "No slang.", VITE_CHAT_WORDS_PER_SECOND: "2.2" }, KNOWN)).toEqual({
+    expect(
+      parseChatConfig(
+        {
+          VITE_WEBLLM_MODEL: "Qwen3-1.7B-q4f16_1-MLC",
+          VITE_WEBLLM_DOWNLOAD_MB: "1100",
+          VITE_CHAT_INSTRUCTIONS: "No slang.",
+          VITE_CHAT_WORDS_PER_SECOND: "2.2",
+        },
+        KNOWN,
+      ),
+    ).toEqual({
       model: "Qwen3-1.7B-q4f16_1-MLC",
       // No 32-bit build of it in the list.
       f32Model: null,
@@ -36,16 +51,37 @@ describe("parseChatConfig", () => {
 
 describe("WebLLM's progress", () => {
   it("reads the downloaded megabytes, then the load onto the GPU", () => {
-    expect(readProgress({ progress: 0.25, timeElapsed: 3, text: "Fetching param cache[3/27]: 220MB fetched. 25% completed, 3 secs elapsed." })).toEqual({ stage: "download", fraction: 0.25, loadedMb: 220 });
-    expect(readProgress({ progress: 0.5, timeElapsed: 3, text: "Loading model from cache[12/27]: 440MB loaded. 50% completed, 3 secs elapsed." })).toEqual({ stage: "load", fraction: 0.5 });
-    expect(readProgress({ progress: 1, timeElapsed: 9, text: "Finish loading on WebGPU - apple" })).toEqual({ stage: "ready" });
+    expect(
+      readProgress({
+        progress: 0.25,
+        timeElapsed: 3,
+        text: "Fetching param cache[3/27]: 220MB fetched. 25% completed, 3 secs elapsed.",
+      }),
+    ).toEqual({ stage: "download", fraction: 0.25, loadedMb: 220 });
+    expect(
+      readProgress({
+        progress: 0.5,
+        timeElapsed: 3,
+        text: "Loading model from cache[12/27]: 440MB loaded. 50% completed, 3 secs elapsed.",
+      }),
+    ).toEqual({ stage: "load", fraction: 0.5 });
+    expect(readProgress({ progress: 1, timeElapsed: 9, text: "Finish loading on WebGPU - apple" })).toEqual({
+      stage: "ready",
+    });
   });
 });
 
 describe("generation settings", () => {
   it("reads the temperature, the answer's length and the history kept, with defaults", () => {
     expect(parseChatConfig({}, KNOWN)).toMatchObject({ temperature: 0.4, maxTokens: 1024, historyTurns: 6 });
-    expect(parseChatConfig({ VITE_WEBLLM_TEMPERATURE: "0.2", VITE_WEBLLM_MAX_TOKENS: "600", VITE_CHAT_HISTORY_TURNS: "4" }, KNOWN)).toMatchObject({ temperature: 0.2, maxTokens: 600, historyTurns: 4 });
-    expect(() => parseChatConfig({ VITE_WEBLLM_TEMPERATURE: "3", VITE_WEBLLM_MAX_TOKENS: "10" }, KNOWN)).toThrow(/VITE_WEBLLM_TEMPERATURE[\s\S]*VITE_WEBLLM_MAX_TOKENS/);
+    expect(
+      parseChatConfig(
+        { VITE_WEBLLM_TEMPERATURE: "0.2", VITE_WEBLLM_MAX_TOKENS: "600", VITE_CHAT_HISTORY_TURNS: "4" },
+        KNOWN,
+      ),
+    ).toMatchObject({ temperature: 0.2, maxTokens: 600, historyTurns: 4 });
+    expect(() => parseChatConfig({ VITE_WEBLLM_TEMPERATURE: "3", VITE_WEBLLM_MAX_TOKENS: "10" }, KNOWN)).toThrow(
+      /VITE_WEBLLM_TEMPERATURE[\s\S]*VITE_WEBLLM_MAX_TOKENS/,
+    );
   });
 });

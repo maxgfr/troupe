@@ -8,17 +8,30 @@ export function shortId(id: string | null | undefined): string {
 // Columns padded to their widest cell; the last column is never padded so
 // long text (a line of script, an error) wraps naturally.
 export function table(headers: string[], rows: (string | number | null | undefined)[][]): string {
-  const cells = [headers, ...rows.map((row) => row.map((cell) => (cell === null || cell === undefined || cell === "" ? "-" : String(cell))))];
+  const cells = [
+    headers,
+    ...rows.map((row) => row.map((cell) => (cell === null || cell === undefined || cell === "" ? "-" : String(cell)))),
+  ];
   const widths = headers.map((_, col) => Math.max(...cells.map((row) => (row[col] ?? "").length)));
   return cells
-    .map((row) => row.map((cell, col) => (col === row.length - 1 ? cell : cell.padEnd(widths[col] ?? 0))).join("  ").trimEnd())
+    .map((row) =>
+      row
+        .map((cell, col) => (col === row.length - 1 ? cell : cell.padEnd(widths[col] ?? 0)))
+        .join("  ")
+        .trimEnd(),
+    )
     .join("\n");
 }
 
 // "key: value" lines, keys aligned.
 export function fields(entries: [string, string | number | boolean | null | undefined][]): string {
   const width = Math.max(...entries.map(([key]) => key.length));
-  return entries.map(([key, value]) => `${`${key}:`.padEnd(width + 1)} ${value === null || value === undefined || value === "" ? "-" : String(value)}`).join("\n");
+  return entries
+    .map(
+      ([key, value]) =>
+        `${`${key}:`.padEnd(width + 1)} ${value === null || value === undefined || value === "" ? "-" : String(value)}`,
+    )
+    .join("\n");
 }
 
 export function when(date: Date | string | null | undefined): string {
@@ -50,7 +63,13 @@ export function numberRanges(values: readonly number[]): string {
   for (let i = 0; i < sorted.length; i++) {
     const start = sorted[i]!;
     while (sorted[i + 1] === sorted[i]! + 1) i++;
-    runs.push(sorted[i] === start ? String(start) : sorted[i] === start + 1 ? `${start}, ${sorted[i]}` : `${start}-${sorted[i]}`);
+    runs.push(
+      sorted[i] === start
+        ? String(start)
+        : sorted[i] === start + 1
+          ? `${start}, ${sorted[i]}`
+          : `${start}-${sorted[i]}`,
+    );
   }
   return runs.join(", ");
 }

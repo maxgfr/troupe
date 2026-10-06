@@ -19,6 +19,17 @@ describe("job check documentation", () => {
 
   it("documents every HTTP contract field the adapter sends", () => {
     const guide = doc("docs/LOCAL-MODELS.md");
-    for (const field of ["aspect_ratio", "resolution", "width", "height", "duration_s", "fps", "audio", "video_url", "contract"]) expect(guide).toContain(field);
+    for (const field of [
+      "aspect_ratio",
+      "resolution",
+      "width",
+      "height",
+      "duration_s",
+      "fps",
+      "audio",
+      "video_url",
+      "contract",
+    ])
+      expect(guide).toContain(field);
   });
 });

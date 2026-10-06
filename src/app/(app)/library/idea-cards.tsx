@@ -22,7 +22,17 @@ type Idea = {
 
 const words = (lines: Idea["lines"]) => lines.reduce((n, l) => n + l.text.split(/\s+/).filter(Boolean).length, 0);
 
-function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspaceId: string; titles: Map<string, string>; actors: Map<string, string> }) {
+function IdeaCard({
+  idea,
+  workspaceId,
+  titles,
+  actors,
+}: {
+  idea: Idea;
+  workspaceId: string;
+  titles: Map<string, string>;
+  actors: Map<string, string>;
+}) {
   const router = useRouter();
   const utils = api.useUtils();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +44,10 @@ function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspace
     },
     onError: (e) => setError(e.message),
   });
-  const remove = api.library.ideas.delete.useMutation({ onSuccess: () => utils.library.ideas.list.invalidate(), onError: (e) => setError(e.message) });
+  const remove = api.library.ideas.delete.useMutation({
+    onSuccess: () => utils.library.ideas.list.invalidate(),
+    onError: (e) => setError(e.message),
+  });
   const count = words(idea.lines);
   const sources = idea.itemIds.map((id) => titles.get(id)).filter(Boolean);
   return (
@@ -48,7 +61,9 @@ function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspace
       <ol className="space-y-1 text-sm">
         {idea.lines.map((line, i) => (
           <li key={i} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2">
-            <span className="pt-0.5 font-mono text-[11px] uppercase tracking-wide text-muted">{line.role === "cta" ? "call" : line.role}</span>
+            <span className="pt-0.5 font-mono text-[11px] uppercase tracking-wide text-muted">
+              {line.role === "cta" ? "call" : line.role}
+            </span>
             <span className={line.role === "hook" ? "font-medium" : "text-fg/90"}>{line.text}</span>
           </li>
         ))}
@@ -78,7 +93,12 @@ function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspace
         </p>
         {confirming ? (
           <span className="flex items-center gap-2 text-xs">
-            <Button variant="danger" size="sm" onClick={() => remove.mutate({ workspaceId, ideaId: idea.id })} disabled={remove.isPending}>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => remove.mutate({ workspaceId, ideaId: idea.id })}
+              disabled={remove.isPending}
+            >
               Delete idea
             </Button>
             <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
@@ -109,7 +129,13 @@ export function IdeaCards({ workspaceId, itemId, empty }: { workspaceId: string;
   return (
     <ul className="divide-y divide-line">
       {(ideas.data as Idea[]).map((idea) => (
-        <IdeaCard key={idea.id} idea={idea} workspaceId={workspaceId} titles={itemId ? new Map() : titles} actors={names} />
+        <IdeaCard
+          key={idea.id}
+          idea={idea}
+          workspaceId={workspaceId}
+          titles={itemId ? new Map() : titles}
+          actors={names}
+        />
       ))}
     </ul>
   );

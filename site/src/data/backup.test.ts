@@ -6,7 +6,13 @@ import { readTar, writeTar } from "./tar";
 
 const database = {
   migrations: ["0000_init.sql", "0001_more.sql"],
-  tables: { troupe_project: [{ id: "p1", title: "Kept" }, { id: "p2", title: "Also kept" }], troupe_script: [] },
+  tables: {
+    troupe_project: [
+      { id: "p1", title: "Kept" },
+      { id: "p2", title: "Also kept" },
+    ],
+    troupe_script: [],
+  },
 };
 const clip = (n: number) => new Blob([new Uint8Array(n).fill(7)], { type: "video/mp4" });
 const media = [
@@ -42,11 +48,16 @@ describe("browser edition backups", () => {
     const { blob } = packBackup({ database, media, now });
     const entries = await readTar(blob);
     const manifest = JSON.parse(await entries[0]!.data.text()) as Record<string, unknown>;
-    const newer = writeTar([{ name: "troupe-backup.json", data: new Blob([JSON.stringify({ ...manifest, version: 2 })]) }, ...entries.slice(1)]);
+    const newer = writeTar([
+      { name: "troupe-backup.json", data: new Blob([JSON.stringify({ ...manifest, version: 2 })]) },
+      ...entries.slice(1),
+    ]);
     await expect(unpackBackup(newer)).rejects.toThrow(/newer version of Troupe/);
     const missing = writeTar(entries.slice(0, 2));
     await expect(unpackBackup(missing)).rejects.toThrow(/incomplete/);
-    const damaged = writeTar([{ name: "troupe-backup.json", data: new Blob([JSON.stringify({ ...manifest, database: { tables: {} } })]) }]);
+    const damaged = writeTar([
+      { name: "troupe-backup.json", data: new Blob([JSON.stringify({ ...manifest, database: { tables: {} } })]) },
+    ]);
     await expect(unpackBackup(damaged)).rejects.toThrow(/damaged/);
   });
 
@@ -56,7 +67,15 @@ describe("browser edition backups", () => {
       version: 1,
       createdAt: now.toISOString(),
       database,
-      media: [{ id: "6f1c1a52-3a0e-4f0e-9a51-1b0d7c2f4e10", storagePath: "browser/a.mp4", type: "video/mp4", size: 10, ...file }],
+      media: [
+        {
+          id: "6f1c1a52-3a0e-4f0e-9a51-1b0d7c2f4e10",
+          storagePath: "browser/a.mp4",
+          type: "video/mp4",
+          size: 10,
+          ...file,
+        },
+      ],
       ...patch,
     });
     expect(checkManifest(manifest()).media[0]!.type).toBe("video/mp4");
@@ -65,8 +84,10 @@ describe("browser edition backups", () => {
     for (const type of ["text/html", "image/svg+xml", "application/javascript", "", "video/mp4; charset=x"]) {
       expect(() => checkManifest(manifest({}, { type })), type).toThrow(/damaged/);
     }
-    for (const id of ["../sw.js", "a/b", "", "x".repeat(200)]) expect(() => checkManifest(manifest({}, { id })), id).toThrow(/damaged/);
-    for (const version of [0, -1, 1.5, "1", null]) expect(() => checkManifest(manifest({ version })), String(version)).toThrow(/not a Troupe backup|damaged/);
+    for (const id of ["../sw.js", "a/b", "", "x".repeat(200)])
+      expect(() => checkManifest(manifest({}, { id })), id).toThrow(/damaged/);
+    for (const version of [0, -1, 1.5, "1", null])
+      expect(() => checkManifest(manifest({ version })), String(version)).toThrow(/not a Troupe backup|damaged/);
     expect(() => checkManifest(manifest({ version: 2 }))).toThrow(/newer version of Troupe/);
   });
 

@@ -14,7 +14,14 @@ export function ChatDrawer(props: Omit<ComponentProps<typeof ChatPanel>, "headin
   const [open, setOpen] = useState(false);
   return (
     <Drawer isOpen={open} onOpenChange={setOpen}>
-      <Drawer.Trigger className={buttonClass({ variant: "secondary", size: "sm", className: "data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-primary" })}>
+      <Drawer.Trigger
+        className={buttonClass({
+          variant: "secondary",
+          size: "sm",
+          className:
+            "data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-primary",
+        })}
+      >
         <ChatIcon className="size-4" />
         Chat
       </Drawer.Trigger>
@@ -27,7 +34,12 @@ export function ChatDrawer(props: Omit<ComponentProps<typeof ChatPanel>, "headin
               {...props}
               heading={(title) => <Drawer.Heading className="text-base font-semibold">{title}</Drawer.Heading>}
               closeButton={
-                <button type="button" slot="close" onClick={() => setOpen(false)} className={buttonClass({ variant: "quiet", className: "-mr-2" })}>
+                <button
+                  type="button"
+                  slot="close"
+                  onClick={() => setOpen(false)}
+                  className={buttonClass({ variant: "quiet", className: "-mr-2" })}
+                >
                   Close
                 </button>
               }

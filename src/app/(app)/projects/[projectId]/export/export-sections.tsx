@@ -43,7 +43,9 @@ export function RenderPicker({
           <label
             key={g.id}
             className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-[background-color,box-shadow] duration-150 ${
-              chosen === g.id ? "bg-primary/10 shadow-[inset_0_0_0_1.5px_var(--troupe-color-primary)]" : "shadow-[inset_0_0_0_1px_var(--troupe-color-line)] hover:bg-fg/[0.04]"
+              chosen === g.id
+                ? "bg-primary/10 shadow-[inset_0_0_0_1.5px_var(--troupe-color-primary)]"
+                : "shadow-[inset_0_0_0_1px_var(--troupe-color-line)] hover:bg-fg/[0.04]"
             }`}
           >
             <input
@@ -56,7 +58,14 @@ export function RenderPicker({
             {g.outputAssetUrl ? (
               <VideoStill
                 src={g.outputAssetUrl}
-                fallback={<span aria-hidden className="flex h-14 w-10 shrink-0 items-center justify-center rounded-md bg-fg/[0.06] text-muted"><FilmIcon className="size-4" /></span>}
+                fallback={
+                  <span
+                    aria-hidden
+                    className="flex h-14 w-10 shrink-0 items-center justify-center rounded-md bg-fg/[0.06] text-muted"
+                  >
+                    <FilmIcon className="size-4" />
+                  </span>
+                }
                 className="h-14 w-10 shrink-0 rounded-md shadow-[inset_0_0_0_1px_var(--picture-edge)]"
               />
             ) : null}
@@ -65,7 +74,10 @@ export function RenderPicker({
                 <span className="font-medium">{g.modelLabel ?? g.provider}</span>
                 <span className="font-mono text-xs tabular-nums text-muted">{` · ${shownLength(g)} · ${g.tier === "final" ? "final" : "draft"}`}</span>
               </span>
-              <span className="font-mono text-xs tabular-nums text-muted"><span className="sr-only">, made </span>{new Date(g.createdAt).toLocaleString()}</span>
+              <span className="font-mono text-xs tabular-nums text-muted">
+                <span className="sr-only">, made </span>
+                {new Date(g.createdAt).toLocaleString()}
+              </span>
             </span>
           </label>
         ))}
@@ -88,10 +100,7 @@ export function PlatformPreset({
       <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Platform</legend>
       <div className="flex flex-wrap gap-2">
         {PLATFORMS.map((p) => (
-          <label
-            key={p}
-            className={chipClass(platform === p)}
-          >
+          <label key={p} className={chipClass(platform === p)}>
             <input
               type="radio"
               name="platform"
@@ -106,7 +115,8 @@ export function PlatformPreset({
       {specsMismatch ? (
         <div className="mt-3">
           <ProviderWarning>
-            This render has a different format from the {platformName(platform)} preset. Downloading keeps the original format; crop it in your video editor if needed.
+            This render has a different format from the {platformName(platform)} preset. Downloading keeps the original
+            format; crop it in your video editor if needed.
           </ProviderWarning>
         </div>
       ) : null}
@@ -129,21 +139,12 @@ export function CaptionFields({
     <>
       <label className="block text-sm">
         <span className="mb-1.5 block font-medium">Caption</span>
-        <textarea
-          value={caption}
-          onChange={(e) => onCaption(e.target.value)}
-          rows={3}
-          className={fieldClass}
-        />
+        <textarea value={caption} onChange={(e) => onCaption(e.target.value)} rows={3} className={fieldClass} />
       </label>
 
       <label className="block text-sm">
         <span className="mb-1.5 block font-medium">Hashtags</span>
-        <input
-          value={hashtags}
-          onChange={(e) => onHashtags(e.target.value)}
-          className={`${fieldClass} font-mono`}
-        />
+        <input value={hashtags} onChange={(e) => onHashtags(e.target.value)} className={`${fieldClass} font-mono`} />
       </label>
     </>
   );

@@ -67,7 +67,9 @@ async function render(jobId: string, job: BrowserRenderJob): Promise<Blob> {
   });
   const portraits = await loadPortraits(actor.portraits, portraitShots(scene), import.meta.env.BASE_URL);
   try {
-    const video = await encodeScene(scene, assembleTrack(speeches, scene), portraits, (frame, frames) => report({ stage: "frames", frame, frames }));
+    const video = await encodeScene(scene, assembleTrack(speeches, scene), portraits, (frame, frames) =>
+      report({ stage: "frames", frame, frames }),
+    );
     report({ stage: "saving" });
     return video;
   } finally {
@@ -84,7 +86,11 @@ scope.onmessage = ({ data }) => {
     try {
       scope.postMessage({ type: "done", jobId: data.jobId, video: await render(data.jobId, data.job) });
     } catch (error) {
-      scope.postMessage({ type: "failed", jobId: data.jobId, message: error instanceof Error ? error.message : "The render failed." });
+      scope.postMessage({
+        type: "failed",
+        jobId: data.jobId,
+        message: error instanceof Error ? error.message : "The render failed.",
+      });
     }
   });
 };

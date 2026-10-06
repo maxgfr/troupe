@@ -1,14 +1,28 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { describeCost, ffprobeFile, freeCheck, liveHttp, paidTotal, planChecks, planTable, runCheck, runsNow, type Deps } from "./checks";
+import {
+  describeCost,
+  ffprobeFile,
+  freeCheck,
+  liveHttp,
+  paidTotal,
+  planChecks,
+  planTable,
+  runCheck,
+  runsNow,
+  type Deps,
+} from "./checks";
 
 // Run by pnpm verify:live, which sets TROUPE_LIVE_YES, TROUPE_LIVE_ONLY and
 // TROUPE_LIVE_OUTPUT from its flags. See docs/LIVE-CHECKS.md.
 
 const env = process.env;
 const confirmed = env.TROUPE_LIVE_YES === "1";
-const only = (env.TROUPE_LIVE_ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const only = (env.TROUPE_LIVE_ONLY ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const checks = planChecks(env).filter((c) => only.length === 0 || only.includes(c.id));
 const deps: Deps = {
   env,
@@ -21,10 +35,13 @@ const deps: Deps = {
 };
 
 const total = paidTotal(checks);
-const spend = total.highUsd === 0 && total.unknown.length === 0
-  ? "none configured"
-  : `${total.lowUsd === total.highUsd ? `about $${total.lowUsd.toFixed(2)}` : `about $${total.lowUsd.toFixed(2)}–${total.highUsd.toFixed(2)}`} in all${total.unknown.length ? `, plus ${total.unknown.join(", ")} at an unknown price` : ""}`;
-console.log(`\nLive checks (${confirmed ? "paid jobs confirmed with --yes" : "free checks and free jobs; paid jobs need --yes"}):\n${planTable(checks)}\nPaid jobs: ${spend}.\n`);
+const spend =
+  total.highUsd === 0 && total.unknown.length === 0
+    ? "none configured"
+    : `${total.lowUsd === total.highUsd ? `about $${total.lowUsd.toFixed(2)}` : `about $${total.lowUsd.toFixed(2)}–${total.highUsd.toFixed(2)}`} in all${total.unknown.length ? `, plus ${total.unknown.join(", ")} at an unknown price` : ""}`;
+console.log(
+  `\nLive checks (${confirmed ? "paid jobs confirmed with --yes" : "free checks and free jobs; paid jobs need --yes"}):\n${planTable(checks)}\nPaid jobs: ${spend}.\n`,
+);
 
 describe.each(checks.map((c) => [c.name, c] as const))("%s", (_name, check) => {
   it.skipIf(Boolean(check.skip))("free check: the key or address works", async () => {

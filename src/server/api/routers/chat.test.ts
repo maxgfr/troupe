@@ -57,7 +57,8 @@ beforeEach(async () => {
 });
 
 const chat = () => createServerChat(db, { env: { OLLAMA_URL: ollama.url, OLLAMA_MODEL: "qwen3:4b" } });
-const asMember = (adapters = [fakeAdapter({ modelKey: "fake" })]) => testCaller({ db, userId: MEMBER, adapters, chat: chat() });
+const asMember = (adapters = [fakeAdapter({ modelKey: "fake" })]) =>
+  testCaller({ db, userId: MEMBER, adapters, chat: chat() });
 
 describe("chat router with Ollama", () => {
   it("sends the conversation to Ollama with the schema as its format, and stores the proposal", async () => {
@@ -67,7 +68,12 @@ describe("chat router with Ollama", () => {
 
     const sent = JSON.parse(ollama.requests.at(-1)!.body) as Record<string, unknown>;
     expect(ollama.requests.at(-1)!.path).toBe("/api/chat");
-    expect(sent).toMatchObject({ model: "qwen3:4b", stream: false, think: false, format: { type: "object", required: ["summary", "lines", "actor"] } });
+    expect(sent).toMatchObject({
+      model: "qwen3:4b",
+      stream: false,
+      think: false,
+      format: { type: "object", required: ["summary", "lines", "actor"] },
+    });
     expect((sent.messages as { role: string }[]).map((m) => m.role)).toEqual(["system", "user"]);
 
     const history = await asMember().chat.history({ projectId: fx.projectId });
@@ -92,9 +98,16 @@ describe("chat router with Ollama", () => {
     const real = chat();
     const limited: ChatBackend = { ...real, load: async () => ({ ...(await real.load()), sendTimeoutMs: 300 }) };
     const before = { hung, closed };
-    await expect(testCaller({ db, userId: MEMBER, chat: limited }).chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS: 8 })).rejects.toMatchObject({
+    await expect(
+      testCaller({ db, userId: MEMBER, chat: limited }).chat.send({
+        projectId: fx.projectId,
+        message: "Sharper hook",
+        durationS: 8,
+      }),
+    ).rejects.toMatchObject({
       code: "TIMEOUT",
-      message: "qwen3:4b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
+      message:
+        "qwen3:4b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
     });
     // The request reached the fake Ollama, which saw it closed: nothing keeps running.
     await vi.waitFor(() => expect(closed - before.closed).toBe(hung - before.hung));
@@ -127,9 +140,16 @@ describe("chat router with Ollama", () => {
       },
     };
     const started = Date.now();
-    await expect(testCaller({ db, userId: MEMBER, chat: hanging }).chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS: 8 })).rejects.toMatchObject({
+    await expect(
+      testCaller({ db, userId: MEMBER, chat: hanging }).chat.send({
+        projectId: fx.projectId,
+        message: "Sharper hook",
+        durationS: 8,
+      }),
+    ).rejects.toMatchObject({
       code: "TIMEOUT",
-      message: "qwen2.5:0.5b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
+      message:
+        "qwen2.5:0.5b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
     });
     expect(Date.now() - started).toBeLessThan(10_000);
     expect(stopped).toBe(1);
@@ -139,7 +159,9 @@ describe("chat router with Ollama", () => {
 
   it("says how to pull a missing model", async () => {
     reply = { status: 404, body: { error: "model 'qwen3:4b' not found" } };
-    await expect(asMember().chat.send({ projectId: fx.projectId, message: "Again", durationS: 8 })).rejects.toMatchObject({
+    await expect(
+      asMember().chat.send({ projectId: fx.projectId, message: "Again", durationS: 8 }),
+    ).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
       message: expect.stringContaining("ollama pull qwen3:4b"),
     });
@@ -147,7 +169,13 @@ describe("chat router with Ollama", () => {
 
   it("says Ollama is not running when nothing answers", async () => {
     const offline = createServerChat(db, { env: { OLLAMA_URL: "http://127.0.0.1:9" } });
-    await expect(testCaller({ db, userId: MEMBER, chat: offline }).chat.send({ projectId: fx.projectId, message: "Hi", durationS: 8 })).rejects.toMatchObject({
+    await expect(
+      testCaller({ db, userId: MEMBER, chat: offline }).chat.send({
+        projectId: fx.projectId,
+        message: "Hi",
+        durationS: 8,
+      }),
+    ).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
       message: expect.stringContaining("ollama serve"),
     });
@@ -159,21 +187,42 @@ describe("chat router with Ollama", () => {
     const adapter = fakeAdapter({ modelKey: "fake" });
     const caller = asMember([adapter]);
     const { assistant } = await caller.chat.send({ projectId: fx.projectId, message: "Relaunch it", durationS: 8 });
-    const launched = await caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", tier: "final", durationS: 8, resolution: "720p" } as never });
+    const launched = await caller.chat.applyAndLaunch({
+      projectId: fx.projectId,
+      messageId: assistant.id,
+      launch: { modelKey: "fake", tier: "final", durationS: 8, resolution: "720p" } as never,
+    });
 
     expect(launched.script.origin).toBe("chat");
     // A relaunch is a draft whatever the client sends.
-    expect(launched.generation).toMatchObject({ scriptId: launched.script.id, modelKey: "fake", durationS: 8, status: "in_progress", tier: "draft" });
-    expect(adapter.calls.at(-1)!.script?.lines).toEqual(PROPOSAL.lines.map(({ role, text, emotion }) => ({ role, text, emotion })));
+    expect(launched.generation).toMatchObject({
+      scriptId: launched.script.id,
+      modelKey: "fake",
+      durationS: 8,
+      status: "in_progress",
+      tier: "draft",
+    });
+    expect(adapter.calls.at(-1)!.script?.lines).toEqual(
+      PROPOSAL.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
+    );
   });
 
   it("refuses to relaunch a proposal too long for the clip, before applying it", async () => {
-    const long = { ...PROPOSAL, lines: [{ role: "hook", text: Array.from({ length: 30 }, (_, i) => `word${i}`).join(" "), emotion: "neutral" }] };
+    const long = {
+      ...PROPOSAL,
+      lines: [{ role: "hook", text: Array.from({ length: 30 }, (_, i) => `word${i}`).join(" "), emotion: "neutral" }],
+    };
     reply = { status: 200, body: { message: { role: "assistant", content: JSON.stringify(long) } } };
     const caller = asMember();
     const { assistant } = await caller.chat.send({ projectId: fx.projectId, message: "Long", durationS: 20 });
     const before = (await caller.script.history({ projectId: fx.projectId })).length;
-    await expect(caller.chat.applyAndLaunch({ projectId: fx.projectId, messageId: assistant.id, launch: { modelKey: "fake", durationS: 6, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("12s") });
+    await expect(
+      caller.chat.applyAndLaunch({
+        projectId: fx.projectId,
+        messageId: assistant.id,
+        launch: { modelKey: "fake", durationS: 6, resolution: "720p" },
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("12s") });
     expect(await caller.script.history({ projectId: fx.projectId })).toHaveLength(before);
   });
 
@@ -184,11 +233,15 @@ describe("chat router with Ollama", () => {
     const [message] = (await asMember().chat.history({ projectId: fx.projectId })).messages.filter((m) => m.proposal);
     const theirs = await seedFixture(db, { userId: "73333333-3333-4333-8333-333333333333", name: "Third" });
     const third = testCaller({ db, userId: "73333333-3333-4333-8333-333333333333", chat: chat() });
-    await expect(third.chat.applyProposal({ projectId: theirs.projectId, messageId: message!.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      third.chat.applyProposal({ projectId: theirs.projectId, messageId: message!.id }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("fails clearly where no chat is wired", async () => {
-    await expect(testCaller({ db, userId: MEMBER }).chat.send({ projectId: fx.projectId, message: "Hi", durationS: 8 })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(
+      testCaller({ db, userId: MEMBER }).chat.send({ projectId: fx.projectId, message: "Hi", durationS: 8 }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect((await testCaller({ db, userId: MEMBER }).chat.history({ projectId: fx.projectId })).provider).toBeNull();
   });
 });
@@ -197,14 +250,29 @@ describe("failures", () => {
   // A backend whose model fails in a way no user should read about.
   const broken = () => {
     const real = chat();
-    return { ...real, load: async () => ({ ...(await real.load()), model: { propose: async () => { throw new Error("password=hunter2 at 10.0.0.5"); } } }) };
+    return {
+      ...real,
+      load: async () => ({
+        ...(await real.load()),
+        model: {
+          propose: async () => {
+            throw new Error("password=hunter2 at 10.0.0.5");
+          },
+        },
+      }),
+    };
   };
 
   it("logs an unexpected failure and tells the user only that the model could not answer", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const error = await testCaller({ db, userId: MEMBER, chat: broken() }).chat.send({ projectId: fx.projectId, message: "Hi", durationS: 8 }).catch((e: unknown) => e);
-      expect(error).toMatchObject({ code: "INTERNAL_SERVER_ERROR", message: "Ollama could not answer. Try again; the server's log has the details." });
+      const error = await testCaller({ db, userId: MEMBER, chat: broken() })
+        .chat.send({ projectId: fx.projectId, message: "Hi", durationS: 8 })
+        .catch((e: unknown) => e);
+      expect(error).toMatchObject({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Ollama could not answer. Try again; the server's log has the details.",
+      });
       expect(JSON.stringify(error)).not.toContain("hunter2");
       expect(logged.mock.calls.flat().join(" ")).toContain("hunter2");
     } finally {
@@ -213,9 +281,20 @@ describe("failures", () => {
   });
 
   it("treats a stored proposal it cannot read as nothing to apply, for Apply & relaunch too", async () => {
-    const [row] = await db.insert(chatMessages).values({ projectId: fx.projectId, role: "assistant", content: "Old", proposal: { bogus: true } as never }).returning();
-    await expect(asMember().chat.applyAndLaunch({ projectId: fx.projectId, messageId: row!.id, launch: { modelKey: "fake", durationS: 8, resolution: "720p" } })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(asMember().chat.applyProposal({ projectId: fx.projectId, messageId: row!.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const [row] = await db
+      .insert(chatMessages)
+      .values({ projectId: fx.projectId, role: "assistant", content: "Old", proposal: { bogus: true } as never })
+      .returning();
+    await expect(
+      asMember().chat.applyAndLaunch({
+        projectId: fx.projectId,
+        messageId: row!.id,
+        launch: { modelKey: "fake", durationS: 8, resolution: "720p" },
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(asMember().chat.applyProposal({ projectId: fx.projectId, messageId: row!.id })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 });
 
@@ -223,14 +302,24 @@ describe("chat settings", () => {
   it("shows the environment's defaults, then a saved choice, and refuses a refused address", async () => {
     const caller = asMember();
     const initial = await caller.settings.chat.get();
-    expect(initial).toMatchObject({ offers: ["ollama", "anthropic"], saved: {}, active: { provider: "ollama", modelId: "qwen3:4b" }, defaults: { ollamaUrl: ollama.url, wordsPerSecond: 2.5 } });
+    expect(initial).toMatchObject({
+      offers: ["ollama", "anthropic"],
+      saved: {},
+      active: { provider: "ollama", modelId: "qwen3:4b" },
+      defaults: { ollamaUrl: ollama.url, wordsPerSecond: 2.5 },
+    });
 
     const saved = await caller.settings.chat.save({ ollamaModel: "llama3.2:3b", instructions: "Friendly." });
     expect(saved.active).toMatchObject({ provider: "ollama", modelId: "llama3.2:3b" });
-    await expect(caller.settings.chat.save({ ollamaUrl: "http://169.254.169.254" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.settings.chat.save({ ollamaUrl: "http://169.254.169.254" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
 
     // The Test button checks that the model is pulled.
-    expect(await caller.settings.chat.test({ provider: "ollama" })).toMatchObject({ ok: false, message: expect.stringContaining("ollama pull llama3.2:3b") });
+    expect(await caller.settings.chat.test({ provider: "ollama" })).toMatchObject({
+      ok: false,
+      message: expect.stringContaining("ollama pull llama3.2:3b"),
+    });
     await caller.settings.chat.save({ ollamaModel: null });
     expect(await caller.settings.chat.test({ provider: "ollama" })).toMatchObject({ ok: true });
   });

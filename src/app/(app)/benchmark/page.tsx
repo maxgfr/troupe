@@ -22,7 +22,6 @@ import {
   SkeletonRows,
 } from "~/app/_components/ui";
 
-
 // useSearchParams needs a Suspense boundary in the app router.
 export default function BenchmarkPage() {
   return (
@@ -80,7 +79,12 @@ function BenchmarkLab() {
 
   const run = api.benchmark.get.useQuery(
     { workspaceId: workspace.workspaceId ?? "", runId: activeRunId ?? "" },
-    { enabled: workspace.status === "ready" && Boolean(activeRunId), retry: false, refetchInterval: (q) => q.state.data?.entries.some((e) => e.status === "queued" || e.status === "in_progress") ? 4000 : false },
+    {
+      enabled: workspace.status === "ready" && Boolean(activeRunId),
+      retry: false,
+      refetchInterval: (q) =>
+        q.state.data?.entries.some((e) => e.status === "queued" || e.status === "in_progress") ? 4000 : false,
+    },
   );
   const vote = api.benchmark.vote.useMutation({ onSuccess: () => run.refetch() });
 
@@ -110,17 +114,20 @@ function BenchmarkLab() {
   // deciding vote lands; insertion order must never crown a winner.
   const { winnerId, tie } = tallyWinner(entries.filter((entry) => entry.status === "completed"));
   const winner = winnerId ? (entries.find((e) => e.id === winnerId) ?? null) : null;
-  const winnerOption = winner ? ((projectOffers.data?.models ?? []) as ModelOptionView[]).find((o) => o.key === winner.modelKey) : undefined;
+  const winnerOption = winner
+    ? ((projectOffers.data?.models ?? []) as ModelOptionView[]).find((o) => o.key === winner.modelKey)
+    : undefined;
   const winnerName = winner?.label ?? winner?.modelKey;
-  const adoptWarning = !winner || !project.data
-    ? null
-    : !winnerOption?.available
-      ? `${winnerName} is no longer available. Check it in Settings.`
-      : !winnerOption.compatible
-        ? `${winnerName} does not render ${project.data.format} — choose another model or change the project format.`
-        : latestScript && launchSettings(winnerOption, latestScript.estimatedDurationS).tooLong
-          ? `${winnerName} cannot fit the current ${latestScript.estimatedDurationS}s script.`
-          : null;
+  const adoptWarning =
+    !winner || !project.data
+      ? null
+      : !winnerOption?.available
+        ? `${winnerName} is no longer available. Check it in Settings.`
+        : !winnerOption.compatible
+          ? `${winnerName} does not render ${project.data.format} — choose another model or change the project format.`
+          : latestScript && launchSettings(winnerOption, latestScript.estimatedDurationS).tooLong
+            ? `${winnerName} cannot fit the current ${latestScript.estimatedDurationS}s script.`
+            : null;
 
   return (
     <>
@@ -173,22 +180,29 @@ function BenchmarkLab() {
               <>
                 {tie ? (
                   <ProviderWarning>
-                    Tie — add a deciding vote before adopting: two renders share the top score,
-                    and insertion order must not pick your model.
+                    Tie — add a deciding vote before adopting: two renders share the top score, and insertion order must
+                    not pick your model.
                   </ProviderWarning>
                 ) : null}
-                {vote.error || adopt.error || project.error || scripts.error || projectOffers.error ? <ErrorNote>{(vote.error ?? adopt.error ?? project.error ?? scripts.error ?? projectOffers.error)!.message}</ErrorNote> : null}
+                {vote.error || adopt.error || project.error || scripts.error || projectOffers.error ? (
+                  <ErrorNote>
+                    {(vote.error ?? adopt.error ?? project.error ?? scripts.error ?? projectOffers.error)!.message}
+                  </ErrorNote>
+                ) : null}
                 <BenchmarkCompare
                   entries={entries}
-                  onVote={vote.isPending ? undefined : (entryId, score) =>
-                    workspace.workspaceId &&
-                    activeRunId &&
-                    vote.mutate({
-                      workspaceId: workspace.workspaceId,
-                      runId: activeRunId,
-                      entryId,
-                      score,
-                    })
+                  onVote={
+                    vote.isPending
+                      ? undefined
+                      : (entryId, score) =>
+                          workspace.workspaceId &&
+                          activeRunId &&
+                          vote.mutate({
+                            workspaceId: workspace.workspaceId,
+                            runId: activeRunId,
+                            entryId,
+                            score,
+                          })
                   }
                   winnerEntryId={winner?.id ?? null}
                   brief={run.data?.brief ?? null}
@@ -197,9 +211,14 @@ function BenchmarkLab() {
                     // The adopt decision waits for the capability data: offering
                     // it while modelOptions (or the script duration it checks
                     // with) loads would skip the warning.
-                    projectId && project.data && !projectOffers.isPending && !scripts.isPending && !projectOffers.error && !scripts.error && !adopt.isPending
-                      ? (modelKey) =>
-                          adopt.mutate({ projectId, modelKey })
+                    projectId &&
+                    project.data &&
+                    !projectOffers.isPending &&
+                    !scripts.isPending &&
+                    !projectOffers.error &&
+                    !scripts.error &&
+                    !adopt.isPending
+                      ? (modelKey) => adopt.mutate({ projectId, modelKey })
                       : undefined
                   }
                   adoptWarning={adoptWarning}

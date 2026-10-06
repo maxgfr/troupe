@@ -52,13 +52,21 @@ export function BenchmarkCompare({
           {entry.outputAssetUrl ? (
             // Capped like the project page's player: a 9:16 render must not
             // fill a column 900 px tall.
-            <video controls playsInline src={entry.outputAssetUrl} className="mx-auto mt-3 max-h-[420px] rounded-xl bg-black">
+            <video
+              controls
+              playsInline
+              src={entry.outputAssetUrl}
+              className="mx-auto mt-3 max-h-[420px] rounded-xl bg-black"
+            >
               {briefLines?.length || brief ? (
                 <track
                   kind="captions"
                   label="Script"
                   default={!entry.burnedCaptions}
-                  src={vttFromLines(briefLines?.length ? briefLines : [brief!], entry.mediaDurationS ?? entry.durationS ?? 20)}
+                  src={vttFromLines(
+                    briefLines?.length ? briefLines : [brief!],
+                    entry.mediaDurationS ?? entry.durationS ?? 20,
+                  )}
                 />
               ) : null}
             </video>
@@ -89,17 +97,36 @@ export function BenchmarkCompare({
           </dl>
           {onVote ? (
             <div className="mt-3 space-y-2">
-              <label className="block text-xs text-muted" htmlFor={`score-${entry.id}`}>Quality score</label>
-              <select data-field disabled={entry.status !== "completed"} id={`score-${entry.id}`} className={fieldClass} value={Object.values(entry.votes ?? {})[0] ?? ""} onChange={(event) => onVote(entry.id, Number(event.target.value))}>
-                <option value="" disabled>Rate this render</option>
-                {[1, 2, 3, 4, 5].map((score) => <option key={score} value={score}>{score} / 5</option>)}
+              <label className="block text-xs text-muted" htmlFor={`score-${entry.id}`}>
+                Quality score
+              </label>
+              <select
+                data-field
+                disabled={entry.status !== "completed"}
+                id={`score-${entry.id}`}
+                className={fieldClass}
+                value={Object.values(entry.votes ?? {})[0] ?? ""}
+                onChange={(event) => onVote(entry.id, Number(event.target.value))}
+              >
+                <option value="" disabled>
+                  Rate this render
+                </option>
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <option key={score} value={score}>
+                    {score} / 5
+                  </option>
+                ))}
               </select>
             </div>
           ) : null}
           {onAdopt && winnerEntryId === entry.id && entry.status === "completed" ? (
             <>
               {adoptWarning ? <ProviderWarning>{adoptWarning}</ProviderWarning> : null}
-              <SpotButton disabled={Boolean(adoptWarning)} className="mt-3 w-full" onClick={() => onAdopt(entry.modelKey)}>
+              <SpotButton
+                disabled={Boolean(adoptWarning)}
+                className="mt-3 w-full"
+                onClick={() => onAdopt(entry.modelKey)}
+              >
                 Adopt for project
               </SpotButton>
             </>
@@ -109,4 +136,3 @@ export function BenchmarkCompare({
     </div>
   );
 }
-

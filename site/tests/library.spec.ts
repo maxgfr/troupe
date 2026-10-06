@@ -56,13 +56,23 @@ test("upload a video → pictures, transcript and hook in the page → search by
   await row.getByRole("link", { name: /library clip/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: /library clip/i })).toBeVisible();
   // Whisper heard the actor; the hook is the opening phrase.
-  await expect(page.getByRole("region", { name: "Transcript" }).or(page.locator("section", { hasText: "Transcript" })).first()).toContainText(/cold brew/i);
+  await expect(
+    page
+      .getByRole("region", { name: "Transcript" })
+      .or(page.locator("section", { hasText: "Transcript" }))
+      .first(),
+  ).toContainText(/cold brew/i);
   await expect(page.locator("blockquote")).toContainText(/stop buying cold brew/i);
   // Pictures were taken from the video and placed on the timeline.
   const pictures = page.getByRole("list", { name: "Pictures" }).getByRole("button");
   expect(await pictures.count()).toBeGreaterThan(0);
   await expect(pictures.first().locator("img")).toHaveJSProperty("complete", true);
-  expect(await pictures.first().locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  expect(
+    await pictures
+      .first()
+      .locator("img")
+      .evaluate((img: HTMLImageElement) => img.naturalWidth),
+  ).toBeGreaterThan(0);
   // The video plays from the browser's own storage.
   const duration = await page.locator("video").evaluate(async (v: HTMLVideoElement) => {
     if (v.readyState < 1) await new Promise((r) => v.addEventListener("loadedmetadata", r, { once: true }));
@@ -71,7 +81,8 @@ test("upload a video → pictures, transcript and hook in the page → search by
   expect(duration).toBeGreaterThan(10);
   // Without WebGPU (this headless browser) the ideas say why they cannot be written.
   const ideas = page.getByRole("button", { name: "5 ideas in this style" });
-  if (await ideas.isDisabled()) await expect(page.getByText(/Ideas are written by the chat model, which cannot run/)).toBeVisible();
+  if (await ideas.isDisabled())
+    await expect(page.getByText(/Ideas are written by the chat model, which cannot run/)).toBeVisible();
 
   await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Library" }).click();
   await page.getByLabel("Search your library").fill("how to make coffee in the fridge");
@@ -79,7 +90,10 @@ test("upload a video → pictures, transcript and hook in the page → search by
   await expect(page.getByRole("link", { name: /library clip/i }).first()).toBeVisible();
 
   await page.getByLabel("Search your library").fill("");
-  await page.locator("table").getByRole("link", { name: /library clip/i }).click();
+  await page
+    .locator("table")
+    .getByRole("link", { name: /library clip/i })
+    .click();
   await page.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete it and its files" }).click();
   await expect(page).toHaveURL(/\/library$/);

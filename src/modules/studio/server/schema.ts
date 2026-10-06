@@ -21,7 +21,10 @@ export const projects = createTable(
     actorId: d.uuid(),
     // The model this project launches on by default (null: studio default).
     modelKey: d.text(),
-    status: d.text({ enum: ["draft", "scripting", "generating", "review", "done"] }).notNull().default("draft"),
+    status: d
+      .text({ enum: ["draft", "scripting", "generating", "review", "done"] })
+      .notNull()
+      .default("draft"),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
   (t) => [

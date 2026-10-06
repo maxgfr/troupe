@@ -32,8 +32,7 @@ const MATRIX: Record<string, PlatformDisclosure> = {
   linkedin: {
     requirement: "caption",
     headline: "LinkedIn — disclosure travels in the caption",
-    detail:
-      "LinkedIn has no dedicated AI toggle: the disclosure line ships inside the caption of this export.",
+    detail: "LinkedIn has no dedicated AI toggle: the disclosure line ships inside the caption of this export.",
   },
 };
 

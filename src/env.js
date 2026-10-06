@@ -11,16 +11,20 @@ export const env = createEnv({
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
     SUPABASE_STORAGE_BUCKET: z.string().default("troupe-media"),
-    NODE_ENV: z
-      .enum(["development", "test", "production"])
-      .default("development"),
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     // Optional provider keys; a key saved in Settings takes precedence.
     GOOGLE_GENAI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_API_KEY: z.string().optional(),
     FAL_KEY: z.string().optional(),
     // Newer upstream ids for built-in models: key=id, separated by commas.
-    TROUPE_MODEL_IDS: z.string().regex(/^\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*(,\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*)*$/, "TROUPE_MODEL_IDS: key=id pairs separated by commas, e.g. veo-3.1-fast=veo-3.1-fast-generate-001").optional(),
+    TROUPE_MODEL_IDS: z
+      .string()
+      .regex(
+        /^\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*(,\s*[a-z0-9.-]+\s*=\s*[a-z0-9][a-z0-9._-]*(\/[a-zA-Z0-9._-]+)*\s*)*$/,
+        "TROUPE_MODEL_IDS: key=id pairs separated by commas, e.g. veo-3.1-fast=veo-3.1-fast-generate-001",
+      )
+      .optional(),
     // The script chat (src/server/chat): Ollama by default, Claude when an
     // Anthropic key is set. Values saved in Settings take precedence.
     ANTHROPIC_API_KEY: z.string().optional(),
@@ -76,9 +80,21 @@ export const env = createEnv({
     TROUPE_LIBRARY_WRITE_TIMEOUT_S: z.coerce.number().int().min(30).max(3600).optional(),
     TROUPE_LIBRARY_IDEAS: z.coerce.number().int().min(1).max(10).optional(),
     TROUPE_YTDLP_PATH: z.string().optional(),
-    TROUPE_YTDLP_PROXY: z.string().regex(/^(https?|socks5h?|socks4a?):\/\/\S+$/, "TROUPE_YTDLP_PROXY: a proxy URL such as http://proxy:3128 or socks5://proxy:1080").optional(),
+    TROUPE_YTDLP_PROXY: z
+      .string()
+      .regex(
+        /^(https?|socks5h?|socks4a?):\/\/\S+$/,
+        "TROUPE_YTDLP_PROXY: a proxy URL such as http://proxy:3128 or socks5://proxy:1080",
+      )
+      .optional(),
     FFMPEG_PATH: z.string().optional(),
-    TROUPE_RENDERER_DURATIONS: z.string().regex(/^\s*\d+\s*(,\s*\d+\s*)*$/, "TROUPE_RENDERER_DURATIONS: whole seconds separated by commas, e.g. 4,6,8,10,15").optional(),
+    TROUPE_RENDERER_DURATIONS: z
+      .string()
+      .regex(
+        /^\s*\d+\s*(,\s*\d+\s*)*$/,
+        "TROUPE_RENDERER_DURATIONS: whole seconds separated by commas, e.g. 4,6,8,10,15",
+      )
+      .optional(),
   },
 
   /**

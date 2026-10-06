@@ -33,7 +33,8 @@ export async function watchForBrokenStudio(page: Page): Promise<string[]> {
   const observe = () => {
     new MutationObserver(() => {
       const text = document.querySelector("main")?.textContent ?? "";
-      if (/could not (load|be initialized)/.test(text)) (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
+      if (/could not (load|be initialized)/.test(text))
+        (window as unknown as { reportGlimpse: (t: string) => void }).reportGlimpse(text.slice(0, 120));
     }).observe(document, { childList: true, subtree: true, characterData: true });
   };
   await page.addInitScript(observe);

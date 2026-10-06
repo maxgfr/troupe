@@ -8,7 +8,9 @@ const manager = (): StorageManager | undefined => (typeof navigator === "undefin
 
 export const storage: LocalData["storage"] = {
   async estimate() {
-    const estimate = await manager()?.estimate?.().catch(() => undefined);
+    const estimate = await manager()
+      ?.estimate?.()
+      .catch(() => undefined);
     if (!estimate || estimate.usage === undefined || estimate.quota === undefined) return null;
     return { usageBytes: estimate.usage, quotaBytes: estimate.quota };
   },

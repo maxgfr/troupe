@@ -1,4 +1,12 @@
-import { BUILTIN_MODELS, createLocalModel, getDefaultModelKey, getModelConfig, listModelConfigs, LOCAL_TIMEOUT_S, setDefaultModelKey } from "~/modules/models";
+import {
+  BUILTIN_MODELS,
+  createLocalModel,
+  getDefaultModelKey,
+  getModelConfig,
+  listModelConfigs,
+  LOCAL_TIMEOUT_S,
+  setDefaultModelKey,
+} from "~/modules/models";
 import type { ModelCapabilities } from "~/modules/generation";
 import type { Db } from "~/server/db/types";
 import { buildHttpAdapter, HttpConnection, sealModelToken } from "~/server/local-models";
@@ -31,7 +39,9 @@ function parseDurations(raw: string | undefined): number[] {
   const values = raw.split(",").map((part) => part.trim());
   const numbers = values.map(Number);
   if (values.some((v) => !/^\d+$/.test(v)) || numbers.some((n) => n < 1 || n > 60)) {
-    throw new Error(`TROUPE_RENDERER_DURATIONS must be whole seconds from 1 to 60, separated by commas (got "${raw}").`);
+    throw new Error(
+      `TROUPE_RENDERER_DURATIONS must be whole seconds from 1 to 60, separated by commas (got "${raw}").`,
+    );
   }
   return [...new Set(numbers)].sort((a, b) => a - b);
 }
@@ -92,7 +102,13 @@ export async function registerStackRenderer(db: Db, settings: AutoconfigureSetti
   // how often to check on a render (poll_every_s).
   const capabilities = rendererCapabilities(renderer.durationsS);
   const connection = { baseUrl: url.base, fps: 24 };
-  const adapter = buildHttpAdapter({ modelKey: STACK_RENDERER_KEY, label: renderer.label, capabilities, connection, token: renderer.token });
+  const adapter = buildHttpAdapter({
+    modelKey: STACK_RENDERER_KEY,
+    label: renderer.label,
+    capabilities,
+    connection,
+    token: renderer.token,
+  });
   if (!("createJob" in adapter)) throw new Error(`TROUPE_RENDERER_URL: ${adapter.detail}`);
   const report = await adapter.testConnection!().catch(() => ({ ok: false, pollEveryS: undefined }));
   if (report.ok !== true) return "unreachable";
@@ -133,8 +149,16 @@ export interface AutoconfigureOptions {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Called at boot without awaiting: retries while the renderer is starting.
-export async function startAutoconfigure(db: Db, env: Env = process.env, options: AutoconfigureOptions = {}): Promise<RendererOutcome | "off" | "failed"> {
-  const { retryEveryMs = 5_000, giveUpAfterMs = 10 * 60_000, log = (event) => console.info(JSON.stringify(event)) } = options;
+export async function startAutoconfigure(
+  db: Db,
+  env: Env = process.env,
+  options: AutoconfigureOptions = {},
+): Promise<RendererOutcome | "off" | "failed"> {
+  const {
+    retryEveryMs = 5_000,
+    giveUpAfterMs = 10 * 60_000,
+    log = (event) => console.info(JSON.stringify(event)),
+  } = options;
   let settings: AutoconfigureSettings | null;
   try {
     settings = autoconfigureSettings(env);
@@ -159,15 +183,27 @@ export async function startAutoconfigure(db: Db, env: Env = process.env, options
       }
     }
     if (outcome && outcome !== "unreachable") {
-      log({ event: "autoconfigure.renderer", outcome, url: settings.renderer.url, ...(outcome === "created" ? { modelKey: STACK_RENDERER_KEY } : {}) });
+      log({
+        event: "autoconfigure.renderer",
+        outcome,
+        url: settings.renderer.url,
+        ...(outcome === "created" ? { modelKey: STACK_RENDERER_KEY } : {}),
+      });
       return outcome;
     }
     if (Date.now() + retryEveryMs > deadline) {
-      log({ event: "autoconfigure.renderer", outcome: "gave-up", url: settings.renderer.url, ...(lastError ? { error: lastError } : {}), hint: "Add it in Settings → Local models once it runs." });
+      log({
+        event: "autoconfigure.renderer",
+        outcome: "gave-up",
+        url: settings.renderer.url,
+        ...(lastError ? { error: lastError } : {}),
+        hint: "Add it in Settings → Local models once it runs.",
+      });
       return outcome ?? "failed";
     }
     // Said once, not every few seconds while the renderer starts.
-    if (outcome && !waiting) log({ event: "autoconfigure.renderer", outcome, url: settings.renderer.url, retryEveryS: retryEveryMs / 1000 });
+    if (outcome && !waiting)
+      log({ event: "autoconfigure.renderer", outcome, url: settings.renderer.url, retryEveryS: retryEveryMs / 1000 });
     waiting ||= Boolean(outcome);
     await sleep(retryEveryMs);
   }

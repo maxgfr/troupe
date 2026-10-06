@@ -57,7 +57,8 @@ export interface TranscribeMode {
   tmpDir?: string;
 }
 
-export const WHISPER_OFF = "Transcription is off on this renderer. Start it with WHISPER_ENABLED=1 after pnpm renderer:whisper:setup (docs/LIBRARY.md); the Docker image has it on.";
+export const WHISPER_OFF =
+  "Transcription is off on this renderer. Start it with WHISPER_ENABLED=1 after pnpm renderer:whisper:setup (docs/LIBRARY.md); the Docker image has it on.";
 
 interface Job {
   status: "queued" | "running" | "succeeded" | "failed";
@@ -71,7 +72,8 @@ const MAX_BODY_BYTES = 1024 * 1024;
 export const KEEP_RENDERS_S = 24 * 3600;
 const VIDEO_FILE = /^([0-9a-f-]+)\.mp4$/;
 export const LTX_PREFIX = "/ltx";
-export const LTX_OFF = "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md).";
+export const LTX_OFF =
+  "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md).";
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });
@@ -84,7 +86,15 @@ export function createRendererServer(options: RendererOptions): Server {
   const jobs = new Map<string, Job>();
   let queue = Promise.resolve();
   const fast: RenderMode = {
-    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, sceneHue: options.sceneHue, onProgress, portraitsDir: options.portraitsDir, log }),
+    render: (request, outFile, onProgress) =>
+      renderVideo(request, outFile, {
+        speak: options.speak,
+        voices: options.voices,
+        sceneHue: options.sceneHue,
+        onProgress,
+        portraitsDir: options.portraitsDir,
+        log,
+      }),
     // A render takes seconds: ask Troupe to check every second.
     pollEveryS: 1,
   };
@@ -95,11 +105,21 @@ export function createRendererServer(options: RendererOptions): Server {
       job.status = "running";
       const started = Date.now();
       try {
-        const durationS = await mode.render(request, join(options.outDir, `${id}.mp4`), (p) => (job.progress = Math.min(0.99, p)));
+        const durationS = await mode.render(
+          request,
+          join(options.outDir, `${id}.mp4`),
+          (p) => (job.progress = Math.min(0.99, p)),
+        );
         Object.assign(job, { status: "succeeded", progress: 1, finishedAt: Date.now() });
-        log(`Rendered ${id} (${name}): ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+        log(
+          `Rendered ${id} (${name}): ${request.lines.length} lines, ${durationS.toFixed(2)} s of video, in ${((Date.now() - started) / 1000).toFixed(1)} s`,
+        );
       } catch (error) {
-        Object.assign(job, { status: "failed", error: (error as Error).message || "The render failed.", finishedAt: Date.now() });
+        Object.assign(job, {
+          status: "failed",
+          error: (error as Error).message || "The render failed.",
+          finishedAt: Date.now(),
+        });
         log(`Render ${id} (${name}) failed: ${job.error}`);
       }
     });
@@ -135,7 +155,9 @@ export function createRendererServer(options: RendererOptions): Server {
   // Transcriptions run one at a time too, apart from the renders.
   let transcriptions = Promise.resolve();
   function transcribe(req: import("node:http").IncomingMessage, res: ServerResponse, whisper: TranscribeMode) {
-    const tooLarge = { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` };
+    const tooLarge = {
+      error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).`,
+    };
     const declared = Number(req.headers["content-length"]);
     if (Number.isFinite(declared) && declared > whisper.maxBytes) {
       req.resume();
@@ -206,7 +228,9 @@ export function createRendererServer(options: RendererOptions): Server {
           const started = Date.now();
           try {
             const result = await whisper.transcribe(file, stop.signal);
-            log(`Transcribed ${(received / 1024).toFixed(0)} KB of sound (${result.language ?? "?"}, ${result.segments.length} segments) in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+            log(
+              `Transcribed ${(received / 1024).toFixed(0)} KB of sound (${result.language ?? "?"}, ${result.segments.length} segments) in ${((Date.now() - started) / 1000).toFixed(1)} s`,
+            );
             answer(200, result);
           } catch (error) {
             if (stop.signal.aborted) log("Transcription stopped: the studio is no longer waiting for it");
@@ -223,13 +247,16 @@ export function createRendererServer(options: RendererOptions): Server {
   }
 
   const server = createServer((req, res) => {
-    if (options.token && req.headers.authorization !== `Bearer ${options.token}`) return send(res, 401, { error: "unauthorized" });
+    if (options.token && req.headers.authorization !== `Bearer ${options.token}`)
+      return send(res, 401, { error: "unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     let path = url.pathname;
     if (path === "/transcribe/health" && req.method === "GET") {
       if (!options.whisper) return send(res, 503, { ok: false, error: WHISPER_OFF });
       const unready = options.whisper.ready();
-      return unready ? send(res, 503, { ok: false, error: unready }) : send(res, 200, { ok: true, model: `faster-whisper ${options.whisper.model}` });
+      return unready
+        ? send(res, 503, { ok: false, error: unready })
+        : send(res, 200, { ok: true, model: `faster-whisper ${options.whisper.model}` });
     }
     if (path === "/transcribe" && req.method === "POST") {
       if (!options.whisper) {
@@ -283,7 +310,10 @@ export function createRendererServer(options: RendererOptions): Server {
       const state = jobs.get(job[1]!);
       if (!state) return send(res, 404, { error: "unknown job" });
       // Both modes draw the script's captions into the picture.
-      return send(res, 200, { ...state, ...(state.status === "succeeded" ? { video_url: `/files/${job[1]}.mp4`, captions: "burned" } : {}) });
+      return send(res, 200, {
+        ...state,
+        ...(state.status === "succeeded" ? { video_url: `/files/${job[1]}.mp4`, captions: "burned" } : {}),
+      });
     }
     const file = /^\/files\/([0-9a-f-]+\.mp4)$/.exec(path);
     if (req.method === "GET" && file) {

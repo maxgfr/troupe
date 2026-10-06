@@ -41,7 +41,18 @@ function fakeMedia(t: TestDb, workspaceId: string): MediaReader {
     async frames(item) {
       const frames = [];
       for (const atS of [0.5, 6, 12]) {
-        const [asset] = await t.db.insert(mediaAssets).values({ workspaceId, kind: "frame", storagePath: `library/${item.itemId}/frame-${atS}.jpg`, mimeType: "image/jpeg", bytes: 10, checksum: "x", meta: { itemId: item.itemId, atS } }).returning();
+        const [asset] = await t.db
+          .insert(mediaAssets)
+          .values({
+            workspaceId,
+            kind: "frame",
+            storagePath: `library/${item.itemId}/frame-${atS}.jpg`,
+            mimeType: "image/jpeg",
+            bytes: 10,
+            checksum: "x",
+            meta: { itemId: item.itemId, atS },
+          })
+          .returning();
         frames.push({ assetId: asset!.id, atS });
       }
       return { frames, cutsAtS: [6, 12] };
@@ -63,11 +74,27 @@ function tools(t: TestDb, workspaceId: string, overrides: Partial<AnalysisTools>
       tool: {
         model: "fake-whisper",
         async transcribe() {
-          return { language: "en", model: "fake-whisper", segments: [{ startS: 0, endS: 2, text: "Stop buying cold brew." }, { startS: 2, endS: 10, text: "Make it at home with a jar and coarse coffee overnight." }, { startS: 18, endS: 20, text: "Follow for more coffee tricks." }] };
+          return {
+            language: "en",
+            model: "fake-whisper",
+            segments: [
+              { startS: 0, endS: 2, text: "Stop buying cold brew." },
+              { startS: 2, endS: 10, text: "Make it at home with a jar and coarse coffee overnight." },
+              { startS: 18, endS: 20, text: "Follow for more coffee tricks." },
+            ],
+          };
         },
       },
     },
-    vision: { ready: true, tool: { model: "fake-vision", async read() { return { description: "A barista holds a jar of coffee.", text: "COLD BREW HACK" }; } } },
+    vision: {
+      ready: true,
+      tool: {
+        model: "fake-vision",
+        async read() {
+          return { description: "A barista holds a jar of coffee.", text: "COLD BREW HACK" };
+        },
+      },
+    },
     embedder: { ready: true, tool: fakeEmbedder() },
     writer: { ready: true, tool: fakeWriter(), modelId: "fake-writer", label: "Fake" },
     ...overrides,
@@ -77,7 +104,19 @@ function tools(t: TestDb, workspaceId: string, overrides: Partial<AnalysisTools>
 async function saveVideo(t: TestDb, workspaceId: string, title = "Cold brew trick") {
   const assetId = randomUUID();
   const itemId = randomUUID();
-  return addFileItem(t.db, { workspaceId, itemId, title, file: { assetId, storagePath: `library/${itemId}/original.mp4`, mimeType: "video/mp4", bytes: 1000, checksum: "abc", fileName: "cold-brew.mp4" } });
+  return addFileItem(t.db, {
+    workspaceId,
+    itemId,
+    title,
+    file: {
+      assetId,
+      storagePath: `library/${itemId}/original.mp4`,
+      mimeType: "video/mp4",
+      bytes: 1000,
+      checksum: "abc",
+      fileName: "cold-brew.mp4",
+    },
+  });
 }
 
 describe("the inspiration library", () => {
@@ -92,7 +131,12 @@ describe("the inspiration library", () => {
 
   it("analyses a video: frames, transcript, what the pictures show, hook, structure, pacing, tags and search passages", async () => {
     const item = await saveVideo(t, workspaceId);
-    expect(item).toMatchObject({ kind: "video", status: "queued", title: "Cold brew trick", fileName: "cold-brew.mp4" });
+    expect(item).toMatchObject({
+      kind: "video",
+      status: "queued",
+      title: "Cold brew trick",
+      fileName: "cold-brew.mp4",
+    });
     expect(await claimNextItem(t.db)).toBe(item.id);
     expect(await claimNextItem(t.db)).toBeNull();
     await analyzeItem(t.db, item.id, tools(t, workspaceId));
@@ -105,12 +149,25 @@ describe("the inspiration library", () => {
     const a = detail.analysis!;
     expect(a.hook).toEqual({ text: "Stop buying cold brew.", endS: 3, why: "It opens on a bold claim." });
     expect(a.frames).toHaveLength(3);
-    expect(a.frames![0]).toMatchObject({ atS: 0.5, description: "A barista holds a jar of coffee.", text: "COLD BREW HACK" });
-    expect(a.structure).toEqual([{ part: "hook", startS: 0, summary: "Bold claim" }, { part: "cta", startS: 18, summary: "Follow" }]);
+    expect(a.frames![0]).toMatchObject({
+      atS: 0.5,
+      description: "A barista holds a jar of coffee.",
+      text: "COLD BREW HACK",
+    });
+    expect(a.structure).toEqual([
+      { part: "hook", startS: 0, summary: "Bold claim" },
+      { part: "cta", startS: 18, summary: "Follow" },
+    ]);
     expect(a.tone).toEqual(["playful", "direct"]);
     expect(a.pacing).toMatchObject({ cutsPerMinute: 6 });
     expect(a.insightsModel).toBe("fake-writer");
-    expect(a.steps.map((s) => `${s.name}:${s.status}`)).toEqual(["frames:done", "transcript:done", "vision:done", "insights:done", "embeddings:done"]);
+    expect(a.steps.map((s) => `${s.name}:${s.status}`)).toEqual([
+      "frames:done",
+      "transcript:done",
+      "vision:done",
+      "insights:done",
+      "embeddings:done",
+    ]);
     // Every frame weighs the same here: the first is the thumbnail.
     expect(detail.thumbnailAssetId).toBe(a.frames![0]!.assetId);
     expect(detail.passages).toBeGreaterThanOrEqual(5);
@@ -120,17 +177,30 @@ describe("the inspiration library", () => {
   it("skips what a missing tool would do, says why, and is still searchable by keywords", async () => {
     const item = await saveVideo(t, workspaceId);
     await claimNextItem(t.db);
-    await analyzeItem(t.db, item.id, tools(t, workspaceId, {
-      vision: { ready: false, problem: "Pull the vision model." },
-      embedder: { ready: false, problem: "Pull the embedding model." },
-      writer: { ready: false, problem: "No chat model is set up." },
-    }));
+    await analyzeItem(
+      t.db,
+      item.id,
+      tools(t, workspaceId, {
+        vision: { ready: false, problem: "Pull the vision model." },
+        embedder: { ready: false, problem: "Pull the embedding model." },
+        writer: { ready: false, problem: "No chat model is set up." },
+      }),
+    );
     const detail = await getItem(t.db, workspaceId, item.id);
     expect(detail.status).toBe("ready");
-    expect(detail.problem).toBe("Skipped: what the pictures show. Pull the vision model. Skipped: the hook, structure and tags. No chat model is set up. Skipped: search by meaning. Pull the embedding model.");
+    expect(detail.problem).toBe(
+      "Skipped: what the pictures show. Pull the vision model. Skipped: the hook, structure and tags. No chat model is set up. Skipped: search by meaning. Pull the embedding model.",
+    );
     expect(detail.tags).toContain("coffee");
-    expect(detail.analysis!.structure).toEqual([{ part: "hook", startS: 0, summary: "Stop buying cold brew." }, { part: "cta", startS: 18, summary: "Follow for more coffee tricks." }]);
-    const found = await searchLibrary(t.db, { workspaceId, query: "jar overnight", embedder: { ready: false, problem: "Pull the embedding model." } });
+    expect(detail.analysis!.structure).toEqual([
+      { part: "hook", startS: 0, summary: "Stop buying cold brew." },
+      { part: "cta", startS: 18, summary: "Follow for more coffee tricks." },
+    ]);
+    const found = await searchLibrary(t.db, {
+      workspaceId,
+      query: "jar overnight",
+      embedder: { ready: false, problem: "Pull the embedding model." },
+    });
     expect(found.mode).toBe("keyword");
     expect(found.note).toBe("Pull the embedding model.");
     expect(found.hits[0]).toMatchObject({ itemId: item.id, startS: 0 });
@@ -138,25 +208,54 @@ describe("the inspiration library", () => {
     // Once the model is there, the queue indexes what it missed.
     expect(await runLibraryQueue(t.db, async () => tools(t, workspaceId))).toBe(0);
     expect((await getItem(t.db, workspaceId, item.id)).embedded).toBe(detail.passages);
-    expect((await searchLibrary(t.db, { workspaceId, query: "jar overnight", embedder: { ready: true, tool: fakeEmbedder() } })).mode).toBe("semantic");
+    expect(
+      (
+        await searchLibrary(t.db, {
+          workspaceId,
+          query: "jar overnight",
+          embedder: { ready: true, tool: fakeEmbedder() },
+        })
+      ).mode,
+    ).toBe("semantic");
   });
 
   it("fails an item whose file cannot be read, with the reason, and retries one cut short", async () => {
     const item = await saveVideo(t, workspaceId);
     await claimNextItem(t.db);
-    await analyzeItem(t.db, item.id, tools(t, workspaceId, { media: { ...fakeMedia(t, workspaceId), probe: async () => { throw new Error("ffprobe: invalid data"); } } }));
-    expect(await getItem(t.db, workspaceId, item.id)).toMatchObject({ status: "failed", problem: "ffprobe: invalid data" });
+    await analyzeItem(
+      t.db,
+      item.id,
+      tools(t, workspaceId, {
+        media: {
+          ...fakeMedia(t, workspaceId),
+          probe: async () => {
+            throw new Error("ffprobe: invalid data");
+          },
+        },
+      }),
+    );
+    expect(await getItem(t.db, workspaceId, item.id)).toMatchObject({
+      status: "failed",
+      problem: "ffprobe: invalid data",
+    });
 
     const other = await saveVideo(t, workspaceId, "Second");
     await claimNextItem(t.db);
-    await t.db.update(libraryItems).set({ heartbeatAt: new Date(Date.now() - 60 * 60_000) }).where(eq(libraryItems.id, other.id));
+    await t.db
+      .update(libraryItems)
+      .set({ heartbeatAt: new Date(Date.now() - 60 * 60_000) })
+      .where(eq(libraryItems.id, other.id));
     expect(await requeueStale(t.db, 30 * 60_000)).toBe(1);
     expect((await getItem(t.db, workspaceId, other.id)).status).toBe("queued");
   });
 
   it("retries an analysis whose heartbeat stopped, never one still running elsewhere, and fails it after three tries", async () => {
     const item = await saveVideo(t, workspaceId);
-    const stopBeating = () => t.db.update(libraryItems).set({ heartbeatAt: new Date(Date.now() - 10 * 60_000) }).where(eq(libraryItems.id, item.id));
+    const stopBeating = () =>
+      t.db
+        .update(libraryItems)
+        .set({ heartbeatAt: new Date(Date.now() - 10 * 60_000) })
+        .where(eq(libraryItems.id, item.id));
     for (const attempt of [1, 2, 3]) {
       expect(await claimNextItem(t.db)).toBe(item.id);
       // Another process (a second replica, a second tab) is analysing it.
@@ -169,7 +268,10 @@ describe("the inspiration library", () => {
     expect((await getItem(t.db, workspaceId, item.id)).problem).toMatch(/stopped 3 times before it finished/);
     // "Read it again" starts the count over.
     await requeueItem(t.db, { workspaceId, itemId: item.id });
-    expect((await t.db.select().from(libraryItems).where(eq(libraryItems.id, item.id)))[0]).toMatchObject({ status: "queued", attempts: 0 });
+    expect((await t.db.select().from(libraryItems).where(eq(libraryItems.id, item.id)))[0]).toMatchObject({
+      status: "queued",
+      attempts: 0,
+    });
   });
 
   it("stops analysing an item deleted meanwhile, and leaves none of its pictures behind", async () => {
@@ -183,7 +285,21 @@ describe("the inspiration library", () => {
     const media: MediaReader = {
       ...fakeMedia(t, workspaceId),
       async frames(file) {
-        const frame = async (atS: number) => (await t.db.insert(mediaAssets).values({ workspaceId, kind: "frame", storagePath: `library/${file.itemId}/frame-${atS}.jpg`, mimeType: "image/jpeg", bytes: 10, checksum: "x", meta: { itemId: file.itemId, atS } }).returning())[0]!;
+        const frame = async (atS: number) =>
+          (
+            await t.db
+              .insert(mediaAssets)
+              .values({
+                workspaceId,
+                kind: "frame",
+                storagePath: `library/${file.itemId}/frame-${atS}.jpg`,
+                mimeType: "image/jpeg",
+                bytes: 10,
+                checksum: "x",
+                meta: { itemId: file.itemId, atS },
+              })
+              .returning()
+          )[0]!;
         const first = await frame(0);
         picturesTaken();
         await afterDelete;
@@ -193,11 +309,28 @@ describe("the inspiration library", () => {
       },
     };
     let transcribing: AbortSignal | undefined;
-    const running = analyzeItem(t.db, item.id, tools(t, workspaceId, { media, transcriber: { ready: true, tool: { model: "w", transcribe: async (_audio, options) => { transcribing = options.signal; return { language: "en", model: "w", segments: [] }; } } } }), {
-      removeFiles: async (files) => {
-        removed.push(...files.map((f) => f.storagePath));
+    const running = analyzeItem(
+      t.db,
+      item.id,
+      tools(t, workspaceId, {
+        media,
+        transcriber: {
+          ready: true,
+          tool: {
+            model: "w",
+            transcribe: async (_audio, options) => {
+              transcribing = options.signal;
+              return { language: "en", model: "w", segments: [] };
+            },
+          },
+        },
+      }),
+      {
+        removeFiles: async (files) => {
+          removed.push(...files.map((f) => f.storagePath));
+        },
       },
-    });
+    );
     await taking;
     await deleteItem(t.db, { workspaceId, itemId: item.id });
     deleted();
@@ -235,14 +368,21 @@ describe("the inspiration library", () => {
   });
 
   it("saves pasted text, analyses it without media tools and finds it by meaning", async () => {
-    const note = await addTextItem(t.db, { workspaceId, text: "Most people get mornings wrong.\n\nWake up, drink water, then walk ten minutes before any screen." });
+    const note = await addTextItem(t.db, {
+      workspaceId,
+      text: "Most people get mornings wrong.\n\nWake up, drink water, then walk ten minutes before any screen.",
+    });
     expect(note).toMatchObject({ kind: "text", title: "Most people get mornings wrong.", status: "queued" });
     await expect(addTextItem(t.db, { workspaceId, text: "   " })).rejects.toThrow("The text is empty.");
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
     const detail = await getItem(t.db, workspaceId, note.id);
     expect(detail.status).toBe("ready");
     expect(detail.analysis!.hook?.text).toBe("Most people get mornings wrong.");
-    const found = await searchLibrary(t.db, { workspaceId, query: "morning walk before screens", embedder: { ready: true, tool: fakeEmbedder() } });
+    const found = await searchLibrary(t.db, {
+      workspaceId,
+      query: "morning walk before screens",
+      embedder: { ready: true, tool: fakeEmbedder() },
+    });
     expect(found.mode).toBe("semantic");
     expect(found.hits[0]!.itemId).toBe(note.id);
   });
@@ -251,7 +391,12 @@ describe("the inspiration library", () => {
     const item = await saveVideo(t, workspaceId);
     await runLibraryQueue(t.db, async () => tools(t, workspaceId));
     const seen: ChatTurn[][] = [];
-    const { user, assistant } = await sendLibraryMessage(t.db, { workspaceId, message: "How does the cold brew video open?", writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" }, embedder: { ready: true, tool: fakeEmbedder() } });
+    const { user, assistant } = await sendLibraryMessage(t.db, {
+      workspaceId,
+      message: "How does the cold brew video open?",
+      writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" },
+      embedder: { ready: true, tool: fakeEmbedder() },
+    });
     expect(user).toMatchObject({ role: "user", itemId: null });
     expect(assistant.content).toBe("It opens on a bold claim about coffee [1].");
     expect(assistant.citations).toHaveLength(1);
@@ -259,22 +404,46 @@ describe("the inspiration library", () => {
     expect(seen[0]![0]!.content).toContain('[1] "Cold brew trick"');
 
     // Chat with one item: the whole (short) item is the source.
-    const one = await sendLibraryMessage(t.db, { workspaceId, itemId: item.id, message: "Summarise it", writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" }, embedder: { ready: true, tool: fakeEmbedder() } });
+    const one = await sendLibraryMessage(t.db, {
+      workspaceId,
+      itemId: item.id,
+      message: "Summarise it",
+      writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" },
+      embedder: { ready: true, tool: fakeEmbedder() },
+    });
     expect(one.assistant.itemId).toBe(item.id);
     expect(seen[1]![0]!.content).toContain("one piece they saved");
   });
 
   it("writes idea cards in the style of an item, in my voice, and makes a project with the script in one click", async () => {
     const item = await saveVideo(t, workspaceId);
-    const mine = await addTextItem(t.db, { workspaceId, text: "Your desk is lying to you. Fix the light first.", mine: true });
+    const mine = await addTextItem(t.db, {
+      workspaceId,
+      text: "Your desk is lying to you. Fix the light first.",
+      mine: true,
+    });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId));
     expect((await voiceProfile(t.db, workspaceId)).profile).toContain("From 1 of your own piece.");
     expect(mine.mine).toBe(true);
 
     const seen: ChatTurn[][] = [];
-    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 10, durationS: 20, wordsPerSecond: 2.5, writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" } });
+    const ideas = await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 10,
+      durationS: 20,
+      wordsPerSecond: 2.5,
+      writer: { model: fakeWriter(seen), provider: "ollama", modelId: "fake-writer" },
+    });
     expect(ideas).toHaveLength(3);
-    expect(ideas[0]).toMatchObject({ title: "Idea 1", hook: "Hook 1?", language: "en", itemIds: [item.id], kind: "ideas" });
+    expect(ideas[0]).toMatchObject({
+      title: "Idea 1",
+      hook: "Hook 1?",
+      language: "en",
+      itemIds: [item.id],
+      kind: "ideas",
+    });
     expect(ideas[0]!.lines.map((l) => l.role)).toEqual(["hook", "body", "cta"]);
     expect(ideas[0]!.lines[1]!.text).toBe("Middle line.");
     expect(seen[0]![0]!.content).toContain("Write in the creator's own voice");
@@ -282,23 +451,49 @@ describe("the inspiration library", () => {
 
     const { projectId, created } = await createProjectFromIdea(t.db, { workspaceId, ideaId: ideas[0]!.id });
     expect(created).toBe(true);
-    expect(await getProject(t.db, projectId)).toMatchObject({ title: "Idea 1", platform: "tiktok", format: "9:16", language: "en", status: "scripting" });
+    expect(await getProject(t.db, projectId)).toMatchObject({
+      title: "Idea 1",
+      platform: "tiktok",
+      format: "9:16",
+      language: "en",
+      status: "scripting",
+    });
     const [script] = await getScriptHistory(t.db, projectId);
     expect(script).toMatchObject({ version: 1, origin: "chat" });
     expect(script!.lines.map((l) => l.text)).toEqual(["Hook 1?", "Middle line.", "Follow for more."]);
-    expect(await createProjectFromIdea(t.db, { workspaceId, ideaId: ideas[0]!.id })).toEqual({ projectId, created: false });
+    expect(await createProjectFromIdea(t.db, { workspaceId, ideaId: ideas[0]!.id })).toEqual({
+      projectId,
+      created: false,
+    });
   });
 
   it("refuses ideas from an item still being analysed", async () => {
     const item = await saveVideo(t, workspaceId);
-    await expect(generateIdeas(t.db, { workspaceId, kind: "remix", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: fakeWriter(), provider: "ollama", modelId: "w" } })).rejects.toThrow("is not analysed yet");
+    await expect(
+      generateIdeas(t.db, {
+        workspaceId,
+        kind: "remix",
+        itemIds: [item.id],
+        count: 3,
+        durationS: 20,
+        wordsPerSecond: 2.5,
+        writer: { model: fakeWriter(), provider: "ollama", modelId: "w" },
+      }),
+    ).rejects.toThrow("is not analysed yet");
   });
 
   it("deletes an item with its passages and hands back its files", async () => {
     const item = await saveVideo(t, workspaceId);
     await runLibraryQueue(t.db, async () => tools(t, workspaceId));
     const { files } = await deleteItem(t.db, { workspaceId, itemId: item.id });
-    expect(files.map((f) => f.storagePath).sort()).toEqual([`library/${item.id}/frame-0.5.jpg`, `library/${item.id}/frame-12.jpg`, `library/${item.id}/frame-6.jpg`, `library/${item.id}/original.mp4`].sort());
+    expect(files.map((f) => f.storagePath).sort()).toEqual(
+      [
+        `library/${item.id}/frame-0.5.jpg`,
+        `library/${item.id}/frame-12.jpg`,
+        `library/${item.id}/frame-6.jpg`,
+        `library/${item.id}/original.mp4`,
+      ].sort(),
+    );
     expect(await t.db.select().from(libraryChunks).where(eq(libraryChunks.itemId, item.id))).toEqual([]);
     expect(await listItems(t.db, { workspaceId })).toEqual([]);
   });
@@ -309,8 +504,13 @@ describe("the inspiration library", () => {
     const stranger = randomUUID();
     const other = (await seedFixture(t.db, { userId: stranger, name: "Other" })).workspaceId;
     await expect(getItem(t.db, other, item.id)).rejects.toThrow("not in your library");
-    await expect(updateItem(t.db, { workspaceId: other, itemId: item.id, mine: true })).rejects.toThrow("not in your library");
-    expect((await searchLibrary(t.db, { workspaceId: other, query: "coffee", embedder: { ready: false, problem: "" } })).hits).toEqual([]);
+    await expect(updateItem(t.db, { workspaceId: other, itemId: item.id, mine: true })).rejects.toThrow(
+      "not in your library",
+    );
+    expect(
+      (await searchLibrary(t.db, { workspaceId: other, query: "coffee", embedder: { ready: false, problem: "" } }))
+        .hits,
+    ).toEqual([]);
 
     await setAuthUser(t, stranger);
     expect(await t.db.select().from(libraryItems)).toEqual([]);
@@ -322,17 +522,49 @@ describe("the inspiration library", () => {
 
   it("does not take a black opening frame as the thumbnail", async () => {
     const item = await saveVideo(t, workspaceId);
-    const [black, shot, other] = await t.db.insert(mediaAssets).values([1200, 24_000, 21_000].map((bytes, i) => ({ workspaceId, kind: "frame" as const, storagePath: `library/${item.id}/f${i}.jpg`, mimeType: "image/jpeg", bytes, checksum: "x", meta: { itemId: item.id } }))).returning();
-    expect(await thumbnailOf(t.db, [black!, shot!, other!].map((f, i) => ({ assetId: f.id, atS: i })))).toBe(shot!.id);
+    const [black, shot, other] = await t.db
+      .insert(mediaAssets)
+      .values(
+        [1200, 24_000, 21_000].map((bytes, i) => ({
+          workspaceId,
+          kind: "frame" as const,
+          storagePath: `library/${item.id}/f${i}.jpg`,
+          mimeType: "image/jpeg",
+          bytes,
+          checksum: "x",
+          meta: { itemId: item.id },
+        })),
+      )
+      .returning();
+    expect(
+      await thumbnailOf(
+        t.db,
+        [black!, shot!, other!].map((f, i) => ({ assetId: f.id, atS: i })),
+      ),
+    ).toBe(shot!.id);
   });
 
   it("keeps the complete ideas of an answer cut off by the token limit, without asking again", async () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
-    const cut = '{"ideas": [{"title": "Jar test", "hook": "Got a jar?", "lines": [{"role": "hook", "text": "Got a jar?", "emotion": "excited"}, {"role": "cta", "text": "Try it tonight.", "emotion": "happy"}]}, {"title": "Half';
+    const cut =
+      '{"ideas": [{"title": "Jar test", "hook": "Got a jar?", "lines": [{"role": "hook", "text": "Got a jar?", "emotion": "excited"}, {"role": "cta", "text": "Try it tonight.", "emotion": "happy"}]}, {"title": "Half';
     const seen: ChatTurn[][] = [];
-    const truncating = { async propose(messages: ChatTurn[]) { seen.push(messages); return { text: cut, proposal: null }; } };
-    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: truncating, provider: "ollama", modelId: "tiny" } });
+    const truncating = {
+      async propose(messages: ChatTurn[]) {
+        seen.push(messages);
+        return { text: cut, proposal: null };
+      },
+    };
+    const ideas = await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 3,
+      durationS: 20,
+      wordsPerSecond: 2.5,
+      writer: { model: truncating, provider: "ollama", modelId: "tiny" },
+    });
     expect(ideas.map((i) => i.title)).toEqual(["Jar test"]);
     // One answer was enough: a second would have cost another full answer's time.
     expect(seen).toHaveLength(1);
@@ -342,8 +574,23 @@ describe("the inspiration library", () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
     const seen: ChatTurn[][] = [];
-    const truncating = { async propose(messages: ChatTurn[]) { seen.push(messages); return { text: '{"ideas": [{"title": "Half', proposal: null }; } };
-    await expect(generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: truncating, provider: "ollama", modelId: "tiny" } })).rejects.toThrow("did not write usable scripts");
+    const truncating = {
+      async propose(messages: ChatTurn[]) {
+        seen.push(messages);
+        return { text: '{"ideas": [{"title": "Half', proposal: null };
+      },
+    };
+    await expect(
+      generateIdeas(t.db, {
+        workspaceId,
+        kind: "ideas",
+        itemIds: [item.id],
+        count: 3,
+        durationS: 20,
+        wordsPerSecond: 2.5,
+        writer: { model: truncating, provider: "ollama", modelId: "tiny" },
+      }),
+    ).rejects.toThrow("did not write usable scripts");
     expect(seen).toHaveLength(2);
     expect(seen[1]!.at(-1)!.content).toContain('"ideas" must hold 3 different items');
   });
@@ -353,26 +600,64 @@ describe("the inspiration library", () => {
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
     const limits: (number | undefined)[] = [];
     const writer = fakeWriter();
-    const counting = { async propose(messages: ChatTurn[], options: Parameters<typeof writer.propose>[1]) { limits.push(options.maxTokens); return writer.propose(messages, options); } };
-    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 15, wordsPerSecond: 2.5, writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    const counting = {
+      async propose(messages: ChatTurn[], options: Parameters<typeof writer.propose>[1]) {
+        limits.push(options.maxTokens);
+        return writer.propose(messages, options);
+      },
+    };
+    await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 3,
+      durationS: 15,
+      wordsPerSecond: 2.5,
+      writer: { model: counting, provider: "ollama", modelId: "tiny" },
+    });
     // 15 s of speech: 110 + 7 tokens a second an idea, and 200 for the rest.
     expect(limits).toEqual([200 + 3 * (110 + 105)]);
     // Japanese, Chinese or Thai have no spaces to count words by: the
     // allowance follows the seconds of speech, never fewer than 250 tokens
     // for a 20-second idea.
     limits.length = 0;
-    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, language: "ja", writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 2,
+      durationS: 20,
+      wordsPerSecond: 2.5,
+      language: "ja",
+      writer: { model: counting, provider: "ollama", modelId: "tiny" },
+    });
     expect(limits).toEqual([200 + 2 * 250]);
     // A fast speaker's word budget wins when it asks for more.
     limits.length = 0;
-    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 1, durationS: 10, wordsPerSecond: 6, writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 1,
+      durationS: 10,
+      wordsPerSecond: 6,
+      writer: { model: counting, provider: "ollama", modelId: "tiny" },
+    });
     expect(limits).toEqual([200 + (110 + 84)]);
   });
 
   it("keeps the ideas it has when the time runs out while asking for shorter ones", async () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
-    const long = (title: string) => ({ title, hook: "Hook?", lines: Array.from({ length: 6 }, () => ({ role: "body", text: Array.from({ length: 20 }, () => "word").join(" "), emotion: "calm" })) });
+    const long = (title: string) => ({
+      title,
+      hook: "Hook?",
+      lines: Array.from({ length: 6 }, () => ({
+        role: "body",
+        text: Array.from({ length: 20 }, () => "word").join(" "),
+        emotion: "calm",
+      })),
+    });
     let calls = 0;
     const slow = {
       async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) {
@@ -382,22 +667,46 @@ describe("the inspiration library", () => {
           return { text: JSON.stringify(answer), proposal: answer };
         }
         // The shorter ask never ends on its own.
-        return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+        return new Promise<never>((_resolve, reject) =>
+          options.signal?.addEventListener("abort", () => reject(options.signal!.reason)),
+        );
       },
     };
     const started = Date.now();
-    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, writer: { model: slow, provider: "ollama", modelId: "tiny" }, signal: AbortSignal.timeout(300) });
+    const ideas = await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 2,
+      durationS: 20,
+      wordsPerSecond: 2.5,
+      writer: { model: slow, provider: "ollama", modelId: "tiny" },
+      signal: AbortSignal.timeout(300),
+    });
     expect(ideas.map((i) => i.title)).toEqual(["Long one", "Long two"]);
     expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it("gives the analysis's writing a time limit, and the item is still read", async () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
-    const hanging = { async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) { return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason))); } };
-    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null, writer: { ready: true, tool: hanging, modelId: "tiny", label: "Tiny" } }), { writeTimeoutMs: 200, writeTimeoutSetting: "TROUPE_LIBRARY_WRITE_TIMEOUT_S" });
+    const hanging = {
+      async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) {
+        return new Promise<never>((_resolve, reject) =>
+          options.signal?.addEventListener("abort", () => reject(options.signal!.reason)),
+        );
+      },
+    };
+    await runLibraryQueue(
+      t.db,
+      async () =>
+        tools(t, workspaceId, { media: null, writer: { ready: true, tool: hanging, modelId: "tiny", label: "Tiny" } }),
+      { writeTimeoutMs: 200, writeTimeoutSetting: "TROUPE_LIBRARY_WRITE_TIMEOUT_S" },
+    );
     const detail = await getItem(t.db, workspaceId, item.id);
     expect(detail.status).toBe("ready");
-    expect(detail.problem).toMatch(/Failed: the hook, structure and tags\. tiny took longer than 1 s to write the analysis and was stopped \(TROUPE_LIBRARY_WRITE_TIMEOUT_S\)\./);
+    expect(detail.problem).toMatch(
+      /Failed: the hook, structure and tags\. tiny took longer than 1 s to write the analysis and was stopped \(TROUPE_LIBRARY_WRITE_TIMEOUT_S\)\./,
+    );
     expect(detail.embedded).toBeGreaterThan(0);
   });
 
@@ -405,11 +714,36 @@ describe("the inspiration library", () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
     // Scripts of `words` words, in lines of ten.
-    const idea = (title: string, words: number) => ({ title, hook: "Hook?", lines: Array.from({ length: Math.ceil(words / 10) }, (_, i) => ({ role: i === 0 ? "hook" : "body", text: Array.from({ length: 10 }, () => "word").join(" "), emotion: "calm" })) });
-    const answers = [{ ideas: [idea("Long", 120), idea("Longer", 140)] }, { ideas: [idea("Still long", 90), idea("Fits", 20)] }];
+    const idea = (title: string, words: number) => ({
+      title,
+      hook: "Hook?",
+      lines: Array.from({ length: Math.ceil(words / 10) }, (_, i) => ({
+        role: i === 0 ? "hook" : "body",
+        text: Array.from({ length: 10 }, () => "word").join(" "),
+        emotion: "calm",
+      })),
+    });
+    const answers = [
+      { ideas: [idea("Long", 120), idea("Longer", 140)] },
+      { ideas: [idea("Still long", 90), idea("Fits", 20)] },
+    ];
     const seen: ChatTurn[][] = [];
-    const wordy = { async propose(messages: ChatTurn[]) { seen.push(messages); const a = answers.shift()!; return { text: JSON.stringify(a), proposal: a }; } };
-    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, writer: { model: wordy, provider: "ollama", modelId: "tiny" } });
+    const wordy = {
+      async propose(messages: ChatTurn[]) {
+        seen.push(messages);
+        const a = answers.shift()!;
+        return { text: JSON.stringify(a), proposal: a };
+      },
+    };
+    const ideas = await generateIdeas(t.db, {
+      workspaceId,
+      kind: "ideas",
+      itemIds: [item.id],
+      count: 2,
+      durationS: 20,
+      wordsPerSecond: 2.5,
+      writer: { model: wordy, provider: "ollama", modelId: "tiny" },
+    });
     expect(ideas.map((i) => i.title)).toEqual(["Fits", "Still long"]);
     expect(seen[1]!.at(-1)!.content).toContain("at most 50 words");
   });

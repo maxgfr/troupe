@@ -28,10 +28,7 @@ $$;
 // nothing left to do.
 export const MIGRATION_LOCK = 846_727;
 
-export async function prepareDatabase(db: {
-  exec: (sql: string) => Promise<unknown>;
-  migrate: () => Promise<void>;
-}) {
+export async function prepareDatabase(db: { exec: (sql: string) => Promise<unknown>; migrate: () => Promise<void> }) {
   await db.exec(`SELECT pg_advisory_lock(${MIGRATION_LOCK})`);
   try {
     await db.exec(SUPABASE_SHIM_SQL);

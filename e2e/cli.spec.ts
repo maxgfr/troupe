@@ -16,7 +16,11 @@ const json = (args: string[]) => {
 };
 
 test("doctor finds the studio, the stack's renderer, the worker and the chat all working", () => {
-  const report = json(["doctor"]) as { ok: boolean; url: string; checks: { name: string; status: string; detail: string }[] };
+  const report = json(["doctor"]) as {
+    ok: boolean;
+    url: string;
+    checks: { name: string; status: string; detail: string }[];
+  };
   expect(report.url).toBe("http://app:3000");
   const status = Object.fromEntries(report.checks.map((c) => [c.name, c.status]));
   expect(status).toMatchObject({
@@ -40,7 +44,16 @@ const studioProject = () => {
 };
 
 test("the CLI container sees the access code, and nothing else of the studio's data", () => {
-  const seen = compose("run", "--rm", "--no-deps", "--entrypoint", "sh", "cli", "-c", "ls -A /run/troupe-access; test -e /studio && echo studio-mounted; true");
+  const seen = compose(
+    "run",
+    "--rm",
+    "--no-deps",
+    "--entrypoint",
+    "sh",
+    "cli",
+    "-c",
+    "ls -A /run/troupe-access; test -e /studio && echo studio-mounted; true",
+  );
   expect(seen.trim().split("\n")).toEqual(["access-code"]);
 });
 
@@ -52,7 +65,11 @@ test("projects list and render list show the studio flow's project and its rende
 
 test("download saves the render into the folder the stack mounts for the CLI", () => {
   const cacheDir = resolve(process.env.E2E_CACHE_DIR ?? ".cache/e2e");
-  const saved = json(["download", "--project", studioProject(), "-o", "/work/", "--force"]) as { path: string; bytes: number; contentType: string };
+  const saved = json(["download", "--project", studioProject(), "-o", "/work/", "--force"]) as {
+    path: string;
+    bytes: number;
+    contentType: string;
+  };
   expect(saved.path).toMatch(/^\/work\/docker-end-to-end-.*\.mp4$/);
   expect(saved.contentType).toBe("video/mp4");
   const onHost = join(cacheDir, "cli", saved.path.slice("/work/".length));

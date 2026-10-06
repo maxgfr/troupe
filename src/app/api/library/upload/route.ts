@@ -25,7 +25,8 @@ const Query = z.object({
   workspaceId: z.string().uuid().optional(),
 });
 
-const json = (status: number, body: unknown) => Response.json(body, { status, headers: { "cache-control": "no-store" } });
+const json = (status: number, body: unknown) =>
+  Response.json(body, { status, headers: { "cache-control": "no-store" } });
 
 export async function POST(req: Request) {
   let ctx: Awaited<ReturnType<typeof createLocalContext>>;
@@ -37,12 +38,19 @@ export async function POST(req: Request) {
   }
   const library = ctx.library;
   if (!library) return json(503, { error: "The inspiration library is off on this studio (TROUPE_LIBRARY=0)." });
-  if (process.env.VERCEL) return json(400, { error: "The library keeps its files on your own server; uploads need the self-hosted studio. Paste text or save links instead." });
+  if (process.env.VERCEL)
+    return json(400, {
+      error:
+        "The library keeps its files on your own server; uploads need the self-hosted studio. Paste text or save links instead.",
+    });
   const query = Query.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!query.success) return json(400, { error: "The upload's query is not valid." });
   const env = libraryEnvironment();
   const declared = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > env.maxUploadBytes) return json(413, { error: `The file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).` });
+  if (Number.isFinite(declared) && declared > env.maxUploadBytes)
+    return json(413, {
+      error: `The file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`,
+    });
   if (!req.body) return json(400, { error: "Send the file as the request body." });
 
   const workspaceId = query.data.workspaceId ?? (await listWorkspacesFor(ctx.db, ctx.userId!))[0]?.id;
@@ -57,18 +65,27 @@ export async function POST(req: Request) {
   const fileName = cleanFileName(query.data.name ?? req.headers.get("x-file-name"));
   const itemId = randomUUID();
   try {
-    const received = await receiveUpload(Readable.fromWeb(req.body as unknown as NodeReadableStream<Uint8Array>), { itemId, fileName, maxBytes: env.maxUploadBytes });
+    const received = await receiveUpload(Readable.fromWeb(req.body as unknown as NodeReadableStream<Uint8Array>), {
+      itemId,
+      fileName,
+      maxBytes: env.maxUploadBytes,
+    });
     const item =
       received.kind === "text"
         ? await addTextItem(ctx.db, { workspaceId, text: received.text, title: query.data.title, mine, fileName })
-        : await addFileItem(ctx.db, { workspaceId, itemId, file: received.file, title: query.data.title, mine }).catch(async (error: unknown) => {
-            await library.removeFiles([{ storagePath: received.file.storagePath }]);
-            throw error;
-          });
+        : await addFileItem(ctx.db, { workspaceId, itemId, file: received.file, title: query.data.title, mine }).catch(
+            async (error: unknown) => {
+              await library.removeFiles([{ storagePath: received.file.storagePath }]);
+              throw error;
+            },
+          );
     library.schedule();
     return json(200, { item: { id: item.id, kind: item.kind, title: item.title, status: item.status } });
   } catch (error) {
-    if (error instanceof UploadRefused || error instanceof LibraryError) return json(error instanceof UploadRefused && /larger than/.test(error.message) ? 413 : 400, { error: error.message });
+    if (error instanceof UploadRefused || error instanceof LibraryError)
+      return json(error instanceof UploadRefused && /larger than/.test(error.message) ? 413 : 400, {
+        error: error.message,
+      });
     console.error(JSON.stringify({ event: "library.upload.failed", message: (error as Error).message }));
     return json(500, { error: "The file could not be saved. The server's log has the details." });
   }

@@ -28,7 +28,13 @@ export function parseChapters(vtt: string): Chapter[] {
       const lines = block.trim().split("\n");
       const at = lines.findIndex((line) => TIMING.test(line));
       if (at < 1) return [];
-      return [{ id: lines[at - 1]!, start: seconds(TIMING.exec(lines[at]!)![1]!), title: decode(lines.slice(at + 1).join(" ")) }];
+      return [
+        {
+          id: lines[at - 1]!,
+          start: seconds(TIMING.exec(lines[at]!)![1]!),
+          title: decode(lines.slice(at + 1).join(" ")),
+        },
+      ];
     });
 }
 

@@ -29,7 +29,10 @@ beforeAll(async () => {
   ws = (await createWorkspace(t.db, { userId: USER, name: "Batch" })).id;
   await seedActorLibrary(t.db);
   const actor = (await listActors(t.db, {}))[0]!;
-  const [p] = await t.db.insert(projects).values({ workspaceId: ws, title: "Batch", format: "9:16", platform: "tiktok", language: "en" }).returning();
+  const [p] = await t.db
+    .insert(projects)
+    .values({ workspaceId: ws, title: "Batch", format: "9:16", platform: "tiktok", language: "en" })
+    .returning();
   projectId = p!.id;
   await attachActorToProject(t.db, { projectId, actorId: actor.id });
   scriptId = (await pasteScript(t.db, { projectId, text: "Batch me." })).id;
@@ -39,13 +42,21 @@ beforeAll(async () => {
 // single inArray, bounded regardless of how many providers ran.
 describe("getBenchmarkRun batches the generations fetch", () => {
   it("issues a single generations query regardless of entry count", async () => {
-    const run = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("b3")), durationS: 8, resolution: "720p" });
+    const run = await startBenchmark(t.db, {
+      projectId,
+      scriptId,
+      models: asModels(adapters("b3")),
+      durationS: 8,
+      resolution: "720p",
+    });
     expect(run.entries.length).toBe(2);
 
     const original = t.db.select.bind(t.db);
     let genSelects = 0;
     const spy = vi.spyOn(t.db, "select").mockImplementation(((...args: unknown[]) => {
-      const builder = (original as (...a: unknown[]) => { from: (table: unknown, ...rest: unknown[]) => unknown })(...args);
+      const builder = (original as (...a: unknown[]) => { from: (table: unknown, ...rest: unknown[]) => unknown })(
+        ...args,
+      );
       const originalFrom = builder.from.bind(builder);
       builder.from = (table: unknown, ...rest: unknown[]) => {
         if (table === generations) genSelects += 1;

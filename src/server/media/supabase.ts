@@ -17,10 +17,15 @@ export async function uploadToSupabase(storagePath: string, bytes: Uint8Array) {
   const name = bucketName();
   const current = await storage.getBucket(name);
   if (current.error) {
-    await storage.createBucket(name, { public: false, allowedMimeTypes: ["video/mp4"], fileSizeLimit: 50 * 1024 * 1024 });
+    await storage.createBucket(name, {
+      public: false,
+      allowedMimeTypes: ["video/mp4"],
+      fileSizeLimit: 50 * 1024 * 1024,
+    });
   }
   const verified = await storage.getBucket(name);
-  if (verified.error || !verified.data || verified.data.public) throw new Error("A private Supabase video bucket is required.");
+  if (verified.error || !verified.data || verified.data.public)
+    throw new Error("A private Supabase video bucket is required.");
   const result = await storage.from(name).upload(storagePath, bytes, { contentType: "video/mp4", upsert: true });
   if (result.error) throw new Error("Could not store the video in Supabase.");
   return true;

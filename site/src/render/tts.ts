@@ -26,7 +26,10 @@ type Kokoro = import("kokoro-js").KokoroTTS;
 
 async function load(device: VoiceDevice, onDownload: (progress: DownloadProgress) => void): Promise<Kokoro> {
   // Loaded on demand: the ONNX runtime is large and only renders need it.
-  const [{ AutoTokenizer, StyleTextToSpeech2Model, env }, { KokoroTTS }] = await Promise.all([import("@huggingface/transformers"), import("kokoro-js")]);
+  const [{ AutoTokenizer, StyleTextToSpeech2Model, env }, { KokoroTTS }] = await Promise.all([
+    import("@huggingface/transformers"),
+    import("kokoro-js"),
+  ]);
   env.allowLocalModels = false;
   env.useBrowserCache = true;
   const wasm = env.backends.onnx.wasm;
@@ -44,7 +47,12 @@ async function load(device: VoiceDevice, onDownload: (progress: DownloadProgress
   // WebGPU it logs, as an error, every op it leaves on the CPU.
   try {
     const [model, tokenizer] = await Promise.all([
-      StyleTextToSpeech2Model.from_pretrained(RENDER_CONFIG.kokoroModel, { dtype: RENDER_CONFIG.dtype[device], device, progress_callback, session_options: { logSeverityLevel: 3 } }),
+      StyleTextToSpeech2Model.from_pretrained(RENDER_CONFIG.kokoroModel, {
+        dtype: RENDER_CONFIG.dtype[device],
+        device,
+        progress_callback,
+        session_options: { logSeverityLevel: 3 },
+      }),
       AutoTokenizer.from_pretrained(RENDER_CONFIG.kokoroModel, { progress_callback }),
     ]);
     return new KokoroTTS(model as ConstructorParameters<typeof KokoroTTS>[0], tokenizer);
@@ -82,7 +90,9 @@ export function loadVoice(onDownload: (progress: DownloadProgress) => void): Pro
     };
   })().catch((error: unknown) => {
     voice = undefined;
-    throw new Error(`The voice model could not load: ${error instanceof Error ? error.message : String(error)}. Check your connection, then relaunch.`);
+    throw new Error(
+      `The voice model could not load: ${error instanceof Error ? error.message : String(error)}. Check your connection, then relaunch.`,
+    );
   });
   return voice;
 }

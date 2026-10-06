@@ -17,7 +17,9 @@ const THUMB_WIDTHS = [160, 320] as const;
 
 function srcSetFor(src: string): string | undefined {
   if (!/\/front\.webp$/.test(src)) return undefined;
-  return [...THUMB_WIDTHS.map((w) => `${src.replace(/front\.webp$/, `front-${w}.webp`)} ${w}w`), `${src} 768w`].join(", ");
+  return [...THUMB_WIDTHS.map((w) => `${src.replace(/front\.webp$/, `front-${w}.webp`)} ${w}w`), `${src} 768w`].join(
+    ", ",
+  );
 }
 export function ActorPortrait({
   id,
@@ -49,14 +51,14 @@ export function ActorPortrait({
   const picture = src && failed !== src ? src : null;
   // A picture already decoded (from the cache) may finish before React
   // listens for its load event.
-  const ready = useCallback(
-    (img: HTMLImageElement | null) => {
-      if (img?.complete && img.naturalWidth > 0) setLoaded(img.getAttribute("src"));
-    },
-    [],
-  );
+  const ready = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth > 0) setLoaded(img.getAttribute("src"));
+  }, []);
   return (
-    <span className={`relative block overflow-hidden ${className ?? ""}`} style={{ backgroundColor: `oklch(0.3 0.05 ${hue})` }}>
+    <span
+      className={`relative block overflow-hidden ${className ?? ""}`}
+      style={{ backgroundColor: `oklch(0.3 0.05 ${hue})` }}
+    >
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 size-full"

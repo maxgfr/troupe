@@ -42,7 +42,8 @@ export function ensureAccessCode(): { code: string | null; source: AccessCodeSou
     writeFileSync(file, `${code}\n`, { mode: 0o600, flag: "wx" });
   } catch (error) {
     // Another process won the race: use its code.
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") return remember({ code: readFileSync(file, "utf8").trim(), source: "file" });
+    if ((error as NodeJS.ErrnoException).code === "EEXIST")
+      return remember({ code: readFileSync(file, "utf8").trim(), source: "file" });
     throw error;
   }
   return remember({ code, source: "generated" });
@@ -57,7 +58,10 @@ export function currentAccessCode(): string | null {
 // the data folder, which also holds secret.key. A code set in the environment
 // reaches the CLI through its environment instead: a copy left from before
 // is removed.
-export function shareAccessCode(access: { code: string | null; source: AccessCodeSource }, dir = process.env.TROUPE_ACCESS_CODE_SHARE_DIR) {
+export function shareAccessCode(
+  access: { code: string | null; source: AccessCodeSource },
+  dir = process.env.TROUPE_ACCESS_CODE_SHARE_DIR,
+) {
   if (!dir) return;
   const file = join(resolve(dir), "access-code");
   if (!access.code || (access.source !== "generated" && access.source !== "file")) {

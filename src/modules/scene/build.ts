@@ -117,7 +117,12 @@ function layoutFor(width: number, height: number): Layout {
   // Vertical video keeps clear of what TikTok, Reels and Shorts draw over it:
   // the feed tabs at the top, the like/share rail on the right and the
   // caption and description in the bottom fifth.
-  const card = { x: margin, y: vertical ? 0.11 * height : margin, width: width - 2 * margin, height: diameter + 2 * padding };
+  const card = {
+    x: margin,
+    y: vertical ? 0.11 * height : margin,
+    width: width - 2 * margin,
+    height: diameter + 2 * padding,
+  };
   const captionsTop = vertical ? 0.42 * height : card.y + card.height + margin;
   const captionsBottom = vertical ? 0.78 * height : height - margin;
   const captionsRight = vertical ? 0.86 * width : width - margin;

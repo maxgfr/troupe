@@ -11,10 +11,18 @@ function describe(stage: ChatModelStage): { label: string; figure: string | null
   switch (stage.stage) {
     case "download":
       return stage.loadedMb > 0
-        ? { label: "Downloading the chat model", figure: `${stage.loadedMb}${CHAT_CONFIG.downloadMb ? ` / ${CHAT_CONFIG.downloadMb}` : ""} MB`, fraction: stage.fraction }
+        ? {
+            label: "Downloading the chat model",
+            figure: `${stage.loadedMb}${CHAT_CONFIG.downloadMb ? ` / ${CHAT_CONFIG.downloadMb}` : ""} MB`,
+            fraction: stage.fraction,
+          }
         : { label: "Downloading the chat model", figure: null, fraction: 0 };
     case "load":
-      return { label: "Loading the chat model onto the GPU", figure: `${Math.round(stage.fraction * 100)}%`, fraction: stage.fraction };
+      return {
+        label: "Loading the chat model onto the GPU",
+        figure: `${Math.round(stage.fraction * 100)}%`,
+        fraction: stage.fraction,
+      };
     default:
       return null;
   }
@@ -40,7 +48,10 @@ function ChatModelProgress() {
         aria-valuetext={shown.figure ? `${shown.label}, ${shown.figure}` : shown.label}
         className="progress-glow h-1.5 overflow-hidden rounded-full bg-primary/20"
       >
-        <div className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none" style={{ width: `${Math.max(percent ?? 0, 2)}%` }} />
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
+          style={{ width: `${Math.max(percent ?? 0, 2)}%` }}
+        />
       </div>
     </div>
   );

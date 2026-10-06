@@ -4,7 +4,11 @@ import type { PortraitShot, ScenePortraits } from "~/modules/scene";
 // <base>actors/<slug>/v<version>/<file> (site/vite-plugins.ts, actorPortraits),
 // the same paths Troupe stores. A picture that does not load is left out:
 // the card falls back to the front portrait, then to the initials.
-export async function loadPortraits(paths: Record<string, string> | undefined, shots: PortraitShot[], base: string): Promise<ScenePortraits<ImageBitmap>> {
+export async function loadPortraits(
+  paths: Record<string, string> | undefined,
+  shots: PortraitShot[],
+  base: string,
+): Promise<ScenePortraits<ImageBitmap>> {
   const portraits: ScenePortraits<ImageBitmap> = {};
   await Promise.all(
     shots.map(async (shot) => {

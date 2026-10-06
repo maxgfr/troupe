@@ -16,7 +16,12 @@ export interface ClaudeCapabilities {
   temperature: boolean;
 }
 
-const caps = (structuredOutputs: boolean, effort: boolean, serverFallback: boolean, temperature: boolean): ClaudeCapabilities => ({
+const caps = (
+  structuredOutputs: boolean,
+  effort: boolean,
+  serverFallback: boolean,
+  temperature: boolean,
+): ClaudeCapabilities => ({
   structuredOutputs,
   effort,
   serverFallback,

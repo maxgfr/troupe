@@ -39,7 +39,8 @@ const number = (raw: string | undefined, fallback: number, min: number, max: num
   return raw?.trim() && Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 };
 
-const on = (raw: string | undefined, fallback: boolean) => (raw === undefined || raw.trim() === "" ? fallback : raw === "1" || raw === "true");
+const on = (raw: string | undefined, fallback: boolean) =>
+  raw === undefined || raw.trim() === "" ? fallback : raw === "1" || raw === "true";
 
 // An empty value, "off" or "none" turns a model off.
 const model = (raw: string | undefined, fallback: string) => {
@@ -66,7 +67,9 @@ export function libraryEnvironment(env: Env = process.env): LibraryEnvironment {
     allowPrivateUrls: on(env.TROUPE_LIBRARY_ALLOW_PRIVATE_URLS, false),
     writeTimeoutMs: number(env.TROUPE_LIBRARY_WRITE_TIMEOUT_S, 300, 30, 3600) * 1000,
     ideas: Math.round(number(env.TROUPE_LIBRARY_IDEAS, 10, 1, 10)),
-    ytDlpPath: /^(off|none|0)$/i.test(env.TROUPE_YTDLP_PATH?.trim() ?? "") ? null : env.TROUPE_YTDLP_PATH?.trim() || "yt-dlp",
+    ytDlpPath: /^(off|none|0)$/i.test(env.TROUPE_YTDLP_PATH?.trim() ?? "")
+      ? null
+      : env.TROUPE_YTDLP_PATH?.trim() || "yt-dlp",
     ytDlpProxy: env.TROUPE_YTDLP_PROXY?.trim() || null,
     ffmpegPath: env.FFMPEG_PATH?.trim() || "ffmpeg",
   };

@@ -16,9 +16,14 @@ export interface ChatLaunchBase {
   choice: { durationS?: number; resolution?: string };
 }
 
-export function chatLaunchBase(options: ModelOptionView[], fallback: ModelOptionView | null, previous: PreviousRender | null): ChatLaunchBase | null {
+export function chatLaunchBase(
+  options: ModelOptionView[],
+  fallback: ModelOptionView | null,
+  previous: PreviousRender | null,
+): ChatLaunchBase | null {
   const again = previous ? options.find((o) => o.key === previous.modelKey && o.available && o.compatible) : undefined;
-  if (again && previous) return { model: again, choice: { durationS: previous.durationS, resolution: previous.resolution } };
+  if (again && previous)
+    return { model: again, choice: { durationS: previous.durationS, resolution: previous.resolution } };
   return fallback ? { model: fallback, choice: {} } : null;
 }
 
@@ -40,11 +45,19 @@ export function relaunchPlan(base: ChatLaunchBase | null, estimatedS: number): R
   if (!base) return { ok: false, reason: "No model can render this project yet. Check your models in Settings." };
   const settings = launchSettings(base.model, estimatedS, base.choice);
   if (settings.tooLong || !settings.durationS) {
-    return { ok: false, reason: `About ${estimatedS} s to say: ${base.model.label} renders at most ${settings.longestS} s.` };
+    return {
+      ok: false,
+      reason: `About ${estimatedS} s to say: ${base.model.label} renders at most ${settings.longestS} s.`,
+    };
   }
   return {
     ok: true,
-    request: { modelKey: base.model.key, durationS: settings.durationS, resolution: settings.resolution, audio: settings.audio },
+    request: {
+      modelKey: base.model.key,
+      durationS: settings.durationS,
+      resolution: settings.resolution,
+      audio: settings.audio,
+    },
     label: `${base.model.label} · ${settings.durationS} s · ${settings.resolution}`,
   };
 }

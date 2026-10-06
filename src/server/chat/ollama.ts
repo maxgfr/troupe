@@ -26,7 +26,9 @@ function startAdvice(baseUrl: string): string {
   } catch {
     // An address that does not parse is refused by checkLocalUrl first.
   }
-  return host === "ollama" ? "Start the stack's Ollama with `docker compose up -d ollama`" : "Start it with `ollama serve` (or open the Ollama app)";
+  return host === "ollama"
+    ? "Start the stack's Ollama with `docker compose up -d ollama`"
+    : "Start it with `ollama serve` (or open the Ollama app)";
 }
 
 function base(options: OllamaOptions): string {
@@ -35,9 +37,15 @@ function base(options: OllamaOptions): string {
   return url.base;
 }
 
-async function call(options: OllamaOptions, path: string, init: RequestInit & { signal?: AbortSignal }): Promise<Response> {
+async function call(
+  options: OllamaOptions,
+  path: string,
+  init: RequestInit & { signal?: AbortSignal },
+): Promise<Response> {
   const doFetch = options.fetch ?? fetch;
-  const signal = init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(options.timeoutMs)]) : AbortSignal.timeout(options.timeoutMs);
+  const signal = init.signal
+    ? AbortSignal.any([init.signal, AbortSignal.timeout(options.timeoutMs)])
+    : AbortSignal.timeout(options.timeoutMs);
   try {
     // Never followed: a redirect could lead past checkLocalUrl, to a cloud
     // metadata address for one, and its answer would come back to the page.
@@ -46,9 +54,14 @@ async function call(options: OllamaOptions, path: string, init: RequestInit & { 
     if (error instanceof ChatProviderError) throw error;
     if (init.signal?.aborted) throw error;
     if (/redirect/i.test(String((error as Error & { cause?: unknown }).cause ?? ""))) {
-      throw new ChatProviderError(`The server at ${options.baseUrl} answered with a redirect, which Troupe does not follow. Use the address Ollama itself listens on.`);
+      throw new ChatProviderError(
+        `The server at ${options.baseUrl} answered with a redirect, which Troupe does not follow. Use the address Ollama itself listens on.`,
+      );
     }
-    if ((error as Error).name === "TimeoutError") throw new ChatProviderError(`Ollama took longer than ${Math.round(options.timeoutMs / 1000)} s to answer. Try a smaller model or raise TROUPE_CHAT_TIMEOUT_S.`);
+    if ((error as Error).name === "TimeoutError")
+      throw new ChatProviderError(
+        `Ollama took longer than ${Math.round(options.timeoutMs / 1000)} s to answer. Try a smaller model or raise TROUPE_CHAT_TIMEOUT_S.`,
+      );
     throw new ChatProviderError(`Ollama is not answering at ${options.baseUrl}. ${startAdvice(options.baseUrl)}.`);
   }
 }
@@ -64,7 +77,8 @@ async function errorOf(response: Response): Promise<string> {
 
 // What fits in Ollama's default context with room to spare.
 const CONTEXT_MARGIN = 3500;
-const promptTokens = (messages: { content: string }[]) => Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 3);
+const promptTokens = (messages: { content: string }[]) =>
+  Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 3);
 
 export function createOllamaChat(options: OllamaOptions): ChatModel {
   return {
@@ -98,7 +112,9 @@ export function createOllamaChat(options: OllamaOptions): ChatModel {
       let response = await send(false);
       if (response.status === 400 && /think/i.test(await errorOf(response.clone()))) response = await send(true);
       if (response.status === 404) {
-        throw new ChatProviderError(`Ollama does not have the model "${options.model}". Pull it with \`ollama pull ${options.model}\`, or choose another one in Settings.`);
+        throw new ChatProviderError(
+          `Ollama does not have the model "${options.model}". Pull it with \`ollama pull ${options.model}\`, or choose another one in Settings.`,
+        );
       }
       if (!response.ok) {
         const detail = await errorOf(response);
@@ -115,17 +131,26 @@ export function createOllamaChat(options: OllamaOptions): ChatModel {
 export async function testOllama(options: OllamaOptions): Promise<ChatConnectionReport> {
   let response: Response;
   try {
-    response = await call({ ...options, timeoutMs: Math.min(options.timeoutMs, 10_000) }, "/api/tags", { method: "GET" });
+    response = await call({ ...options, timeoutMs: Math.min(options.timeoutMs, 10_000) }, "/api/tags", {
+      method: "GET",
+    });
   } catch (error) {
     return { ok: false, message: error instanceof ChatProviderError ? error.message : "Ollama could not be reached." };
   }
-  if (!response.ok) return { ok: false, message: `Something answered at ${options.baseUrl}, but not as Ollama does (${response.status}).` };
+  if (!response.ok)
+    return {
+      ok: false,
+      message: `Something answered at ${options.baseUrl}, but not as Ollama does (${response.status}).`,
+    };
   const body = (await response.json().catch(() => ({}))) as { models?: { name?: string; model?: string }[] };
   const names = (body.models ?? []).flatMap((m) => [m.name, m.model]).filter((n): n is string => Boolean(n));
   // "qwen3" means "qwen3:latest" to Ollama.
   const wanted = options.model.includes(":") ? options.model : `${options.model}:latest`;
   if (!names.includes(wanted) && !names.includes(options.model)) {
-    return { ok: false, message: `Ollama answers, but "${options.model}" is not pulled. Run \`ollama pull ${options.model}\`.` };
+    return {
+      ok: false,
+      message: `Ollama answers, but "${options.model}" is not pulled. Run \`ollama pull ${options.model}\`.`,
+    };
   }
   return { ok: true, message: `Ollama answers and has ${options.model}.` };
 }

@@ -6,7 +6,18 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { DEFAULT_LTX_NEGATIVE_PROMPT, DEFAULT_LTX_PROMPT, generateClip, generateJob, generationSize, ltxPrompt, ltxReadiness, ltxSettingsFromEnv, stopGenerators, type LtxSettings } from "./ltx";
+import {
+  DEFAULT_LTX_NEGATIVE_PROMPT,
+  DEFAULT_LTX_PROMPT,
+  generateClip,
+  generateJob,
+  generationSize,
+  ltxPrompt,
+  ltxReadiness,
+  ltxSettingsFromEnv,
+  stopGenerators,
+  type LtxSettings,
+} from "./ltx";
 import { parseJobBody } from "./request";
 
 // The AI video mode's Node side, with a script standing in for
@@ -113,13 +124,17 @@ describe("ltxPrompt", () => {
     expect(ltxPrompt("A {person}, {orientation}, {name}, {voice_profile}, {gender} {age} {unknown}", request)).toBe(
       "A woman aged 25 to 34, vertical, Léa Martin, warm, female 25-34 {unknown}",
     );
-    expect(ltxPrompt(DEFAULT_LTX_PROMPT, { ...request, width: 1280, height: 720 })).toContain("A woman aged 25 to 34 talks straight to the camera in a horizontal selfie video");
+    expect(ltxPrompt(DEFAULT_LTX_PROMPT, { ...request, width: 1280, height: 720 })).toContain(
+      "A woman aged 25 to 34 talks straight to the camera in a horizontal selfie video",
+    );
   });
 
   it("falls back to a person when the job has no script", () => {
     const fromPrompt = parseJobBody({ prompt: "Hello there.", width: 640, height: 640, duration_s: 4 });
     expect(ltxPrompt("A {person}, {orientation}", fromPrompt)).toBe("A person, square");
-    expect(ltxPrompt("A {person}", { ...request, actor: { ...request.actor, ageRange: "55+" } })).toBe("A woman aged 55 or older");
+    expect(ltxPrompt("A {person}", { ...request, actor: { ...request.actor, ageRange: "55+" } })).toBe(
+      "A woman aged 55 or older",
+    );
   });
 });
 
@@ -127,9 +142,15 @@ describe("generateClip", () => {
   it("sends the job to the script, follows its progress and returns its report", async () => {
     const out = join(scratch, "clip.mp4");
     const record = join(scratch, "job.json");
-    const job = generateJob(settings({ command: [process.execPath, FAKE, "--record", record], seed: 99 }), request, out);
+    const job = generateJob(
+      settings({ command: [process.execPath, FAKE, "--record", record], seed: 99 }),
+      request,
+      out,
+    );
     const seen: number[] = [];
-    const report = await generateClip(settings({ command: [process.execPath, FAKE, "--record", record] }), job, (p) => seen.push(p));
+    const report = await generateClip(settings({ command: [process.execPath, FAKE, "--record", record] }), job, (p) =>
+      seen.push(p),
+    );
 
     expect(JSON.parse(await readFile(record, "utf8"))).toEqual({
       prompt: expect.stringContaining("A woman aged 25 to 34"),
@@ -141,7 +162,15 @@ describe("generateClip", () => {
       seed: 99,
       out,
     });
-    expect(report).toEqual({ done: true, frames: 25, width: 96, height: 160, seconds: 0.1, peak_rss_mb: 42, device: "fake" });
+    expect(report).toEqual({
+      done: true,
+      frames: 25,
+      width: 96,
+      height: 160,
+      seconds: 0.1,
+      peak_rss_mb: 42,
+      device: "fake",
+    });
     expect((await stat(out)).size).toBeGreaterThan(0);
     // From encoding the prompt to writing the clip, never backwards.
     expect(seen[0]).toBeLessThan(0.1);
@@ -164,24 +193,33 @@ describe("generateClip", () => {
 
   it("fails with the script's last error line", async () => {
     const job = generateJob(settings(), request, join(scratch, "never.mp4"));
-    await expect(generateClip(settings({ command: [process.execPath, FAKE, "--fail", "RuntimeError: MPS backend out of memory"] }), job)).rejects.toThrow(
-      "LTX failed: RuntimeError: MPS backend out of memory",
-    );
+    await expect(
+      generateClip(
+        settings({ command: [process.execPath, FAKE, "--fail", "RuntimeError: MPS backend out of memory"] }),
+        job,
+      ),
+    ).rejects.toThrow("LTX failed: RuntimeError: MPS backend out of memory");
   });
 
   it("fails when the script ends without reporting the clip", async () => {
     const job = generateJob(settings(), request, join(scratch, "quiet.mp4"));
-    await expect(generateClip(settings({ command: [process.execPath, FAKE, "--no-done"] }), job)).rejects.toThrow("LTX finished without saying it wrote the clip.");
+    await expect(generateClip(settings({ command: [process.execPath, FAKE, "--no-done"] }), job)).rejects.toThrow(
+      "LTX finished without saying it wrote the clip.",
+    );
   });
 
   it("stops a generation that runs past the time limit", async () => {
     const job = generateJob(settings(), request, join(scratch, "slow.mp4"));
     const started = Date.now();
-    await expect(generateClip(settings({ command: [process.execPath, FAKE, "--hang"], timeoutS: 1 }), job)).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
+    await expect(
+      generateClip(settings({ command: [process.execPath, FAKE, "--hang"], timeoutS: 1 }), job),
+    ).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
     expect(Date.now() - started).toBeLessThan(5000);
     // Our own children only: another test run on the machine has hanging
     // fakes of its own.
-    const { stdout } = await run("pgrep", ["-P", String(process.pid), "-f", "fake-generate.mjs --hang"]).catch(() => ({ stdout: "" }));
+    const { stdout } = await run("pgrep", ["-P", String(process.pid), "-f", "fake-generate.mjs --hang"]).catch(() => ({
+      stdout: "",
+    }));
     expect(stdout.trim()).toBe("");
   });
 
@@ -203,7 +241,9 @@ describe("generateClip", () => {
       // No /proc (macOS): ask ps.
     }
     try {
-      return execFileSync("ps", ["-o", "stat=", "-p", String(pid)], { encoding: "utf8" }).trim().startsWith("Z");
+      return execFileSync("ps", ["-o", "stat=", "-p", String(pid)], { encoding: "utf8" })
+        .trim()
+        .startsWith("Z");
     } catch {
       return true;
     }
@@ -227,7 +267,10 @@ describe("generateClip", () => {
   it("stops the whole process tree on a timeout, even a grandchild that ignores SIGTERM", async () => {
     const pidFile = join(scratch, "stubborn-timeout.pid");
     const job = generateJob(settings(), request, join(scratch, "stubborn.mp4"));
-    const done = generateClip(settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile], timeoutS: 1 }), job);
+    const done = generateClip(
+      settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile], timeoutS: 1 }),
+      job,
+    );
     const grandchild = await pidIn(pidFile);
     await expect(done).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
     expect(await diesWithin(grandchild)).toBe(true);
@@ -236,7 +279,10 @@ describe("generateClip", () => {
   it("stops running generations when the renderer shuts down", async () => {
     const pidFile = join(scratch, "stubborn-stop.pid");
     const job = generateJob(settings(), request, join(scratch, "stopped.mp4"));
-    const done = generateClip(settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile] }), job);
+    const done = generateClip(
+      settings({ command: [process.execPath, FAKE, "--hang", "--stubborn-child", pidFile] }),
+      job,
+    );
     const grandchild = await pidIn(pidFile);
     stopGenerators();
     await expect(done).rejects.toThrow(/LTX/);
@@ -264,7 +310,9 @@ describe("ltxReadiness", () => {
     expect(ltxReadiness(["troupe-no-such-uv", "run"])).toBe(
       'The AI video mode needs "troupe-no-such-uv", which is not installed here. Install uv (https://docs.astral.sh/uv/) or set LTX_COMMAND.',
     );
-    expect(ltxReadiness(["/opt/nowhere/python", "generate.py"])).toMatch(/needs "\/opt\/nowhere\/python", which is not installed here/);
+    expect(ltxReadiness(["/opt/nowhere/python", "generate.py"])).toMatch(
+      /needs "\/opt\/nowhere\/python", which is not installed here/,
+    );
   });
 
   it("says to run the setup when the Python environment is missing", () => {

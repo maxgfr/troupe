@@ -23,7 +23,16 @@ import { ingestBrowserRender, keepSettledRenders } from "./render/ingest";
 export async function createBrowserContext() {
   const { db } = await browserDatabase();
   const chat = createBrowserChat(db);
-  return createTRPCContext({ headers: new Headers(), db, media: browserMedia, userId: LOCAL_USER_ID, catalog: await loadBrowserCatalog(db), ingest: ingestBrowserRender, chat, library: createBrowserLibrary(db, chat) });
+  return createTRPCContext({
+    headers: new Headers(),
+    db,
+    media: browserMedia,
+    userId: LOCAL_USER_ID,
+    catalog: await loadBrowserCatalog(db),
+    ingest: ingestBrowserRender,
+    chat,
+    library: createBrowserLibrary(db, chat),
+  });
 }
 
 // A caller of the router, for code that is not a page (the library's upload).
@@ -33,20 +42,22 @@ export async function browserCaller() {
 
 // The catalog is read once and kept (site/src/catalog.ts); a mutation may
 // change it (Settings), so it is read again before anyone sees the result.
-const forgetCatalogOnMutation: TRPCLink<AppRouter> = () => ({ op, next }) =>
-  observable((observer) =>
-    next(op).subscribe({
-      next(result) {
-        if (op.type === "mutation") forgetBrowserCatalog();
-        observer.next(result);
-      },
-      error(error) {
-        if (op.type === "mutation") forgetBrowserCatalog();
-        observer.error(error);
-      },
-      complete: () => observer.complete(),
-    }),
-  );
+const forgetCatalogOnMutation: TRPCLink<AppRouter> =
+  () =>
+  ({ op, next }) =>
+    observable((observer) =>
+      next(op).subscribe({
+        next(result) {
+          if (op.type === "mutation") forgetBrowserCatalog();
+          observer.next(result);
+        },
+        error(error) {
+          if (op.type === "mutation") forgetBrowserCatalog();
+          observer.error(error);
+        },
+        complete: () => observer.complete(),
+      }),
+    );
 
 // The procedures that poll renders, and may record one, in their transaction.
 const RECONCILING = new Set(["generation.forProject", "benchmark.get"]);

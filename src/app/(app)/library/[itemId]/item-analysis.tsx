@@ -16,12 +16,26 @@ interface Analysis {
 }
 
 const PART_LABELS = { hook: "Hook", body: "Body", cta: "Call to action" } as const;
-const STEP_LABELS: Record<string, string> = { frames: "Pictures from the video", transcript: "Transcript", vision: "What the pictures show", insights: "Hook, structure and tags", embeddings: "Search by meaning" };
+const STEP_LABELS: Record<string, string> = {
+  frames: "Pictures from the video",
+  transcript: "Transcript",
+  vision: "What the pictures show",
+  insights: "Hook, structure and tags",
+  embeddings: "Search by meaning",
+};
 const STEP_TONES = { done: "bg-success", skipped: "border border-warning", failed: "bg-danger" } as const;
 
 // What the analysis found: the hook first, then what it is, how it is
 // built, its pace, tone and tags; then the pictures and how it was read.
-export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; tags: string[]; onSeek?: (seconds: number) => void }) {
+export function ItemAnalysis({
+  analysis,
+  tags,
+  onSeek,
+}: {
+  analysis: Analysis;
+  tags: string[];
+  onSeek?: (seconds: number) => void;
+}) {
   const seen = (analysis.frames ?? []).filter((f) => f.description || f.text);
   const facts: [string, React.ReactNode][] = [];
   if (analysis.pacing) {
@@ -36,7 +50,13 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
     ]);
   }
   if (analysis.tone?.length) facts.push(["Tone", analysis.tone.join(", ")]);
-  if (analysis.language) facts.push(["Language", <span key="lang" className="font-mono text-xs uppercase">{analysis.language}</span>]);
+  if (analysis.language)
+    facts.push([
+      "Language",
+      <span key="lang" className="font-mono text-xs uppercase">
+        {analysis.language}
+      </span>,
+    ]);
   if (tags.length) {
     facts.push([
       "Tags",
@@ -51,7 +71,11 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
   }
   const time = (s: number | undefined) =>
     s === undefined ? null : onSeek ? (
-      <button type="button" onClick={() => onSeek(s)} className="rounded font-mono text-xs tabular-nums text-primary underline-offset-4 hover:underline">
+      <button
+        type="button"
+        onClick={() => onSeek(s)}
+        className="rounded font-mono text-xs tabular-nums text-primary underline-offset-4 hover:underline"
+      >
         {clock(s)}
       </button>
     ) : (
@@ -62,7 +86,9 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
     <div className="space-y-6">
       {analysis.hook ? (
         <figure className="space-y-1.5">
-          <blockquote className="font-display text-pretty text-xl leading-snug font-semibold tracking-[-0.01em] sm:text-2xl">“{analysis.hook.text}”</blockquote>
+          <blockquote className="font-display text-pretty text-xl leading-snug font-semibold tracking-[-0.01em] sm:text-2xl">
+            “{analysis.hook.text}”
+          </blockquote>
           <figcaption className="max-w-[72ch] text-pretty text-sm text-muted">
             <span className="text-fg">The hook</span>
             {analysis.hook.endS ? (
@@ -82,7 +108,10 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
           <h3 className="mb-2 text-sm font-semibold">Structure</h3>
           <ol className="space-y-1.5 text-sm">
             {analysis.structure.map((p, i) => (
-              <li key={i} className="grid grid-cols-[3rem_6.5rem_minmax(0,1fr)] items-baseline gap-2 max-sm:grid-cols-[3rem_minmax(0,1fr)]">
+              <li
+                key={i}
+                className="grid grid-cols-[3rem_6.5rem_minmax(0,1fr)] items-baseline gap-2 max-sm:grid-cols-[3rem_minmax(0,1fr)]"
+              >
                 {/* The hook opens the item: its time is the start when the model left it out. */}
                 <span>{time(p.startS ?? (p.part === "hook" && i === 0 ? 0 : undefined))}</span>
                 <span className="text-xs font-medium text-muted max-sm:hidden">{PART_LABELS[p.part]}</span>
@@ -109,12 +138,19 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
 
       {seen.length ? (
         <details className="group">
-          <summary className="cursor-pointer text-sm font-semibold marker:text-muted">What the pictures show <span className="font-normal text-muted">({seen.length})</span></summary>
+          <summary className="cursor-pointer text-sm font-semibold marker:text-muted">
+            What the pictures show <span className="font-normal text-muted">({seen.length})</span>
+          </summary>
           <ul className="mt-3 space-y-3">
             {seen.map((f) => (
               <li key={f.atS} className="flex gap-3">
                 {/* biome-ignore lint/performance/noImgElement: the browser edition has no next/image; these are pictures the studio already sized. */}
-                <img src={f.url} alt="" loading="lazy" className="h-16 w-11 shrink-0 rounded-md object-cover outline outline-1 -outline-offset-1 outline-[var(--picture-edge)]" />
+                <img
+                  src={f.url}
+                  alt=""
+                  loading="lazy"
+                  className="h-16 w-11 shrink-0 rounded-md object-cover outline outline-1 -outline-offset-1 outline-[var(--picture-edge)]"
+                />
                 <div className="min-w-0 space-y-0.5 text-sm">
                   <p>{time(f.atS)}</p>
                   {f.description ? <p className="text-pretty">{f.description}</p> : null}
@@ -134,13 +170,20 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
               <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${STEP_TONES[s.status]}`} />
               <span className="min-w-0">
                 <span className="font-medium">{STEP_LABELS[s.name] ?? s.name}</span>
-                <span className="text-muted"> · {s.status === "done" ? "done" : s.status === "skipped" ? "skipped" : "failed"}</span>
+                <span className="text-muted">
+                  {" "}
+                  · {s.status === "done" ? "done" : s.status === "skipped" ? "skipped" : "failed"}
+                </span>
                 {s.detail ? <span className="block text-pretty text-muted">{s.detail}</span> : null}
               </span>
             </li>
           ))}
-          {analysis.transcript ? <li className="font-mono text-xs text-muted">Transcript: {analysis.transcript.model}</li> : null}
-          {analysis.insightsModel ? <li className="font-mono text-xs text-muted">Analysis: {analysis.insightsModel}</li> : null}
+          {analysis.transcript ? (
+            <li className="font-mono text-xs text-muted">Transcript: {analysis.transcript.model}</li>
+          ) : null}
+          {analysis.insightsModel ? (
+            <li className="font-mono text-xs text-muted">Analysis: {analysis.insightsModel}</li>
+          ) : null}
         </ul>
       </details>
     </div>

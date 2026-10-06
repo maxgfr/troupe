@@ -19,7 +19,8 @@ export interface MediaFile {
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "id" }).createIndex("storagePath", "storagePath");
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore(STORE, { keyPath: "id" }).createIndex("storagePath", "storagePath");
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
   });
@@ -120,7 +121,8 @@ function removeByStoragePath(files: StoredFile[]): Promise<void> {
 }
 
 export const browserMedia: MediaStore = {
-  urlFor: (assetId, opts) => `${import.meta.env.BASE_URL}app/media/${encodeURIComponent(assetId)}${opts?.download ? "?download=1" : ""}`,
+  urlFor: (assetId, opts) =>
+    `${import.meta.env.BASE_URL}app/media/${encodeURIComponent(assetId)}${opts?.download ? "?download=1" : ""}`,
   // The build copies the cast to <base>actors/ (site/vite-plugins.ts).
   pictureUrl: (storagePath) => actorPictureUrl(`${import.meta.env.BASE_URL}actors`, storagePath),
   remove: (files) => removeByStoragePath(files),

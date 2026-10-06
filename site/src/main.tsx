@@ -27,7 +27,10 @@ createRoot(document.getElementById("root")!).render(
 void afterFirstPaint().then(() => {
   void import("./server-link").then(({ createBrowserContext, keepRecordedRenders }) => {
     void keepRecordedRenders();
-    void createBrowserContext().then((ctx) => ctx.library?.schedule(), () => {});
+    void createBrowserContext().then(
+      (ctx) => ctx.library?.schedule(),
+      () => {},
+    );
   });
   void import("./data/local-data").then(({ pruneUnreferencedMedia }) => pruneUnreferencedMedia());
 });

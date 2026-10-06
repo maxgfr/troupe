@@ -60,10 +60,21 @@ describe("command line", () => {
   });
 
   it("reports the version every package of the release carries", async () => {
-    const root = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8")) as { version: string };
-    const renderer = JSON.parse(await readFile(new URL("../../renderer/package.json", import.meta.url), "utf8")) as { version: string };
-    const plugin = JSON.parse(await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8")) as { version: string };
-    expect([VERSION, USER_AGENT, renderer.version, plugin.version]).toEqual([root.version, `troupe-cli/${root.version}`, root.version, root.version]);
+    const root = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8")) as {
+      version: string;
+    };
+    const renderer = JSON.parse(await readFile(new URL("../../renderer/package.json", import.meta.url), "utf8")) as {
+      version: string;
+    };
+    const plugin = JSON.parse(
+      await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    expect([VERSION, USER_AGENT, renderer.version, plugin.version]).toEqual([
+      root.version,
+      `troupe-cli/${root.version}`,
+      root.version,
+      root.version,
+    ]);
     expect(cliPackage.version).toBe(root.version);
   });
 
@@ -84,16 +95,48 @@ describe("command line", () => {
     const result = await run(["projects", "list", "--json"]);
     expect(result.code).toBe(4);
     expect(result.stdout).toBe("");
-    expect(JSON.parse(result.stderr)).toEqual({ error: { code: "UNREACHABLE", exitCode: 4, message: expect.stringContaining(`Cannot reach the studio at http://127.0.0.1:${closedPort} (ECONNREFUSED)`) } });
+    expect(JSON.parse(result.stderr)).toEqual({
+      error: {
+        code: "UNREACHABLE",
+        exitCode: 4,
+        message: expect.stringContaining(`Cannot reach the studio at http://127.0.0.1:${closedPort} (ECONNREFUSED)`),
+      },
+    });
   });
 
   it("checks option values before calling the studio", async () => {
-    expect(await run(["render", "watch", "--interval", "0"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" })).toMatchObject({ code: 2, stderr: "troupe: --interval takes a number of seconds above 0.\n" });
-    expect((await run(["render", "launch", "--watch", "--timeout", "soon"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" })).code).toBe(2);
-    const bad = await run(["models", "add", "http", "--name", "Box", "--base-url", "http://10.0.0.5:8000", "--durations", "4,x"]);
-    expect(bad).toMatchObject({ code: 2, stderr: 'troupe: --durations takes whole seconds between 1 and 60, not "x".\n' });
-    expect((await run(["models", "add", "http", "--name", "Box", "--base-url", "http://10.0.0.5:8000", "--audio", "loud"])).stderr).toContain("--audio takes one of always, optional, none");
-    expect((await run(["projects", "list", "--url", "ftp://x"])).stderr).toContain("Use an http:// or https:// address");
+    expect(
+      await run(["render", "watch", "--interval", "0"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" }),
+    ).toMatchObject({ code: 2, stderr: "troupe: --interval takes a number of seconds above 0.\n" });
+    expect(
+      (
+        await run(["render", "launch", "--watch", "--timeout", "soon"], {
+          TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111",
+        })
+      ).code,
+    ).toBe(2);
+    const bad = await run([
+      "models",
+      "add",
+      "http",
+      "--name",
+      "Box",
+      "--base-url",
+      "http://10.0.0.5:8000",
+      "--durations",
+      "4,x",
+    ]);
+    expect(bad).toMatchObject({
+      code: 2,
+      stderr: 'troupe: --durations takes whole seconds between 1 and 60, not "x".\n',
+    });
+    expect(
+      (await run(["models", "add", "http", "--name", "Box", "--base-url", "http://10.0.0.5:8000", "--audio", "loud"]))
+        .stderr,
+    ).toContain("--audio takes one of always, optional, none");
+    expect((await run(["projects", "list", "--url", "ftp://x"])).stderr).toContain(
+      "Use an http:// or https:// address",
+    );
   });
 });
 
@@ -108,10 +151,18 @@ describe("studio address", () => {
   });
 
   it("refuses plain http to another machine unless told the network is trusted", () => {
-    expect(() => assertSecureTransport("http://studio.example.com", false)).toThrow(/studio\.example\.com would receive the access code and the studio's cookie unencrypted/);
+    expect(() => assertSecureTransport("http://studio.example.com", false)).toThrow(
+      /studio\.example\.com would receive the access code and the studio's cookie unencrypted/,
+    );
     expect(() => assertSecureTransport("http://localhost.example.com", false)).toThrow();
     expect(() => assertSecureTransport("http://192.168.1.5:3100", true)).not.toThrow();
-    for (const url of ["https://studio.example.com", "http://127.0.0.1:3000", "http://127.3.0.1", "http://localhost:3100", "http://[::1]:3000"]) {
+    for (const url of [
+      "https://studio.example.com",
+      "http://127.0.0.1:3000",
+      "http://127.3.0.1",
+      "http://localhost:3100",
+      "http://[::1]:3000",
+    ]) {
       expect(() => assertSecureTransport(url, false)).not.toThrow();
     }
   });
@@ -171,7 +222,10 @@ describe("config file", () => {
     await writeConfig(env, { profile: "home", profiles: { home: { url: "http://127.0.0.1:3000", cookie: "c" } } });
     expect((await stat(join(dir, "troupe", "config.json"))).mode & 0o777).toBe(0o600);
     expect((await stat(join(dir, "troupe"))).mode & 0o777).toBe(0o700);
-    expect(JSON.parse(await readFile(join(dir, "troupe", "config.json"), "utf8"))).toEqual({ profile: "home", profiles: { home: { url: "http://127.0.0.1:3000", cookie: "c" } } });
+    expect(JSON.parse(await readFile(join(dir, "troupe", "config.json"), "utf8"))).toEqual({
+      profile: "home",
+      profiles: { home: { url: "http://127.0.0.1:3000", cookie: "c" } },
+    });
   });
 
   it("tightens a folder that already existed with looser permissions", async () => {
@@ -187,10 +241,16 @@ describe("config file", () => {
     const dir = await mkdtemp(join(tmpdir(), "troupe-config-"));
     folders.push(dir);
     const env = { TROUPE_CONFIG_DIR: dir };
-    await Promise.all(Array.from({ length: 12 }, (_, i) => updateConfig(env, (config) => {
-      config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
-    })));
-    expect(Object.keys((await readConfig(env)).profiles).sort()).toEqual(Array.from({ length: 12 }, (_, i) => `p${i}`).sort());
+    await Promise.all(
+      Array.from({ length: 12 }, (_, i) =>
+        updateConfig(env, (config) => {
+          config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
+        }),
+      ),
+    );
+    expect(Object.keys((await readConfig(env)).profiles).sort()).toEqual(
+      Array.from({ length: 12 }, (_, i) => `p${i}`).sort(),
+    );
   });
 
   // A lock file whose command crashed `ageMs` ago.
@@ -208,10 +268,16 @@ describe("config file", () => {
       folders.push(dir);
       const env = { TROUPE_CONFIG_DIR: dir };
       await crashedLock(dir, 60_000);
-      await Promise.all(Array.from({ length: 12 }, (_, i) => updateConfig(env, (config) => {
-        config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
-      })));
-      expect(Object.keys((await readConfig(env)).profiles).sort(), `round ${round}`).toEqual(Array.from({ length: 12 }, (_, i) => `p${i}`).sort());
+      await Promise.all(
+        Array.from({ length: 12 }, (_, i) =>
+          updateConfig(env, (config) => {
+            config.profiles[`p${i}`] = { url: `http://127.0.0.1:${3000 + i}` };
+          }),
+        ),
+      );
+      expect(Object.keys((await readConfig(env)).profiles).sort(), `round ${round}`).toEqual(
+        Array.from({ length: 12 }, (_, i) => `p${i}`).sort(),
+      );
     }
   });
 
@@ -230,7 +296,15 @@ describe("config file", () => {
 
 describe("output and lookup", () => {
   it("aligns table columns and leaves the last one unpadded", () => {
-    expect(table(["ID", "NAME", "NOTE"], [["1", "Maya", null], ["22", "Jo", "long note"]])).toBe("ID  NAME  NOTE\n1   Maya  -\n22  Jo    long note");
+    expect(
+      table(
+        ["ID", "NAME", "NOTE"],
+        [
+          ["1", "Maya", null],
+          ["22", "Jo", "long note"],
+        ],
+      ),
+    ).toBe("ID  NAME  NOTE\n1   Maya  -\n22  Jo    long note");
   });
 
   it("writes clip lengths as ranges and ends the studio's messages once", () => {
@@ -242,24 +316,41 @@ describe("output and lookup", () => {
   });
 
   it("picks by full id, name in any case, or a unique id prefix of 4+ characters", () => {
-    const items = [{ id: "abcd1234-0000", name: "Maya" }, { id: "abce9999-0000", name: "Jo" }];
-    const opts = { kind: "actor", listCommand: "troupe actors list", id: (i: (typeof items)[number]) => i.id, names: (i: (typeof items)[number]) => [i.name] };
+    const items = [
+      { id: "abcd1234-0000", name: "Maya" },
+      { id: "abce9999-0000", name: "Jo" },
+    ];
+    const opts = {
+      kind: "actor",
+      listCommand: "troupe actors list",
+      id: (i: (typeof items)[number]) => i.id,
+      names: (i: (typeof items)[number]) => [i.name],
+    };
     expect(pick(items, "ABCD1234-0000", opts).name).toBe("Maya");
     expect(pick(items, "maya", opts).name).toBe("Maya");
     expect(pick(items, "abce", opts).name).toBe("Jo");
     expect(() => pick(items, "abc", opts)).toThrow('No actor matches "abc". List them with troupe actors list.');
     expect(() => pick(items, "abcd", opts)).not.toThrow();
-    expect(() => pick([...items, { id: "abcd5678-0000", name: "Ana" }], "abcd", opts)).toThrow('"abcd" matches 2 actors');
+    expect(() => pick([...items, { id: "abcd5678-0000", name: "Ana" }], "abcd", opts)).toThrow(
+      '"abcd" matches 2 actors',
+    );
   });
 });
 
 describe("a model's state", () => {
-  const model = (patch: Partial<Parameters<typeof modelState>[0]>) => ({ archived: false, enabled: true, status: "ready", kind: "local", lastTest: null, ...patch }) as Parameters<typeof modelState>[0];
+  const model = (patch: Partial<Parameters<typeof modelState>[0]>) =>
+    ({ archived: false, enabled: true, status: "ready", kind: "local", lastTest: null, ...patch }) as Parameters<
+      typeof modelState
+    >[0];
 
   it("says a local model was out of reach at its last test, as Settings does, and still lets it launch", () => {
     expect(modelState(model({}))).toBe("ready");
-    expect(modelState(model({ lastTest: { ok: false, message: "Could not reach it.", at: "2026-10-06T18:00:00Z" } }))).toBe("unreachable");
+    expect(
+      modelState(model({ lastTest: { ok: false, message: "Could not reach it.", at: "2026-10-06T18:00:00Z" } })),
+    ).toBe("unreachable");
     expect(modelState(model({ lastTest: { ok: true, message: "Fine.", at: "2026-10-06T18:00:00Z" } }))).toBe("ready");
-    expect(modelState(model({ enabled: false, lastTest: { ok: false, message: "x", at: "2026-10-06T18:00:00Z" } }))).toBe("disabled");
+    expect(
+      modelState(model({ enabled: false, lastTest: { ok: false, message: "x", at: "2026-10-06T18:00:00Z" } })),
+    ).toBe("disabled");
   });
 });

@@ -5,7 +5,17 @@ import { wordBudget, type ActorChoice } from "./proposal";
 // The conversation sent to the model. Kept short: the browser edition's model
 // has a 4,096-token context for the prompt, the history and its answer.
 
-const LANGUAGES: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", zh: "Chinese", ja: "Japanese", ko: "Korean", pt: "Portuguese" };
+const LANGUAGES: Record<string, string> = {
+  en: "English",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  zh: "Chinese",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+};
 
 // Earlier turns kept in the prompt, oldest dropped first.
 export const HISTORY_TURNS = 6;
@@ -37,7 +47,8 @@ function recentTurns(history: ChatPromptInput["history"], turns = HISTORY_TURNS)
   return first < 0 ? [] : recent.slice(first);
 }
 
-const asJson = (lines: readonly DraftLine[]) => JSON.stringify({ lines: lines.map(({ role, text, emotion }) => ({ role, text, emotion })) });
+const asJson = (lines: readonly DraftLine[]) =>
+  JSON.stringify({ lines: lines.map(({ role, text, emotion }) => ({ role, text, emotion })) });
 
 const short = (gender: string) => (gender === "female" ? "f" : gender === "male" ? "m" : "nb");
 

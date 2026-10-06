@@ -90,8 +90,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
       ...shape,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
@@ -157,14 +156,19 @@ export const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
  * Every workspace-scoped procedure resolves membership or fails
  * closed with FORBIDDEN — before the handler ever runs.
  */
-export const workspaceProcedure = protectedProcedure.input(z.object({ workspaceId: z.string().uuid() })).use(async ({ ctx, input, next }) => {
-  try {
-    await assertMembership(ctx.db, { workspaceId: (input as { workspaceId: string }).workspaceId, userId: ctx.userId! });
-  } catch {
-    throw new TRPCError({ code: "FORBIDDEN", message: "not a member of this workspace" });
-  }
-  return next();
-});
+export const workspaceProcedure = protectedProcedure
+  .input(z.object({ workspaceId: z.string().uuid() }))
+  .use(async ({ ctx, input, next }) => {
+    try {
+      await assertMembership(ctx.db, {
+        workspaceId: (input as { workspaceId: string }).workspaceId,
+        userId: ctx.userId!,
+      });
+    } catch {
+      throw new TRPCError({ code: "FORBIDDEN", message: "not a member of this workspace" });
+    }
+    return next();
+  });
 
 /**
  * For resource-scoped calls: a procedure keyed by `projectId`
@@ -172,14 +176,16 @@ export const workspaceProcedure = protectedProcedure.input(z.object({ workspaceI
  * handler runs. A missing project is NOT_FOUND; a non-member is FORBIDDEN —
  * never data. Exposes the resolved `workspaceId` on ctx for the handler.
  */
-export const projectProcedure = protectedProcedure.input(z.object({ projectId: z.string().uuid() })).use(async ({ ctx, input, next }) => {
-  const projectId = (input as { projectId: string }).projectId;
-  const [project] = await ctx.db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
-  if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "project not found" });
-  try {
-    await assertMembership(ctx.db, { workspaceId: project.workspaceId, userId: ctx.userId! });
-  } catch {
-    throw new TRPCError({ code: "FORBIDDEN", message: "not a member of this project's workspace" });
-  }
-  return next({ ctx: { ...ctx, workspaceId: project.workspaceId } });
-});
+export const projectProcedure = protectedProcedure
+  .input(z.object({ projectId: z.string().uuid() }))
+  .use(async ({ ctx, input, next }) => {
+    const projectId = (input as { projectId: string }).projectId;
+    const [project] = await ctx.db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+    if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "project not found" });
+    try {
+      await assertMembership(ctx.db, { workspaceId: project.workspaceId, userId: ctx.userId! });
+    } catch {
+      throw new TRPCError({ code: "FORBIDDEN", message: "not a member of this project's workspace" });
+    }
+    return next({ ctx: { ...ctx, workspaceId: project.workspaceId } });
+  });

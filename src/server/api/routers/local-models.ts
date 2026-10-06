@@ -3,10 +3,30 @@ import { z } from "zod";
 
 import { protectedProcedure } from "~/server/api/trpc";
 import { clampPollEveryS, type ConnectionReport, type ModelCapabilities } from "~/modules/generation";
-import { NodeBindingSchema, parseWorkflow, workflowProblems, type ApiWorkflow } from "~/modules/generation/server/adapters/comfyui/bindings";
+import {
+  NodeBindingSchema,
+  parseWorkflow,
+  workflowProblems,
+  type ApiWorkflow,
+} from "~/modules/generation/server/adapters/comfyui/bindings";
 import { COMFY_TEMPLATES, findComfyTemplate } from "~/modules/generation/server/adapters/comfyui/templates";
-import { createLocalModel, getModelConfig, listModelConfigs, LOCAL_TIMEOUT_S, newLocalModelKey, updateLocalModel } from "~/modules/models";
-import { buildComfyAdapter, buildHttpAdapter, ComfyConnection, HttpConnection, MAX_WORKFLOW_BYTES, sealModelToken, type LocalDraft } from "~/server/local-models";
+import {
+  createLocalModel,
+  getModelConfig,
+  listModelConfigs,
+  LOCAL_TIMEOUT_S,
+  newLocalModelKey,
+  updateLocalModel,
+} from "~/modules/models";
+import {
+  buildComfyAdapter,
+  buildHttpAdapter,
+  ComfyConnection,
+  HttpConnection,
+  MAX_WORKFLOW_BYTES,
+  sealModelToken,
+  type LocalDraft,
+} from "~/server/local-models";
 import type { Db } from "~/server/db/types";
 import { checkLocalUrl, sameOrigin, suggestedComfyUrl } from "~/server/settings/urls";
 import { SecretUnavailableError } from "~/server/settings/secrets";
@@ -21,7 +41,12 @@ const Capabilities = z.object({
 });
 
 const Label = z.string().trim().min(1).max(80);
-const Token = z.string().trim().min(1).max(2000).regex(/^[^\r\n]*$/);
+const Token = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2000)
+  .regex(/^[^\r\n]*$/);
 const Timeout = z.number().int().min(60).max(86_400);
 
 const HttpInput = z.object({
@@ -61,18 +86,30 @@ const bad = (message: string): never => {
 };
 
 // Turn a form into what gets stored, or explain what is wrong with it.
-function normalize(input: LocalInput): { capabilities: ModelCapabilities; connection: Record<string, unknown>; timeoutS: number } {
+function normalize(input: LocalInput): {
+  capabilities: ModelCapabilities;
+  connection: Record<string, unknown>;
+  timeoutS: number;
+} {
   const url = checkLocalUrl(input.baseUrl);
   if (!url.ok) return bad(url.reason);
   if (input.family === "http") {
-    const connection = HttpConnection.parse({ baseUrl: url.base, fps: input.fps, pollEveryS: clampPollEveryS(input.pollEveryS) });
+    const connection = HttpConnection.parse({
+      baseUrl: url.base,
+      fps: input.fps,
+      pollEveryS: clampPollEveryS(input.pollEveryS),
+    });
     return { capabilities: input.capabilities, connection, timeoutS: input.timeoutS ?? LOCAL_TIMEOUT_S };
   }
   if (input.templateId) {
     const template = findComfyTemplate(input.templateId) ?? bad(`Unknown template "${input.templateId}".`);
     return {
       capabilities: template.capabilities,
-      connection: ComfyConnection.parse({ baseUrl: url.base, templateId: template.id, negativePrompt: input.negativePrompt }),
+      connection: ComfyConnection.parse({
+        baseUrl: url.base,
+        templateId: template.id,
+        negativePrompt: input.negativePrompt,
+      }),
       timeoutS: input.timeoutS ?? template.timeoutS,
     };
   }
@@ -90,8 +127,13 @@ function normalize(input: LocalInput): { capabilities: ModelCapabilities; connec
   return {
     capabilities: input.capabilities,
     connection: ComfyConnection.parse({
-      baseUrl: url.base, workflow, bindings: input.bindings, fps: input.fps, frameRule: input.frameRule,
-      outputNodeId: input.outputNodeId, negativePrompt: input.negativePrompt,
+      baseUrl: url.base,
+      workflow,
+      bindings: input.bindings,
+      fps: input.fps,
+      frameRule: input.frameRule,
+      outputNodeId: input.outputNodeId,
+      negativePrompt: input.negativePrompt,
     }),
     timeoutS: input.timeoutS ?? LOCAL_TIMEOUT_S,
   };
@@ -108,7 +150,8 @@ function seal(modelKey: string, token: string) {
   try {
     return sealModelToken(modelKey, token);
   } catch (error) {
-    if (error instanceof SecretUnavailableError) throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
+    if (error instanceof SecretUnavailableError)
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
     throw error;
   }
 }
@@ -134,8 +177,23 @@ export async function recordTest(db: Db, modelKey: string, report: ConnectionRep
   if (row?.family !== "http" && row?.family !== "comfyui") return;
   const { pollEveryS, lastTest: _previous, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
   if (baseUrl !== undefined && rest.baseUrl !== baseUrl) return;
-  const pace = row.family !== "http" ? {} : report.ok ? (report.pollEveryS ? { pollEveryS: report.pollEveryS } : {}) : pollEveryS === undefined ? {} : { pollEveryS };
-  await updateLocalModel(db, modelKey, { connection: { ...rest, ...pace, lastTest: { ok: report.ok, message: report.message, at: new Date().toISOString() } } });
+  const pace =
+    row.family !== "http"
+      ? {}
+      : report.ok
+        ? report.pollEveryS
+          ? { pollEveryS: report.pollEveryS }
+          : {}
+        : pollEveryS === undefined
+          ? {}
+          : { pollEveryS };
+  await updateLocalModel(db, modelKey, {
+    connection: {
+      ...rest,
+      ...pace,
+      lastTest: { ok: report.ok, message: report.message, at: new Date().toISOString() },
+    },
+  });
 }
 
 // How long adding a model waits for its first test before answering; a
@@ -145,10 +203,18 @@ const ADD_TEST_WAIT_MS = 5000;
 // Procedures for adding, editing and testing local models.
 export const localModelProcedures = {
   templates: protectedProcedure.query(() =>
-    COMFY_TEMPLATES.map(({ id, label, description, capabilities, vramGb, verification, comfyuiVersion, requiredFiles }) => ({
-      id, label, description, capabilities, vramGb, verification, comfyuiVersion,
-      requiredFiles: requiredFiles.map(({ folder, filename, url }) => ({ folder, filename, url })),
-    })),
+    COMFY_TEMPLATES.map(
+      ({ id, label, description, capabilities, vramGb, verification, comfyuiVersion, requiredFiles }) => ({
+        id,
+        label,
+        description,
+        capabilities,
+        vramGb,
+        verification,
+        comfyuiVersion,
+        requiredFiles: requiredFiles.map(({ folder, filename, url }) => ({ folder, filename, url })),
+      }),
+    ),
   ),
 
   // Prefills the form's ComfyUI address for the machine Troupe runs on.
@@ -161,7 +227,12 @@ export const localModelProcedures = {
     const { capabilities, connection, timeoutS } = normalize(input);
     const id = newLocalModelKey(input.label);
     await createLocalModel(ctx.db, {
-      id, family: input.family, label: input.label, capabilities, connection, timeoutS,
+      id,
+      family: input.family,
+      label: input.label,
+      capabilities,
+      connection,
+      timeoutS,
       secret: input.token ? seal(id, input.token) : null,
     });
     // An HTTP model sent with the pace its server gave the client's test
@@ -170,9 +241,16 @@ export const localModelProcedures = {
     // later, but says so instead of "Ready", and an HTTP server's pace is
     // saved instead of polling at the 20 s default.
     if (connection.pollEveryS !== undefined) {
-      await recordTest(ctx.db, id, { ok: true, message: "It answered the test it was added after.", pollEveryS: connection.pollEveryS as number });
+      await recordTest(ctx.db, id, {
+        ok: true,
+        message: "It answered the test it was added after.",
+        pollEveryS: connection.pollEveryS as number,
+      });
     } else {
-      const tested = testDraft({ modelKey: id, label: input.label, capabilities, connection, token: input.token }, input.family)
+      const tested = testDraft(
+        { modelKey: id, label: input.label, capabilities, connection, token: input.token },
+        input.family,
+      )
         .then((report) => recordTest(ctx.db, id, report, connection.baseUrl as string))
         .catch(() => {});
       await Promise.race([tested, new Promise((resolve) => setTimeout(resolve, ADD_TEST_WAIT_MS))]);
@@ -183,10 +261,19 @@ export const localModelProcedures = {
   // What changes on a local model in practice: its name, where it lives and
   // its token. An omitted token keeps the stored one; clearToken removes it.
   updateLocal: protectedProcedure
-    .input(z.object({ modelKey: MODEL_KEY, label: Label.optional(), baseUrl: z.string().max(500).optional(), token: Token.optional(), clearToken: z.boolean().optional() }))
+    .input(
+      z.object({
+        modelKey: MODEL_KEY,
+        label: Label.optional(),
+        baseUrl: z.string().max(500).optional(),
+        token: Token.optional(),
+        clearToken: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const row = await getModelConfig(ctx.db, input.modelKey);
-      if (!row || (row.family !== "http" && row.family !== "comfyui")) throw new TRPCError({ code: "NOT_FOUND", message: "This local model no longer exists." });
+      if (!row || (row.family !== "http" && row.family !== "comfyui"))
+        throw new TRPCError({ code: "NOT_FOUND", message: "This local model no longer exists." });
       if (input.label) assertUniqueName(ctx.catalog, input.label, input.modelKey);
       let connection: Record<string, unknown> | undefined;
       let movedOrigin = false;
@@ -198,7 +285,13 @@ export const localModelProcedures = {
         const { pollEveryS, lastTest, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
         // Another server has its own pace and its own answer: forget both
         // until a test.
-        connection = { ...rest, ...(movedOrigin ? {} : { ...(pollEveryS === undefined ? {} : { pollEveryS }), ...(lastTest === undefined ? {} : { lastTest }) }), baseUrl: url.base };
+        connection = {
+          ...rest,
+          ...(movedOrigin
+            ? {}
+            : { ...(pollEveryS === undefined ? {} : { pollEveryS }), ...(lastTest === undefined ? {} : { lastTest }) }),
+          baseUrl: url.base,
+        };
       }
       // Another token may be refused, or accepted: the last answer no longer holds.
       if (input.token || input.clearToken) {
@@ -210,7 +303,11 @@ export const localModelProcedures = {
         ...(connection ? { connection } : {}),
         // A token is only ever sent to the server it was given for: moving the
         // model to another origin drops it unless a new one comes along.
-        ...(input.token ? { secret: seal(input.modelKey, input.token) } : input.clearToken || movedOrigin ? { secret: null } : {}),
+        ...(input.token
+          ? { secret: seal(input.modelKey, input.token) }
+          : input.clearToken || movedOrigin
+            ? { secret: null }
+            : {}),
       });
     }),
 
@@ -220,13 +317,21 @@ export const localModelProcedures = {
       .filter((r) => r.family === "http" || r.family === "comfyui")
       .map((r) => {
         const c = (r.connection ?? {}) as { baseUrl?: unknown; templateId?: unknown };
-        return { modelKey: r.id, baseUrl: typeof c.baseUrl === "string" ? c.baseUrl : "", templateId: typeof c.templateId === "string" ? c.templateId : null, hasToken: Boolean(r.secretCiphertext) };
+        return {
+          modelKey: r.id,
+          baseUrl: typeof c.baseUrl === "string" ? c.baseUrl : "",
+          templateId: typeof c.templateId === "string" ? c.templateId : null,
+          hasToken: Boolean(r.secretCiphertext),
+        };
       }),
   ),
 
   // Test a form before saving it. Nothing is stored.
   testDraft: protectedProcedure.input(LocalInput).mutation(({ input }) => {
     const { capabilities, connection } = normalize(input);
-    return testDraft({ modelKey: "draft", label: input.label, capabilities, connection, token: input.token }, input.family);
+    return testDraft(
+      { modelKey: "draft", label: input.label, capabilities, connection, token: input.token },
+      input.family,
+    );
   }),
 };

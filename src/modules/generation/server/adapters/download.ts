@@ -10,14 +10,25 @@ export async function videoBytes(response: Response, maxBytes = CLOUD_DOWNLOAD_L
     chunks.push(chunk);
   }
   const bytes = Buffer.concat(chunks);
-  if (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp") throw new Error("Provider returned an invalid MP4 file.");
+  if (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp")
+    throw new Error("Provider returned an invalid MP4 file.");
   return bytes;
 }
 
 export async function downloadFalVideo(address: string) {
   let url = new URL(address);
   for (let redirects = 0; redirects < 4; redirects++) {
-    if (url.protocol !== "https:" || url.port || url.username || url.password || !(url.hostname === "fal.media" || url.hostname.endsWith(".fal.media") || url.hostname === "storage.googleapis.com")) {
+    if (
+      url.protocol !== "https:" ||
+      url.port ||
+      url.username ||
+      url.password ||
+      !(
+        url.hostname === "fal.media" ||
+        url.hostname.endsWith(".fal.media") ||
+        url.hostname === "storage.googleapis.com"
+      )
+    ) {
       throw new Error("Unrecognized video storage address.");
     }
     const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(60_000) });

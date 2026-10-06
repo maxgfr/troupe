@@ -53,7 +53,16 @@ class FakeWorker {
   }
 }
 
-const job: BrowserRenderJob = { width: 720, height: 1280, fps: 24, script: { lines: [], actor: { id: "a", name: "A", gender: "female", ageRange: "25-34", voiceProfile: "warm" }, language: "en" } };
+const job: BrowserRenderJob = {
+  width: 720,
+  height: 1280,
+  fps: 24,
+  script: {
+    lines: [],
+    actor: { id: "a", name: "A", gender: "female", ageRange: "25-34", voiceProfile: "warm" },
+    language: "en",
+  },
+};
 
 let locks: FakeLockManager;
 // When its lock went: whether the job's outcome was already written, and the
@@ -100,7 +109,11 @@ describe("browser renderer (page side)", () => {
     FakeWorker.last!.emit({ type: "done", jobId: id, video: new Blob(["mp4"]) });
     await settled();
     expect(outcomeWrittenAtRelease).toBe(true);
-    expect(await atRelease).toMatchObject({ status: "succeeded", probe: { durationS: 5, width: 720, height: 1280 }, checksum: "sha-of-3" });
+    expect(await atRelease).toMatchObject({
+      status: "succeeded",
+      probe: { durationS: 5, width: 720, height: 1280 },
+      checksum: "sha-of-3",
+    });
     expect(await held()).toEqual([]);
     expect(await runner.browserRenderer.state(id)).toEqual({ status: "succeeded" });
   });
@@ -111,7 +124,10 @@ describe("browser renderer (page side)", () => {
     await settled();
     expect(outcomeWrittenAtRelease).toBe(true);
     expect(await atRelease).toMatchObject({ status: "failed", detail: "The voice model could not load." });
-    expect(await runner.browserRenderer.state(id)).toEqual({ status: "failed", detail: "The voice model could not load." });
+    expect(await runner.browserRenderer.state(id)).toEqual({
+      status: "failed",
+      detail: "The voice model could not load.",
+    });
   });
 
   it("fails a video the browser cannot read back, rather than handing it on", async () => {
@@ -119,7 +135,10 @@ describe("browser renderer (page side)", () => {
     const id = await runner.browserRenderer.start(job);
     FakeWorker.last!.emit({ type: "done", jobId: id, video: new Blob(["broken"]) });
     await settled();
-    expect(await atRelease).toMatchObject({ status: "failed", detail: "This browser cannot play the video it rendered." });
+    expect(await atRelease).toMatchObject({
+      status: "failed",
+      detail: "This browser cannot play the video it rendered.",
+    });
     expect((await readJob(id))?.video).toBeUndefined();
   });
 
@@ -128,6 +147,10 @@ describe("browser renderer (page side)", () => {
     const second = await runner.browserRenderer.start(job);
     FakeWorker.last!.onerror?.({ message: "out of memory", preventDefault() {} });
     await vi.waitFor(async () => expect(await held()).toEqual([]));
-    for (const id of [first, second]) expect(await readJob(id)).toMatchObject({ status: "failed", detail: "The render stopped: out of memory. Relaunch it." });
+    for (const id of [first, second])
+      expect(await readJob(id)).toMatchObject({
+        status: "failed",
+        detail: "The render stopped: out of memory. Relaunch it.",
+      });
   });
 });

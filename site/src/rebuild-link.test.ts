@@ -24,24 +24,27 @@ function harness() {
   const calls: string[] = [];
   // Stands in for the local link: the first answer comes back while a rebuild
   // runs, the next ones after it.
-  const backend: TRPCLink<typeof router> = () => ({ op }) =>
-    observable((observer) => {
-      calls.push(op.path);
-      const answer = answers.shift() ?? "after";
-      // "during" and "failed during" start a rebuild; "failed…" fails.
-      if (answer.endsWith("during")) {
-        generation += 1;
-        rebuilt = new Promise((resolve) => {
-          finish = resolve;
+  const backend: TRPCLink<typeof router> =
+    () =>
+    ({ op }) =>
+      observable((observer) => {
+        calls.push(op.path);
+        const answer = answers.shift() ?? "after";
+        // "during" and "failed during" start a rebuild; "failed…" fails.
+        if (answer.endsWith("during")) {
+          generation += 1;
+          rebuilt = new Promise((resolve) => {
+            finish = resolve;
+          });
+        }
+        queueMicrotask(() => {
+          if (answer.startsWith("failed"))
+            return observer.error(TRPCClientError.from(new Error("relation does not exist")));
+          observer.next({ result: { type: "data", data: answer } });
+          observer.complete();
         });
-      }
-      queueMicrotask(() => {
-        if (answer.startsWith("failed")) return observer.error(TRPCClientError.from(new Error("relation does not exist")));
-        observer.next({ result: { type: "data", data: answer } });
-        observer.complete();
+        return () => {};
       });
-      return () => {};
-    });
   const link = rerunQueriesCaughtByRebuild<typeof router>({ generation: () => generation, rebuilt: () => rebuilt });
   const client = createTRPCClient<typeof router>({ links: [link, backend] });
   return { client, answers, calls, finish: () => finish() };

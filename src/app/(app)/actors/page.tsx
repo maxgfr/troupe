@@ -5,14 +5,7 @@ import { useState } from "react";
 
 import { api } from "~/trpc/react";
 import { usePageTitle } from "~/app/_components/page-title";
-import {
-  ErrorNote,
-  PageHeader,
-  Section,
-  SignedOutNotice,
-  Skeleton,
-  chipClass,
-} from "~/app/_components/ui";
+import { ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, chipClass } from "~/app/_components/ui";
 
 const GENDERS = ["female", "male", "nonbinary"] as const;
 
@@ -52,7 +45,11 @@ export default function ActorsPage() {
 
       <Section>
         {actors.isPending ? (
-          <div role="status" aria-label="Loading" className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+          <div
+            role="status"
+            aria-label="Loading"
+            className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6"
+          >
             {Array.from({ length: 8 }, (_, i) => (
               <div key={i} className="space-y-3">
                 <Skeleton className="aspect-[4/5] w-full rounded-xl" />
@@ -70,7 +67,6 @@ export default function ActorsPage() {
           <ActorGrid actors={(actors.data ?? []) as LibraryActor[]} filtered={gender !== undefined} />
         )}
       </Section>
-
     </>
   );
 }

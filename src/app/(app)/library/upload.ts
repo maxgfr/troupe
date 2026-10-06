@@ -21,7 +21,8 @@ export const serverUploader: LibraryUploader = {
         if (request.status === 200 && body.item) resolve({ id: body.item.id });
         else reject(new Error(body.error ?? `The upload failed (HTTP ${request.status}).`));
       };
-      request.onerror = () => reject(new Error("The upload was cut off. Check the connection to the studio and try again."));
+      request.onerror = () =>
+        reject(new Error("The upload was cut off. Check the connection to the studio and try again."));
       request.send(file);
     });
   },

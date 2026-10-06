@@ -10,7 +10,11 @@ vi.mock("~/trpc/react", () => ({
   api: {
     identity: {
       myWorkspaces: {
-        useQuery: () => ({ isPending: false, error: workspaceError, data: [{ id: "w1", name: "Acme Growth", ownerId: "u1" }] }),
+        useQuery: () => ({
+          isPending: false,
+          error: workspaceError,
+          data: [{ id: "w1", name: "Acme Growth", ownerId: "u1" }],
+        }),
       },
     },
   },
@@ -24,7 +28,11 @@ vi.mock("next/navigation", () => ({
 import { AppShell } from "./app-shell";
 import { WorkspaceProvider } from "./workspace-context";
 
-afterEach(() => { cleanup(); workspaceError = null; push.mockClear(); });
+afterEach(() => {
+  cleanup();
+  workspaceError = null;
+  push.mockClear();
+});
 
 describe("AppShell", () => {
   it("renders the wordmark, the sections (top bar and phone tab bar), New project and Settings", () => {
@@ -36,8 +44,15 @@ describe("AppShell", () => {
       </WorkspaceProvider>,
     );
     expect(screen.getByLabelText("troupe — home")).toBeDefined();
-    for (const nav of [screen.getByRole("navigation", { name: "Primary" }), screen.getByRole("navigation", { name: "Sections" })]) {
-      expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual(["Projects", "Library", "Actors", "Compare"]);
+    for (const nav of [
+      screen.getByRole("navigation", { name: "Primary" }),
+      screen.getByRole("navigation", { name: "Sections" }),
+    ]) {
+      expect(
+        within(nav)
+          .getAllByRole("link")
+          .map((l) => l.textContent),
+      ).toEqual(["Projects", "Library", "Actors", "Compare"]);
     }
     expect(screen.getByRole("link", { name: "New project" }).getAttribute("href")).toBe("/projects/new");
     expect(screen.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe("/settings");
@@ -98,7 +113,13 @@ describe("AppShell", () => {
 
 it("shows a recoverable workspace error instead of mounting broken pages", () => {
   workspaceError = { message: "Database unavailable" };
-  render(<WorkspaceProvider><AppShell><p>Project controls</p></AppShell></WorkspaceProvider>);
+  render(
+    <WorkspaceProvider>
+      <AppShell>
+        <p>Project controls</p>
+      </AppShell>
+    </WorkspaceProvider>,
+  );
   expect(screen.getByRole("alert").textContent).toContain("Database unavailable");
   expect(screen.getByRole("button", { name: "Reload studio" })).toBeDefined();
   expect(screen.queryByText("Project controls")).toBeNull();

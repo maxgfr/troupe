@@ -59,7 +59,8 @@ export function parseSceneHue(raw: string | undefined): number | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
   const hue = Number(value);
-  if (!/^\d+$/.test(value) || hue > 359) throw new Error(`The scene hue must be a whole number of degrees from 0 to 359 (got "${value}").`);
+  if (!/^\d+$/.test(value) || hue > 359)
+    throw new Error(`The scene hue must be a whole number of degrees from 0 to 359 (got "${value}").`);
   return hue;
 }
 

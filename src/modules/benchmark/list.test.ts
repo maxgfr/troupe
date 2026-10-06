@@ -9,7 +9,13 @@ import { projects } from "~/modules/studio/server/schema";
 import { seedActorLibrary, listActors, attachActorToProject } from "~/modules/actors";
 import { pasteScript } from "~/modules/script";
 import { fakeAdapter, asModels } from "~/test/adapters";
-import { BENCHMARK_LIST_LIMIT, getBenchmarkRun, listBenchmarkRuns, startBenchmark, voteOnEntry } from "~/modules/benchmark";
+import {
+  BENCHMARK_LIST_LIMIT,
+  getBenchmarkRun,
+  listBenchmarkRuns,
+  startBenchmark,
+  voteOnEntry,
+} from "~/modules/benchmark";
 import { apiMediaLinks } from "~/server/media/store";
 
 const USER = "92222222-2222-4222-8222-222222222222";
@@ -31,7 +37,10 @@ beforeAll(async () => {
   ws = (await createWorkspace(t.db, { userId: USER, name: "List" })).id;
   await seedActorLibrary(t.db);
   const actor = (await listActors(t.db, {}))[0]!;
-  const [p] = await t.db.insert(projects).values({ workspaceId: ws, title: "List", format: "9:16", platform: "tiktok", language: "en" }).returning();
+  const [p] = await t.db
+    .insert(projects)
+    .values({ workspaceId: ws, title: "List", format: "9:16", platform: "tiktok", language: "en" })
+    .returning();
   projectId = p!.id;
   await attachActorToProject(t.db, { projectId, actorId: actor.id });
   scriptId = (await pasteScript(t.db, { projectId, text: "List me." })).id;
@@ -39,8 +48,20 @@ beforeAll(async () => {
 
 describe("listBenchmarkRuns", () => {
   it("returns the workspace's runs newest first with brief, entry count and vote winner", async () => {
-    const first = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("l1")), durationS: 8, resolution: "720p" });
-    const second = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("l2")), durationS: 8, resolution: "720p" });
+    const first = await startBenchmark(t.db, {
+      projectId,
+      scriptId,
+      models: asModels(adapters("l1")),
+      durationS: 8,
+      resolution: "720p",
+    });
+    const second = await startBenchmark(t.db, {
+      projectId,
+      scriptId,
+      models: asModels(adapters("l2")),
+      durationS: 8,
+      resolution: "720p",
+    });
     const veoEntry = second.entries.find((e) => e.modelKey === "veo")!;
     await voteOnEntry(t.db, { entryId: veoEntry.id, userId: USER, score: 4 });
 
@@ -56,7 +77,13 @@ describe("listBenchmarkRuns", () => {
   });
 
   it("a vote tie yields no winner in the summary", async () => {
-    const run = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("l3")), durationS: 8, resolution: "720p" });
+    const run = await startBenchmark(t.db, {
+      projectId,
+      scriptId,
+      models: asModels(adapters("l3")),
+      durationS: 8,
+      resolution: "720p",
+    });
     await voteOnEntry(t.db, { entryId: run.entries[0]!.id, userId: USER, score: 3 });
     await voteOnEntry(t.db, { entryId: run.entries[1]!.id, userId: USER, score: 3 });
     const runs = await listBenchmarkRuns(t.db, ws);
@@ -79,14 +106,35 @@ describe("bounded listBenchmarkRuns", () => {
 
   it("honours limit, newest first, and pages older runs via the before cursor", async () => {
     const ws2 = (await createWorkspace(t.db, { userId: USER, name: "Paged" })).id;
-    const [p2] = await t.db.insert(projects).values({ workspaceId: ws2, title: "Paged", format: "9:16", platform: "tiktok", language: "en" }).returning();
+    const [p2] = await t.db
+      .insert(projects)
+      .values({ workspaceId: ws2, title: "Paged", format: "9:16", platform: "tiktok", language: "en" })
+      .returning();
     const actor = (await listActors(t.db, {}))[0]!;
     await attachActorToProject(t.db, { projectId: p2!.id, actorId: actor.id });
     const s2 = (await pasteScript(t.db, { projectId: p2!.id, text: "List me." })).id;
 
-    const a = await startBenchmark(t.db, { projectId: p2!.id, scriptId: s2, models: asModels(adapters("p1")), durationS: 8, resolution: "720p" });
-    const b = await startBenchmark(t.db, { projectId: p2!.id, scriptId: s2, models: asModels(adapters("p2")), durationS: 8, resolution: "720p" });
-    const c = await startBenchmark(t.db, { projectId: p2!.id, scriptId: s2, models: asModels(adapters("p3")), durationS: 8, resolution: "720p" });
+    const a = await startBenchmark(t.db, {
+      projectId: p2!.id,
+      scriptId: s2,
+      models: asModels(adapters("p1")),
+      durationS: 8,
+      resolution: "720p",
+    });
+    const b = await startBenchmark(t.db, {
+      projectId: p2!.id,
+      scriptId: s2,
+      models: asModels(adapters("p2")),
+      durationS: 8,
+      resolution: "720p",
+    });
+    const c = await startBenchmark(t.db, {
+      projectId: p2!.id,
+      scriptId: s2,
+      models: asModels(adapters("p3")),
+      durationS: 8,
+      resolution: "720p",
+    });
 
     const firstPage = await listBenchmarkRuns(t.db, ws2, { limit: 2 });
     expect(firstPage).toHaveLength(2);
@@ -101,7 +149,13 @@ describe("bounded listBenchmarkRuns", () => {
 // cue captions per line instead of one blob.
 describe("getBenchmarkRun briefLines", () => {
   it("returns the script lines the run was launched from", async () => {
-    const run = await startBenchmark(t.db, { projectId, scriptId, models: asModels(adapters("bl")), durationS: 8, resolution: "720p" });
+    const run = await startBenchmark(t.db, {
+      projectId,
+      scriptId,
+      models: asModels(adapters("bl")),
+      durationS: 8,
+      resolution: "720p",
+    });
     const view = await getBenchmarkRun(t.db, run.id, apiMediaLinks);
     expect(view.briefLines).toEqual(["List me."]);
   });

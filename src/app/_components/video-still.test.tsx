@@ -23,7 +23,12 @@ class FakeObserver {
   }
 }
 const scrollIntoView = () =>
-  act(() => callback(observed.map((target) => ({ target, isIntersecting: true }) as IntersectionObserverEntry), {} as IntersectionObserver));
+  act(() =>
+    callback(
+      observed.map((target) => ({ target, isIntersecting: true }) as IntersectionObserverEntry),
+      {} as IntersectionObserver,
+    ),
+  );
 
 beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", FakeObserver);

@@ -54,7 +54,13 @@ function release(element: HTMLMediaElement) {
 }
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("The picture could not be saved."))), "image/jpeg", 0.82));
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("The picture could not be saved."))),
+      "image/jpeg",
+      0.82,
+    ),
+  );
 }
 
 // The sound track's codec by item, from the probe, for the reason when the
@@ -121,14 +127,21 @@ export function browserMediaReader(db: Db): MediaReader {
           const pixels = small.getImageData(0, 0, COMPARE_W, COMPARE_H).data;
           if (previous) {
             let sum = 0;
-            for (let i = 0; i < pixels.length; i += 4) sum += Math.abs(pixels[i]! - previous[i]!) + Math.abs(pixels[i + 1]! - previous[i + 1]!) + Math.abs(pixels[i + 2]! - previous[i + 2]!);
+            for (let i = 0; i < pixels.length; i += 4)
+              sum +=
+                Math.abs(pixels[i]! - previous[i]!) +
+                Math.abs(pixels[i + 1]! - previous[i + 1]!) +
+                Math.abs(pixels[i + 2]! - previous[i + 2]!);
             differences.push(sum / ((pixels.length / 4) * 3 * 255));
           }
           previous = pixels;
         }
         const cutsAtS = cutsFromDifferences(differences, step);
         const scale = Math.min(1, FRAME_W / video.videoWidth);
-        const canvas = Object.assign(document.createElement("canvas"), { width: Math.round(video.videoWidth * scale), height: Math.round(video.videoHeight * scale) });
+        const canvas = Object.assign(document.createElement("canvas"), {
+          width: Math.round(video.videoWidth * scale),
+          height: Math.round(video.videoHeight * scale),
+        });
         const context = canvas.getContext("2d")!;
         const frames: { assetId: string; atS: number }[] = [];
         for (const [n, atS] of frameTimes(cutsAtS, durationS, options.max).entries()) {
@@ -139,7 +152,16 @@ export function browserMediaReader(db: Db): MediaReader {
           const assetId = crypto.randomUUID();
           const storagePath = `library/${file.itemId}/frame-${String(n).padStart(2, "0")}.jpg`;
           const bytes = new Uint8Array(await blob.arrayBuffer());
-          await db.insert(mediaAssets).values({ id: assetId, workspaceId: file.workspaceId, kind: "frame", storagePath, mimeType: "image/jpeg", bytes: bytes.length, checksum: await sha256Hex(bytes), meta: { itemId: file.itemId, atS } });
+          await db.insert(mediaAssets).values({
+            id: assetId,
+            workspaceId: file.workspaceId,
+            kind: "frame",
+            storagePath,
+            mimeType: "image/jpeg",
+            bytes: bytes.length,
+            checksum: await sha256Hex(bytes),
+            meta: { itemId: file.itemId, atS },
+          });
           await saveMediaFile({ id: assetId, storagePath, blob });
           frames.push({ assetId, atS });
         }
@@ -161,7 +183,9 @@ export function browserMediaReader(db: Db): MediaReader {
         samples = await decode16k(await blobOf(file));
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`this browser could not decode its sound${codec ? ` (${codec})` : ""}: ${reason}. The self-hosted studio reads it with ffmpeg.`);
+        throw new Error(
+          `this browser could not decode its sound${codec ? ` (${codec})` : ""}: ${reason}. The self-hosted studio reads it with ffmpeg.`,
+        );
       }
       if (samples.length === 0) throw new Error("its sound track is empty.");
       return { kind: "samples", samples, sampleRate: SAMPLE_RATE };
@@ -177,7 +201,10 @@ export function browserMediaReader(db: Db): MediaReader {
       const { extractText, getDocumentProxy } = await import("unpdf");
       const pdf = await getDocumentProxy(new Uint8Array(await (await blobOf(file)).arrayBuffer()));
       const { text } = await extractText(pdf, { mergePages: false });
-      return (Array.isArray(text) ? text : [text]).map((page) => page.trim()).filter(Boolean).join("\n\n");
+      return (Array.isArray(text) ? text : [text])
+        .map((page) => page.trim())
+        .filter(Boolean)
+        .join("\n\n");
     },
   };
 }

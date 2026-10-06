@@ -39,11 +39,14 @@ export function extractArticle(html: string, url: string): Article {
   }
   if (parsed?.textContent?.trim()) {
     // Paragraphs keep their breaks: Readability's HTML, with block ends as new lines.
-    const { document: content } = parseHTML(`<html><body>${(parsed.content ?? "").replace(/<\/(p|h[1-6]|li|blockquote|pre|div|tr)>/gi, "</$1>\n\n").replace(/<br\s*\/?>/gi, "\n")}</body></html>`);
+    const { document: content } = parseHTML(
+      `<html><body>${(parsed.content ?? "").replace(/<\/(p|h[1-6]|li|blockquote|pre|div|tr)>/gi, "</$1>\n\n").replace(/<br\s*\/?>/gi, "\n")}</body></html>`,
+    );
     const text = tidy(content.body?.textContent ?? parsed.textContent);
     const site = parsed.siteName?.trim() || siteName;
     return { title: cleanTitle(parsed.title?.trim() || pageTitle || url, site), text, siteName: site };
   }
-  for (const node of document.querySelectorAll("script, style, noscript, template, nav, header, footer, svg")) node.remove();
+  for (const node of document.querySelectorAll("script, style, noscript, template, nav, header, footer, svg"))
+    node.remove();
   return { title: cleanTitle(pageTitle || url, siteName), text: tidy(document.body?.textContent ?? ""), siteName };
 }

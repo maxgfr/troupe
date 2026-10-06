@@ -11,7 +11,11 @@ import { projectStage, projects, type ProjectStage } from "~/modules/studio";
 // (studio/stage.ts), worked out from its renders and exports, and its newest
 // saved video (the poster the dashboard plays), if any.
 export async function listProjects(db: Db, workspaceId: string) {
-  const rows = await db.select().from(projects).where(eq(projects.workspaceId, workspaceId)).orderBy(desc(projects.createdAt));
+  const rows = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.workspaceId, workspaceId))
+    .orderBy(desc(projects.createdAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const renders = await db
@@ -31,7 +35,13 @@ export async function listProjects(db: Db, workspaceId: string) {
   const videos = await db
     .selectDistinctOn([generations.projectId], { projectId: generations.projectId, assetId: generations.outputAssetId })
     .from(generations)
-    .where(and(inArray(generations.projectId, ids), eq(generations.status, "completed"), isNotNull(generations.outputAssetId)))
+    .where(
+      and(
+        inArray(generations.projectId, ids),
+        eq(generations.status, "completed"),
+        isNotNull(generations.outputAssetId),
+      ),
+    )
     .orderBy(generations.projectId, desc(generations.createdAt));
   const byProject = new Map(renders.map((r) => [r.projectId, r]));
   const exports = new Map(exported.map((e) => [e.projectId, e.n]));
@@ -61,20 +71,44 @@ export async function deleteProjectData(db: Db, projectId: string): Promise<{ fi
     const assetIds = rows.map((r) => r.outputAssetId).filter((id): id is string => Boolean(id));
     const assets = assetIds.length ? await tx.select().from(mediaAssets).where(inArray(mediaAssets.id, assetIds)) : [];
     const runIds = rows.length
-      ? (await tx.selectDistinct({ id: benchmarkEntries.benchmarkRunId }).from(benchmarkEntries).where(inArray(benchmarkEntries.generationId, rows.map((r) => r.id)))).map((r) => r.id)
+      ? (
+          await tx
+            .selectDistinct({ id: benchmarkEntries.benchmarkRunId })
+            .from(benchmarkEntries)
+            .where(
+              inArray(
+                benchmarkEntries.generationId,
+                rows.map((r) => r.id),
+              ),
+            )
+        ).map((r) => r.id)
       : [];
 
     const deleted = await tx.delete(projects).where(eq(projects.id, projectId)).returning({ id: projects.id });
     if (deleted.length === 0) throw new Error("This project no longer exists.");
     if (assetIds.length) await tx.delete(mediaAssets).where(inArray(mediaAssets.id, assetIds));
     if (runIds.length) {
-      await tx.delete(benchmarkRuns).where(and(
-        inArray(benchmarkRuns.id, runIds),
-        notExists(tx.select({ one: sql`1` }).from(benchmarkEntries).where(eq(benchmarkEntries.benchmarkRunId, benchmarkRuns.id))),
-      ));
+      await tx
+        .delete(benchmarkRuns)
+        .where(
+          and(
+            inArray(benchmarkRuns.id, runIds),
+            notExists(
+              tx
+                .select({ one: sql`1` })
+                .from(benchmarkEntries)
+                .where(eq(benchmarkEntries.benchmarkRunId, benchmarkRuns.id)),
+            ),
+          ),
+        );
     }
     return {
-      files: assets.map((a): StoredFile => ({ storagePath: a.storagePath, storage: a.meta.storage === "supabase" ? "supabase" : "local" })),
+      files: assets.map(
+        (a): StoredFile => ({
+          storagePath: a.storagePath,
+          storage: a.meta.storage === "supabase" ? "supabase" : "local",
+        }),
+      ),
     };
   });
 }

@@ -16,7 +16,9 @@ const config = {
   // standalone output traces and copies it).
   serverExternalPackages: ["unpdf"],
   // Only Vercel needs the bundled ffprobe; Docker uses the system package.
-  ...(process.env.VERCEL ? { outputFileTracingIncludes: { "/*": ["./node_modules/@ffprobe-installer/linux-x64/ffprobe"] } } : {}),
+  ...(process.env.VERCEL
+    ? { outputFileTracingIncludes: { "/*": ["./node_modules/@ffprobe-installer/linux-x64/ffprobe"] } }
+    : {}),
 };
 
 export default config;

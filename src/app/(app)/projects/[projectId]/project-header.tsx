@@ -36,8 +36,15 @@ export function ProjectHeader({
   aside?: React.ReactNode;
 }) {
   const workspace = useWorkspace();
-  const project = api.studio.getProject.useQuery({ projectId }, { enabled: workspace.status === "ready", retry: false });
-  const actors = api.actors.list.useQuery(undefined, { enabled: Boolean(project.data?.actorId), retry: false, staleTime: 5 * 60_000 });
+  const project = api.studio.getProject.useQuery(
+    { projectId },
+    { enabled: workspace.status === "ready", retry: false },
+  );
+  const actors = api.actors.list.useQuery(undefined, {
+    enabled: Boolean(project.data?.actorId),
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
   const actor = actors.data?.find((a) => a.id === project.data?.actorId);
   useStageHue(actor ? actorHue(actor.id) : null);
   usePageTitle(TABS.find((t) => t.id === tab)?.label, project.data?.title);
@@ -50,7 +57,10 @@ export function ProjectHeader({
           (project.isPending ? (
             <>
               <span className="sr-only">Project</span>
-              <span aria-hidden className="inline-block h-8 w-64 max-w-full animate-pulse rounded-lg bg-fg/[0.06] align-middle motion-reduce:animate-none" />
+              <span
+                aria-hidden
+                className="inline-block h-8 w-64 max-w-full animate-pulse rounded-lg bg-fg/[0.06] align-middle motion-reduce:animate-none"
+              />
             </>
           ) : (
             "Project"

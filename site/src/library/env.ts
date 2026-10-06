@@ -5,4 +5,5 @@ import { parseLibraryConfig, type BrowserLibraryConfig } from "./config";
 // without the build: defaults then.
 declare const __LIBRARY_CONFIG__: BrowserLibraryConfig | undefined;
 
-export const LIBRARY_CONFIG: BrowserLibraryConfig = typeof __LIBRARY_CONFIG__ === "undefined" ? parseLibraryConfig({}) : __LIBRARY_CONFIG__;
+export const LIBRARY_CONFIG: BrowserLibraryConfig =
+  typeof __LIBRARY_CONFIG__ === "undefined" ? parseLibraryConfig({}) : __LIBRARY_CONFIG__;

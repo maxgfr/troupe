@@ -59,7 +59,9 @@ const IDLE_MS = 10 * 60_000;
 let worker: Worker | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
-type Outcome = { status: "succeeded"; video: Blob; probe: JobRecord["probe"]; checksum: string } | { status: "failed"; detail: string };
+type Outcome =
+  | { status: "succeeded"; video: Blob; probe: JobRecord["probe"]; checksum: string }
+  | { status: "failed"; detail: string };
 
 async function finish(jobId: string, outcome: Outcome) {
   try {
@@ -92,7 +94,11 @@ function renderWorker(): Worker {
       // the studio's ingest only reads what was found.
       void readVideo(data.video).then(
         ({ probe, checksum }) => finish(data.jobId, { status: "succeeded", video: data.video, probe, checksum }),
-        (error: unknown) => finish(data.jobId, { status: "failed", detail: error instanceof Error ? error.message : "The rendered video could not be read." }),
+        (error: unknown) =>
+          finish(data.jobId, {
+            status: "failed",
+            detail: error instanceof Error ? error.message : "The rendered video could not be read.",
+          }),
       );
     } else {
       void finish(data.jobId, { status: "failed", detail: data.message });

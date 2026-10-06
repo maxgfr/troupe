@@ -4,7 +4,15 @@ import type { Db } from "~/server/db/types";
 import { mediaAssets } from "~/modules/generation/server/media";
 import type { AnalysisStep, AnalysisTools, Embedder, Frame, ItemAnalysis, StoredItemFile, Transcript } from "../model";
 import { buildInsightPrompt, insightSchema, readInsights, type Insights } from "../prompts";
-import { chunkText, chunkTranscript, formatTimestamp, hookFromText, hookFromTranscript, keywordTags, pacingOf } from "../text";
+import {
+  chunkText,
+  chunkTranscript,
+  formatTimestamp,
+  hookFromText,
+  hookFromTranscript,
+  keywordTags,
+  pacingOf,
+} from "../text";
 import { itemFiles } from "./items";
 import { endAnalysis, startAnalysis } from "./running";
 import { libraryChunks, libraryItems } from "./schema";
@@ -40,9 +48,16 @@ const DEFAULT_VISION_FRAMES = 6;
 const EMBED_BATCH = 16;
 const CTA = /\b(follow|subscribe|link in|comment|share|save this|like this|abonne|lien|commente|partage)/i;
 
-const STEP_NAMES: Record<AnalysisStep["name"], string> = { frames: "the pictures", transcript: "the transcript", vision: "what the pictures show", insights: "the hook, structure and tags", embeddings: "search by meaning" };
+const STEP_NAMES: Record<AnalysisStep["name"], string> = {
+  frames: "the pictures",
+  transcript: "the transcript",
+  vision: "what the pictures show",
+  insights: "the hook, structure and tags",
+  embeddings: "search by meaning",
+};
 
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error)).replace(/\s+/g, " ").slice(0, 300);
+const message = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).replace(/\s+/g, " ").slice(0, 300);
 
 // Takes the oldest queued item for analysis; null when none waits. Each
 // claim counts as one attempt.
@@ -61,8 +76,14 @@ export async function claimNextItem(db: Db): Promise<string | null> {
 // analysis down every time cannot loop forever. An analysis running in
 // another process keeps beating and is left alone. Returns the items moved.
 export async function requeueStale(db: Db, olderThanMs: number): Promise<number> {
-  const stale = and(eq(libraryItems.status, "analyzing"), sql`coalesce(${libraryItems.heartbeatAt}, ${libraryItems.startedAt}, ${libraryItems.createdAt}) < now() - (${Math.max(0, Math.round(olderThanMs))} * interval '1 millisecond')`);
-  const rows = await db.select({ id: libraryItems.id, attempts: libraryItems.attempts, stage: libraryItems.stage }).from(libraryItems).where(stale);
+  const stale = and(
+    eq(libraryItems.status, "analyzing"),
+    sql`coalesce(${libraryItems.heartbeatAt}, ${libraryItems.startedAt}, ${libraryItems.createdAt}) < now() - (${Math.max(0, Math.round(olderThanMs))} * interval '1 millisecond')`,
+  );
+  const rows = await db
+    .select({ id: libraryItems.id, attempts: libraryItems.attempts, stage: libraryItems.stage })
+    .from(libraryItems)
+    .where(stale);
   let moved = 0;
   for (const row of rows) {
     const giveUp = row.attempts >= MAX_ATTEMPTS;
@@ -100,11 +121,20 @@ async function touch(db: Db, itemId: string, attempt: number, stage?: string): P
 // Pictures (and their files) left by an analysis whose item was deleted
 // while it ran: the deletion listed the item's files before they existed.
 async function dropLeftovers(db: Db, itemId: string, removeFiles: AnalysisOptions["removeFiles"]): Promise<number> {
-  const [still] = await db.select({ id: libraryItems.id }).from(libraryItems).where(eq(libraryItems.id, itemId)).limit(1);
+  const [still] = await db
+    .select({ id: libraryItems.id })
+    .from(libraryItems)
+    .where(eq(libraryItems.id, itemId))
+    .limit(1);
   if (still) return 0;
   const files = await itemFiles(db, itemId);
   if (files.length === 0) return 0;
-  await db.delete(mediaAssets).where(inArray(mediaAssets.id, files.map((f) => f.id)));
+  await db.delete(mediaAssets).where(
+    inArray(
+      mediaAssets.id,
+      files.map((f) => f.id),
+    ),
+  );
   await removeFiles?.(files).catch(() => {});
   return files.length;
 }
@@ -115,22 +145,34 @@ export function spread<T>(list: readonly T[], count: number): T[] {
   return Array.from({ length: count }, (_, i) => list[Math.round((i * (list.length - 1)) / Math.max(1, count - 1))]!);
 }
 
-function heuristicInsights(input: { words: string; hook: string | null; transcript: Transcript | null; durationS: number | null }): Insights {
+function heuristicInsights(input: {
+  words: string;
+  hook: string | null;
+  transcript: Transcript | null;
+  durationS: number | null;
+}): Insights {
   const segments = input.transcript?.segments ?? [];
   const structure: Insights["structure"] = [];
   if (input.hook) structure.push({ part: "hook", startS: 0, summary: input.hook });
   const last = segments.at(-1);
-  if (last && segments.length > 1 && CTA.test(last.text)) structure.push({ part: "cta", startS: last.startS, summary: last.text.trim() });
+  if (last && segments.length > 1 && CTA.test(last.text))
+    structure.push({ part: "cta", startS: last.startS, summary: last.text.trim() });
   return { summary: "", hookWhy: "", structure, tone: [], tags: keywordTags(input.words, 5) };
 }
 
-export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, options: AnalysisOptions = {}): Promise<void> {
+export async function analyzeItem(
+  db: Db,
+  itemId: string,
+  tools: AnalysisTools,
+  options: AnalysisOptions = {},
+): Promise<void> {
   const log = options.log ?? (() => {});
   const [item] = await db.select().from(libraryItems).where(eq(libraryItems.id, itemId)).limit(1);
   if (item?.status !== "analyzing") return;
   const started = Date.now();
   const steps: AnalysisStep[] = [];
-  const step = (name: AnalysisStep["name"], status: AnalysisStep["status"], detail?: string) => steps.push({ name, status, ...(detail ? { detail } : {}) });
+  const step = (name: AnalysisStep["name"], status: AnalysisStep["status"], detail?: string) =>
+    steps.push({ name, status, ...(detail ? { detail } : {}) });
   // This analysis's own signal: aborted by the caller, by deleting the item
   // in this process, or when the heartbeat finds the item gone.
   const run = startAnalysis(item.id, options.signal);
@@ -158,9 +200,21 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     let transcript: Transcript | null = null;
     let body = item.body;
     const file: StoredItemFile | null =
-      item.assetId && item.mimeType ? { itemId: item.id, workspaceId: item.workspaceId, assetId: item.assetId, storagePath: "", mimeType: item.mimeType } : null;
+      item.assetId && item.mimeType
+        ? {
+            itemId: item.id,
+            workspaceId: item.workspaceId,
+            assetId: item.assetId,
+            storagePath: "",
+            mimeType: item.mimeType,
+          }
+        : null;
     if (file) {
-      const [asset] = await db.select({ storagePath: mediaAssets.storagePath }).from(mediaAssets).where(eq(mediaAssets.id, file.assetId)).limit(1);
+      const [asset] = await db
+        .select({ storagePath: mediaAssets.storagePath })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.id, file.assetId))
+        .limit(1);
       if (!asset) throw new Error("The saved file is missing. Delete the item and save it again.");
       file.storagePath = asset.storagePath;
     }
@@ -168,7 +222,12 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     // A new analysis replaces the frames of the last one.
     const oldFrames = (await itemFiles(db, item.id)).filter((f) => f.kind === "frame");
     if (oldFrames.length) {
-      await db.delete(mediaAssets).where(inArray(mediaAssets.id, oldFrames.map((f) => f.id)));
+      await db.delete(mediaAssets).where(
+        inArray(
+          mediaAssets.id,
+          oldFrames.map((f) => f.id),
+        ),
+      );
       await options.removeFiles?.(oldFrames).catch(() => {});
     }
 
@@ -244,34 +303,74 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     }
 
     const spokenWords = transcript?.segments.map((s) => s.text.trim()).join(" ") ?? "";
-    const onScreen = frames.map((f) => f.text).filter(Boolean).join(" ");
+    const onScreen = frames
+      .map((f) => f.text)
+      .filter(Boolean)
+      .join(" ");
     const words = [spokenWords, body ?? "", onScreen].filter(Boolean).join("\n");
     const opening = transcript ? hookFromTranscript(transcript.segments) : null;
-    const hookText = opening?.text ?? (body ? hookFromText(body) : null) ?? (frames[0]?.text ? hookFromText(frames[0].text) : null);
+    const hookText =
+      opening?.text ?? (body ? hookFromText(body) : null) ?? (frames[0]?.text ? hookFromText(frames[0].text) : null);
     const language = transcript?.language ?? null;
 
     let insights: Insights | null = null;
     if (!tools.writer.ready) step("insights", "skipped", tools.writer.problem);
-    else if (!words.trim() && !frames.some((f) => f.description)) step("insights", "skipped", "There is nothing to read in it.");
+    else if (!words.trim() && !frames.some((f) => f.description))
+      step("insights", "skipped", "There is nothing to read in it.");
     else {
       await setStage("Writing the analysis");
-      const transcriptText = transcript ? transcript.segments.map((s) => `[${formatTimestamp(s.startS)}] ${s.text.trim()}`).join("\n") : (body ?? "");
-      const turns = buildInsightPrompt({ kind: item.kind, title: item.title, durationS, language, transcript: transcriptText, frames, hook: hookText });
+      const transcriptText = transcript
+        ? transcript.segments.map((s) => `[${formatTimestamp(s.startS)}] ${s.text.trim()}`).join("\n")
+        : (body ?? "");
+      const turns = buildInsightPrompt({
+        kind: item.kind,
+        title: item.title,
+        durationS,
+        language,
+        transcript: transcriptText,
+        frames,
+        hook: hookText,
+      });
       // Its own time limit on top of the analysis's signal.
       const limit = options.writeTimeoutMs ? AbortSignal.timeout(options.writeTimeoutMs) : null;
       const writing = limit ? AbortSignal.any([signal, limit]) : signal;
       try {
-        let answer = await tools.writer.tool.propose(turns, { schema: insightSchema(), signal: writing, maxTokens: 900 });
+        let answer = await tools.writer.tool.propose(turns, {
+          schema: insightSchema(),
+          signal: writing,
+          maxTokens: 900,
+        });
         insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         if (!insights) {
-          answer = await tools.writer.tool.propose([...turns, { role: "assistant", content: answer.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object." }], { schema: insightSchema(), signal: writing, maxTokens: 900 });
+          answer = await tools.writer.tool.propose(
+            [
+              ...turns,
+              { role: "assistant", content: answer.text },
+              {
+                role: "user",
+                content:
+                  "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object.",
+              },
+            ],
+            { schema: insightSchema(), signal: writing, maxTokens: 900 },
+          );
           insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         }
         if (insights) step("insights", "done");
         else step("insights", "failed", `${tools.writer.modelId ?? "The model"} did not write a usable analysis.`);
       } catch (error) {
-        if (limit?.aborted && !signal.aborted) step("insights", "failed", `${tools.writer.modelId ?? "The model"} took longer than ${Math.max(1, Math.round(options.writeTimeoutMs! / 1000))} s to write the analysis and was stopped${options.writeTimeoutSetting ? ` (${options.writeTimeoutSetting})` : ""}. Read it again to try once more.`);
-        else step("insights", "failed", `${tools.writer.modelId ?? "The model"} could not write the analysis: ${message(error)}`);
+        if (limit?.aborted && !signal.aborted)
+          step(
+            "insights",
+            "failed",
+            `${tools.writer.modelId ?? "The model"} took longer than ${Math.max(1, Math.round(options.writeTimeoutMs! / 1000))} s to write the analysis and was stopped${options.writeTimeoutSetting ? ` (${options.writeTimeoutSetting})` : ""}. Read it again to try once more.`,
+          );
+        else
+          step(
+            "insights",
+            "failed",
+            `${tools.writer.modelId ?? "The model"} could not write the analysis: ${message(error)}`,
+          );
       }
     }
     const found = insights ?? heuristicInsights({ words, hook: hookText, transcript, durationS });
@@ -283,7 +382,15 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
       ...(thumbnailAssetId ? { thumbnailAssetId } : {}),
       ...(transcript ? { transcript } : {}),
       ...(frames.length ? { frames } : {}),
-      ...(hookText ? { hook: { text: hookText, ...(opening ? { endS: opening.endS } : {}), ...(found.hookWhy ? { why: found.hookWhy } : {}) } } : {}),
+      ...(hookText
+        ? {
+            hook: {
+              text: hookText,
+              ...(opening ? { endS: opening.endS } : {}),
+              ...(found.hookWhy ? { why: found.hookWhy } : {}),
+            },
+          }
+        : {}),
       ...(found.structure.length ? { structure: found.structure } : {}),
       ...(() => {
         const pacing = pacingOf({ segments: transcript?.segments ?? [], durationS, cutsAtS: cuts });
@@ -296,9 +403,16 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     };
 
     // The passages search and the chat read.
-    const passages: { source: "transcript" | "text" | "frame" | "summary"; text: string; startS: number | null; endS: number | null }[] = [];
-    if (found.summary) passages.push({ source: "summary", text: `${item.title}. ${found.summary}`, startS: null, endS: null });
-    for (const p of chunkTranscript(transcript?.segments ?? [])) passages.push({ source: "transcript", text: p.text, startS: p.startS, endS: p.endS });
+    const passages: {
+      source: "transcript" | "text" | "frame" | "summary";
+      text: string;
+      startS: number | null;
+      endS: number | null;
+    }[] = [];
+    if (found.summary)
+      passages.push({ source: "summary", text: `${item.title}. ${found.summary}`, startS: null, endS: null });
+    for (const p of chunkTranscript(transcript?.segments ?? []))
+      passages.push({ source: "transcript", text: p.text, startS: p.startS, endS: p.endS });
     for (const text of chunkText(body ?? "")) passages.push({ source: "text", text, startS: null, endS: null });
     for (const f of frames) {
       const seen = [f.description, f.text ? `On screen: "${f.text}"` : null].filter(Boolean).join(" ");
@@ -312,30 +426,69 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     else {
       await setStage("Indexing for search");
       try {
-        vectors = await embedAll(tools.embedder.tool, passages.map((p) => p.text), signal);
+        vectors = await embedAll(
+          tools.embedder.tool,
+          passages.map((p) => p.text),
+          signal,
+        );
         embedModel = tools.embedder.tool.model;
         step("embeddings", "done");
       } catch (error) {
-        step("embeddings", "failed", `${tools.embedder.tool.model} could not index it (search matches its words meanwhile): ${message(error)}`);
+        step(
+          "embeddings",
+          "failed",
+          `${tools.embedder.tool.model} could not index it (search matches its words meanwhile): ${message(error)}`,
+        );
       }
     }
 
     // "Skipped: what the pictures show (why)." once per step.
-    const notes = steps.filter((s) => s.status !== "done" && s.detail).map((s) => `${s.status === "failed" ? "Failed" : "Skipped"}: ${STEP_NAMES[s.name]}. ${s.detail}`);
+    const notes = steps
+      .filter((s) => s.status !== "done" && s.detail)
+      .map((s) => `${s.status === "failed" ? "Failed" : "Skipped"}: ${STEP_NAMES[s.name]}. ${s.detail}`);
     await setStage("Saving");
     await db.transaction(async (tx) => {
       await tx.delete(libraryChunks).where(eq(libraryChunks.itemId, item.id));
       await tx.insert(libraryChunks).values(
-        passages.map((p, index) => ({ itemId: item.id, workspaceId: item.workspaceId, index, source: p.source, text: p.text, startS: p.startS, endS: p.endS, embedding: vectors[index], embedModel: vectors[index] ? embedModel : null })),
+        passages.map((p, index) => ({
+          itemId: item.id,
+          workspaceId: item.workspaceId,
+          index,
+          source: p.source,
+          text: p.text,
+          startS: p.startS,
+          endS: p.endS,
+          embedding: vectors[index],
+          embedModel: vectors[index] ? embedModel : null,
+        })),
       );
       await tx
         .update(libraryItems)
-        .set({ status: "ready", stage: null, problem: notes.length ? [...new Set(notes)].join(" ") : null, analysis, tags: found.tags, durationS, body, analyzedAt: new Date() })
+        .set({
+          status: "ready",
+          stage: null,
+          problem: notes.length ? [...new Set(notes)].join(" ") : null,
+          analysis,
+          tags: found.tags,
+          durationS,
+          body,
+          analyzedAt: new Date(),
+        })
         .where(and(eq(libraryItems.id, item.id), eq(libraryItems.attempts, attempt)));
     });
-    log({ event: "library.analyzed", itemId: item.id, kind: item.kind, ms: Date.now() - started, steps: steps.map((s) => `${s.name}:${s.status}`) });
+    log({
+      event: "library.analyzed",
+      itemId: item.id,
+      kind: item.kind,
+      ms: Date.now() - started,
+      steps: steps.map((s) => `${s.name}:${s.status}`),
+    });
   } catch (error) {
-    if (error instanceof ItemGone || signal.reason instanceof ItemGone || (signal.aborted && !options.signal?.aborted)) {
+    if (
+      error instanceof ItemGone ||
+      signal.reason instanceof ItemGone ||
+      (signal.aborted && !options.signal?.aborted)
+    ) {
       log({ event: "library.analysis.dropped", itemId: item.id, message: message(signal.reason ?? error) });
     } else {
       // Only this attempt's claim is marked failed (deleted meanwhile: nothing to record).
@@ -358,7 +511,15 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
 // fraction of the others' size: the thumbnail is the first frame at least a
 // third as large as the median.
 export async function thumbnailOf(db: Db, frames: readonly Frame[]): Promise<string | undefined> {
-  const rows = await db.select({ id: mediaAssets.id, bytes: mediaAssets.bytes }).from(mediaAssets).where(inArray(mediaAssets.id, frames.map((f) => f.assetId)));
+  const rows = await db
+    .select({ id: mediaAssets.id, bytes: mediaAssets.bytes })
+    .from(mediaAssets)
+    .where(
+      inArray(
+        mediaAssets.id,
+        frames.map((f) => f.assetId),
+      ),
+    );
   const size = new Map(rows.map((r) => [r.id, r.bytes]));
   const sorted = [...size.values()].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
@@ -369,7 +530,8 @@ async function embedAll(embedder: Embedder, texts: string[], signal?: AbortSigna
   const out: number[][] = [];
   for (let at = 0; at < texts.length; at += EMBED_BATCH) {
     const batch = await embedder.embed(texts.slice(at, at + EMBED_BATCH), "passage", { signal });
-    if (batch.length !== Math.min(EMBED_BATCH, texts.length - at)) throw new Error("the model returned the wrong number of vectors");
+    if (batch.length !== Math.min(EMBED_BATCH, texts.length - at))
+      throw new Error("the model returned the wrong number of vectors");
     out.push(...batch);
   }
   return out;
@@ -385,16 +547,26 @@ export async function embedMissing(db: Db, embedder: Embedder, limit = 64): Prom
     .orderBy(asc(libraryChunks.itemId), asc(libraryChunks.index))
     .limit(limit);
   if (rows.length === 0) return 0;
-  const vectors = await embedAll(embedder, rows.map((r) => r.text));
+  const vectors = await embedAll(
+    embedder,
+    rows.map((r) => r.text),
+  );
   for (const [i, row] of rows.entries()) {
-    await db.update(libraryChunks).set({ embedding: vectors[i], embedModel: embedder.model }).where(eq(libraryChunks.id, row.id));
+    await db
+      .update(libraryChunks)
+      .set({ embedding: vectors[i], embedModel: embedder.model })
+      .where(eq(libraryChunks.id, row.id));
   }
   return rows.length;
 }
 
 // Analyses every queued item, one at a time, then indexes what was saved
 // while the embedding model was missing. The edition runs one at a time.
-export async function runLibraryQueue(db: Db, tools: () => Promise<AnalysisTools>, options: AnalysisOptions = {}): Promise<number> {
+export async function runLibraryQueue(
+  db: Db,
+  tools: () => Promise<AnalysisTools>,
+  options: AnalysisOptions = {},
+): Promise<number> {
   let done = 0;
   for (;;) {
     if (options.signal?.aborted) return done;

@@ -51,8 +51,7 @@ export function RunListSection({
             >
               <span className="min-w-0 flex-1 truncate">{r.brief}</span>
               <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
-                {r.entryCount} renders · winner {r.winnerLabel ?? "—"} ·{" "}
-                {new Date(r.createdAt).toLocaleDateString()}
+                {r.entryCount} renders · winner {r.winnerLabel ?? "—"} · {new Date(r.createdAt).toLocaleDateString()}
               </span>
             </button>
           </li>
@@ -80,7 +79,9 @@ export function OpenRunForm({
     // A link from elsewhere (a CLI, a note) names a comparison by its id;
     // the list above is the usual way in.
     <details className="mt-4 max-w-xl text-sm">
-      <summary className="inline-flex min-h-9 cursor-pointer items-center text-muted transition-colors duration-150 hover:text-fg">Open a comparison by its id</summary>
+      <summary className="inline-flex min-h-9 cursor-pointer items-center text-muted transition-colors duration-150 hover:text-fg">
+        Open a comparison by its id
+      </summary>
       <form
         className="mt-2 flex items-end gap-2"
         onSubmit={(e) => {
@@ -90,7 +91,12 @@ export function OpenRunForm({
       >
         <label className="flex-1 text-sm">
           <span className="sr-only">Comparison id</span>
-          <input value={runId} onChange={(e) => onChange(e.target.value)} placeholder="Paste its id…" className={`${fieldClass} font-mono`} />
+          <input
+            value={runId}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Paste its id…"
+            className={`${fieldClass} font-mono`}
+          />
         </label>
         <Button type="submit">Open</Button>
       </form>

@@ -17,7 +17,19 @@ interface Upload {
 
 // One field for a link or a text, Upload beside it, and the whole bar takes
 // dropped files. "My own content" marks what is saved for the style profile.
-export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, onAdded }: { workspaceId: string; uploader: LibraryUploader; canFetchLinks: boolean; maxUploadBytes: number | null; onAdded: (itemId: string) => void }) {
+export function AddBar({
+  workspaceId,
+  uploader,
+  canFetchLinks,
+  maxUploadBytes,
+  onAdded,
+}: {
+  workspaceId: string;
+  uploader: LibraryUploader;
+  canFetchLinks: boolean;
+  maxUploadBytes: number | null;
+  onAdded: (itemId: string) => void;
+}) {
   const fieldId = useId();
   const mineId = useId();
   const hintId = useId();
@@ -41,7 +53,9 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
     try {
       if (looksLikeLink(value)) {
         if (!canFetchLinks) {
-          setError("A page in your browser cannot fetch other sites. Save the video or the page to a file and upload it, or paste its text.");
+          setError(
+            "A page in your browser cannot fetch other sites. Save the video or the page to a file and upload it, or paste its text.",
+          );
           return;
         }
         const item = await addUrl.mutateAsync({ workspaceId, url: value, mine });
@@ -152,11 +166,19 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
       </form>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <label htmlFor={mineId} className="flex min-h-9 items-center gap-2 text-sm">
-          <input id={mineId} type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="size-4 accent-[var(--troupe-color-primary)]" />
+          <input
+            id={mineId}
+            type="checkbox"
+            checked={mine}
+            onChange={(e) => setMine(e.target.checked)}
+            className="size-4 accent-[var(--troupe-color-primary)]"
+          />
           It is my own content
         </label>
         <p id={hintId} className="text-xs text-muted">
-          {canFetchLinks ? "Links to videos and pages; videos, sound, pictures, PDFs and text files, dropped here or uploaded." : "Videos, sound, pictures, PDFs and text files, dropped here or uploaded. Links need the self-hosted studio."}
+          {canFetchLinks
+            ? "Links to videos and pages; videos, sound, pictures, PDFs and text files, dropped here or uploaded."
+            : "Videos, sound, pictures, PDFs and text files, dropped here or uploaded. Links need the self-hosted studio."}
           {maxUploadBytes ? (
             <>
               {" "}
@@ -171,10 +193,15 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
             <li key={u.id} className="space-y-1">
               <p className="flex justify-between gap-3 text-xs">
                 <span className="truncate">Uploading {u.name}</span>
-                <span className="font-mono tabular-nums text-muted">{u.fraction === null ? "" : `${Math.round(u.fraction * 100)}%`}</span>
+                <span className="font-mono tabular-nums text-muted">
+                  {u.fraction === null ? "" : `${Math.round(u.fraction * 100)}%`}
+                </span>
               </p>
               <div className="h-1 overflow-hidden rounded-full bg-primary/20">
-                <div className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none" style={{ width: `${Math.max(2, Math.round((u.fraction ?? 0) * 100))}%` }} />
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
+                  style={{ width: `${Math.max(2, Math.round((u.fraction ?? 0) * 100))}%` }}
+                />
               </div>
             </li>
           ))}

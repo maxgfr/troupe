@@ -4,7 +4,13 @@ import { drizzle } from "drizzle-orm/pglite";
 
 import { mediaAssets } from "~/modules/generation";
 import { ensureLocalStudio } from "~/modules/identity";
-import { migratePglite, rebuildPglite, restorePglite, snapshotPglite, type PgliteSnapshot } from "~/server/db/pglite-migrate";
+import {
+  migratePglite,
+  rebuildPglite,
+  restorePglite,
+  snapshotPglite,
+  type PgliteSnapshot,
+} from "~/server/db/pglite-migrate";
 import * as schema from "~/server/db/schema";
 import type { Db } from "~/server/db/types";
 import { ensureBrowserModel } from "../catalog";
@@ -39,10 +45,14 @@ function startFailure(host: Worker): { failed: Promise<never>; settle: () => voi
   let timer: ReturnType<typeof setTimeout> | undefined;
   const failed = new Promise<never>((_, reject) => {
     host.addEventListener("message", (event: MessageEvent<{ type?: string; message?: string }>) => {
-      if (event.data?.type === INIT_FAILED) reject(new Error(`The database could not start (${event.data.message}). Check your connection, then reload.`));
+      if (event.data?.type === INIT_FAILED)
+        reject(new Error(`The database could not start (${event.data.message}). Check your connection, then reload.`));
     });
     host.addEventListener("error", () => reject(new Error("The database could not start: its worker failed to load.")));
-    timer = setTimeout(() => reject(new Error("The database did not start. Check your connection, then reload.")), START_TIMEOUT_MS);
+    timer = setTimeout(
+      () => reject(new Error("The database did not start. Check your connection, then reload.")),
+      START_TIMEOUT_MS,
+    );
   });
   failed.catch(() => {});
   return { failed, settle: () => clearTimeout(timer) };
@@ -166,7 +176,9 @@ export function restoreDatabase(snapshot: PgliteSnapshot): Promise<void> {
   return rebuildWith(async () => {
     const { pg, db } = await openOnce();
     await navigator.locks.request(SETUP_LOCK, () => restorePglite(pg, MIGRATIONS, snapshot));
-    await seed(db).catch((error: unknown) => console.warn("The backup was imported; the studio is set up again on the next start:", error));
+    await seed(db).catch((error: unknown) =>
+      console.warn("The backup was imported; the studio is set up again on the next start:", error),
+    );
   });
 }
 

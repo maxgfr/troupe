@@ -56,7 +56,10 @@ const VOICES = [
 ];
 
 export const ACTOR_CATALOG: CatalogActor[] = FIRST.map(([name, gender], i) => ({
-  slug: `${name.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}-${String(i + 1).padStart(2, "0")}`,
+  slug: `${name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^a-z]/g, "")}-${String(i + 1).padStart(2, "0")}`,
   name,
   gender,
   ageRange: AGES[i % AGES.length]!,

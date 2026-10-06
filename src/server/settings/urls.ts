@@ -28,7 +28,10 @@ function ipv4Parts(host: string) {
 // The host as it will be dialled: without brackets or a trailing dot, and an
 // IPv4-mapped IPv6 address (::ffff:a9fe:a9fe) turned back into IPv4.
 function canonicalHost(hostname: string) {
-  const host = hostname.replace(/^\[|\]$/g, "").replace(/\.+$/, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.+$/, "")
+    .toLowerCase();
   const mapped = /^::ffff:(?:([0-9.]+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/.exec(host);
   if (!mapped) return host;
   if (mapped[1]) return mapped[1];
@@ -53,18 +56,23 @@ export function checkLocalUrl(raw: string): UrlCheck {
   } catch {
     return { ok: false, reason: "Enter a valid URL, such as http://127.0.0.1:8188." };
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return { ok: false, reason: "Use an http:// or https:// address." };
-  if (url.username || url.password) return { ok: false, reason: "Remove the credentials from the URL; use the token field instead." };
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    return { ok: false, reason: "Use an http:// or https:// address." };
+  if (url.username || url.password)
+    return { ok: false, reason: "Remove the credentials from the URL; use the token field instead." };
   const host = canonicalHost(url.hostname);
   if (METADATA_HOSTS.has(host)) return { ok: false, reason: "Cloud metadata addresses are not allowed." };
   const family = ipFamily(host);
   if (family === 4) {
     const [a, b] = ipv4Parts(host);
     if (a === 169 && b === 254) return { ok: false, reason: "Link-local addresses (169.254.x.x) are not allowed." };
-    if (a === 0) return { ok: false, reason: "0.0.0.0 is not a reachable address; use 127.0.0.1 or the machine's LAN address." };
+    if (a === 0)
+      return { ok: false, reason: "0.0.0.0 is not a reachable address; use 127.0.0.1 or the machine's LAN address." };
   }
-  if (family === 6 && /^fe[89ab][0-9a-f]:/.test(host)) return { ok: false, reason: "Link-local IPv6 addresses (fe80::/10) are not allowed." };
-  if (family === 6 && (host === "::" || host === "0:0:0:0:0:0:0:0")) return { ok: false, reason: ":: is not a reachable address." };
+  if (family === 6 && /^fe[89ab][0-9a-f]:/.test(host))
+    return { ok: false, reason: "Link-local IPv6 addresses (fe80::/10) are not allowed." };
+  if (family === 6 && (host === "::" || host === "0:0:0:0:0:0:0:0"))
+    return { ok: false, reason: ":: is not a reachable address." };
   return { ok: true, base: `${url.origin}${url.pathname.replace(/\/+$/, "")}` };
 }
 
@@ -92,4 +100,3 @@ export function sameOrigin(candidate: string, base: string): boolean {
     return false;
   }
 }
-

@@ -20,7 +20,13 @@ const COMPLETED_GEN = {
   outputAssetUrl: "/api/media/a1",
   createdAt: new Date("2026-07-12T10:00:00Z").toISOString(),
 };
-const OLDER_GEN = { ...COMPLETED_GEN, id: "g0", modelLabel: "Kling 3.0", mediaDurationS: null, createdAt: new Date("2026-07-11T10:00:00Z").toISOString() };
+const OLDER_GEN = {
+  ...COMPLETED_GEN,
+  id: "g0",
+  modelLabel: "Kling 3.0",
+  mediaDurationS: null,
+  createdAt: new Date("2026-07-11T10:00:00Z").toISOString(),
+};
 
 let searchParams = "";
 let exportState: { isSuccess: boolean } = { isSuccess: false };
@@ -37,7 +43,12 @@ vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({ generation: { forProject: { invalidate: vi.fn() } } }),
     studio: {
-      getProject: { useQuery: () => ({ isPending: false, data: { id: "p1", title: "Spring drop", platform: "youtube", format: "9:16", language: "en" } }) },
+      getProject: {
+        useQuery: () => ({
+          isPending: false,
+          data: { id: "p1", title: "Spring drop", platform: "youtube", format: "9:16", language: "en" },
+        }),
+      },
       formatOptions: {
         useQuery: () => ({ isPending: false, data: [{ format: "9:16", preselected: true }, { format: "1:1" }] }),
       },
@@ -45,11 +56,27 @@ vi.mock("~/trpc/react", () => ({
         useQuery: () => ({
           isPending: false,
           data: {
-            models: [["veo-3.1-fast", "Veo 3.1 Fast"], ["kling-3.0", "Kling 3.0"]].map(([key, label]) => ({
-              key, label, vendor: "v", kind: "cloud",
-              capabilities: { aspectRatios: ["9:16"], resolutions: ["720p"], durationsS: [8], audio: "always", dialogueLanguages: ["en"] },
+            models: [
+              ["veo-3.1-fast", "Veo 3.1 Fast"],
+              ["kling-3.0", "Kling 3.0"],
+            ].map(([key, label]) => ({
+              key,
+              label,
+              vendor: "v",
+              kind: "cloud",
+              capabilities: {
+                aspectRatios: ["9:16"],
+                resolutions: ["720p"],
+                durationsS: [8],
+                audio: "always",
+                dialogueLanguages: ["en"],
+              },
               defaults: { resolution: "720p", durationS: 8, audio: true },
-              pricePerSecondUsd: null, available: true, unavailableReason: null, compatible: true, warnings: [],
+              pricePerSecondUsd: null,
+              available: true,
+              unavailableReason: null,
+              compatible: true,
+              warnings: [],
             })),
             defaultModelKey: "veo-3.1-fast",
           },
@@ -120,7 +147,9 @@ describe("wizard multi-step behavior", () => {
     expect(create.disabled).toBe(false);
     fireEvent.click(create);
     await vi.waitFor(() => expect(push).toHaveBeenCalled());
-    expect(createProjectAsync).toHaveBeenCalledWith(expect.objectContaining({ title: "My ad", actorId: "a1", modelKey: "kling-3.0", format: "9:16" }));
+    expect(createProjectAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "My ad", actorId: "a1", modelKey: "kling-3.0", format: "9:16" }),
+    );
     expect(push).toHaveBeenCalledWith("/projects/p1/script");
   });
 
@@ -174,6 +203,8 @@ describe("export flow", () => {
     render(<ExportPage params={params} />);
     expect(screen.queryByRole("button", { name: "Create export" })).toBeNull();
     const download = screen.getByRole("link", { name: "Download MP4" });
-    expect(download.getAttribute("href")).toMatch(/^\/api\/media\/a1\?download=spring-drop-veo-3-1-fast-2026-07-12-\d{4}\.mp4$/);
+    expect(download.getAttribute("href")).toMatch(
+      /^\/api\/media\/a1\?download=spring-drop-veo-3-1-fast-2026-07-12-\d{4}\.mp4$/,
+    );
   });
 });

@@ -1,7 +1,17 @@
 import "server-only";
 
 import type { ChatBackend } from "~/modules/chat";
-import { LibraryError, requeueStale, runLibraryQueue, STALE_AFTER_MS, type AnalysisTools, type LibraryBackend, type LibraryStatus, type Tool, type ToolStatus } from "~/modules/library";
+import {
+  LibraryError,
+  requeueStale,
+  runLibraryQueue,
+  STALE_AFTER_MS,
+  type AnalysisTools,
+  type LibraryBackend,
+  type LibraryStatus,
+  type Tool,
+  type ToolStatus,
+} from "~/modules/library";
 import type { Db } from "~/server/db/types";
 import { libraryEnvironment, type LibraryEnvironment } from "./config";
 import { fetchSource } from "./fetch";
@@ -54,7 +64,17 @@ function cachedYtDlpVersion(path: string | null): Promise<string | null> {
   return version;
 }
 
-const probeKey = (env: LibraryEnvironment) => JSON.stringify([env.ollamaUrl, env.ollamaTimeoutMs, env.embedModel, env.visionModel, env.transcribeUrl, env.transcribeToken, env.transcribeTimeoutMs, env.ytDlpPath]);
+const probeKey = (env: LibraryEnvironment) =>
+  JSON.stringify([
+    env.ollamaUrl,
+    env.ollamaTimeoutMs,
+    env.embedModel,
+    env.visionModel,
+    env.transcribeUrl,
+    env.transcribeToken,
+    env.transcribeTimeoutMs,
+    env.ytDlpPath,
+  ]);
 
 async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
   state.troupeLibraryProbes ??= new Map();
@@ -71,8 +91,15 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
         )
       : Promise.resolve({ pulled: null, problem: null }),
     env.transcribeUrl
-      ? transcriberHealth({ baseUrl: env.transcribeUrl, token: env.transcribeToken, timeoutMs: env.transcribeTimeoutMs })
-      : Promise.resolve({ ok: false as const, problem: "Transcription is off: set TROUPE_TRANSCRIBE_URL to a renderer with Whisper (docs/LIBRARY.md)." }),
+      ? transcriberHealth({
+          baseUrl: env.transcribeUrl,
+          token: env.transcribeToken,
+          timeoutMs: env.transcribeTimeoutMs,
+        })
+      : Promise.resolve({
+          ok: false as const,
+          problem: "Transcription is off: set TROUPE_TRANSCRIBE_URL to a renderer with Whisper (docs/LIBRARY.md).",
+        }),
     cachedYtDlpVersion(env.ytDlpPath),
   ]);
   const next: Probe = {
@@ -87,14 +114,34 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
   return next;
 }
 
-function modelTool<T>(model: string | null, p: Probe, name: string, envName: string, make: (model: string) => T): Tool<T> & { model: string | null } {
+function modelTool<T>(
+  model: string | null,
+  p: Probe,
+  name: string,
+  envName: string,
+  make: (model: string) => T,
+): Tool<T> & { model: string | null } {
   if (!model) return { ready: false, problem: `The ${name} model is off (${envName}).`, model: null };
-  if (!p.pulled) return { ready: false, problem: `${p.ollamaProblem ?? "Ollama cannot be reached."} The ${name} step waits for it.`, model };
-  if (!hasModel(p.pulled, model)) return { ready: false, problem: `Ollama does not have ${model} yet: \`ollama pull ${model}\` (the Docker stack pulls it by itself).`, model };
+  if (!p.pulled)
+    return {
+      ready: false,
+      problem: `${p.ollamaProblem ?? "Ollama cannot be reached."} The ${name} step waits for it.`,
+      model,
+    };
+  if (!hasModel(p.pulled, model))
+    return {
+      ready: false,
+      problem: `Ollama does not have ${model} yet: \`ollama pull ${model}\` (the Docker stack pulls it by itself).`,
+      model,
+    };
   return { ready: true, tool: make(model), model };
 }
 
-export function createServerLibrary(db: Db, chat: ChatBackend | null, options: { env?: Env } = {}): LibraryBackend | null {
+export function createServerLibrary(
+  db: Db,
+  chat: ChatBackend | null,
+  options: { env?: Env } = {},
+): LibraryBackend | null {
   const env = libraryEnvironment(options.env ?? process.env);
   if (!env.enabled) return null;
   const ollama = { baseUrl: env.ollamaUrl, timeoutMs: env.ollamaTimeoutMs };
@@ -106,13 +153,26 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
     return {
       media: serverMediaReader(db, { ffmpegPath: env.ffmpegPath }),
       transcriber: p.transcriber.ok
-        ? { ready: true, tool: rendererTranscriber({ baseUrl: env.transcribeUrl!, token: env.transcribeToken, timeoutMs: env.transcribeTimeoutMs }, p.transcriber.model) }
+        ? {
+            ready: true,
+            tool: rendererTranscriber(
+              { baseUrl: env.transcribeUrl!, token: env.transcribeToken, timeoutMs: env.transcribeTimeoutMs },
+              p.transcriber.model,
+            ),
+          }
         : { ready: false, problem: p.transcriber.problem },
       vision: modelTool(env.visionModel, p, "vision", "TROUPE_LIBRARY_VISION_MODEL", (m) => ollamaVision(ollama, m)),
-      embedder: modelTool(env.embedModel, p, "embedding", "TROUPE_LIBRARY_EMBED_MODEL", (m) => ollamaEmbedder(ollama, m)),
+      embedder: modelTool(env.embedModel, p, "embedding", "TROUPE_LIBRARY_EMBED_MODEL", (m) =>
+        ollamaEmbedder(ollama, m),
+      ),
       writer: setup?.model
         ? { ready: true, tool: setup.model, label: setup.label, modelId: setup.modelId }
-        : { ready: false, problem: setup?.problem ?? "No chat model is set up, so the library cannot write its analysis. Choose one in Settings." },
+        : {
+            ready: false,
+            problem:
+              setup?.problem ??
+              "No chat model is set up, so the library cannot write its analysis. Choose one in Settings.",
+          },
     };
   }
 
@@ -136,7 +196,14 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
         });
       } while (queue.again);
     })()
-      .catch((error: unknown) => console.error(JSON.stringify({ event: "library.queue.failed", message: error instanceof Error ? error.message : String(error) })))
+      .catch((error: unknown) =>
+        console.error(
+          JSON.stringify({
+            event: "library.queue.failed",
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        ),
+      )
       .finally(() => {
         queue.running = null;
       });
@@ -150,26 +217,82 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
     async status(): Promise<LibraryStatus> {
       const p = await probe(env);
       const t = await tools(false, p);
-      const line = (name: ToolStatus["name"], label: string, tool: Tool<unknown>, model: string | null, ok: string): ToolStatus => ({ name, label, ready: tool.ready, model, detail: tool.ready ? ok : tool.problem });
+      const line = (
+        name: ToolStatus["name"],
+        label: string,
+        tool: Tool<unknown>,
+        model: string | null,
+        ok: string,
+      ): ToolStatus => ({ name, label, ready: tool.ready, model, detail: tool.ready ? ok : tool.problem });
       return {
         edition: "self-hosted",
         maxUploadBytes: env.maxUploadBytes,
         ideas: env.ideas,
         tools: [
-          line("transcription", "Transcription", t.transcriber, p.transcriber.ok ? p.transcriber.model : null, "Speech in videos and sound files is transcribed by the stack's renderer."),
-          line("vision", "Pictures", t.vision, env.visionModel, "Frames are described, and their on-screen text read, by Ollama."),
-          line("embeddings", "Search by meaning", t.embedder, env.embedModel, "Passages are indexed by meaning by Ollama."),
-          line("writer", "Analysis and ideas", t.writer, t.writer.ready ? (t.writer.modelId ?? null) : null, "Hooks, structure, tags, the library chat and ideas are written by the script chat's model."),
-          { name: "links", label: "Links to pages", ready: true, model: null, detail: env.allowPrivateUrls ? "Pages and files at any address are saved, your network included (TROUPE_LIBRARY_ALLOW_PRIVATE_URLS)." : "Public pages are saved as articles, direct links to files as files." },
+          line(
+            "transcription",
+            "Transcription",
+            t.transcriber,
+            p.transcriber.ok ? p.transcriber.model : null,
+            "Speech in videos and sound files is transcribed by the stack's renderer.",
+          ),
+          line(
+            "vision",
+            "Pictures",
+            t.vision,
+            env.visionModel,
+            "Frames are described, and their on-screen text read, by Ollama.",
+          ),
+          line(
+            "embeddings",
+            "Search by meaning",
+            t.embedder,
+            env.embedModel,
+            "Passages are indexed by meaning by Ollama.",
+          ),
+          line(
+            "writer",
+            "Analysis and ideas",
+            t.writer,
+            t.writer.ready ? (t.writer.modelId ?? null) : null,
+            "Hooks, structure, tags, the library chat and ideas are written by the script chat's model.",
+          ),
+          {
+            name: "links",
+            label: "Links to pages",
+            ready: true,
+            model: null,
+            detail: env.allowPrivateUrls
+              ? "Pages and files at any address are saved, your network included (TROUPE_LIBRARY_ALLOW_PRIVATE_URLS)."
+              : "Public pages are saved as articles, direct links to files as files.",
+          },
           p.ytDlp
-            ? { name: "video-links", label: "Video links", ready: true, model: `yt-dlp ${p.ytDlp}`, detail: "Links to YouTube, TikTok, Instagram, Vimeo and other platforms are downloaded with yt-dlp." }
-            : { name: "video-links", label: "Video links", ready: false, model: null, detail: env.ytDlpPath ? "yt-dlp is not installed on this server, so links to video platforms cannot be saved; upload the file instead (docs/LIBRARY.md)." : "Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off); upload the file instead." },
+            ? {
+                name: "video-links",
+                label: "Video links",
+                ready: true,
+                model: `yt-dlp ${p.ytDlp}`,
+                detail: "Links to YouTube, TikTok, Instagram, Vimeo and other platforms are downloaded with yt-dlp.",
+              }
+            : {
+                name: "video-links",
+                label: "Video links",
+                ready: false,
+                model: null,
+                detail: env.ytDlpPath
+                  ? "yt-dlp is not installed on this server, so links to video platforms cannot be saved; upload the file instead (docs/LIBRARY.md)."
+                  : "Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off); upload the file instead.",
+              },
         ],
       };
     },
     fetchUrl: (url, opts) => fetchSource(url, env, opts),
     async adoptFile(source, target) {
-      const received = await receiveFile(source.path, { itemId: target.itemId, fileName: cleanFileName(source.title || "download"), maxBytes: env.maxUploadBytes });
+      const received = await receiveFile(source.path, {
+        itemId: target.itemId,
+        fileName: cleanFileName(source.title || "download"),
+        maxBytes: env.maxUploadBytes,
+      });
       if (received.kind !== "file") throw new LibraryError("That link is a text file; paste its text instead.");
       return received.file;
     },

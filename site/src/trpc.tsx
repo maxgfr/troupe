@@ -17,7 +17,11 @@ export function BrowserTRPCProvider({ children }: { children: React.ReactNode })
     api.createClient({
       links: [
         loggerLink({ enabled: (op) => import.meta.env.DEV || (op.direction === "down" && op.result instanceof Error) }),
-        lazyLinks<AppRouter>(() => afterFirstPaint().then(() => import("./server-link")).then((m) => m.serverLinks())),
+        lazyLinks<AppRouter>(() =>
+          afterFirstPaint()
+            .then(() => import("./server-link"))
+            .then((m) => m.serverLinks()),
+        ),
       ],
     }),
   );

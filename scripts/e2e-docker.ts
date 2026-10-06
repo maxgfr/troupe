@@ -41,7 +41,18 @@ const on = (name: string) => process.env[name] === "1" || process.env[name] === 
 // The Compose command every step (and the CLI tests) runs. --env-file keeps a
 // .env next to docker-compose.yml, meant for a real stack, out of the run.
 const OVERLAY = process.env.E2E_COMPOSE_OVERLAY ? ["-f", resolve(process.env.E2E_COMPOSE_OVERLAY)] : [];
-const COMPOSE = ["compose", "-p", PROJECT, "-f", "docker-compose.yml", "-f", "docker-compose.test.yml", ...OVERLAY, "--env-file", join(REPO, "e2e", "stack.env")];
+const COMPOSE = [
+  "compose",
+  "-p",
+  PROJECT,
+  "-f",
+  "docker-compose.yml",
+  "-f",
+  "docker-compose.test.yml",
+  ...OVERLAY,
+  "--env-file",
+  join(REPO, "e2e", "stack.env"),
+];
 // The `cli` service only runs on demand (`run --rm`); build and remove it too.
 const WITH_CLI = ["--profile", "cli"];
 
@@ -57,10 +68,18 @@ const env: NodeJS.ProcessEnv = {
   E2E_COMPOSE: JSON.stringify([...COMPOSE, ...WITH_CLI]),
 };
 
-function run(command: string, args: string[], options: { quiet?: boolean; log?: string; output?: string[] } = {}): Promise<number> {
+function run(
+  command: string,
+  args: string[],
+  options: { quiet?: boolean; log?: string; output?: string[] } = {},
+): Promise<number> {
   return new Promise((done, fail) => {
     const piped = Boolean(options.log || options.output);
-    const child = spawn(command, args, { cwd: REPO, env, stdio: piped ? ["ignore", "pipe", "pipe"] : options.quiet ? "ignore" : "inherit" });
+    const child = spawn(command, args, {
+      cwd: REPO,
+      env,
+      stdio: piped ? ["ignore", "pipe", "pipe"] : options.quiet ? "ignore" : "inherit",
+    });
     // Both streams into one file, which closes (and is complete) after both.
     const file = options.log ? createWriteStream(options.log) : null;
     if (file) {
@@ -76,7 +95,8 @@ function run(command: string, args: string[], options: { quiet?: boolean; log?: 
   });
 }
 
-const compose = (args: string[], options?: { quiet?: boolean; log?: string; output?: string[] }) => run("docker", [...COMPOSE, ...args], options);
+const compose = (args: string[], options?: { quiet?: boolean; log?: string; output?: string[] }) =>
+  run("docker", [...COMPOSE, ...args], options);
 
 async function timed(label: string, step: () => Promise<number>): Promise<number> {
   const started = Date.now();
@@ -114,7 +134,9 @@ async function main(): Promise<number> {
   // A clean slate: this project's containers and volumes only.
   await compose([...WITH_CLI, "down", "--volumes", "--remove-orphans"], { quiet: true });
   if (!on("E2E_SKIP_BUILD") && (await timed("build", () => compose([...WITH_CLI, "build"])))) return 1;
-  const up = await timed("first start, until every service is healthy", () => compose(["up", "--detach", "--no-build", "--wait", "--wait-timeout", WAIT_S]));
+  const up = await timed("first start, until every service is healthy", () =>
+    compose(["up", "--detach", "--no-build", "--wait", "--wait-timeout", WAIT_S]),
+  );
   if (up) {
     await compose(["ps", "--all"]);
     // Kept with the test results (CI uploads them), before the stack goes.
@@ -130,7 +152,14 @@ async function main(): Promise<number> {
   env.E2E_ACCESS_CODE = code.join("").trim();
 
   const tests = await timed("Playwright", () =>
-    run("pnpm", ["exec", "playwright", "test", "--config", "e2e/playwright.config.ts", ...process.argv.slice(2).filter((a) => a !== "--")]),
+    run("pnpm", [
+      "exec",
+      "playwright",
+      "test",
+      "--config",
+      "e2e/playwright.config.ts",
+      ...process.argv.slice(2).filter((a) => a !== "--"),
+    ]),
   );
   if (tests) await compose(["logs", "--no-color", "--timestamps"], { log: join(RESULTS, "stack.log") });
   return tests;
@@ -141,7 +170,9 @@ try {
   code = await main();
 } finally {
   if (on("E2E_KEEP")) {
-    console.log(`[e2e] The stack is still running (E2E_KEEP=1): studio ${env.E2E_APP_URL} (access code ${env.E2E_ACCESS_CODE ?? "in docker compose logs app"}), browser edition ${env.E2E_WEB_URL}/troupe/.`);
+    console.log(
+      `[e2e] The stack is still running (E2E_KEEP=1): studio ${env.E2E_APP_URL} (access code ${env.E2E_ACCESS_CODE ?? "in docker compose logs app"}), browser edition ${env.E2E_WEB_URL}/troupe/.`,
+    );
     console.log(`[e2e] Stop it with: docker ${COMPOSE.join(" ")} down --volumes`);
   } else {
     await compose([...WITH_CLI, "down", "--volumes", "--remove-orphans"], { quiet: true });

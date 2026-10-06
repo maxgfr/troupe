@@ -1,7 +1,14 @@
 "use client";
 
 import { WizardStepper } from "./wizard-stepper";
-import { ActorStep, FormatStep, LanguageStep, PlatformStep, type ActorView, type FormatOptionView } from "./wizard-steps";
+import {
+  ActorStep,
+  FormatStep,
+  LanguageStep,
+  PlatformStep,
+  type ActorView,
+  type FormatOptionView,
+} from "./wizard-steps";
 import { initialWizardState, wizardReducer, STEPS } from "./wizard-state";
 import { pickModel, type ModelOptionView } from "../model-choice";
 import { useReducer, useRef, useState } from "react";
@@ -37,8 +44,6 @@ export default function NewProjectPage() {
   const selectedModel = pickModel(options, wizard.modelKey, models.data?.defaultModelKey);
 
   const createProject = api.studio.createFromWizard.useMutation();
-
-
 
   if (workspace.status === "unauthenticated") {
     return (
@@ -146,7 +151,9 @@ export default function NewProjectPage() {
           />
         ) : null}
 
-        {formatOptions.error || models.error ? <ErrorNote>{(formatOptions.error ?? models.error)!.message}</ErrorNote> : null}
+        {formatOptions.error || models.error ? (
+          <ErrorNote>{(formatOptions.error ?? models.error)!.message}</ErrorNote>
+        ) : null}
         {wizard.submitError ? <ErrorNote>{wizard.submitError}</ErrorNote> : null}
 
         <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex items-center justify-between bg-bg/85 px-4 py-3 shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-0 sm:backdrop-blur-none">

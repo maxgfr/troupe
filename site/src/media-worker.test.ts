@@ -19,9 +19,27 @@ function workerFunction<T extends (...args: never[]) => unknown>(name: string): 
 describe("the media service worker", () => {
   it("names downloads exactly as mediaDisposition does", () => {
     const disposition = workerFunction<(download: string | null, ext: string) => string>("disposition");
-    const downloads = [null, "1", "", "clip", "clip.mp4", "clip.webm", "CLIP.MP4", "spring-drop-renderer-2026-10-05-0945.mp4", "../etc/passwd", 'a"b.mp4', "spaced name.mp4", ".hidden", "x".repeat(119), "x".repeat(120), "x".repeat(200), "été.mp4"];
+    const downloads = [
+      null,
+      "1",
+      "",
+      "clip",
+      "clip.mp4",
+      "clip.webm",
+      "CLIP.MP4",
+      "spring-drop-renderer-2026-10-05-0945.mp4",
+      "../etc/passwd",
+      'a"b.mp4',
+      "spaced name.mp4",
+      ".hidden",
+      "x".repeat(119),
+      "x".repeat(120),
+      "x".repeat(200),
+      "été.mp4",
+    ];
     for (const ext of ["mp4", "webm"] as const) {
-      for (const download of downloads) expect(disposition(download, ext), `${download} (${ext})`).toBe(mediaDisposition(download, ext));
+      for (const download of downloads)
+        expect(disposition(download, ext), `${download} (${ext})`).toBe(mediaDisposition(download, ext));
     }
   });
 
@@ -35,6 +53,7 @@ describe("the media service worker", () => {
   it("serves inline, or as a download, exactly the types the backups accept", () => {
     expect([...types("INLINE"), ...types("DOWNLOAD_ONLY")].sort()).toEqual([...MEDIA_TYPES].sort());
     for (const type of types("PLAYABLE")) expect(types("INLINE")).toContain(type);
-    for (const type of [...types("INLINE"), ...types("DOWNLOAD_ONLY")]) expect(type).not.toMatch(/html|svg|xml|javascript/);
+    for (const type of [...types("INLINE"), ...types("DOWNLOAD_ONLY")])
+      expect(type).not.toMatch(/html|svg|xml|javascript/);
   });
 });

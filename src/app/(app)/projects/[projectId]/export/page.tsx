@@ -7,14 +7,7 @@ import { api } from "~/trpc/react";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { downloadUrl, renderFileName } from "~/app/_components/download-name";
 import { DownloadIcon } from "~/app/_components/icons";
-import {
-  Button,
-  EmptyState,
-  ErrorNote,
-  SignedOutNotice,
-  SkeletonRows,
-  buttonClass,
-} from "~/app/_components/ui";
+import { Button, EmptyState, ErrorNote, SignedOutNotice, SkeletonRows, buttonClass } from "~/app/_components/ui";
 import { ProjectHeader } from "../project-header";
 import { ProjectGate } from "../project-gate";
 import { platformName } from "~/modules/studio/platforms";
@@ -55,10 +48,7 @@ function ExportForm({ projectId }: { projectId: string }) {
   const [keepFormat, setKeepFormat] = useState(false);
 
   const project = api.studio.getProject.useQuery({ projectId }, { enabled, retry: false });
-  const generations = api.generation.forProject.useQuery(
-    { projectId },
-    { enabled, retry: false },
-  );
+  const generations = api.generation.forProject.useQuery({ projectId }, { enabled, retry: false });
   const completed = (generations.data ?? []).filter((g) => g.status === "completed");
   const chosen = completed.find((g) => g.id === generationId)?.id ?? completed[0]?.id ?? null;
   const chosenRender = completed.find((g) => g.id === chosen);
@@ -75,15 +65,15 @@ function ExportForm({ projectId }: { projectId: string }) {
     // The exported render turns final in the timeline.
     onSuccess: () => utils.generation.forProject.invalidate({ projectId }),
   });
-  const specsMismatch = Boolean(
-    specs.data && typeof specs.data === "object" && "ok" in specs.data && !specs.data.ok,
-  );
+  const specsMismatch = Boolean(specs.data && typeof specs.data === "object" && "ok" in specs.data && !specs.data.ok);
   // Any change after an export starts a new one: the form, not the download,
   // is the thing to act on again.
-  const edit = <T,>(set: (value: T) => void) => (value: T) => {
-    if (create.isSuccess) create.reset?.();
-    set(value);
-  };
+  const edit =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      if (create.isSuccess) create.reset?.();
+      set(value);
+    };
 
   if (workspace.status === "unauthenticated") {
     return (
@@ -127,13 +117,39 @@ function ExportForm({ projectId }: { projectId: string }) {
           }}
         >
           <p className="-mt-2 max-w-[65ch] text-pretty text-sm text-muted">
-            Pick the render, check it against the platform, and download it with its caption. The AI label is set when you publish.
+            Pick the render, check it against the platform, and download it with its caption. The AI label is set when
+            you publish.
           </p>
-          <RenderPicker completed={completed} chosen={chosen} onChoose={edit((id: string) => { setGenerationId(id); setConfirmed(false); setKeepFormat(false); })} />
+          <RenderPicker
+            completed={completed}
+            chosen={chosen}
+            onChoose={edit((id: string) => {
+              setGenerationId(id);
+              setConfirmed(false);
+              setKeepFormat(false);
+            })}
+          />
 
-          <PlatformPreset platform={platform} onPick={edit((value: Platform) => { setPlatform(value); setKeepFormat(false); })} specsMismatch={specsMismatch} />
+          <PlatformPreset
+            platform={platform}
+            onPick={edit((value: Platform) => {
+              setPlatform(value);
+              setKeepFormat(false);
+            })}
+            specsMismatch={specsMismatch}
+          />
 
-          {specsMismatch ? <label className="flex items-start gap-2.5 text-sm"><input type="checkbox" checked={keepFormat} onChange={(event) => edit(setKeepFormat)(event.target.checked)} className="mt-0.5 size-4 accent-[var(--troupe-color-primary)]" /><span>Keep the original video format. I will crop it separately if needed.</span></label> : null}
+          {specsMismatch ? (
+            <label className="flex items-start gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={keepFormat}
+                onChange={(event) => edit(setKeepFormat)(event.target.checked)}
+                className="mt-0.5 size-4 accent-[var(--troupe-color-primary)]"
+              />
+              <span>Keep the original video format. I will crop it separately if needed.</span>
+            </label>
+          ) : null}
           {specs.error ? <ErrorNote>{specs.error.message}</ErrorNote> : null}
 
           <CaptionFields
@@ -152,21 +168,30 @@ function ExportForm({ projectId }: { projectId: string }) {
               onChange={(e) => edit(setConfirmed)(e.target.checked)}
               className="mt-0.5 size-4 accent-[var(--troupe-color-primary)]"
             />
-            <span>
-              I have checked the video and am ready to download it.
-            </span>
+            <span>I have checked the video and am ready to download it.</span>
           </label>
 
           {create.error ? <ErrorNote>{create.error.message}</ErrorNote> : null}
 
           {/* One primary action at a time: create the export, then download it. */}
           {exported ? (
-            <div role="status" className="space-y-3 rounded-2xl bg-success/10 px-5 py-4 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-success)_40%,transparent)]">
+            <div
+              role="status"
+              className="space-y-3 rounded-2xl bg-success/10 px-5 py-4 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-success)_40%,transparent)]"
+            >
               <p className="text-sm">
-                Export saved for {platformName(platform)}. This render is now marked final. Download it, then paste your caption when you publish.
+                Export saved for {platformName(platform)}. This render is now marked final. Download it, then paste your
+                caption when you publish.
               </p>
               <a
-                href={downloadUrl(chosenRender.outputAssetUrl!, renderFileName({ project: project.data?.title, model: chosenRender.modelLabel ?? chosenRender.modelId, createdAt: chosenRender.createdAt }))}
+                href={downloadUrl(
+                  chosenRender.outputAssetUrl!,
+                  renderFileName({
+                    project: project.data?.title,
+                    model: chosenRender.modelLabel ?? chosenRender.modelId,
+                    createdAt: chosenRender.createdAt,
+                  }),
+                )}
                 className={buttonClass({ variant: "primary", size: "lg" })}
               >
                 <DownloadIcon className="size-4" />
@@ -178,7 +203,13 @@ function ExportForm({ projectId }: { projectId: string }) {
               type="submit"
               variant="primary"
               size="lg"
-              disabled={create.isPending || !confirmed || specs.isPending || Boolean(specs.error) || (specsMismatch && !keepFormat)}
+              disabled={
+                create.isPending ||
+                !confirmed ||
+                specs.isPending ||
+                Boolean(specs.error) ||
+                (specsMismatch && !keepFormat)
+              }
             >
               {create.isPending ? "Exporting…" : "Create export"}
             </Button>

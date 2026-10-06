@@ -6,7 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // page the browser edition shows (docs/PRODUCT-MAP.md, "any other"), inside
 // the studio's navigation, never the framework's bare 404.
 vi.mock("~/trpc/react", () => ({
-  api: { identity: { myWorkspaces: { useQuery: () => ({ isPending: false, error: null, data: [{ id: "w1", name: "Studio", ownerId: "u1" }] }) } } },
+  api: {
+    identity: {
+      myWorkspaces: {
+        useQuery: () => ({ isPending: false, error: null, data: [{ id: "w1", name: "Studio", ownerId: "u1" }] }),
+      },
+    },
+  },
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/no-such-page", useRouter: () => ({ push: vi.fn() }) }));
 

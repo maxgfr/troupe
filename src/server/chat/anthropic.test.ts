@@ -13,7 +13,8 @@ beforeAll(async () => {
   server = await startServer((req, res) => {
     if (req.method === "GET" && req.path.startsWith("/v1/models/")) {
       const id = decodeURIComponent(req.path.slice("/v1/models/".length));
-      if (id === "claude-nope") return json(res, 404, { type: "error", error: { type: "not_found_error", message: "model not found" } });
+      if (id === "claude-nope")
+        return json(res, 404, { type: "error", error: { type: "not_found_error", message: "model not found" } });
       return json(res, 200, { type: "model", id, display_name: "Claude Opus 5.5", created_at: "2026-01-01T00:00:00Z" });
     }
     json(res, reply.status, reply.body);
@@ -45,7 +46,12 @@ const answer = { summary: "Shorter.", lines: [{ role: "hook", text: "Hi.", emoti
 describe("Claude provider", () => {
   it("asks for the proposal's JSON schema as structured output, with the system prompt apart", async () => {
     reply = { status: 200, body: message(JSON.stringify(answer)) };
-    const chat = createAnthropicChat({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url });
+    const chat = createAnthropicChat({
+      apiKey: "sk-ant-test",
+      model: "claude-opus-5-5",
+      timeoutMs: 5000,
+      baseURL: server.url,
+    });
     const result = await chat.propose(turns, { schema });
     expect(result.proposal).toEqual(answer);
 
@@ -58,25 +64,42 @@ describe("Claude provider", () => {
       model: "claude-opus-5-5",
       system: "You write scripts.",
       fallbacks: "default",
-      output_config: { effort: "low", format: { type: "json_schema", schema: { required: ["summary", "lines", "actor"] } } },
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: { required: ["summary", "lines", "actor"] } },
+      },
     });
     expect(body.messages).toEqual(turns.slice(1));
     expect(body).not.toHaveProperty("tool_choice");
   });
 
   it("explains a refused key, a refusal and an unknown model", async () => {
-    const chat = createAnthropicChat({ apiKey: "sk-ant-bad", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url });
-    reply = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } };
+    const chat = createAnthropicChat({
+      apiKey: "sk-ant-bad",
+      model: "claude-opus-5-5",
+      timeoutMs: 5000,
+      baseURL: server.url,
+    });
+    reply = {
+      status: 401,
+      body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } },
+    };
     await expect(chat.propose(turns, { schema })).rejects.toThrow(/refused the API key/);
     reply = { status: 200, body: message("", "refusal") };
     await expect(chat.propose(turns, { schema })).rejects.toThrow(/declined this request/);
-    expect(await testAnthropic({ apiKey: "sk-ant-test", model: "claude-nope", timeoutMs: 5000, baseURL: server.url })).toEqual({ ok: false, message: 'Anthropic has no model "claude-nope". Check the Claude model in Settings.' });
+    expect(
+      await testAnthropic({ apiKey: "sk-ant-test", model: "claude-nope", timeoutMs: 5000, baseURL: server.url }),
+    ).toEqual({ ok: false, message: 'Anthropic has no model "claude-nope". Check the Claude model in Settings.' });
   });
 
   it("tests a key against the model without a paid call", async () => {
     const before = server.requests.length;
-    expect(await testAnthropic({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url })).toEqual({ ok: true, message: "The key works and Claude Opus 5.5 is available." });
-    expect(server.requests.slice(before).map((r) => `${r.method} ${r.path}`)).toEqual(["GET /v1/models/claude-opus-5-5"]);
+    expect(
+      await testAnthropic({ apiKey: "sk-ant-test", model: "claude-opus-5-5", timeoutMs: 5000, baseURL: server.url }),
+    ).toEqual({ ok: true, message: "The key works and Claude Opus 5.5 is available." });
+    expect(server.requests.slice(before).map((r) => `${r.method} ${r.path}`)).toEqual([
+      "GET /v1/models/claude-opus-5-5",
+    ]);
   });
 });
 
@@ -85,7 +108,14 @@ describe("Claude provider", () => {
 describe("Claude request per model", () => {
   async function bodyFor(model: string, temperature?: number, serverFallback?: boolean) {
     reply = { status: 200, body: message(JSON.stringify(answer)) };
-    await createAnthropicChat({ apiKey: "sk-ant-test", model, timeoutMs: 5000, baseURL: server.url, temperature, serverFallback }).propose(turns, { schema });
+    await createAnthropicChat({
+      apiKey: "sk-ant-test",
+      model,
+      timeoutMs: 5000,
+      baseURL: server.url,
+      temperature,
+      serverFallback,
+    }).propose(turns, { schema });
     const request = server.requests.at(-1)!;
     return { body: JSON.parse(request.body) as Record<string, unknown>, beta: request.headers["anthropic-beta"] };
   }

@@ -31,9 +31,18 @@ const videoLinks = async (env: Record<string, string>) => {
 
 describe("the library's tool status", () => {
   it("says video links are off when they are turned off, and does not reuse that answer for other settings", async () => {
-    expect(await videoLinks({ TROUPE_YTDLP_PATH: "off" })).toMatchObject({ ready: false, detail: expect.stringContaining("TROUPE_YTDLP_PATH=off") });
-    expect(await videoLinks({ TROUPE_YTDLP_PATH: fakeYtDlp })).toMatchObject({ ready: true, model: "yt-dlp 2026.01.01" });
-    expect(await videoLinks({ TROUPE_YTDLP_PATH: join(dir, "missing") })).toMatchObject({ ready: false, detail: expect.stringContaining("not installed") });
+    expect(await videoLinks({ TROUPE_YTDLP_PATH: "off" })).toMatchObject({
+      ready: false,
+      detail: expect.stringContaining("TROUPE_YTDLP_PATH=off"),
+    });
+    expect(await videoLinks({ TROUPE_YTDLP_PATH: fakeYtDlp })).toMatchObject({
+      ready: true,
+      model: "yt-dlp 2026.01.01",
+    });
+    expect(await videoLinks({ TROUPE_YTDLP_PATH: join(dir, "missing") })).toMatchObject({
+      ready: false,
+      detail: expect.stringContaining("not installed"),
+    });
   });
 });
 

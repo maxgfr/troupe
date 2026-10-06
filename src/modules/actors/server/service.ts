@@ -8,7 +8,13 @@ import { actorAssets, actors } from "./schema";
 const MIN_ASSETS = 6;
 
 const catalogAssets = (actorId: string, slug: string) =>
-  ASSET_SET.map((a) => ({ actorId, kind: a.kind, emotion: a.emotion, storagePath: storagePathFor(slug, 1, a.file), version: 1 }));
+  ASSET_SET.map((a) => ({
+    actorId,
+    kind: a.kind,
+    emotion: a.emotion,
+    storagePath: storagePathFor(slug, 1, a.file),
+    version: 1,
+  }));
 
 // Idempotent seed of the 30-actor global library from the catalog. A library
 // actor seeded earlier gets its first set's rows rewritten when the catalog's
@@ -19,9 +25,14 @@ const catalogAssets = (actorId: string, slug: string) =>
 // to IndexedDB, and this runs on every page load and after every reset.
 export async function seedActorLibrary(db: Db): Promise<void> {
   const key = (name: string, ageRange: string) => `${name}\u0000${ageRange}`;
-  const library = await db.select({ id: actors.id, name: actors.name, ageRange: actors.ageRange }).from(actors).where(isNull(actors.workspaceId)).orderBy(asc(actors.createdAt), asc(actors.id));
+  const library = await db
+    .select({ id: actors.id, name: actors.name, ageRange: actors.ageRange })
+    .from(actors)
+    .where(isNull(actors.workspaceId))
+    .orderBy(asc(actors.createdAt), asc(actors.id));
   const byKey = new Map<string, string>();
-  for (const row of library) if (!byKey.has(key(row.name, row.ageRange))) byKey.set(key(row.name, row.ageRange), row.id);
+  for (const row of library)
+    if (!byKey.has(key(row.name, row.ageRange))) byKey.set(key(row.name, row.ageRange), row.id);
 
   const seeded = ACTOR_CATALOG.flatMap((c) => {
     const id = byKey.get(key(c.name, c.ageRange));
@@ -35,7 +46,15 @@ export async function seedActorLibrary(db: Db): Promise<void> {
     ? await db
         .select({ actorId: actorAssets.actorId, storagePath: actorAssets.storagePath })
         .from(actorAssets)
-        .where(and(inArray(actorAssets.actorId, seeded.map((s) => s.id)), eq(actorAssets.version, 1)))
+        .where(
+          and(
+            inArray(
+              actorAssets.actorId,
+              seeded.map((s) => s.id),
+            ),
+            eq(actorAssets.version, 1),
+          ),
+        )
     : [];
   const stale = seeded.filter(({ id, slug }) => {
     const have = stored.filter((r) => r.actorId === id).map((r) => r.storagePath);
@@ -46,16 +65,37 @@ export async function seedActorLibrary(db: Db): Promise<void> {
 
   await db.transaction(async (tx) => {
     if (stale.length > 0) {
-      await tx.delete(actorAssets).where(and(inArray(actorAssets.actorId, stale.map((s) => s.id)), eq(actorAssets.version, 1)));
+      await tx.delete(actorAssets).where(
+        and(
+          inArray(
+            actorAssets.actorId,
+            stale.map((s) => s.id),
+          ),
+          eq(actorAssets.version, 1),
+        ),
+      );
     }
     const inserted = missing.length
       ? await tx
           .insert(actors)
-          .values(missing.map((c) => ({ name: c.name, gender: c.gender, ageRange: c.ageRange, style: c.style, voiceProfile: c.voiceProfile, kind: "library" as const, assetVersion: 1 })))
+          .values(
+            missing.map((c) => ({
+              name: c.name,
+              gender: c.gender,
+              ageRange: c.ageRange,
+              style: c.style,
+              voiceProfile: c.voiceProfile,
+              kind: "library" as const,
+              assetVersion: 1,
+            })),
+          )
           .returning({ id: actors.id, name: actors.name, ageRange: actors.ageRange })
       : [];
     if (inserted.length !== missing.length) throw new Error("actor insert returned too few rows");
-    const added = inserted.map((row) => ({ id: row.id, slug: missing.find((c) => c.name === row.name && c.ageRange === row.ageRange)!.slug }));
+    const added = inserted.map((row) => ({
+      id: row.id,
+      slug: missing.find((c) => c.name === row.name && c.ageRange === row.ageRange)!.slug,
+    }));
     await tx.insert(actorAssets).values([...stale, ...added].flatMap(({ id, slug }) => catalogAssets(id, slug)));
   });
 }
@@ -78,7 +118,10 @@ export interface ListedActor {
   status: "active" | "unavailable";
 }
 
-export async function listActors(db: Db, filter: { gender?: string; ageRange?: string; style?: string }): Promise<ListedActor[]> {
+export async function listActors(
+  db: Db,
+  filter: { gender?: string; ageRange?: string; style?: string },
+): Promise<ListedActor[]> {
   const conds = [
     filter.gender ? eq(actors.gender, filter.gender as "female") : undefined,
     filter.ageRange ? eq(actors.ageRange, filter.ageRange) : undefined,
@@ -115,7 +158,8 @@ export async function listActors(db: Db, filter: { gender?: string; ageRange?: s
       ...r,
       portraitCount,
       portraitPath: frontByKey.get(`${r.id}|${r.assetVersion}`) ?? null,
-      status: r.storedStatus === "active" && portraitCount >= MIN_ASSETS ? ("active" as const) : ("unavailable" as const),
+      status:
+        r.storedStatus === "active" && portraitCount >= MIN_ASSETS ? ("active" as const) : ("unavailable" as const),
     };
   });
 }
@@ -151,4 +195,3 @@ export async function attachActorToProject(db: Db, input: { projectId: string; a
   }
   await db.update(projects).set({ actorId: input.actorId }).where(eq(projects.id, input.projectId));
 }
-

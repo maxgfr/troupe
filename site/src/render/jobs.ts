@@ -34,7 +34,10 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-async function run<T>(mode: IDBTransactionMode, body: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> {
+async function run<T>(
+  mode: IDBTransactionMode,
+  body: (store: IDBObjectStore) => IDBRequest<T> | undefined,
+): Promise<T | undefined> {
   const db = await open();
   try {
     return await new Promise<T | undefined>((resolve, reject) => {
@@ -71,7 +74,11 @@ export async function clearJobs(): Promise<void> {
 
 // Read and write in one transaction, so concurrent updates never undo each
 // other. `from` limits the update to jobs in one of these states.
-export async function updateJob(id: string, patch: Partial<Omit<JobRecord, "id">>, from?: JobRecord["status"][]): Promise<JobRecord | undefined> {
+export async function updateJob(
+  id: string,
+  patch: Partial<Omit<JobRecord, "id">>,
+  from?: JobRecord["status"][],
+): Promise<JobRecord | undefined> {
   return run<JobRecord | undefined>("readwrite", (store) => {
     const request = store.get(id);
     request.onsuccess = () => {
@@ -87,9 +94,7 @@ export async function updateJob(id: string, patch: Partial<Omit<JobRecord, "id">
 // Holds the job's lock until `release` is called (or the tab goes away).
 export function holdJobLock(jobId: string): Promise<() => void> {
   return new Promise((granted, refused) => {
-    navigator.locks
-      .request(lockName(jobId), () => new Promise<void>((release) => granted(release)))
-      .catch(refused);
+    navigator.locks.request(lockName(jobId), () => new Promise<void>((release) => granted(release))).catch(refused);
   });
 }
 
@@ -106,7 +111,8 @@ function stateOf(record: JobRecord): BrowserJobState {
 
 // Fails the job unless it finished in the meantime: a tab writes the outcome
 // before it lets go of the lock, so a finished job is never failed here.
-const failIfUnfinished = (id: string) => updateJob(id, { status: "failed", detail: INTERRUPTED }, ["queued", "running"]);
+const failIfUnfinished = (id: string) =>
+  updateJob(id, { status: "failed", detail: INTERRUPTED }, ["queued", "running"]);
 
 const unfinished = (record: JobRecord) => record.status === "queued" || record.status === "running";
 
@@ -137,7 +143,9 @@ export async function failInterruptedJobs(): Promise<void> {
 // recorded a render), "pending" while it may still need it. Jobs it does not
 // know are kept for an hour, in case it has not yet recorded them, then
 // dropped.
-export type JobSettlement = { state: "pending" } | { state: "settled"; file?: { assetId: string; storagePath: string } };
+export type JobSettlement =
+  | { state: "pending" }
+  | { state: "settled"; file?: { assetId: string; storagePath: string } };
 const UNKNOWN_KEPT_MS = 60 * 60_000;
 
 // Keeps the file of every render the studio recorded (keepFile), then

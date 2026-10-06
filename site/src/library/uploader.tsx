@@ -14,17 +14,30 @@ import { LIBRARY_CONFIG } from "./env";
 // storing to recording it holds the data lock, so another tab's clean-up of
 // unreferenced files cannot take it meanwhile.
 
-const stem = (name: string) => name.replace(/\.[A-Za-z0-9]{1,5}$/, "").replace(/[_-]+/g, " ").trim() || name;
+const stem = (name: string) =>
+  name
+    .replace(/\.[A-Za-z0-9]{1,5}$/, "")
+    .replace(/[_-]+/g, " ")
+    .trim() || name;
 
-async function upload(file: File, input: { workspaceId: string; mine: boolean; onProgress?: (fraction: number) => void }): Promise<{ id: string }> {
-  if (file.size > LIBRARY_CONFIG.maxUploadMb * 1024 * 1024) throw new Error(`The file is larger than ${LIBRARY_CONFIG.maxUploadMb} MB, the most this browser keeps.`);
+async function upload(
+  file: File,
+  input: { workspaceId: string; mine: boolean; onProgress?: (fraction: number) => void },
+): Promise<{ id: string }> {
+  if (file.size > LIBRARY_CONFIG.maxUploadMb * 1024 * 1024)
+    throw new Error(`The file is larger than ${LIBRARY_CONFIG.maxUploadMb} MB, the most this browser keeps.`);
   const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
   const refused = fileRefusal(file.size, head);
   if (refused) throw new Error(refused);
   const mimeType = sniffType(head)!;
   const caller = await (await import("../server-link")).browserCaller();
   if (mimeType === "text/plain") {
-    const item = await caller.library.addText({ workspaceId: input.workspaceId, text: await file.text(), title: stem(file.name), mine: input.mine });
+    const item = await caller.library.addText({
+      workspaceId: input.workspaceId,
+      text: await file.text(),
+      title: stem(file.name),
+      mine: input.mine,
+    });
     input.onProgress?.(1);
     return { id: item.id };
   }
@@ -34,9 +47,19 @@ async function upload(file: File, input: { workspaceId: string; mine: boolean; o
   const bytes = new Uint8Array(await file.arrayBuffer());
   const checksum = await sha256Hex(bytes);
   input.onProgress?.(0.5);
-  pendingUploads.set(itemId, { assetId, storagePath, mimeType, bytes: bytes.length, checksum, fileName: file.name.slice(0, 200) });
+  pendingUploads.set(itemId, {
+    assetId,
+    storagePath,
+    mimeType,
+    bytes: bytes.length,
+    checksum,
+    fileName: file.name.slice(0, 200),
+  });
   try {
-    const item = await storeWhileRecording({ id: assetId, storagePath, blob: new Blob([bytes], { type: mimeType }) }, () => caller.library.addUpload({ workspaceId: input.workspaceId, uploadId: itemId, mine: input.mine }));
+    const item = await storeWhileRecording(
+      { id: assetId, storagePath, blob: new Blob([bytes], { type: mimeType }) },
+      () => caller.library.addUpload({ workspaceId: input.workspaceId, uploadId: itemId, mine: input.mine }),
+    );
     input.onProgress?.(1);
     return { id: item.id };
   } catch (error) {
@@ -55,17 +78,23 @@ function LibraryNote() {
       <div className="max-w-md space-y-1.5" role="status">
         <p className="flex items-baseline justify-between gap-3 text-xs">
           <span>Downloading the {download.model === "whisper" ? "transcription" : "search"} model</span>
-          <span className="font-mono tabular-nums text-muted">{Math.round(download.loadedBytes / 1024 / 1024)} / {Math.round(download.totalBytes / 1024 / 1024)} MB</span>
+          <span className="font-mono tabular-nums text-muted">
+            {Math.round(download.loadedBytes / 1024 / 1024)} / {Math.round(download.totalBytes / 1024 / 1024)} MB
+          </span>
         </p>
         <div className="progress-glow h-1.5 overflow-hidden rounded-full bg-primary/20">
-          <div className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none" style={{ width: `${Math.max(2, percent)}%` }} />
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out motion-reduce:transition-none"
+            style={{ width: `${Math.max(2, percent)}%` }}
+          />
         </div>
       </div>
     );
   }
   return (
     <p className="max-w-[72ch] text-pretty text-xs text-muted">
-      Everything stays in this browser. Transcription and search run in this tab; the first analysis downloads their models
+      Everything stays in this browser. Transcription and search run in this tab; the first analysis downloads their
+      models
       {LIBRARY_CONFIG.downloadMb ? (
         <>
           {" "}

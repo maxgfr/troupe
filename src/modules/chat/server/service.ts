@@ -9,7 +9,16 @@ import { getScript, lockScript, saveScriptLines, scripts, type ScriptWithLines }
 import { changeProjectActor, getProject } from "~/modules/studio";
 import { ChatProviderError, type ChatAnswer, type ChatSettings, type ChatSetup, type ChatTurn } from "../model";
 import { buildChatPrompt, repairTurn } from "../prompt";
-import { checkProposal, countWords, proposalJsonSchema, StoredProposal, wordBudget, type ActorChoice, type Proposal, type ProposalCheck } from "../proposal";
+import {
+  checkProposal,
+  countWords,
+  proposalJsonSchema,
+  StoredProposal,
+  wordBudget,
+  type ActorChoice,
+  type Proposal,
+  type ProposalCheck,
+} from "../proposal";
 import { chatMessages } from "./schema";
 
 export interface ChatMessageView {
@@ -55,12 +64,21 @@ function view(row: typeof chatMessages.$inferSelect): ChatMessageView {
 }
 
 export async function listChatMessages(db: Db, projectId: string): Promise<ChatMessageView[]> {
-  const rows = await db.select().from(chatMessages).where(eq(chatMessages.projectId, projectId)).orderBy(asc(chatMessages.createdAt), asc(chatMessages.role));
+  const rows = await db
+    .select()
+    .from(chatMessages)
+    .where(eq(chatMessages.projectId, projectId))
+    .orderBy(asc(chatMessages.createdAt), asc(chatMessages.role));
   return rows.map(view);
 }
 
 async function latestScript(db: Db, projectId: string): Promise<ScriptWithLines | null> {
-  const [latest] = await db.select({ id: scripts.id }).from(scripts).where(eq(scripts.projectId, projectId)).orderBy(desc(scripts.version)).limit(1);
+  const [latest] = await db
+    .select({ id: scripts.id })
+    .from(scripts)
+    .where(eq(scripts.projectId, projectId))
+    .orderBy(desc(scripts.version))
+    .limit(1);
   return latest ? getScript(db, latest.id) : null;
 }
 
@@ -89,20 +107,34 @@ export async function sendChatMessage(
   // `signal`: the person who asked has gone. `limit`: the request's time
   // limit (TROUPE_CHAT_SEND_TIMEOUT_S), told apart so that a usable script
   // written before it is kept.
-  input: { projectId: string; message: string; durationS: number; setup: ChatSetup; signal?: AbortSignal; limit?: AbortSignal },
+  input: {
+    projectId: string;
+    message: string;
+    durationS: number;
+    setup: ChatSetup;
+    signal?: AbortSignal;
+    limit?: AbortSignal;
+  },
 ): Promise<{ user: ChatMessageView; assistant: ChatMessageView }> {
   const { setup } = input;
   if (!setup.model) throw new ChatProviderError(setup.problem ?? "No chat model is set up. Choose one in Settings.");
 
   const project = await getProject(db, input.projectId);
   const [actor] = project.actorId ? await db.select().from(actors).where(eq(actors.id, project.actorId)).limit(1) : [];
-  const [script, choices, history] = await Promise.all([latestScript(db, input.projectId), actorChoices(db), listChatMessages(db, input.projectId)]);
+  const [script, choices, history] = await Promise.all([
+    latestScript(db, input.projectId),
+    actorChoices(db),
+    listChatMessages(db, input.projectId),
+  ]);
   const budget = wordBudget(input.durationS, setup.wordsPerSecond);
   const context = { actors: choices, currentActorId: project.actorId, budgetWords: budget };
 
   // The newest proposal, if it still waits on the version the user has.
   const lastProposal = [...history].reverse().find((m) => m.role === "assistant" && m.proposal);
-  const pending = lastProposal?.proposal && !lastProposal.appliedScriptId && lastProposal.baseScriptId === (script?.id ?? null) ? { lines: lastProposal.proposal.lines } : null;
+  const pending =
+    lastProposal?.proposal && !lastProposal.appliedScriptId && lastProposal.baseScriptId === (script?.id ?? null)
+      ? { lines: lastProposal.proposal.lines }
+      : null;
 
   const messages = buildChatPrompt({
     project,
@@ -131,7 +163,9 @@ export async function sendChatMessage(
   const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
   const ask = (turns: ChatTurn[]) => setup.model!.propose(turns, { schema, signal, maxTokens });
   const check = (answer: ChatAnswer): ProposalCheck =>
-    answer.proposal === null ? { ok: false, problem: "it is not a JSON object" } : checkProposal(answer.proposal, context);
+    answer.proposal === null
+      ? { ok: false, problem: "it is not a JSON object" }
+      : checkProposal(answer.proposal, context);
 
   const first = await ask(messages);
   const firstCheck = check(first);
@@ -142,7 +176,11 @@ export async function sendChatMessage(
     const words = firstCheck.ok ? countWords(firstCheck.proposal.lines) : null;
     let second: ChatAnswer;
     try {
-      second = await ask([...messages, { role: "assistant", content: first.text }, repairTurn(describeProblem(firstCheck, words, budget))]);
+      second = await ask([
+        ...messages,
+        { role: "assistant", content: first.text },
+        repairTurn(describeProblem(firstCheck, words, budget)),
+      ]);
     } catch (error) {
       // The time limit ended the retry, but the first answer is a script,
       // only longer than the clip: it is kept (the panel shows its length).
@@ -154,7 +192,8 @@ export async function sendChatMessage(
     if (secondCheck.ok) outcome = { proposal: secondCheck.proposal, text: second.text };
     // Too long is still a script: the panel shows its length against the clip.
     else if (firstCheck.ok) outcome = { proposal: firstCheck.proposal, text: first.text };
-    else outcome = { proposal: null, text: second.text.trim() || first.text.trim() || "(the model sent an empty answer)" };
+    else
+      outcome = { proposal: null, text: second.text.trim() || first.text.trim() || "(the model sent an empty answer)" };
   }
 
   // Explicit times: both rows commit together, and the request comes first.
@@ -166,7 +205,10 @@ export async function sendChatMessage(
     // retag in place (an update lock) either finished before, or waits and
     // then sees this message and adds a version instead.
     if (baseScriptId) await lockScript(tx as unknown as Db, baseScriptId, "share");
-    const [u] = await tx.insert(chatMessages).values({ projectId: input.projectId, role: "user", content: input.message, baseScriptId, createdAt: askedAt }).returning();
+    const [u] = await tx
+      .insert(chatMessages)
+      .values({ projectId: input.projectId, role: "user", content: input.message, baseScriptId, createdAt: askedAt })
+      .returning();
     const [a] = await tx
       .insert(chatMessages)
       .values({
@@ -188,7 +230,10 @@ export async function sendChatMessage(
 // Turns a proposal into the project's newest script version (origin "chat"),
 // and recasts the project when the proposal names another actor. Applying
 // the same message twice returns the version it already made.
-export async function applyChatProposal(db: Db, input: { projectId: string; messageId: string }): Promise<{ script: ScriptWithLines; actorChanged: boolean }> {
+export async function applyChatProposal(
+  db: Db,
+  input: { projectId: string; messageId: string },
+): Promise<{ script: ScriptWithLines; actorChanged: boolean }> {
   return db.transaction(async (tx) => {
     const conn = tx as unknown as Db;
     const [row] = await tx
@@ -205,7 +250,11 @@ export async function applyChatProposal(db: Db, input: { projectId: string; mess
     // (see sendChatMessage); the new version itself is allocated under the
     // project's lock, which a retag in place takes too.
     if (row.baseScriptId) await lockScript(conn, row.baseScriptId, "share");
-    const script = await saveScriptLines(conn, { projectId: input.projectId, origin: "chat", lines: proposal.data.lines });
+    const script = await saveScriptLines(conn, {
+      projectId: input.projectId,
+      origin: "chat",
+      lines: proposal.data.lines,
+    });
     let actorChanged = false;
     if (proposal.data.actorId) {
       const project = await getProject(conn, input.projectId);
@@ -223,16 +272,25 @@ export async function applyChatProposal(db: Db, input: { projectId: string; mess
 
 const blankToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
 
-const OllamaUrl = z.string().trim().max(500).superRefine((url, ctx) => {
-  const check = checkLocalUrl(url);
-  if (!check.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: check.reason });
-});
+const OllamaUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .superRefine((url, ctx) => {
+    const check = checkLocalUrl(url);
+    if (!check.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: check.reason });
+  });
 
 const SETTING_FIELDS = {
   provider: z.enum(["auto", "ollama", "anthropic"]),
   ollamaUrl: OllamaUrl,
   ollamaModel: z.string().trim().min(1).max(200),
-  anthropicModel: z.string().trim().min(1).max(200).regex(/^[\w.:@/-]+$/, "Use a model id such as claude-opus-5-5."),
+  anthropicModel: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[\w.:@/-]+$/, "Use a model id such as claude-opus-5-5."),
   instructions: z.string().trim().max(2000),
   wordsPerSecond: z.number().min(1).max(5),
 } satisfies { [K in keyof ChatSettings]-?: z.ZodType };
@@ -256,7 +314,11 @@ export type ChatSettingsPatch = { [K in SettingKey]?: ChatSettings[K] | null };
 // Each stored value is checked on its own: one a newer or older version
 // wrote differently falls back to its default without losing the others.
 export async function getChatSettings(db: Db): Promise<ChatSettings> {
-  const [row] = await db.select({ chat: studioSettings.chat }).from(studioSettings).where(eq(studioSettings.id, 1)).limit(1);
+  const [row] = await db
+    .select({ chat: studioSettings.chat })
+    .from(studioSettings)
+    .where(eq(studioSettings.id, 1))
+    .limit(1);
   const stored = row?.chat ?? {};
   const out: Record<string, unknown> = {};
   for (const key of KEYS) {
@@ -275,6 +337,9 @@ export async function saveChatSettings(db: Db, patch: ChatSettingsPatch): Promis
     if (parsed[key] === undefined || parsed[key] === null) delete next[key];
     else next[key] = parsed[key];
   }
-  await db.insert(studioSettings).values({ id: 1, chat: next }).onConflictDoUpdate({ target: studioSettings.id, set: { chat: next, updatedAt: new Date() } });
+  await db
+    .insert(studioSettings)
+    .values({ id: 1, chat: next })
+    .onConflictDoUpdate({ target: studioSettings.id, set: { chat: next, updatedAt: new Date() } });
   return next as ChatSettings;
 }

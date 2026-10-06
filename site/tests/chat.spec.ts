@@ -112,7 +112,9 @@ test("reads a video into the library, answers about it with citations, and write
   const rows = page.locator("table tbody tr");
   await expect(rows.first().or(page.getByText("Save your first piece"))).toBeVisible({ timeout: 60_000 });
   const before = await rows.count();
-  await page.locator('input[type="file"]').setInputFiles(fileURLToPath(new URL("fixtures/library-clip.mp4", import.meta.url)));
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(fileURLToPath(new URL("fixtures/library-clip.mp4", import.meta.url)));
   await expect(rows).toHaveCount(before + 1);
   const row = rows.first();
   await expect(row.getByText("ready")).toBeVisible({ timeout: 15 * 60_000 });

@@ -86,7 +86,10 @@ export function parseRenderConfig(env: Env): RenderConfig {
 
   const defaults = DEFAULT_RENDER_CONFIG;
   const model = read("VITE_KOKORO_MODEL");
-  if (model !== undefined && !/^[\w.-]+\/[\w.-]+$/.test(model)) problems.push(`VITE_KOKORO_MODEL must be a Hugging Face model id such as ${defaults.kokoroModel} (got "${model}").`);
+  if (model !== undefined && !/^[\w.-]+\/[\w.-]+$/.test(model))
+    problems.push(
+      `VITE_KOKORO_MODEL must be a Hugging Face model id such as ${defaults.kokoroModel} (got "${model}").`,
+    );
 
   let voices = defaults.voices;
   const voiceMap = read("VITE_KOKORO_VOICES");
@@ -104,14 +107,21 @@ export function parseRenderConfig(env: Env): RenderConfig {
     const bits = Number(rawBitrate);
     if ((QUALITIES as string[]).includes(rawBitrate)) videoBitrate = rawBitrate as VideoQuality;
     else if (Number.isInteger(bits) && bits >= 100_000 && bits <= 50_000_000) videoBitrate = bits;
-    else problems.push(`VITE_RENDER_VIDEO_BITRATE must be ${QUALITIES.join(", ")} or bits per second from 100000 to 50000000 (got "${rawBitrate}").`);
+    else
+      problems.push(
+        `VITE_RENDER_VIDEO_BITRATE must be ${QUALITIES.join(", ")} or bits per second from 100000 to 50000000 (got "${rawBitrate}").`,
+      );
   }
 
   const rawCodecs = read("VITE_RENDER_AUDIO_CODECS");
   let audioCodecs = defaults.audioCodecs;
   if (rawCodecs !== undefined) {
-    const listed = rawCodecs.split(",").map((c) => c.trim()).filter(Boolean);
-    if (listed.length > 0 && listed.every((c) => c === "aac" || c === "opus")) audioCodecs = [...new Set(listed as AudioCodecChoice[])];
+    const listed = rawCodecs
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    if (listed.length > 0 && listed.every((c) => c === "aac" || c === "opus"))
+      audioCodecs = [...new Set(listed as AudioCodecChoice[])];
     else problems.push(`VITE_RENDER_AUDIO_CODECS must list aac and/or opus, comma-separated (got "${rawCodecs}").`);
   }
 
@@ -124,7 +134,9 @@ export function parseRenderConfig(env: Env): RenderConfig {
 
   const sceneFontUrl = read("VITE_SCENE_FONT_URL") ?? defaults.sceneFontUrl;
   if (sceneFontUrl !== null && !/^(https:\/\/[^\s]+|[\w.-][\w./-]*)\.(woff2?|ttf|otf)$/i.test(sceneFontUrl)) {
-    problems.push(`VITE_SCENE_FONT_URL must be an https URL or a path under the site's base (no leading slash) to a .woff2, .woff, .ttf or .otf file (got "${sceneFontUrl}").`);
+    problems.push(
+      `VITE_SCENE_FONT_URL must be an https URL or a path under the site's base (no leading slash) to a .woff2, .woff, .ttf or .otf file (got "${sceneFontUrl}").`,
+    );
   }
 
   const config: RenderConfig = {

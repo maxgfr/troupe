@@ -29,7 +29,14 @@ const alive = (pid: number) => {
 };
 
 describe("the scene's look", () => {
-  const request = { width: 720, height: 1280, fps: 24, audio: false, actor: { id: "a1", name: "Ana", gender: "female" as const }, lines: [{ role: "hook" as const, text: "Hello there.", emotion: "neutral" as const }] };
+  const request = {
+    width: 720,
+    height: 1280,
+    fps: 24,
+    audio: false,
+    actor: { id: "a1", name: "Ana", gender: "female" as const },
+    lines: [{ role: "hook" as const, text: "Hello there.", emotion: "neutral" as const }],
+  };
   const speak = async () => ({ samples: new Float32Array(0), sampleRate: 24000 });
 
   it("paints every actor in SCENE_HUE when it is set", async () => {
@@ -58,7 +65,13 @@ describe("encodeFrames", () => {
   });
 
   it("stops ffmpeg when a frame fails to draw", async () => {
-    const scene = buildScene({ width: 64, height: 64, fps: 4, actor: { id: "a", name: "A" }, lines: [{ role: "hook", text: "One two three.", emotion: "neutral" }] });
+    const scene = buildScene({
+      width: 64,
+      height: 64,
+      fps: 4,
+      actor: { id: "a", name: "A" },
+      lines: [{ role: "hook", text: "One two three.", emotion: "neutral" }],
+    });
     const pidFile = join(dir, "pid");
     let drawn = 0;
     const draw = () => {

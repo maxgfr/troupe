@@ -23,7 +23,16 @@ export async function ask<T>(
   const firstValue = (first.proposal === null ? null : read(first.proposal)) ?? options.salvage?.(first.text) ?? null;
   if (firstValue !== null) return { text: first.text, value: firstValue };
   const second = await writer.model.propose(
-    [...turns, { role: "assistant", content: first.text }, { role: "user", content: options.repair ?? "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object, following the same rules." }],
+    [
+      ...turns,
+      { role: "assistant", content: first.text },
+      {
+        role: "user",
+        content:
+          options.repair ??
+          "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object, following the same rules.",
+      },
+    ],
     { schema, signal: options.signal, maxTokens: options.maxTokens },
   );
   const secondValue = second.proposal === null ? null : read(second.proposal);

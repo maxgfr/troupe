@@ -3,7 +3,13 @@ import "fake-indexeddb/auto";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { createBrowserAdapter, generations, launchGeneration, reconcileDueJobs, type BrowserRenderer } from "~/modules/generation";
+import {
+  createBrowserAdapter,
+  generations,
+  launchGeneration,
+  reconcileDueJobs,
+  type BrowserRenderer,
+} from "~/modules/generation";
 import type { Db } from "~/server/db/types";
 import { createTestDb, type TestDb } from "~/test/db";
 import { seedFixture, type Fixture } from "~/test/fixture";
@@ -23,7 +29,15 @@ let fx: Fixture;
 const renderer: BrowserRenderer = {
   async start(job) {
     const id = crypto.randomUUID();
-    await saveJob({ id, status: "succeeded", job, video: new Blob(["mp4-bytes"], { type: "video/mp4" }), probe: { durationS: 5, width: 720, height: 1280 }, checksum: "abc123", createdAt: Date.now() });
+    await saveJob({
+      id,
+      status: "succeeded",
+      job,
+      video: new Blob(["mp4-bytes"], { type: "video/mp4" }),
+      probe: { durationS: 5, width: 720, height: 1280 },
+      checksum: "abc123",
+      createdAt: Date.now(),
+    });
     return id;
   },
   state: async (id) => jobState(id),
@@ -61,11 +75,19 @@ function mediaFiles(): Promise<{ id: string; storagePath: string; blob: Blob }[]
 }
 
 async function launch() {
-  const gen = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter, tier: "draft", durationS: 6, resolution: "720p" });
+  const gen = await launchGeneration(t.db, {
+    projectId: fx.projectId,
+    scriptId: fx.scriptId,
+    adapter,
+    tier: "draft",
+    durationS: 6,
+    resolution: "720p",
+  });
   return gen;
 }
 
-const reconcile = (db: Db, now = new Date(Date.now() + 5_000)) => reconcileDueJobs(db, { adapters: [adapter], ingest: ingestBrowserRender, now });
+const reconcile = (db: Db, now = new Date(Date.now() + 5_000)) =>
+  reconcileDueJobs(db, { adapters: [adapter], ingest: ingestBrowserRender, now });
 
 describe("browser render ingest", () => {
   it("records the render in the transaction, then keeps its file and forgets the job once it committed", async () => {
@@ -80,11 +102,21 @@ describe("browser render ingest", () => {
     expect(await readJob(gen.providerJobId!)).toBeDefined();
 
     expect(await settledBrowserJobs(t.db, [gen.providerJobId!, "unknown"])).toEqual(
-      new Map([[gen.providerJobId!, { state: "settled", file: { assetId: row!.outputAssetId!, storagePath: `renders/${fx.projectId}/${gen.id}.mp4` } }]]),
+      new Map([
+        [
+          gen.providerJobId!,
+          {
+            state: "settled",
+            file: { assetId: row!.outputAssetId!, storagePath: `renders/${fx.projectId}/${gen.id}.mp4` },
+          },
+        ],
+      ]),
     );
     await keepSettledRenders(t.db);
     const files = await mediaFiles();
-    expect(files.map(({ id, storagePath }) => ({ id, storagePath }))).toEqual([{ id: row!.outputAssetId!, storagePath: `renders/${fx.projectId}/${gen.id}.mp4` }]);
+    expect(files.map(({ id, storagePath }) => ({ id, storagePath }))).toEqual([
+      { id: row!.outputAssetId!, storagePath: `renders/${fx.projectId}/${gen.id}.mp4` },
+    ]);
     expect(files[0]!.blob.size).toBe("mp4-bytes".length);
     expect(await readJob(gen.providerJobId!)).toBeUndefined();
   });
@@ -99,13 +131,18 @@ describe("browser render ingest", () => {
       .catch(() => {});
     const [row] = await t.db.select().from(generations).where(eq(generations.id, gen.id));
     expect(row?.status).toBe("in_progress");
-    expect(await settledBrowserJobs(t.db, [gen.providerJobId!])).toEqual(new Map([[gen.providerJobId!, { state: "pending" }]]));
+    expect(await settledBrowserJobs(t.db, [gen.providerJobId!])).toEqual(
+      new Map([[gen.providerJobId!, { state: "pending" }]]),
+    );
     await keepSettledRenders(t.db);
     expect(await mediaFiles()).toEqual([]);
     expect((await readJob(gen.providerJobId!))?.video).toBeDefined();
 
     // The next poll records it, and the file follows.
-    expect(await reconcile(t.db, new Date(Date.now() + 10_000))).toContainEqual({ generationId: gen.id, outcome: "completed" });
+    expect(await reconcile(t.db, new Date(Date.now() + 10_000))).toContainEqual({
+      generationId: gen.id,
+      outcome: "completed",
+    });
     await keepSettledRenders(t.db);
     expect(await mediaFiles()).toHaveLength(1);
   });
@@ -119,8 +156,19 @@ describe("browser render ingest", () => {
         return id;
       },
     };
-    const gen = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: createBrowserAdapter({ renderer: failing }), tier: "draft", durationS: 6, resolution: "720p" });
-    await reconcileDueJobs(t.db, { adapters: [createBrowserAdapter({ renderer: failing })], ingest: ingestBrowserRender, now: new Date(Date.now() + 5_000) });
+    const gen = await launchGeneration(t.db, {
+      projectId: fx.projectId,
+      scriptId: fx.scriptId,
+      adapter: createBrowserAdapter({ renderer: failing }),
+      tier: "draft",
+      durationS: 6,
+      resolution: "720p",
+    });
+    await reconcileDueJobs(t.db, {
+      adapters: [createBrowserAdapter({ renderer: failing })],
+      ingest: ingestBrowserRender,
+      now: new Date(Date.now() + 5_000),
+    });
     await keepSettledRenders(t.db);
     expect(await readJob(gen.providerJobId!)).toBeUndefined();
     expect(await mediaFiles()).toEqual([]);

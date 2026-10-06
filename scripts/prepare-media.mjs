@@ -7,5 +7,6 @@ import { createRequire } from "node:module";
 try {
   chmodSync(createRequire(import.meta.url).resolve("@ffprobe-installer/linux-x64/ffprobe"), 0o755);
 } catch {
-  if (process.env.VERCEL) throw new Error("@ffprobe-installer/linux-x64 is missing; Vercel builds need it to validate videos.");
+  if (process.env.VERCEL)
+    throw new Error("@ffprobe-installer/linux-x64 is missing; Vercel builds need it to validate videos.");
 }

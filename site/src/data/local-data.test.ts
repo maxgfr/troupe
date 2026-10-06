@@ -29,8 +29,16 @@ vi.stubGlobal("BroadcastChannel", undefined);
 
 const { localData, pruneUnreferencedMedia, restoreBackup, storeWhileRecording } = await import("./local-data");
 
-const file = (id: string, text: string) => ({ id, storagePath: `browser/${id}.mp4`, blob: new Blob([text], { type: "video/mp4" }) });
-const backup = (media: ReturnType<typeof file>[]): Backup => ({ createdAt: new Date(), database: { migrations: [], tables: {} }, media });
+const file = (id: string, text: string) => ({
+  id,
+  storagePath: `browser/${id}.mp4`,
+  blob: new Blob([text], { type: "video/mp4" }),
+});
+const backup = (media: ReturnType<typeof file>[]): Backup => ({
+  createdAt: new Date(),
+  database: { migrations: [], tables: {} },
+  media,
+});
 
 async function contents() {
   const files = await readMediaFiles();
@@ -53,7 +61,9 @@ afterEach(() => vi.clearAllMocks());
 describe("importing a backup", () => {
   it("leaves this browser's files as they were when the database refuses the backup", async () => {
     db.restoreDatabase.mockRejectedValue(new Error("This backup is damaged."));
-    await expect(restoreBackup(backup([file("shared", "backup bytes"), file("new", "new bytes")]))).rejects.toThrow("damaged");
+    await expect(restoreBackup(backup([file("shared", "backup bytes"), file("new", "new bytes")]))).rejects.toThrow(
+      "damaged",
+    );
     expect(await contents()).toEqual({ old: "old bytes", shared: "bytes here" });
     expect(assign).not.toHaveBeenCalled();
   });
@@ -130,9 +140,11 @@ describe("an upload stored before the database records it", () => {
   });
 
   it("takes the stored file out again when the database refuses it", async () => {
-    await expect(storeWhileRecording(file("upload", "upload bytes"), async () => {
-      throw new Error("That item is not in your library.");
-    })).rejects.toThrow("not in your library");
+    await expect(
+      storeWhileRecording(file("upload", "upload bytes"), async () => {
+        throw new Error("That item is not in your library.");
+      }),
+    ).rejects.toThrow("not in your library");
     expect(await mediaFileIds()).not.toContain("upload");
   });
 });

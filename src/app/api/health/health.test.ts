@@ -11,7 +11,9 @@ describe("health check", () => {
   });
 
   it("answers 503 without leaking the database error", async () => {
-    const down = await healthResponse(async () => { throw new Error("password authentication failed for user postgres"); });
+    const down = await healthResponse(async () => {
+      throw new Error("password authentication failed for user postgres");
+    });
     expect(down.status).toBe(503);
     expect(await down.text()).toBe(JSON.stringify({ ok: false }));
   });

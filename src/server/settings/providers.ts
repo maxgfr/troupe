@@ -45,7 +45,10 @@ function tryBox(): SecretBox | null {
 
 // `env` is where environment keys come from (tests and callers with their
 // own settings pass one); saved keys always come from the database.
-export async function readCredentials(db: Db, env: Record<string, string | undefined> = process.env): Promise<Record<CredentialId, CredentialState>> {
+export async function readCredentials(
+  db: Db,
+  env: Record<string, string | undefined> = process.env,
+): Promise<Record<CredentialId, CredentialState>> {
   const rows = await db.select().from(providerSettings);
   const box = tryBox();
   const out = {} as Record<CredentialId, CredentialState>;
@@ -72,14 +75,16 @@ export async function readCredentials(db: Db, env: Record<string, string | undef
     if (row.apiKey) {
       // Plaintext from an older version: seal it now, then forget the clear text.
       if (box) {
-        await db.update(providerSettings)
+        await db
+          .update(providerSettings)
           .set({ apiKey: null, apiKeyCiphertext: box.seal(row.apiKey, aad(id)), keyFingerprint: box.fingerprint })
           .where(eq(providerSettings.provider, id));
       }
       out[id] = { source: "saved", key: row.apiKey };
       continue;
     }
-    if (row.apiKey === "") await db.update(providerSettings).set({ apiKey: null }).where(eq(providerSettings.provider, id));
+    if (row.apiKey === "")
+      await db.update(providerSettings).set({ apiKey: null }).where(eq(providerSettings.provider, id));
     out[id] = { source: "disabled" };
   }
   return out;
@@ -95,13 +100,25 @@ export async function effectiveProviderKeys(db: Db): Promise<Partial<Record<Cred
   return keys;
 }
 
-export const ApiKey = z.string().trim().min(1).max(500).regex(/^[^\r\n]*$/);
+export const ApiKey = z
+  .string()
+  .trim()
+  .min(1)
+  .max(500)
+  .regex(/^[^\r\n]*$/);
 
 export async function saveProviderKey(input: { provider: CredentialId; key: string }, db: Db) {
   const key = ApiKey.parse(input.key);
   const box = loadSecretBox();
-  const values = { apiKey: null, apiKeyCiphertext: box.seal(key, aad(input.provider)), keyFingerprint: box.fingerprint };
-  await db.insert(providerSettings).values({ provider: input.provider, ...values }).onConflictDoUpdate({ target: providerSettings.provider, set: values });
+  const values = {
+    apiKey: null,
+    apiKeyCiphertext: box.seal(key, aad(input.provider)),
+    keyFingerprint: box.fingerprint,
+  };
+  await db
+    .insert(providerSettings)
+    .values({ provider: input.provider, ...values })
+    .onConflictDoUpdate({ target: providerSettings.provider, set: values });
 }
 
 // "remove" forgets the saved key (an environment key applies again);
@@ -112,7 +129,10 @@ export async function clearProviderKey(input: { provider: CredentialId; mode: "r
     return;
   }
   const values = { apiKey: null, apiKeyCiphertext: null, keyFingerprint: null };
-  await db.insert(providerSettings).values({ provider: input.provider, ...values }).onConflictDoUpdate({ target: providerSettings.provider, set: values });
+  await db
+    .insert(providerSettings)
+    .values({ provider: input.provider, ...values })
+    .onConflictDoUpdate({ target: providerSettings.provider, set: values });
 }
 
 export type CredentialStatus = Record<CredentialId, { configured: boolean; source: CredentialState["source"] }>;

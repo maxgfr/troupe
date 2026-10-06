@@ -61,7 +61,13 @@ test.afterEach(async ({}, testInfo) => {
   if (testInfo.status === testInfo.expectedStatus || !page || page.isClosed()) return;
   // Written to the test's output folder (kept by CI), and listed by the reporter.
   const screenshot = testInfo.outputPath("page.png");
-  if (await page.screenshot({ path: screenshot, fullPage: true, timeout: 10_000 }).then(() => true, () => false)) await testInfo.attach("page", { path: screenshot, contentType: "image/png" });
+  if (
+    await page.screenshot({ path: screenshot, fullPage: true, timeout: 10_000 }).then(
+      () => true,
+      () => false,
+    )
+  )
+    await testInfo.attach("page", { path: screenshot, contentType: "image/png" });
   const state = await page
     .evaluate(async () => {
       const jobs = await new Promise<unknown>((resolve) => {
@@ -72,7 +78,12 @@ test.afterEach(async ({}, testInfo) => {
         open.onsuccess = () => {
           try {
             const all = open.result.transaction("jobs").objectStore("jobs").getAll();
-            all.onsuccess = () => resolve((all.result as { id: string; status: string; detail?: string; createdAt: number }[]).map(({ id, status, detail, createdAt }) => ({ id, status, detail, createdAt })));
+            all.onsuccess = () =>
+              resolve(
+                (all.result as { id: string; status: string; detail?: string; createdAt: number }[]).map(
+                  ({ id, status, detail, createdAt }) => ({ id, status, detail, createdAt }),
+                ),
+              );
             all.onerror = () => resolve(`not readable: ${all.error?.name}`);
           } catch (error) {
             resolve(`not readable: ${String(error)}`);
@@ -81,7 +92,12 @@ test.afterEach(async ({}, testInfo) => {
           }
         };
       });
-      return { url: location.href, jobs, locks: await navigator.locks.query(), text: document.querySelector("main")?.innerText.slice(0, 2000) };
+      return {
+        url: location.href,
+        jobs,
+        locks: await navigator.locks.query(),
+        text: document.querySelector("main")?.innerText.slice(0, 2000),
+      };
     })
     .catch((error: unknown) => ({ unreadable: String(error) }));
   const stateFile = testInfo.outputPath("page-state.json");
@@ -114,8 +130,23 @@ async function launchSixSeconds() {
 }
 
 function probe(file: string) {
-  const out = execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height,duration:format=duration", "-of", "json", file], { encoding: "utf8" });
-  return JSON.parse(out) as { streams: { codec_type: string; codec_name: string; width?: number; height?: number; duration?: string }[]; format: { duration: string } };
+  const out = execFileSync(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-show_entries",
+      "stream=codec_type,codec_name,width,height,duration:format=duration",
+      "-of",
+      "json",
+      file,
+    ],
+    { encoding: "utf8" },
+  );
+  return JSON.parse(out) as {
+    streams: { codec_type: string; codec_name: string; width?: number; height?: number; duration?: string }[];
+    format: { duration: string };
+  };
 }
 
 test("renders a 6 s clip in the browser, then plays, seeks and downloads it", async () => {
@@ -181,23 +212,55 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
   expect(["aac", "opus"]).toContain(audioStream?.codec_name);
   expect(Math.abs(Number(info.format.duration) - meta.duration)).toBeLessThan(0.1);
   expect(Math.abs(Number(audioStream?.duration) - Number(videoStream?.duration))).toBeLessThan(0.1);
-  test.info().annotations.push({ type: "render", description: JSON.stringify({ duration: meta.duration, audio: audioStream?.codec_name }) });
+  test.info().annotations.push({
+    type: "render",
+    description: JSON.stringify({ duration: meta.duration, audio: audioStream?.codec_name }),
+  });
 
   // The actor card shows the actor's picture: the middle of the card's circle
   // matches the middle of the front picture scaled to the circle's size.
-  const { portrait } = buildScene({ width: 720, height: 1280, actor: { id: "x", name: "x" }, lines: [{ role: "hook", text: "x", emotion: "neutral" }] }).layout;
+  const { portrait } = buildScene({
+    width: 720,
+    height: 1280,
+    actor: { id: "x", name: "x" },
+    lines: [{ role: "hook", text: "x", emotion: "neutral" }],
+  }).layout;
   const side = Math.round(2 * portrait.r);
   const patch = 16;
   const mean = (args: string[]) => {
-    const rgb = execFileSync("ffmpeg", ["-v", "error", ...args, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+    const rgb = execFileSync("ffmpeg", [
+      "-v",
+      "error",
+      ...args,
+      "-frames:v",
+      "1",
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgb24",
+      "-",
+    ]);
     return [0, 1, 2].map((c) => rgb.filter((_, i) => i % 3 === c).reduce((a, b) => a + b, 0) / (rgb.length / 3));
   };
   const centre = (x: number) => Math.round(x - patch / 2);
-  const inVideo = mean(["-ss", "0.1", "-i", file, "-vf", `crop=${patch}:${patch}:${centre(portrait.cx)}:${centre(portrait.cy)}`]);
+  const inVideo = mean([
+    "-ss",
+    "0.1",
+    "-i",
+    file,
+    "-vf",
+    `crop=${patch}:${patch}:${centre(portrait.cx)}:${centre(portrait.cy)}`,
+  ]);
   expect(actorPicture).toMatch(/^\/troupe\/actors\/[a-z]+-\d{2}\/v1\/front\.webp$/);
   const source = join(import.meta.dirname, "..", "..", "public", actorPicture.replace(/^\/troupe\//, ""));
-  const inPicture = mean(["-i", source, "-vf", `scale=${side}:${side},crop=${patch}:${patch}:${centre(side / 2)}:${centre(side / 2)}`]);
-  for (const [i, channel] of inVideo.entries()) expect(Math.abs(channel - inPicture[i]!), `channel ${i}: ${inVideo} vs ${inPicture}`).toBeLessThan(20);
+  const inPicture = mean([
+    "-i",
+    source,
+    "-vf",
+    `scale=${side}:${side},crop=${patch}:${patch}:${centre(side / 2)}:${centre(side / 2)}`,
+  ]);
+  for (const [i, channel] of inVideo.entries())
+    expect(Math.abs(channel - inPicture[i]!), `channel ${i}: ${inVideo} vs ${inPicture}`).toBeLessThan(20);
 
   // Once the render is stored, its job (and its copy of the MP4) is forgotten.
   const jobsLeft = () =>
@@ -235,7 +298,9 @@ test("a render cut short by closing its tab is marked failed on the next load", 
     held = route.request().url();
   });
   await launchSixSeconds();
-  await expect.poll(() => held, { message: "the render worker asks for the actor's picture", timeout: 4 * 60_000 }).not.toBe("");
+  await expect
+    .poll(() => held, { message: "the render worker asks for the actor's picture", timeout: 4 * 60_000 })
+    .not.toBe("");
   await expect(page.getByRole("progressbar", { name: "Render progress" })).toBeVisible();
 
   // Close the tab mid-render, then come back in a new one.
@@ -245,7 +310,9 @@ test("a render cut short by closing its tab is marked failed on the next load", 
   watchConsole(page, errors);
   await page.goto(projectUrl);
   await expect(page.getByText("failed", { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("The tab rendering this video was closed before it finished. Relaunch it.")).toBeVisible();
+  await expect(
+    page.getByText("The tab rendering this video was closed before it finished. Relaunch it."),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Relaunch" })).toBeVisible();
   expect(errors).toEqual([]);
 });

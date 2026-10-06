@@ -14,7 +14,10 @@ import { useEffect, useRef, useState } from "react";
 const FRAME_S = 0.6;
 
 function savesData(): boolean {
-  return typeof navigator !== "undefined" && Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
+  return (
+    typeof navigator !== "undefined" &&
+    Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData)
+  );
 }
 
 export function VideoStill({

@@ -28,7 +28,8 @@ export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
   if (gen.outputAssetId) return;
   const job = knownJob(status.providerJobId);
   // getJob read the job just before, in this tab; without it, the next poll retries.
-  if (!job?.probe || !job.checksum || !job.video) throw new Error("The finished render's details have not been read yet.");
+  if (!job?.probe || !job.checksum || !job.video)
+    throw new Error("The finished render's details have not been read yet.");
   await ingestRender(db, {
     generationId: gen.id,
     bytes: job.video.size,
@@ -43,7 +44,12 @@ export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
 export async function settledBrowserJobs(db: Db, jobIds: string[]): Promise<Map<string, JobSettlement>> {
   if (jobIds.length === 0) return new Map();
   const rows = await db
-    .select({ providerJobId: generations.providerJobId, status: generations.status, assetId: mediaAssets.id, storagePath: mediaAssets.storagePath })
+    .select({
+      providerJobId: generations.providerJobId,
+      status: generations.status,
+      assetId: mediaAssets.id,
+      storagePath: mediaAssets.storagePath,
+    })
     .from(generations)
     .leftJoin(mediaAssets, eq(mediaAssets.id, generations.outputAssetId))
     .where(inArray(generations.providerJobId, jobIds));

@@ -51,3 +51,20 @@ describe("Ollama generation settings", () => {
     expect(JSON.parse(server.requests.at(-1)!.body).options).toEqual({ temperature: 0.4 });
   });
 });
+
+describe("Ollama not answering", () => {
+  const down: typeof fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
+
+  it("says how to start the Docker stack's own Ollama, or the one on this machine", async () => {
+    const stack = createOllamaChat({ baseUrl: "http://ollama:11434", model: "qwen3:4b", timeoutMs: 5000, fetch: down });
+    await expect(stack.propose([{ role: "user", content: "Hi" }], { schema })).rejects.toThrow(
+      "Ollama is not answering at http://ollama:11434. Start the stack's Ollama with `docker compose up -d ollama`.",
+    );
+    const local = createOllamaChat({ baseUrl: "http://127.0.0.1:11434", model: "qwen3:4b", timeoutMs: 5000, fetch: down });
+    await expect(local.propose([{ role: "user", content: "Hi" }], { schema })).rejects.toThrow(
+      "Ollama is not answering at http://127.0.0.1:11434. Start it with `ollama serve` (or open the Ollama app).",
+    );
+  });
+});

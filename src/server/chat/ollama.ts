@@ -17,7 +17,17 @@ export interface OllamaOptions {
 
 export const DEFAULT_OLLAMA_TEMPERATURE = 0.4;
 
-const START = "Start it with `ollama serve` (or open the Ollama app)";
+// How to start it: the Docker stack's own service (docker-compose.yml) is
+// reached by its service name; any other address is an Ollama installed there.
+function startAdvice(baseUrl: string): string {
+  let host = "";
+  try {
+    host = new URL(baseUrl).hostname;
+  } catch {
+    // An address that does not parse is refused by checkLocalUrl first.
+  }
+  return host === "ollama" ? "Start the stack's Ollama with `docker compose up -d ollama`" : "Start it with `ollama serve` (or open the Ollama app)";
+}
 
 function base(options: OllamaOptions): string {
   const url = checkLocalUrl(options.baseUrl);
@@ -39,7 +49,7 @@ async function call(options: OllamaOptions, path: string, init: RequestInit & { 
       throw new ChatProviderError(`The server at ${options.baseUrl} answered with a redirect, which Troupe does not follow. Use the address Ollama itself listens on.`);
     }
     if ((error as Error).name === "TimeoutError") throw new ChatProviderError(`Ollama took longer than ${Math.round(options.timeoutMs / 1000)} s to answer. Try a smaller model or raise TROUPE_CHAT_TIMEOUT_S.`);
-    throw new ChatProviderError(`Ollama is not answering at ${options.baseUrl}. ${START}.`);
+    throw new ChatProviderError(`Ollama is not answering at ${options.baseUrl}. ${startAdvice(options.baseUrl)}.`);
   }
 }
 

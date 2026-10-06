@@ -16,6 +16,9 @@ export function afterFirstPaint(): Promise<void> {
     } catch {
       resolve();
     }
-    setTimeout(resolve, 1500);
+    setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, 1500);
   });
 }

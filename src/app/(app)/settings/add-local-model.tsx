@@ -409,7 +409,7 @@ export function AddLocalModel() {
       <div className="space-y-2">
         <p className="max-w-[72ch] text-sm text-muted">
           Run video models on your own GPU through ComfyUI or any server that follows Troupe&apos;s small HTTP contract
-          (see docs/LOCAL-MODELS.md). Local renders cost nothing per clip.
+          (see docs/LOCAL-MODELS.md). Local renders cost nothing.
         </p>
         <button type="button" onClick={() => setOpen(true)} className={buttonClass()}>
           Add a local model

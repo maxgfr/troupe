@@ -86,10 +86,10 @@ export function validateRequest(caps: ModelCapabilities, req: Omit<CreateJobRequ
     throw new AdapterError("UNSUPPORTED_DURATION", `Choose a ${list(caps.durationsS)} seconds clip for this model.`);
   }
   if (caps.audio === "always" && !req.audio) {
-    throw new AdapterError("AUDIO_ALWAYS_ON", "This model always generates audio.");
+    throw new AdapterError("AUDIO_ALWAYS_ON", "This model always renders sound.");
   }
   if (caps.audio === "none" && req.audio) {
-    throw new AdapterError("AUDIO_UNSUPPORTED", "This model generates silent video.");
+    throw new AdapterError("AUDIO_UNSUPPORTED", "This model makes silent video.");
   }
 }
 

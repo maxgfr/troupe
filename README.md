@@ -139,9 +139,17 @@ What was checked, and how (2026-10-05):
   `pg_cron`, the session pooler) with a production build, renders included;
   not on a real Vercel deployment
   ([docs/VERCEL-SUPABASE.md](docs/VERCEL-SUPABASE.md#what-was-tested)).
+- **Inspiration library:** run end to end on an Apple M5 with the default
+  models (faster-whisper base, `qwen3-embedding:0.6b`, `qwen3-vl:2b-instruct`,
+  `qwen3:4b`), a YouTube link through yt-dlp included, in the Docker stack
+  with the smallest models, and in the browser edition (the chat and ideas
+  with WebGPU in Chrome). Small models misread now and then: a 1.5B or 0.5B
+  model sometimes writes no usable ideas or cites nothing (try again), and
+  the analysis says when a step was skipped
+  ([docs/LIBRARY.md](docs/LIBRARY.md)).
 - **Docker stack:** end to end on every push (`pnpm e2e:docker`: the studio's
   flow in Chromium with the stack's renderer and a small Ollama model, the
-  CLI, the browser edition). The local adapters are tested against real HTTP
+  library with its smallest models, the CLI, the browser edition). The local adapters are tested against real HTTP
   servers in the test suite.
 
 Reports are welcome.

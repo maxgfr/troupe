@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { useEdition } from "~/app/_components/edition";
-import { EmptyState, ProgressBar, StatusChip } from "~/app/_components/ui";
+import { DownloadIcon, FilmIcon } from "~/app/_components/icons";
+import { Button, ButtonLink, EmptyState, ProgressBar, StatusChip, buttonClass } from "~/app/_components/ui";
 import { spokenLinesFromPrompt, vttFromLines } from "~/app/_components/captions";
 import { downloadUrl, renderFileName } from "~/app/_components/download-name";
 import { formatCost } from "../model-choice";
@@ -55,13 +54,32 @@ export function shownLength(g: Pick<GenerationRow, "durationS" | "mediaDurationS
   return `${g.durationS} s`;
 }
 
+// A finished render's first moments, as a small still in its row.
+function RenderThumb({ g }: { g: GenerationRow }) {
+  if (g.status === "completed" && g.outputAssetUrl) {
+    return (
+      <span aria-hidden className="relative block h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black shadow-[inset_0_0_0_1px_var(--picture-edge)]">
+        <video src={`${g.outputAssetUrl}#t=0.6`} muted playsInline preload="metadata" className="size-full object-cover" />
+      </span>
+    );
+  }
+  return (
+    <span aria-hidden className={`flex h-14 w-10 shrink-0 items-center justify-center rounded-md ${g.status === "failed" ? "bg-danger/10 text-danger" : "bg-fg/[0.06] text-muted"}`}>
+      <FilmIcon className="size-4" />
+    </span>
+  );
+}
+
 // Pure view — the launch timeline. The newest completed render is the star:
-// video on bare bg, no card around it; the rest is a quiet filmstrip.
-export function GenerationTimeline({ generations, projectId, projectTitle, onRelaunch }: {
+// the video large on the stage, glowing in the actor's hue, no card around
+// it; every render below is a row with its still, its state and its figures.
+export function GenerationTimeline({ generations, projectId, projectTitle, onRelaunch, glowHue = null }: {
   generations: GenerationRow[];
   projectId?: string;
   projectTitle?: string | null;
   onRelaunch?: (generationId: string) => void;
+  // The project's actor's hue, for the glow under the newest video.
+  glowHue?: number | null;
 }) {
   const edition = useEdition();
   const rendering = edition.kind === "browser" ? edition.rendering : undefined;
@@ -75,14 +93,17 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
   }
   const star = generations.find((g) => g.status === "completed");
   const fileName = (g: GenerationRow) => renderFileName({ project: projectTitle, model: g.modelLabel ?? g.modelId, createdAt: g.createdAt });
+  const glow = `0 30px 90px -30px oklch(0.55 0.13 ${glowHue ?? 250} / 0.55), var(--troupe-shadow-card)`;
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {star?.outputAssetUrl ? (
-        <figure className="space-y-3">
+        <figure className="space-y-4">
           <video
             controls
+            playsInline
             src={star.outputAssetUrl}
-            className="mx-auto max-h-[420px] rounded-xl"
+            className="mx-auto max-h-[min(72dvh,560px)] rounded-2xl bg-black"
+            style={{ boxShadow: glow }}
             aria-label={`Latest completed render — ${star.tier} by ${star.modelLabel ?? star.provider}`}
           >
             {(() => {
@@ -95,63 +116,71 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
             })()}
           </video>
           {projectId ? (
-            <figcaption className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
-              <Link href={`/projects/${projectId}/export?render=${star.id}`} className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline">
+            <figcaption className="flex flex-wrap items-center justify-center gap-2 text-sm">
+              <ButtonLink href={`/projects/${projectId}/export?render=${star.id}`} variant="outline">
                 Export this video
-              </Link>
+              </ButtonLink>
               <span className="text-xs text-muted">{star.burnedCaptions ? "Captions are part of the picture." : "Captions come from the script."}</span>
             </figcaption>
           ) : null}
         </figure>
       ) : null}
-      {/* Job progress is announced to assistive tech as it changes. */}
-      <ul aria-live="polite" className="space-y-2">
-        {generations.map((g) => {
-          const failure = failureMessage(g);
-          const cost = g.costUsd == null ? null : Number(g.costUsd);
-          const running = g.status === "in_progress" || g.status === "queued";
-          return (
-            <li
-              key={g.id}
-              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg bg-surface px-4 py-2.5"
-            >
-              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                <StatusChip status={g.status} />
-                <span className="min-w-0 truncate font-mono text-xs tabular-nums text-muted">
-                  <span className={g.tier === "final" ? "text-success" : undefined}>{g.tier === "final" ? "final" : "draft"}</span>
-                  {" · "}{g.modelLabel ?? `${g.provider}/${g.modelId}`} · {shownLength(g)}
-                  {cost !== null ? ` · ${formatCost(cost, g.costSource)}` : ""}
-                </span>
-                {failure ? <span className="text-xs text-warning">{failure}</span> : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {g.outputAssetUrl ? (
-                  <a href={downloadUrl(g.outputAssetUrl, fileName(g))} className="-my-2 inline-flex min-h-10 items-center text-sm text-primary underline-offset-4 hover:underline">
-                    Download MP4
-                  </a>
-                ) : null}
-                {g.status === "failed" && g.relaunched ? <span className="text-xs text-muted">Relaunched</span> : null}
-                {g.status === "failed" && onRelaunch && !g.relaunched ? (
-                  <button type="button" onClick={() => onRelaunch(g.id)} className="min-h-9 rounded-lg border border-muted/30 px-3 text-xs transition-colors duration-150 hover:border-muted/60">Relaunch</button>
-                ) : null}
-                {g.status === "in_progress" && rendering && g.modelKey === rendering.modelKey && g.providerJobId ? (
-                  <rendering.Progress providerJobId={g.providerJobId} />
-                ) : running ? (
-                  <ProgressBar
-                    label={g.status === "queued" ? "Waiting for the model" : "Progress"}
-                    figure={g.progress != null ? `${Math.round(g.progress * 100)}%` : null}
-                    fraction={g.progress ?? null}
-                  />
-                ) : (
-                  <span className="font-mono text-xs tabular-nums text-muted">
-                    {new Date(g.createdAt).toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <section aria-labelledby="renders-title" className="space-y-3">
+        <h2 id="renders-title" className="flex items-baseline gap-2 text-xl font-semibold tracking-[-0.01em]">
+          Renders <span className="font-mono text-sm font-normal tabular-nums text-muted">{generations.length}</span>
+        </h2>
+        {/* Job progress is announced to assistive tech as it changes. */}
+        <ul aria-live="polite" className="divide-y divide-line">
+          {generations.map((g) => {
+            const failure = failureMessage(g);
+            const cost = g.costUsd == null ? null : Number(g.costUsd);
+            const running = g.status === "in_progress" || g.status === "queued";
+            return (
+              <li key={g.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <RenderThumb g={g} />
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <StatusChip status={g.status} />
+                      <span className="min-w-0 truncate font-mono text-xs tabular-nums text-muted">
+                        <span className={g.tier === "final" ? "text-success" : undefined}>{g.tier === "final" ? "final" : "draft"}</span>
+                        {" · "}{g.modelLabel ?? `${g.provider}/${g.modelId}`} · {shownLength(g)}
+                        {cost !== null ? ` · ${formatCost(cost, g.costSource)}` : ""}
+                      </span>
+                    </div>
+                    {failure ? <p className="text-pretty text-xs text-warning">{failure}</p> : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {g.outputAssetUrl ? (
+                    <a href={downloadUrl(g.outputAssetUrl, fileName(g))} className={buttonClass({ variant: "quiet", size: "sm" })}>
+                      <DownloadIcon className="size-4" />
+                      Download MP4
+                    </a>
+                  ) : null}
+                  {g.status === "failed" && g.relaunched ? <span className="text-xs text-muted">Relaunched</span> : null}
+                  {g.status === "failed" && onRelaunch && !g.relaunched ? (
+                    <Button size="sm" onClick={() => onRelaunch(g.id)}>Relaunch</Button>
+                  ) : null}
+                  {g.status === "in_progress" && rendering && g.modelKey === rendering.modelKey && g.providerJobId ? (
+                    <rendering.Progress providerJobId={g.providerJobId} />
+                  ) : running ? (
+                    <ProgressBar
+                      label={g.status === "queued" ? "Waiting for the model" : "Progress"}
+                      figure={g.progress != null ? `${Math.round(g.progress * 100)}%` : null}
+                      fraction={g.progress ?? null}
+                    />
+                  ) : (
+                    <span className="font-mono text-xs tabular-nums text-muted">
+                      {new Date(g.createdAt).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </div>
   );
 }

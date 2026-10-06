@@ -4,19 +4,20 @@ import { ScriptLines, type ScriptLineView } from "./script-lines";
 import { ScriptComposer } from "./script-composer";
 import { ScriptVersions, type ScriptVersionView } from "./script-versions";
 import { use } from "react";
-import Link from "next/link";
 
 import { api } from "~/trpc/react";
 import { useWorkspace } from "~/app/_components/workspace-context";
+import { ArrowRightIcon } from "~/app/_components/icons";
 import {
+  ButtonLink,
   EmptyState,
   ErrorNote,
-  PageHeader,
   ProviderWarning,
   SignedOutNotice,
   SkeletonRows,
 } from "~/app/_components/ui";
 import { pickModel, type ModelOptionView } from "../../model-choice";
+import { ProjectHeader } from "../project-header";
 
 export default function ScriptPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
@@ -44,23 +45,25 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
   const restore = api.script.restore.useMutation({
     onSuccess: () => utils.script.history.invalidate(),
   });
+  // An emotion shows as chosen at once; the saved one comes back after.
   const setEmotion = api.script.setLineEmotion.useMutation({
-    onSuccess: () => utils.script.history.invalidate(),
+    onMutate: async ({ scriptId, lineIndex, emotion }) => {
+      await utils.script.history.cancel({ projectId });
+      const previous = utils.script.history.getData({ projectId });
+      utils.script.history.setData({ projectId }, (versions) =>
+        versions?.map((v) => (v.id === scriptId ? { ...v, lines: v.lines.map((l) => (l.index === lineIndex ? { ...l, emotion } : l)) } : v)),
+      );
+      return { previous };
+    },
+    onError: (_error, _input, context) => utils.script.history.setData({ projectId }, context?.previous),
+    onSettled: () => utils.script.history.invalidate(),
   });
 
   const latest = history.data?.[history.data.length - 1];
   const latestTooLong = Boolean(latest && limit && latest.estimatedDurationS > limit.seconds);
   return (
     <>
-      <PageHeader
-        title="Script"
-        lede="Write or paste your dialogue and choose each line's emotion. Saving new text keeps a new version."
-        actions={
-          <Link href={`/projects/${projectId}`} className="inline-block py-1 text-sm text-primary underline-offset-4 hover:underline">
-            ← Back to the project
-          </Link>
-        }
-      />
+      <ProjectHeader projectId={projectId} tab="script" />
 
       {workspace.status === "unauthenticated" ? (
         <SignedOutNotice />
@@ -69,12 +72,15 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
       ) : history.error ? (
         <ErrorNote>The script history failed to load: {history.error.message}</ErrorNote>
       ) : (
-        <div className="max-w-2xl space-y-8">
+        <div className="max-w-2xl space-y-10">
+          <p className="-mt-2 max-w-[65ch] text-pretty text-sm text-muted">
+            One line per sentence: the first is the hook, the last the call to action. Each line&apos;s emotion directs the voice; saving new text keeps a new version.
+          </p>
           {latest ? (
             <div className="space-y-4">
               <ScriptLines
                 lines={latest.lines as ScriptLineView[]}
-                onEmotion={paste.isPending || setEmotion.isPending ? undefined : (lineIndex, emotion) =>
+                onEmotion={paste.isPending ? undefined : (lineIndex, emotion) =>
                   workspace.workspaceId &&
                   setEmotion.mutate({
                     projectId,
@@ -85,17 +91,15 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
                 }
               />
               {/* The next step: render this version. */}
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-muted/15 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-2">
                 <p className="font-mono text-xs tabular-nums text-muted">
                   version {latest.version} · {latest.origin === "chat" ? "from the chat" : "written here"} ·{" "}
                   <span className={latestTooLong ? "text-warning" : undefined}>≈{latest.estimatedDurationS} s to say</span>
                 </p>
-                <Link
-                  href={`/projects/${projectId}#launch`}
-                  className="inline-block rounded-lg border border-primary/50 px-4 py-2 text-sm font-medium text-primary transition-colors duration-150 hover:bg-primary/10"
-                >
-                  Launch a render →
-                </Link>
+                <ButtonLink href={`/projects/${projectId}#launch`} variant="outline">
+                  Launch a render
+                  <ArrowRightIcon className="size-4" />
+                </ButtonLink>
               </div>
               {latestTooLong && limit ? (
                 <ProviderWarning>

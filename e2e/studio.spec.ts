@@ -43,7 +43,7 @@ test("open the studio → new project → script → chat → render → play �
   await expect(page).toHaveURL(/\/access/);
   await page.getByLabel("Access code").fill(CODE);
   await page.getByRole("button", { name: "Open studio" }).click();
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
   await shot("01-dashboard");
 
   // 2. A new project: the stack's renderer is the default model.
@@ -107,7 +107,7 @@ test("open the studio → new project → script → chat → render → play �
   // 5. Apply & relaunch renders the new version on the stack's renderer.
   await apply.last().click();
   await expect(chat.getByText("Applied as version 2")).toBeVisible();
-  const video = page.locator("video").first();
+  const video = page.getByLabel(/^Latest completed render/);
   await expect(video).toBeVisible({ timeout: 10 * 60_000 });
   await expect(page.getByText("completed", { exact: true }).first()).toBeVisible();
   await shot("05-rendered");
@@ -129,7 +129,7 @@ test("open the studio → new project → script → chat → render → play �
 
   // 7. Export for TikTok, then download the MP4.
   await page.getByRole("link", { name: "Export", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Export" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByLabel("I have checked the video and am ready to download it.").check();
   await page.getByRole("button", { name: "Create export" }).click();
   await expect(page.getByText(/Export saved for TikTok/)).toBeVisible();

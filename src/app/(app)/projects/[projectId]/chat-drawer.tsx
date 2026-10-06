@@ -3,6 +3,8 @@
 import { Drawer } from "@heroui/react/drawer";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 
+import { ChatIcon } from "~/app/_components/icons";
+import { buttonClass } from "~/app/_components/ui";
 import { ChatPanel } from "./chat-panel";
 
 // The chat below the large breakpoint: a bottom drawer (HeroUI, on React
@@ -12,19 +14,20 @@ export function ChatDrawer(props: Omit<ComponentProps<typeof ChatPanel>, "headin
   const [open, setOpen] = useState(false);
   return (
     <Drawer isOpen={open} onOpenChange={setOpen}>
-      <Drawer.Trigger className="rounded-lg border border-muted/30 px-3 py-1 text-sm text-fg transition-colors duration-150 hover:border-muted/60 data-[focus-visible]:outline-2 data-[focus-visible]:outline-primary">
+      <Drawer.Trigger className={buttonClass({ variant: "secondary", size: "sm", className: "data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-primary" })}>
+        <ChatIcon className="size-4" />
         Chat
       </Drawer.Trigger>
-      <Drawer.Backdrop className="bg-black/50">
+      <Drawer.Backdrop className="bg-black/55 backdrop-blur-[2px]">
         <Drawer.Content placement="bottom">
-          <Drawer.Dialog className="flex h-[88dvh] flex-col rounded-t-[14px] border-t border-muted/25 bg-bg px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] text-fg shadow-[0_8px_30px_rgba(0,0,0,0.16)]">
+          <Drawer.Dialog className="flex h-[88dvh] flex-col rounded-t-2xl bg-raised px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] text-fg shadow-overlay">
             <Drawer.Handle />
             <MarkModal />
             <ChatPanel
               {...props}
               heading={(title) => <Drawer.Heading className="text-base font-semibold">{title}</Drawer.Heading>}
               closeButton={
-                <button type="button" slot="close" onClick={() => setOpen(false)} className="-mr-2 min-h-11 rounded-lg px-3 text-sm text-muted hover:text-fg">
+                <button type="button" slot="close" onClick={() => setOpen(false)} className={buttonClass({ variant: "quiet", className: "-mr-2 min-h-11" })}>
                   Close
                 </button>
               }

@@ -7,22 +7,23 @@ import { ChatDrawer } from "./chat-drawer";
 import { chatLaunchBase } from "./chat-launch";
 import { ProjectActions } from "./project-actions";
 import { use, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
-import { ActorPortrait } from "~/app/_components/actor-portrait";
+import { ArrowRightIcon } from "~/app/_components/icons";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import {
+  ButtonLink,
   ErrorNote,
-  PageHeader,
   ProviderWarning,
   SignedOutNotice,
   SkeletonRows,
+  panelClass,
 } from "~/app/_components/ui";
+import { actorHue } from "~/modules/scene";
+import { ProjectHeader } from "./project-header";
 import { pickModel, type ModelOptionView } from "../model-choice";
 import { useMediaQuery } from "~/app/_components/use-media-query";
-import { platformName } from "~/modules/studio/platforms";
 
 export default function ProjectMonitorPage({
   params,
@@ -59,9 +60,8 @@ export default function ProjectMonitorPage({
     { enabled, retry: false },
   );
   const latestScript = history.data?.[history.data.length - 1];
-  // The project's actor, pictured in the header.
-  const actors = api.actors.list.useQuery(undefined, { enabled: Boolean(project.data?.actorId), retry: false, staleTime: 5 * 60_000 });
-  const actor = actors.data?.find((a) => a.id === project.data?.actorId);
+  // The newest video glows in the project's actor's hue.
+  const actorGlow = project.data?.actorId ? actorHue(project.data.actorId) : null;
 
   const models = api.studio.modelOptions.useQuery(
     { format: project.data?.format ?? "9:16", language: project.data?.language },
@@ -116,57 +116,31 @@ export default function ProjectMonitorPage({
 
   return (
     <>
-      <PageHeader
-        title={project.data?.title ?? "Project"}
-        lede={
-          project.data ? (
-            <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1">
-              {`${platformName(project.data.platform)} · ${project.data.format} · ${project.data.language.toUpperCase()}`}
-              {actor ? (
-                <span data-testid="project-actor" className="inline-flex items-center gap-1.5">
-                  <span aria-hidden="true">·</span>
-                  <ActorPortrait
-                    id={actor.id}
-                    name={actor.name}
-                    src={actor.portraitUrl}
-                    label=""
-                    className="size-5 shrink-0 rounded-full outline-1 -outline-offset-1 outline-(--picture-edge)"
-                  />
-                  {actor.name}
-                </span>
-              ) : null}
-            </span>
-          ) : undefined
-        }
+      <ProjectHeader
+        projectId={projectId}
+        tab="video"
         actions={
-          <nav className="flex flex-wrap items-center gap-3 text-sm">
+          project.data ? (
+            <ProjectActions
+              title={project.data.title}
+              renderCount={(generations.data ?? []).filter((g) => g.outputAssetId).length}
+              busy={rename.isPending || remove.isPending}
+              onRename={(title) => rename.mutate({ projectId, title })}
+              onDelete={() => remove.mutate({ projectId })}
+            />
+          ) : null
+        }
+        aside={
+          <div className="flex min-w-0 items-center gap-2">
             {/* A model chosen for this project (in the wizard or adopted from
                 a comparison) stays visible. */}
             {pinned ? (
-              <span
-                data-testid="project-model"
-                className="rounded-md bg-spot/20 px-2 py-0.5 font-mono text-xs text-fg"
-              >
+              <span data-testid="project-model" className="truncate rounded-full bg-fg/[0.07] px-2.5 py-0.5 font-mono text-xs text-fg max-sm:hidden">
                 {pinned.label} · chosen
               </span>
             ) : null}
             {wide ? null : <ChatDrawer {...chatProps} />}
-            <Link href={`/projects/${projectId}/script`} className="text-primary hover:underline">
-              Script
-            </Link>
-            <Link href={`/projects/${projectId}/export`} className="text-primary hover:underline">
-              Export
-            </Link>
-            {project.data ? (
-              <ProjectActions
-                title={project.data.title}
-                renderCount={(generations.data ?? []).filter((g) => g.outputAssetId).length}
-                busy={rename.isPending || remove.isPending}
-                onRename={(title) => rename.mutate({ projectId, title })}
-                onDelete={() => remove.mutate({ projectId })}
-              />
-            ) : null}
-          </nav>
+          </div>
         }
       />
 
@@ -177,25 +151,26 @@ export default function ProjectMonitorPage({
       ) : loadError ? (
         <ErrorNote>The project failed to load: {loadError.message}</ErrorNote>
       ) : (
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-8">
-        <div className="min-w-0 space-y-8">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-10">
+        <div className="min-w-0 space-y-10">
           <GenerationTimeline
             generations={(generations.data ?? []) as GenerationRow[]}
             projectId={projectId}
             projectTitle={project.data?.title}
+            glowHue={actorGlow}
             onRelaunch={busy || relaunch.isPending ? undefined : (generationId) => { setLaunchError(null); relaunch.mutate({ projectId, generationId }); }}
           />
 
-          <section id="launch" aria-labelledby="launch-title" className="scroll-mt-24 rounded-xl border border-muted/20 px-5 py-4">
-            <h2 id="launch-title" className="text-base font-semibold">Launch</h2>
-            {history.isPending || models.isPending ? <SkeletonRows rows={2} /> : !latestScript ? (
-              <p className="mt-2 text-sm text-muted">
-                A script comes first —{" "}
-                <Link href={`/projects/${projectId}/script`} className="text-primary hover:underline">
-                  write it here
-                </Link>
-                .
-              </p>
+          <section id="launch" aria-labelledby="launch-title" className={`scroll-mt-24 px-5 py-5 sm:px-6 ${panelClass}`}>
+            <h2 id="launch-title" className="text-xl font-semibold tracking-[-0.01em]">Launch a render</h2>
+            {history.isPending || models.isPending ? <div className="mt-4"><SkeletonRows rows={2} /></div> : !latestScript ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted">A script comes first: three short lines are enough.</p>
+                <ButtonLink href={`/projects/${projectId}/script`} variant="primary">
+                  Write the script
+                  <ArrowRightIcon className="size-4" />
+                </ButtonLink>
+              </div>
             ) : (
               <>
                 {pinnedUnusable ? (
@@ -227,7 +202,7 @@ export default function ProjectMonitorPage({
           </section>
         </div>
         {wide ? (
-          <aside aria-label="Script chat" className="sticky top-24 h-[calc(100dvh-15rem)] min-h-[28rem] border-l border-muted/20 pl-6">
+          <aside aria-label="Script chat" className="sticky top-24 h-[calc(100dvh-8rem)] max-h-[48rem] min-h-[28rem] border-l border-line pl-6">
             <ChatPanel {...chatProps} />
           </aside>
         ) : null}

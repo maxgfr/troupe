@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 
-import { ErrorNote, ProviderWarning } from "~/app/_components/ui";
+import { Button, ErrorNote, ProviderWarning, fieldClass } from "~/app/_components/ui";
 import { estimateSeconds } from "./estimate";
 
 export function ScriptComposer({
@@ -38,7 +38,7 @@ export function ScriptComposer({
       }}
       className="space-y-2"
     >
-      <label className="block text-sm font-medium" htmlFor="script-composer">
+      <label className="block text-xl font-semibold tracking-[-0.01em]" htmlFor="script-composer">
         {initialText ? "Edit script" : "Write or paste your script"}
       </label>
       <textarea
@@ -47,7 +47,7 @@ export function ScriptComposer({
         onChange={(e) => setDraft(e.target.value)}
         rows={6}
         placeholder={"Hook line…\nBody line…\nCall to action…"}
-        className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-primary"
+        className={`${fieldClass} mt-2 px-4 py-3 text-base leading-relaxed`}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-muted">
@@ -55,13 +55,9 @@ export function ScriptComposer({
           <span className={`font-mono tabular-nums ${tooLong ? "text-warning" : ""}`}>≈{spokenS} s spoken{limit ? ` of ${limit.seconds} s` : ""}</span>
           {" "}· unchanged lines keep their emotion
         </span>
-        <button
-          type="submit"
-          disabled={pending || !draft.trim() || !changed || !enabled}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
-        >
+        <Button type="submit" variant="primary" disabled={pending || !draft.trim() || !changed || !enabled}>
           {pending ? "Saving…" : "Save as new version"}
-        </button>
+        </Button>
       </div>
       {tooLong && limit ? (
         <ProviderWarning>

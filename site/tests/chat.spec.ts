@@ -92,7 +92,7 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
   await ask("Make the last line a warmer call to action.", 2);
   await chat().getByRole("button", { name: "Apply & relaunch" }).last().click();
   await expect(chat().getByText("Applied as version 3")).toBeVisible();
-  await expect(page.locator("video")).toBeVisible({ timeout: 8 * 60_000 });
+  await expect(page.getByLabel(/^Latest completed render/)).toBeVisible({ timeout: 8 * 60_000 });
   await expect(page.getByText("completed", { exact: true })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("relaunched.png") });
 

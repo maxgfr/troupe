@@ -5,7 +5,7 @@ import Link from "next/link";
 import { diffLines, type LineChange } from "~/modules/chat/diff";
 import type { Proposal } from "~/modules/chat";
 import { ActorPortrait } from "~/app/_components/actor-portrait";
-import { ProviderWarning, SpotButton } from "~/app/_components/ui";
+import { Button, ProviderWarning, SpotButton } from "~/app/_components/ui";
 import { estimateSeconds } from "./script/estimate";
 import type { RelaunchPlan } from "./chat-launch";
 
@@ -101,8 +101,8 @@ export function ProposalCard({
   const unchanged = !actorChange && diffLines(current, proposal.lines).every((c) => c.kind === "same");
 
   return (
-    <div className="rounded-xl border border-muted/25">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-muted/20 px-3 py-2">
+    <div className="rounded-2xl bg-raised shadow-card">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-line px-3.5 py-2.5">
         <p className="text-xs font-medium">
           {applied ? `Applied as version ${state.appliedVersion}` : state.latestVersion ? `Compared with version ${state.latestVersion}` : "First script"}
         </p>
@@ -156,14 +156,14 @@ export function ProposalCard({
                       Apply &amp; relaunch
                     </SpotButton>
                   ) : (
-                    <button type="button" disabled={busy} onClick={onApplyAndLaunch} className="rounded-lg border border-muted/30 px-4 py-2 text-sm transition-colors duration-150 hover:border-muted/60 disabled:opacity-40">
+                    <Button disabled={busy} onClick={onApplyAndLaunch}>
                       Apply &amp; relaunch
-                    </button>
+                    </Button>
                   )
                 ) : null}
-                <button type="button" disabled={busy} onClick={onApply} className="rounded-lg px-3 py-2 text-sm text-primary transition-colors duration-150 hover:bg-primary/10 disabled:opacity-40">
+                <Button variant="quiet" disabled={busy} onClick={onApply} className="text-primary hover:text-primary">
                   Apply only
-                </button>
+                </Button>
                 <span className="basis-full px-2 font-mono text-[11px] text-muted">{relaunch.ok ? `Relaunches on ${relaunch.label}` : relaunch.reason}</span>
               </div>
             )}

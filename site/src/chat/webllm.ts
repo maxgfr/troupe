@@ -52,7 +52,7 @@ async function detect(): Promise<ChatSupport> {
   try {
     adapter = await gpu.requestAdapter();
   } catch {}
-  if (!adapter) return { ok: false, detail: `The script chat needs a GPU through WebGPU, and this browser offered none. ${USE}` };
+  if (!adapter) return { ok: false, detail: `The chat runs on a GPU through WebGPU, and this browser offered none. ${USE}` };
   // 16-bit models need the GPU's shader-f16; the 32-bit build of the same
   // model runs on the rest.
   const model = /q4f16/.test(CHAT_CONFIG.model) && !adapter.features.has("shader-f16") && CHAT_CONFIG.f32Model ? CHAT_CONFIG.f32Model : CHAT_CONFIG.model;

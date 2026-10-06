@@ -130,7 +130,8 @@ test("renders a 6 s clip in the browser, then plays, seeks and downloads it", as
 
   // Live progress replaces the generic bar while the tab renders.
   await expect(page.getByRole("progressbar", { name: "Render progress" })).toBeVisible();
-  const video = page.locator("video");
+  // The newest render's player (each render's row has its own small still).
+  const video = page.getByLabel(/^Latest completed render/);
   await expect(video).toBeVisible({ timeout: 8 * 60_000 });
   await expect(page.getByText("completed", { exact: true })).toBeVisible();
 
@@ -282,7 +283,8 @@ test("a render survives export, deleting all local data and import", async () =>
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/, { timeout: 60_000 });
 
   await page.goto(renderedProject);
-  const video = page.locator("video");
+  // The newest render's player (each render's row has its own small still).
+  const video = page.getByLabel(/^Latest completed render/);
   await expect(video).toBeVisible({ timeout: 60_000 });
   const played = await video.evaluate(async (v: HTMLVideoElement) => {
     v.muted = true;

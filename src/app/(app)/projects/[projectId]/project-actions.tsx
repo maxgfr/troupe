@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Button, fieldClass } from "~/app/_components/ui";
+
 // Pure view — rename the project inline, or delete it after an explicit
 // confirmation that says what goes with it.
 export function ProjectActions({ title, renderCount, busy, onRename, onDelete }: {
@@ -18,27 +20,27 @@ export function ProjectActions({ title, renderCount, busy, onRename, onDelete }:
       <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onRename(name.trim()); setMode("idle"); } }}>
         <label className="sr-only" htmlFor="project-title">Project title</label>
         {/* biome-ignore lint/a11y/noAutofocus: the field appears because the user just asked to rename */}
-        <input id="project-title" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} className="rounded-lg border border-muted/40 bg-bg px-3 py-1.5 text-sm" />
-        <button type="submit" disabled={busy || !name.trim()} className="rounded-lg bg-primary px-3 py-1.5 text-sm text-on-primary disabled:opacity-40">Save</button>
-        <button type="button" onClick={() => { setName(title); setMode("idle"); }} className="px-2 py-1.5 text-sm text-muted hover:text-fg">Cancel</button>
+        <input id="project-title" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} className={`${fieldClass} w-64 max-w-full`} />
+        <Button type="submit" variant="primary" size="sm" disabled={busy || !name.trim()}>Save</Button>
+        <Button variant="quiet" size="sm" onClick={() => { setName(title); setMode("idle"); }}>Cancel</Button>
       </form>
     );
   }
   if (mode === "delete") {
     return (
-      <div role="alertdialog" aria-labelledby="delete-project-question" className="flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
+      <div role="alertdialog" aria-labelledby="delete-project-question" className="flex flex-wrap items-center gap-2 rounded-xl bg-danger/10 px-3 py-2 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]">
         <span id="delete-project-question">
           Delete “{title}”{renderCount ? ` and its ${renderCount} render${renderCount > 1 ? "s" : ""}` : ""}? This cannot be undone.
         </span>
-        <button type="button" disabled={busy} onClick={onDelete} className="rounded-lg bg-danger px-3 py-1 text-sm font-medium text-on-primary disabled:opacity-40">Delete</button>
-        <button type="button" onClick={() => setMode("idle")} className="px-2 py-1 text-sm text-muted hover:text-fg">Cancel</button>
+        <Button variant="danger-solid" size="sm" disabled={busy} onClick={onDelete}>Delete</Button>
+        <Button variant="quiet" size="sm" onClick={() => setMode("idle")}>Cancel</Button>
       </div>
     );
   }
   return (
-    <span className="flex items-center gap-3 text-sm">
-      <button type="button" onClick={() => setMode("rename")} className="text-muted hover:text-fg">Rename</button>
-      <button type="button" onClick={() => setMode("delete")} className="text-muted hover:text-danger">Delete</button>
+    <span className="flex items-center gap-1">
+      <Button variant="quiet" size="sm" onClick={() => setMode("rename")}>Rename</Button>
+      <Button variant="quiet" size="sm" onClick={() => setMode("delete")} className="hover:text-danger">Delete</Button>
     </span>
   );
 }

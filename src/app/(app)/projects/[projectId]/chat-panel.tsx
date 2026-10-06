@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { useEdition } from "~/app/_components/edition";
-import { ErrorNote, ProviderWarning, Skeleton } from "~/app/_components/ui";
+import { Button, ErrorNote, ProviderWarning, Skeleton, chipClass, fieldClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { chatClipSeconds, relaunchPlan, type ChatLaunchBase } from "./chat-launch";
 import { ProposalCard } from "./chat-proposal";
@@ -29,7 +29,7 @@ export function ChatPanel({
   versions,
   base,
   currentActorId,
-  heading = (title) => <h2 className="text-base font-semibold">{title}</h2>,
+  heading = (title) => <h2 className="text-xl font-semibold tracking-[-0.01em]">{title}</h2>,
   closeButton,
   onLaunched,
 }: {
@@ -137,7 +137,7 @@ export function ChatPanel({
           ) : (
             messages.map((m) =>
               m.role === "user" ? (
-                <p key={m.id} className="ml-8 whitespace-pre-wrap rounded-xl bg-surface px-3 py-2 text-sm">
+                <p key={m.id} className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">
                   {m.content}
                 </p>
               ) : (
@@ -188,7 +188,7 @@ export function ChatPanel({
           )}
           {send.isPending ? (
             <>
-              <p className="ml-8 whitespace-pre-wrap rounded-xl bg-surface px-3 py-2 text-sm">{send.variables?.message}</p>
+              <p className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">{send.variables?.message}</p>
               <div className="space-y-2" role="status">
                 <p className="text-xs text-muted">{provider?.label ?? "The model"} is writing a new version…</p>
                 {browserChat ? <browserChat.Progress /> : null}
@@ -200,7 +200,7 @@ export function ChatPanel({
         </div>
 
         <form
-          className="border-t border-muted/20 pt-3"
+          className="border-t border-line pt-3"
           onSubmit={(event) => {
             event.preventDefault();
             submit();
@@ -226,7 +226,7 @@ export function ChatPanel({
           {messages.length === 0 && !send.isPending && !unavailable ? (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {(latest ? SUGGESTIONS : FIRST_SUGGESTIONS).map((s) => (
-                <button key={s} type="button" onClick={() => submit(s)} className="min-h-9 rounded-md border border-muted/25 px-2.5 text-xs text-muted transition-colors duration-150 hover:border-muted/50 hover:text-fg max-lg:min-h-11">
+                <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-xs max-lg:min-h-11")}>
                   {s}
                 </button>
               ))}
@@ -250,17 +250,13 @@ export function ChatPanel({
               }
             }}
             placeholder={latest ? "A punchier hook, a calmer tone, another actor…" : "Describe the script you want…"}
-            className="block max-h-40 w-full resize-none rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm placeholder:text-muted/80 disabled:opacity-50"
+            className={`${fieldClass} block max-h-40 resize-none`}
           />
           <div className="mt-2 flex items-center justify-between gap-3">
             <span className="text-xs text-muted">Enter sends · Shift+Enter for a new line</span>
-            <button
-              type="submit"
-              disabled={send.isPending || !draft.trim() || Boolean(unavailable)}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
-            >
+            <Button type="submit" variant="primary" disabled={send.isPending || !draft.trim() || Boolean(unavailable)}>
               {send.isPending ? "Writing…" : "Send"}
-            </button>
+            </Button>
           </div>
         </form>
     </div>

@@ -7,8 +7,11 @@ export interface ScriptLineView {
   emotion: string | null;
 }
 
-// Pure view — one script version as chat bubbles; the emotion chips are the
-// per-line performance directions.
+import { chipClass } from "~/app/_components/ui";
+
+// Pure view — one script version as cue cards: the line's role in small mono
+// caps, the line itself at reading size, and its emotion as chips (the
+// per-line performance direction).
 export function ScriptLines({
   lines,
   onEmotion,
@@ -19,12 +22,10 @@ export function ScriptLines({
   return (
     <ol className="space-y-3">
       {lines.map((line) => (
-        <li key={line.index} className="rounded-xl bg-surface px-4 py-3">
-          <p className="flex items-baseline gap-2">
-            <span className="font-mono text-xs uppercase text-muted">{line.role}</span>
-            <span className="text-sm">{line.text}</span>
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Emotion for line ${line.index + 1}`}>
+        <li key={line.index} className="rounded-2xl bg-surface px-4 py-4 sm:px-5">
+          <p className="font-mono text-[11px] tracking-wide text-muted uppercase">{line.role === "cta" ? "call to action" : line.role}</p>
+          <p className="mt-1 text-pretty text-base leading-snug">{line.text}</p>
+          <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={`Emotion for line ${line.index + 1}`}>
             {EMOTIONS.map((emotion) => (
               <button
                 type="button"
@@ -32,11 +33,7 @@ export function ScriptLines({
                 onClick={() => onEmotion?.(line.index, emotion)}
                 disabled={!onEmotion}
                 aria-pressed={line.emotion === emotion}
-                className={`rounded-md px-2 py-0.5 text-xs transition-colors duration-150 ${
-                  line.emotion === emotion
-                    ? "bg-primary/20 font-medium text-primary"
-                    : "text-muted hover:text-fg"
-                }`}
+                className={chipClass(line.emotion === emotion, "min-h-8 px-3 text-xs disabled:cursor-default pointer-coarse:min-h-10")}
               >
                 {emotion}
               </button>

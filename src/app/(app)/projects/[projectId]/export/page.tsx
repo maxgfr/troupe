@@ -1,19 +1,21 @@
 "use client";
 
 import { Suspense, use, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { api } from "~/trpc/react";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { downloadUrl, renderFileName } from "~/app/_components/download-name";
+import { DownloadIcon } from "~/app/_components/icons";
 import {
+  Button,
   EmptyState,
   ErrorNote,
-  PageHeader,
   SignedOutNotice,
   SkeletonRows,
+  buttonClass,
 } from "~/app/_components/ui";
+import { ProjectHeader } from "../project-header";
 import { platformName } from "~/modules/studio/platforms";
 import {
   CaptionFields,
@@ -83,7 +85,7 @@ function ExportForm({ projectId }: { projectId: string }) {
   if (workspace.status === "unauthenticated") {
     return (
       <>
-        <PageHeader title="Export" />
+        <ProjectHeader projectId={projectId} tab="export" />
         <SignedOutNotice />
       </>
     );
@@ -92,15 +94,7 @@ function ExportForm({ projectId }: { projectId: string }) {
   const exported = create.isSuccess && chosenRender?.outputAssetUrl;
   return (
     <>
-      <PageHeader
-        title="Export"
-        lede="Pick the render, check it against the platform, and download it with its caption. The AI label is set when you publish."
-        actions={
-          <Link href={`/projects/${projectId}`} className="inline-block py-1 text-sm text-primary underline-offset-4 hover:underline">
-            ← Back to the project
-          </Link>
-        }
-      />
+      <ProjectHeader projectId={projectId} tab="export" />
 
       {workspace.status === "loading" || (enabled && generations.isPending) ? (
         <SkeletonRows rows={4} />
@@ -114,7 +108,7 @@ function ExportForm({ projectId }: { projectId: string }) {
         />
       ) : (
         <form
-          className="max-w-2xl space-y-6"
+          className="max-w-2xl space-y-8"
           onSubmit={(e) => {
             e.preventDefault();
             if (!workspace.workspaceId || !chosen) return;
@@ -129,11 +123,14 @@ function ExportForm({ projectId }: { projectId: string }) {
             });
           }}
         >
+          <p className="-mt-2 max-w-[65ch] text-pretty text-sm text-muted">
+            Pick the render, check it against the platform, and download it with its caption. The AI label is set when you publish.
+          </p>
           <RenderPicker completed={completed} chosen={chosen} onChoose={edit((id: string) => { setGenerationId(id); setConfirmed(false); setKeepFormat(false); })} />
 
           <PlatformPreset platform={platform} onPick={edit((value: Platform) => { setPlatform(value); setKeepFormat(false); })} specsMismatch={specsMismatch} />
 
-          {specsMismatch ? <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={keepFormat} onChange={(event) => edit(setKeepFormat)(event.target.checked)} className="mt-0.5" /><span>Keep the original video format. I will crop it separately if needed.</span></label> : null}
+          {specsMismatch ? <label className="flex items-start gap-2.5 text-sm"><input type="checkbox" checked={keepFormat} onChange={(event) => edit(setKeepFormat)(event.target.checked)} className="mt-0.5 size-4 accent-[var(--troupe-color-primary)]" /><span>Keep the original video format. I will crop it separately if needed.</span></label> : null}
           {specs.error ? <ErrorNote>{specs.error.message}</ErrorNote> : null}
 
           <CaptionFields
@@ -145,12 +142,12 @@ function ExportForm({ projectId }: { projectId: string }) {
 
           <DisclosurePanel platform={platform} />
 
-          <label className="flex items-start gap-2 text-sm">
+          <label className="flex items-start gap-2.5 text-sm">
             <input
               type="checkbox"
               checked={confirmed}
               onChange={(e) => edit(setConfirmed)(e.target.checked)}
-              className="mt-0.5"
+              className="mt-0.5 size-4 accent-[var(--troupe-color-primary)]"
             />
             <span>
               I have checked the video and am ready to download it.
@@ -161,25 +158,27 @@ function ExportForm({ projectId }: { projectId: string }) {
 
           {/* One primary action at a time: create the export, then download it. */}
           {exported ? (
-            <div role="status" className="space-y-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3">
+            <div role="status" className="space-y-3 rounded-2xl bg-success/10 px-5 py-4 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-success)_40%,transparent)]">
               <p className="text-sm">
                 Export saved for {platformName(platform)}. This render is now marked final. Download it, then paste your caption when you publish.
               </p>
               <a
                 href={downloadUrl(chosenRender.outputAssetUrl!, renderFileName({ project: project.data?.title, model: chosenRender.modelLabel ?? chosenRender.modelId, createdAt: chosenRender.createdAt }))}
-                className="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90"
+                className={buttonClass({ variant: "primary", size: "lg" })}
               >
+                <DownloadIcon className="size-4" />
                 Download MP4
               </a>
             </div>
           ) : (
-            <button
+            <Button
               type="submit"
+              variant="primary"
+              size="lg"
               disabled={create.isPending || !confirmed || specs.isPending || Boolean(specs.error) || (specsMismatch && !keepFormat)}
-              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
             >
               {create.isPending ? "Exporting…" : "Create export"}
-            </button>
+            </Button>
           )}
         </form>
       )}

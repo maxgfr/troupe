@@ -1,9 +1,29 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["src/**", "renderer/src/**", "cli/src/**", "site/**", "!site/dist", "!site/test-results", "!site/playwright-report", "scripts/**", "!scripts/actors/.venv", "!scripts/actors/raw", "examples/**", "e2e/**", "!e2e/test-results", "!e2e/playwright-report", "!.cache", "*.js", "*.ts", "!**/*.json", "!src/styles"]
+    "includes": [
+      "src/**",
+      "renderer/src/**",
+      "cli/src/**",
+      "site/**",
+      "!site/dist",
+      "!site/test-results",
+      "!site/playwright-report",
+      "scripts/**",
+      "!scripts/actors/.venv",
+      "!scripts/actors/raw",
+      "examples/**",
+      "e2e/**",
+      "!e2e/test-results",
+      "!e2e/playwright-report",
+      "!.cache",
+      "*.js",
+      "*.ts",
+      "!**/*.json",
+      "!src/styles"
+    ]
   },
-  "formatter": { "enabled": false },
+  "formatter": { "enabled": true, "indentStyle": "space", "lineWidth": 120 },
   "assist": { "enabled": false },
   "linter": {
     "enabled": true,

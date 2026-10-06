@@ -136,7 +136,7 @@ test("settings says what needs the self-hosted studio, and deleting all local da
   await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible(MIGRATING);
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Set up the self-hosted studio ↗" }).first()).toHaveAttribute("href", /docs\/SELF-HOSTING\.md$/);
+  await expect(page.getByRole("link", { name: "Set up the self-hosted studio", exact: true }).first()).toHaveAttribute("href", /docs\/SELF-HOSTING\.md$/);
   await expect(page.locator("body")).not.toContainText(TRIAL_WORD);
 
   await page.goto(`${APP}/projects/new`);
@@ -210,6 +210,6 @@ test("exports all local data, deletes it, and imports it back", async ({ page })
 test("an unknown app path shows the studio's not-found page", async ({ page }) => {
   await page.goto(`${APP}/no-such-page`);
   await expect(page.getByText("Nothing at this address")).toBeVisible();
-  await page.getByRole("link", { name: "Back to the dashboard" }).click();
+  await page.getByRole("link", { name: "Back to your projects" }).click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
 });

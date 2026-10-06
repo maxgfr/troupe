@@ -114,7 +114,7 @@ describe("Generation monitor", () => {
   });
 });
 
-describe("Benchmark lab", () => {
+describe("Compare", () => {
   it("shows one column per provider and votes in gold", () => {
     const onVote = vi.fn();
     render(

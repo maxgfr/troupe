@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { BackupFile, LocalData, StorageReport } from "./edition";
-import { ErrorNote } from "./ui";
+import { CloseIcon } from "./icons";
+import { ErrorNote, buttonClass } from "./ui";
 
 // The browser edition's data, in Settings: how much this browser holds and
 // whether it may clear it, a backup to export or import, and deleting it all.
@@ -25,7 +26,7 @@ export function formatBytes(bytes: number): string {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-const BUTTON = "rounded-lg border border-muted/30 px-3 py-1.5 text-sm transition-[background-color,transform] duration-150 hover:bg-surface active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40";
+const BUTTON = buttonClass({ size: "sm" });
 
 // A calm word on where the data lives, until the visitor has read it.
 const NOTE_KEY = "troupe-local-data-note";
@@ -49,12 +50,10 @@ function LocalNote() {
     }
   }
   return (
-    <p className="mb-4 flex max-w-2xl items-center justify-between gap-3 rounded-lg bg-surface py-1 pl-3 pr-1 text-sm text-muted">
+    <p className="mb-4 flex max-w-2xl items-center justify-between gap-3 rounded-xl bg-primary/10 py-1 pl-4 pr-1 text-sm text-fg/90">
       <span className="text-pretty">Troupe runs in your browser: your projects stay on this device.</span>
       <button type="button" onClick={dismiss} aria-label="Dismiss" className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:text-fg">
-        <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="size-4">
-          <path d="M4 4l8 8M12 4l-8 8" />
-        </svg>
+        <CloseIcon className="size-4" />
       </button>
     </p>
   );
@@ -62,7 +61,7 @@ function LocalNote() {
 
 function Row({ title, description, children }: { title: string; description: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="space-y-3 px-4 py-4">
+    <div className="space-y-3 px-5 py-5">
       <div>
         <h3 className="text-sm font-medium">{title}</h3>
         <div className="mt-1 max-w-[65ch] text-pretty text-sm text-muted">{description}</div>
@@ -94,7 +93,7 @@ function StorageRow({ storage }: { storage: LocalData["storage"] }) {
 
   const used =
     report === undefined ? (
-      <span className="inline-block h-4 w-40 animate-pulse rounded bg-surface align-middle" />
+      <span className="inline-block h-4 w-40 animate-pulse rounded bg-fg/[0.06] align-middle" />
     ) : report === null ? (
       "This browser does not say how much space the studio uses."
     ) : (
@@ -210,7 +209,7 @@ function BackupRow({ data }: { data: LocalData }) {
     >
       {mode === "confirm" || mode === "restoring" ? (
         summary ? (
-          <div role="alertdialog" aria-labelledby="import-question" className="max-w-2xl space-y-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-3 text-sm">
+          <div role="alertdialog" aria-labelledby="import-question" className="max-w-2xl space-y-3 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]">
             <p id="import-question" className="text-pretty">
               Replace everything in this browser with this backup? It holds {plural(summary.projects, "project", "projects")}
               {summary.videos > 0 ? (
@@ -226,11 +225,11 @@ function BackupRow({ data }: { data: LocalData }) {
                 type="button"
                 disabled={mode === "restoring"}
                 onClick={() => void restore()}
-                className="rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-on-primary transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.96] disabled:opacity-40"
+                className={buttonClass({ variant: "danger-solid", size: "sm" })}
               >
                 {mode === "restoring" ? "Importing…" : "Replace with backup"}
               </button>
-              <button ref={cancelRef} type="button" disabled={mode === "restoring"} onClick={cancel} className="px-2 py-1.5 text-sm text-muted transition-colors duration-150 hover:text-fg disabled:opacity-40">
+              <button ref={cancelRef} type="button" disabled={mode === "restoring"} onClick={cancel} className={buttonClass({ variant: "quiet", size: "sm" })}>
                 Cancel
               </button>
             </div>
@@ -300,12 +299,12 @@ export function DeleteLocalData({ deleteAll }: { deleteAll: () => Promise<void> 
           ref={deleteRef}
           type="button"
           onClick={() => setMode("confirm")}
-          className="rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger transition-[background-color,transform] duration-150 hover:bg-danger/10 active:scale-[0.96]"
+          className={buttonClass({ variant: "danger", size: "sm" })}
         >
           Delete all local data
         </button>
       ) : (
-        <div role="alertdialog" aria-labelledby="delete-local-question" className="flex max-w-2xl flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
+        <div role="alertdialog" aria-labelledby="delete-local-question" className="flex max-w-2xl flex-wrap items-center gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_40%,transparent)]">
           <span id="delete-local-question" className="text-pretty">
             Delete every project, script, chat, render and setting saved in this browser? This cannot be undone.
           </span>
@@ -313,11 +312,11 @@ export function DeleteLocalData({ deleteAll }: { deleteAll: () => Promise<void> 
             type="button"
             disabled={mode === "busy"}
             onClick={() => void run()}
-            className="rounded-lg bg-danger px-3 py-1 text-sm font-medium text-on-primary transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.96] disabled:opacity-40"
+            className={buttonClass({ variant: "danger-solid", size: "sm" })}
           >
             {mode === "busy" ? "Deleting…" : "Delete everything"}
           </button>
-          <button ref={cancelRef} type="button" disabled={mode === "busy"} onClick={() => setMode("idle")} className="px-2 py-1 text-sm text-muted hover:text-fg disabled:opacity-40">
+          <button ref={cancelRef} type="button" disabled={mode === "busy"} onClick={() => setMode("idle")} className={buttonClass({ variant: "quiet", size: "sm" })}>
             Cancel
           </button>
         </div>
@@ -331,7 +330,7 @@ export function LocalDataSettings({ data }: { data: LocalData }) {
   return (
     <>
       <LocalNote />
-      <div className="max-w-2xl divide-y divide-muted/15 rounded-xl border border-muted/20">
+      <div className="max-w-2xl divide-y divide-line rounded-2xl bg-surface/60">
         <StorageRow storage={data.storage} />
         <BackupRow data={data} />
         <Row title="Start over" description="Empties the studio in this browser, in every open tab. Export a backup first to keep a copy.">

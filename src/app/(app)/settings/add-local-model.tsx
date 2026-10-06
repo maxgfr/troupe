@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import { ErrorNote, ProviderWarning } from "~/app/_components/ui";
+import { ErrorNote, ProviderWarning, buttonClass, chipClass, fieldClass, panelClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 const ASPECTS = ["9:16", "16:9", "1:1"] as const;
@@ -44,24 +44,24 @@ function CapabilitiesFields({ value, onChange }: { value: CapabilitiesDraft; onC
     <fieldset className="grid gap-3 sm:grid-cols-2">
       <legend className="mb-1 text-sm font-medium">What it can render</legend>
       <div className="text-sm">
-        <span className="mb-1 block">Formats</span>
+        <span className="mb-1.5 block font-medium">Formats</span>
         {ASPECTS.map((a) => (
           <label key={a} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={value.aspectRatios.includes(a)} onChange={() => onChange({ ...value, aspectRatios: toggle(value.aspectRatios, a) })} />{a}</label>
         ))}
       </div>
       <div className="text-sm">
-        <span className="mb-1 block">Resolutions</span>
+        <span className="mb-1.5 block font-medium">Resolutions</span>
         {RESOLUTIONS.map((r) => (
           <label key={r} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={value.resolutions.includes(r)} onChange={() => onChange({ ...value, resolutions: toggle(value.resolutions, r) })} />{r}</label>
         ))}
       </div>
       <label className="text-sm">
-        <span className="mb-1 block">Clip lengths (seconds)</span>
-        <input value={durations} onChange={(e) => { setDurations(e.target.value); const parsed = parseDurations(e.target.value); if (parsed) onChange({ ...value, durationsS: parsed }); }} placeholder="4, 5, 8" className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+        <span className="mb-1.5 block font-medium">Clip lengths (seconds)</span>
+        <input value={durations} onChange={(e) => { setDurations(e.target.value); const parsed = parseDurations(e.target.value); if (parsed) onChange({ ...value, durationsS: parsed }); }} placeholder="4, 5, 8" className={fieldClass} />
       </label>
       <label className="text-sm">
-        <span className="mb-1 block">Audio</span>
-        <select value={value.audio} onChange={(e) => onChange({ ...value, audio: e.target.value as CapabilitiesDraft["audio"] })} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+        <span className="mb-1.5 block font-medium">Audio</span>
+        <select value={value.audio} onChange={(e) => onChange({ ...value, audio: e.target.value as CapabilitiesDraft["audio"] })} data-field className={fieldClass}>
           <option value="none">Silent video</option>
           <option value="optional">Audio on request</option>
           <option value="always">Always with audio</option>
@@ -116,11 +116,11 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
 
   const ready = baseUrl.trim() && (!custom || workflow !== undefined) && caps.aspectRatios.length && caps.resolutions.length;
   return (
-    <form className="max-w-2xl space-y-4 rounded-xl border border-muted/25 px-4 py-4" onSubmit={(e) => { e.preventDefault(); if (ready) onSave(draft()); }}>
+    <form className={`max-w-2xl space-y-5 px-4 py-5 sm:px-5 ${panelClass}`} onSubmit={(e) => { e.preventDefault(); if (ready) onSave(draft()); }}>
       <fieldset className="flex gap-2">
         <legend className="mb-2 text-sm font-medium">Kind</legend>
         {(["comfyui", "http"] as const).map((f) => (
-          <label key={f} className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm ${family === f ? "border-primary bg-primary/15" : "border-muted/40"}`}>
+          <label key={f} className={chipClass(family === f)}>
             <input type="radio" name="family" className="sr-only" checked={family === f} onChange={() => { setFamily(f); setBaseUrl(f === "comfyui" ? comfyUrl : ""); }} />
             {f === "comfyui" ? "ComfyUI" : "HTTP endpoint"}
           </label>
@@ -129,8 +129,8 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
 
       {family === "comfyui" ? (
         <label className="block text-sm">
-          <span className="mb-1 block font-medium">Workflow</span>
-          <select aria-label="Workflow" value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+          <span className="mb-1.5 block font-medium">Workflow</span>
+          <select aria-label="Workflow" value={templateId} onChange={(e) => setTemplateId(e.target.value)} data-field className={fieldClass}>
             {templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             <option value="custom">Import my own workflow (API format)…</option>
           </select>
@@ -151,7 +151,7 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
       {custom ? (
         <div className="space-y-2">
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">API workflow file</span>
+            <span className="mb-1.5 block font-medium">API workflow file</span>
             <input type="file" accept="application/json,.json" onChange={(e) => void importWorkflow(e.target.files?.[0])} className="text-sm" />
           </label>
           <p className="text-xs text-muted">In ComfyUI use Workflow → Export (API). Put {"{{prompt}}"}, {"{{width}}"}, {"{{height}}"}, {"{{frames}}"}, {"{{seed}}"} and {"{{filename_prefix}}"} in the inputs Troupe should fill, and save the result as an MP4.</p>
@@ -161,16 +161,16 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">
-          <span className="mb-1 block font-medium">Name</span>
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={template?.label ?? "My GPU box"} maxLength={80} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Name</span>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={template?.label ?? "My GPU box"} maxLength={80} className={fieldClass} />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block font-medium">Address</span>
-          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://192.168.1.20:8000" className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 font-mono text-xs" />
+          <span className="mb-1.5 block font-medium">Address</span>
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://192.168.1.20:8000" className={`${fieldClass} font-mono text-xs`} />
         </label>
         <label className="text-sm sm:col-span-2">
-          <span className="mb-1 block font-medium">Token (optional)</span>
-          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Sent as a Bearer token to this address only" className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Token (optional)</span>
+          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Sent as a Bearer token to this address only" className={fieldClass} />
         </label>
       </div>
       {family === "comfyui" ? (
@@ -182,13 +182,13 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
           <CapabilitiesFields value={caps} onChange={setCaps} />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
-              <span className="mb-1 block">Frames per second</span>
-              <input inputMode="numeric" value={fps} onChange={(e) => setFps(e.target.value)} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+              <span className="mb-1.5 block font-medium">Frames per second</span>
+              <input inputMode="numeric" value={fps} onChange={(e) => setFps(e.target.value)} className={fieldClass} />
             </label>
             {custom ? (
               <label className="text-sm">
-                <span className="mb-1 block">Frame count rule</span>
-                <select value={frameRule} onChange={(e) => setFrameRule(e.target.value as typeof frameRule)} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+                <span className="mb-1.5 block font-medium">Frame count rule</span>
+                <select value={frameRule} onChange={(e) => setFrameRule(e.target.value as typeof frameRule)} data-field className={fieldClass}>
                   <option value="any">Any (seconds × fps)</option>
                   <option value="4n+1">4n+1 (Wan)</option>
                   <option value="8n+1">8n+1 (LTX)</option>
@@ -201,8 +201,8 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={busy || !ready} onClick={() => onTest(draft())} className="rounded-lg border border-muted/30 px-4 py-2 text-sm disabled:opacity-40">Test</button>
-        <button type="submit" disabled={busy || !ready} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">Add model</button>
+        <button type="button" disabled={busy || !ready} onClick={() => onTest(draft())} className={buttonClass()}>Test</button>
+        <button type="submit" disabled={busy || !ready} className={buttonClass({ variant: "primary" })}>Add model</button>
       </div>
       <ConnectionResult report={report} />
       {error ? <ErrorNote>{error}</ErrorNote> : null}
@@ -231,7 +231,7 @@ export function AddLocalModel() {
     return (
       <div className="space-y-2">
         <p className="max-w-[72ch] text-sm text-muted">Run video models on your own GPU through ComfyUI or any server that follows Troupe&apos;s small HTTP contract (see docs/LOCAL-MODELS.md). Local renders cost nothing per clip.</p>
-        <button type="button" onClick={() => setOpen(true)} className="rounded-lg border border-muted/30 px-4 py-2 text-sm">Add a local model</button>
+        <button type="button" onClick={() => setOpen(true)} className={buttonClass()}>Add a local model</button>
       </div>
     );
   }

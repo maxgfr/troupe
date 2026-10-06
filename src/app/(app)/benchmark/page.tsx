@@ -123,8 +123,8 @@ function BenchmarkLab() {
   return (
     <>
       <PageHeader
-        title="Benchmark lab"
-        lede="Compare the same script across your models, then choose your favourite render."
+        title="Compare"
+        lede="The same script on several models, side by side. Rate each render, then adopt the winner for the project."
       />
 
       {workspace.status === "unauthenticated" ? (
@@ -153,8 +153,13 @@ function BenchmarkLab() {
           <Section>
             {activeRunId === null ? (
               <EmptyState
-                title="No run open"
-                body="Pick a run above (or start a comparison from a project page) to compare models side by side and vote."
+                title={allRuns.length ? "Open a comparison" : "No comparison yet"}
+                body={
+                  allRuns.length
+                    ? "Pick one above to watch its renders side by side and rate them."
+                    : "On a project's Video tab, Compare models renders its script on every model that can, here, side by side. You need at least two available models."
+                }
+                cta={allRuns.length ? undefined : { label: "Go to your projects", href: "/dashboard" }}
               />
             ) : run.isPending ? (
               <SkeletonRows rows={3} />

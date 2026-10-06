@@ -44,7 +44,7 @@ export function LaunchPanel({
       <div className="mt-3">
         <ProviderWarning>
           {blocked.unavailableReason} Your project and script are saved in this browser; to render them on your machine,{" "}
-          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline">set up the self-hosted studio ↗</a>.
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">set up the self-hosted studio</a>.
         </ProviderWarning>
       </div>
     );

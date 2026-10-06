@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { chipClass } from "./ui";
+
 type Theme = "dark" | "light";
 
 function applyTheme(theme: Theme) {
@@ -24,7 +26,7 @@ export function ThemeToggle() {
   }, []);
 
   if (theme === null) {
-    return <div className="h-9 w-44 animate-pulse rounded-lg bg-surface" aria-hidden />;
+    return <div className="h-9 w-44 animate-pulse rounded-full bg-fg/[0.06]" aria-hidden />;
   }
 
   return (
@@ -33,11 +35,7 @@ export function ThemeToggle() {
       {(["dark", "light"] as const).map((option) => (
         <label
           key={option}
-          className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors duration-150 ${
-            theme === option
-              ? "border-primary bg-primary text-on-primary"
-              : "border-muted/40 text-muted hover:text-fg"
-          }`}
+          className={chipClass(theme === option, "min-w-20")}
         >
           <input
             type="radio"

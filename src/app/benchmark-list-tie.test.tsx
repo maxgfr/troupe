@@ -100,15 +100,15 @@ function summaryRun(i: number) {
 }
 
 // The list is paged — a full first page offers
-// « Show older runs », which appends the next page via the createdAt cursor.
+// « Show older comparisons », which appends the next page via the createdAt cursor.
 describe("paged run list", () => {
-  it("a full page offers Show older runs and appends the older page on click", async () => {
+  it("a full page offers Show older comparisons and appends the older page on click", async () => {
     listedRuns = Array.from({ length: BENCHMARK_LIST_LIMIT }, (_, i) => summaryRun(i));
     const older = { ...summaryRun(BENCHMARK_LIST_LIMIT), brief: "Older run" };
     listFetch.mockResolvedValue([older]);
 
     render(<BenchmarkPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Show older runs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show older comparisons" }));
 
     expect(listFetch).toHaveBeenCalledWith({
       workspaceId: "ws1",
@@ -120,7 +120,7 @@ describe("paged run list", () => {
   it("a short page offers no pagination control", () => {
     listedRuns = [summaryRun(0)];
     render(<BenchmarkPage />);
-    expect(screen.queryByRole("button", { name: "Show older runs" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show older comparisons" })).toBeNull();
   });
 });
 
@@ -150,7 +150,8 @@ describe("workspace run list", () => {
     try {
       render(<BenchmarkPage />);
       expect(getQueryInput.mock.calls.some(([input, opts]) => input.runId === "44444444-4444-4444-8444-444444444444" && opts?.enabled)).toBe(true);
-      expect(screen.queryByText("No run open")).toBeNull();
+      expect(screen.queryByText("Open a comparison")).toBeNull();
+      expect(screen.queryByText("No comparison yet")).toBeNull();
     } finally {
       searchParams = "";
     }
@@ -158,8 +159,8 @@ describe("workspace run list", () => {
 
   it("teaches when the workspace has no run yet", () => {
     render(<BenchmarkPage />);
-    expect(screen.getByText(/No comparisons yet/i)).toBeDefined();
-    expect(screen.getByText("No run open")).toBeDefined();
+    expect(screen.getByText("No comparison yet")).toBeDefined();
+    expect(screen.getByText(/Compare models renders its script on every model that can/)).toBeDefined();
   });
 });
 

@@ -88,10 +88,10 @@ vi.mock("~/trpc/react", () => ({
 import BenchmarkPage from "./(app)/benchmark/page";
 
 function openRun() {
-  fireEvent.change(screen.getByPlaceholderText("Paste a benchmark run id…"), {
+  fireEvent.change(screen.getByLabelText("Comparison id"), {
     target: { value: "11111111-1111-4111-8111-111111111111" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Open run" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open" }));
 }
 
 const warnings = () => screen.queryAllByRole("status").map((el) => el.textContent ?? "").join(" ");

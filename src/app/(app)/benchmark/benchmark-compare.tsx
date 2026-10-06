@@ -1,4 +1,4 @@
-import { ProviderWarning, SpotButton, StatusChip } from "~/app/_components/ui";
+import { ProviderWarning, SpotButton, StatusChip, fieldClass, panelClass } from "~/app/_components/ui";
 import { vttFromLines } from "~/app/_components/captions";
 import { formatCost } from "../projects/model-choice";
 import { shownLength } from "../projects/[projectId]/generation-timeline";
@@ -44,15 +44,15 @@ export function BenchmarkCompare({
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
       {entries.map((entry) => (
-        <div key={entry.id} className="rounded-xl border border-muted/25 px-4 py-4">
+        <div key={entry.id} className={`px-4 py-4 ${panelClass}`}>
           <div className="flex items-center justify-between">
-            <p className="font-mono text-sm font-semibold">{entry.label ?? entry.modelKey}</p>
+            <p className="font-semibold">{entry.label ?? entry.modelKey}</p>
             <StatusChip status={entry.status} />
           </div>
           {entry.outputAssetUrl ? (
             // Capped like the project page's player: a 9:16 render must not
             // fill a column 900 px tall.
-            <video controls src={entry.outputAssetUrl} className="mx-auto mt-3 max-h-[420px] rounded-lg">
+            <video controls playsInline src={entry.outputAssetUrl} className="mx-auto mt-3 max-h-[420px] rounded-xl bg-black">
               {briefLines?.length || brief ? (
                 <track
                   kind="captions"
@@ -63,8 +63,8 @@ export function BenchmarkCompare({
               ) : null}
             </video>
           ) : (
-            <div className="mt-3 flex aspect-video items-center justify-center rounded-lg bg-surface text-xs text-muted">
-              {entry.status === "failed" ? "Render failed — check the project monitor" : "Render pending"}
+            <div className="mt-3 flex aspect-video items-center justify-center rounded-xl bg-surface px-4 text-center text-xs text-muted">
+              {entry.status === "failed" ? "This render failed: its project's Video tab says why." : "Rendering…"}
             </div>
           )}
           <dl className="mt-3 space-y-1 font-mono text-xs tabular-nums text-muted">
@@ -90,7 +90,7 @@ export function BenchmarkCompare({
           {onVote ? (
             <div className="mt-3 space-y-2">
               <label className="block text-xs text-muted" htmlFor={`score-${entry.id}`}>Quality score</label>
-              <select disabled={entry.status !== "completed"} id={`score-${entry.id}`} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm" value={Object.values(entry.votes ?? {})[0] ?? ""} onChange={(event) => onVote(entry.id, Number(event.target.value))}>
+              <select data-field disabled={entry.status !== "completed"} id={`score-${entry.id}`} className={fieldClass} value={Object.values(entry.votes ?? {})[0] ?? ""} onChange={(event) => onVote(entry.id, Number(event.target.value))}>
                 <option value="" disabled>Rate this render</option>
                 {[1, 2, 3, 4, 5].map((score) => <option key={score} value={score}>{score} / 5</option>)}
               </select>

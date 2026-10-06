@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "~/trpc/react";
-import { ErrorNote, ProviderWarning, Skeleton } from "~/app/_components/ui";
+import { ErrorNote, ProviderWarning, Skeleton, buttonClass, fieldClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 type Provider = "auto" | "ollama" | "anthropic";
@@ -23,7 +23,7 @@ const PROVIDERS: { id: Provider; label: string }[] = [
   { id: "anthropic", label: "Claude, with your Anthropic key" },
 ];
 
-const field = "w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 text-sm placeholder:text-muted/80";
+const field = fieldClass;
 
 // The script chat: who answers, and the house style it writes in. Blank
 // fields use the default shown as their placeholder (from the environment
@@ -84,7 +84,7 @@ export function ChatSettings() {
           <p className="text-sm">
             <span className="text-muted">Answering now:</span> {active.label} <span className="font-mono text-xs text-muted">{active.modelId}</span>
           </p>
-          <button type="button" disabled={test.isPending} onClick={() => test.mutate({ provider: active.provider })} className="rounded-lg border border-muted/30 px-3 py-1.5 text-sm disabled:opacity-40">
+          <button type="button" disabled={test.isPending} onClick={() => test.mutate({ provider: active.provider })} className={buttonClass({ size: "sm" })}>
             {test.isPending ? "Testing…" : "Test"}
           </button>
         </div>
@@ -95,18 +95,18 @@ export function ChatSettings() {
       {self ? (
         <>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">Model provider</span>
-            <select value={draft.provider} onChange={(e) => set({ provider: e.target.value as Provider })} className={field}>
+            <span className="mb-1.5 block font-medium">Model provider</span>
+            <select data-field value={draft.provider} onChange={(e) => set({ provider: e.target.value as Provider })} className={field}>
               {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="mb-1 block font-medium">Ollama address</span>
+              <span className="mb-1.5 block font-medium">Ollama address</span>
               <input value={draft.ollamaUrl} onChange={(e) => set({ ollamaUrl: e.target.value })} placeholder={defaults.ollamaUrl} spellCheck={false} className={`${field} font-mono`} />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block font-medium">Ollama model</span>
+              <span className="mb-1.5 block font-medium">Ollama model</span>
               <input value={draft.ollamaModel} onChange={(e) => set({ ollamaModel: e.target.value })} placeholder={defaults.ollamaModel} spellCheck={false} className={`${field} font-mono`} />
             </label>
           </div>
@@ -114,7 +114,7 @@ export function ChatSettings() {
             Pull the model first: <code className="font-mono">ollama pull {draft.ollamaModel.trim() || defaults.ollamaModel}</code>. Any model that follows a JSON schema works.
           </p>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">Claude model</span>
+            <span className="mb-1.5 block font-medium">Claude model</span>
             <input value={draft.anthropicModel} onChange={(e) => set({ anthropicModel: e.target.value })} placeholder={defaults.anthropicModel} spellCheck={false} className={`${field} font-mono sm:max-w-xs`} />
             <span className="mt-1 block text-xs text-muted">The key goes under Provider accounts. Anthropic bills each message.</span>
           </label>
@@ -126,13 +126,13 @@ export function ChatSettings() {
       )}
 
       <label className="block text-sm">
-        <span className="mb-1 block font-medium">House style</span>
+        <span className="mb-1.5 block font-medium">House style</span>
         <textarea value={draft.instructions} onChange={(e) => set({ instructions: e.target.value })} rows={3} maxLength={2000} placeholder={defaults.instructions || "Warm and direct. Short sentences, no exclamation marks."} className={`${field} resize-y`} />
         <span className="mt-1 block text-xs text-muted">Added to every request: tone, words to avoid, how to sign off.</span>
       </label>
 
       <label className="block text-sm">
-        <span className="mb-1 block font-medium">Words per second</span>
+        <span className="mb-1.5 block font-medium">Words per second</span>
         <input type="number" inputMode="decimal" min={1} max={5} step={0.1} value={draft.wordsPerSecond} onChange={(e) => set({ wordsPerSecond: e.target.value })} placeholder={String(defaults.wordsPerSecond)} className={`${field} font-mono tabular-nums sm:max-w-[8rem]`} aria-describedby="chat-rate-hint" />
         <span id="chat-rate-hint" className={`mt-1 block text-xs ${rateProblem ? "text-danger" : "text-muted"}`}>
           {rateProblem ?? `The chat's word budget: an 8 s clip allows ${example} words. Lower it for a slower voice.`}
@@ -140,7 +140,7 @@ export function ChatSettings() {
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={save.isPending || Boolean(rateProblem)} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">
+        <button type="submit" disabled={save.isPending || Boolean(rateProblem)} className={buttonClass({ variant: "primary" })}>
           {save.isPending ? "Saving…" : "Save chat settings"}
         </button>
         {save.isSuccess && !save.isPending ? <span role="status" className="text-xs text-success">Saved.</span> : null}

@@ -3,7 +3,7 @@
 // Named sections of the Benchmark Lab (hotspot découpe, c6) — the same recipe
 // as export-sections and the monitor: pure views, one visual block each; the
 // page owns queries and state and wires them together.
-import { ErrorNote, SkeletonRows } from "~/app/_components/ui";
+import { Button, ErrorNote, SkeletonRows, fieldClass } from "~/app/_components/ui";
 
 export interface RunSummaryView {
   id: string;
@@ -34,23 +34,19 @@ export function RunListSection({
 }) {
   if (pending) return <SkeletonRows rows={2} />;
   if (errorMessage) return <ErrorNote>The run list failed to load: {errorMessage}</ErrorNote>;
-  if (runs.length === 0) {
-    return (
-      <p className="max-w-[72ch] text-sm text-muted">
-        No comparisons yet. Save a short script, then choose Compare models on the project page. You need at least two available models.
-      </p>
-    );
-  }
+  // With none yet, the empty state below says how to start one.
+  if (runs.length === 0) return null;
   return (
     <>
-      <ul className="max-w-2xl space-y-2">
+      <ul className="max-w-3xl divide-y divide-line overflow-hidden rounded-2xl shadow-[inset_0_0_0_1px_var(--troupe-color-line)]">
         {runs.map((r) => (
           <li key={r.id}>
             <button
               type="button"
               onClick={() => onOpen(r.id)}
-              className={`flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-left text-sm transition-colors duration-150 ${
-                activeRunId === r.id ? "border-primary bg-primary/15" : "border-muted/40 hover:border-muted"
+              aria-pressed={activeRunId === r.id}
+              className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors duration-150 ${
+                activeRunId === r.id ? "bg-primary/10 text-fg" : "hover:bg-fg/[0.04]"
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{r.brief}</span>
@@ -63,14 +59,9 @@ export function RunListSection({
         ))}
       </ul>
       {hasOlder ? (
-        <button
-          type="button"
-          onClick={onShowOlder}
-          disabled={loadingOlder}
-          className="mt-3 rounded-lg border border-muted/40 px-4 py-2 text-sm transition-colors duration-150 hover:border-muted disabled:opacity-50"
-        >
-          Show older runs
-        </button>
+        <Button onClick={onShowOlder} disabled={loadingOlder} className="mt-3">
+          Show older comparisons
+        </Button>
       ) : null}
     </>
   );
@@ -86,28 +77,23 @@ export function OpenRunForm({
   onOpen: () => void;
 }) {
   return (
-    <form
-      className="mt-4 flex max-w-xl items-end gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onOpen();
-      }}
-    >
-      <label className="flex-1 text-sm">
-        <span className="mb-1 block font-medium">Run ID</span>
-        <input
-          value={runId}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Paste a benchmark run id…"
-          className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 font-mono text-sm outline-none transition-colors duration-150 focus:border-primary"
-        />
-      </label>
-      <button
-        type="submit"
-        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90"
+    // A link from elsewhere (a CLI, a note) names a comparison by its id;
+    // the list above is the usual way in.
+    <details className="mt-4 max-w-xl text-sm">
+      <summary className="inline-flex min-h-9 cursor-pointer items-center text-muted transition-colors duration-150 hover:text-fg">Open a comparison by its id</summary>
+      <form
+        className="mt-2 flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onOpen();
+        }}
       >
-        Open run
-      </button>
-    </form>
+        <label className="flex-1 text-sm">
+          <span className="sr-only">Comparison id</span>
+          <input value={runId} onChange={(e) => onChange(e.target.value)} placeholder="Paste its id…" className={`${fieldClass} font-mono`} />
+        </label>
+        <Button type="submit">Open</Button>
+      </form>
+    </details>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import { ErrorNote } from "~/app/_components/ui";
+import { ErrorNote, buttonClass, fieldClass } from "~/app/_components/ui";
+import { ExternalIcon } from "~/app/_components/icons";
 import { ConnectionResult, type Report } from "./connection-result";
 
 const ACCOUNTS = [
@@ -37,22 +38,22 @@ export function ProviderAccounts() {
       {ACCOUNTS.map((account) => {
         const s = status.data?.[account.id];
         return (
-          <form key={account.id} className="space-y-2 border-b border-muted/20 pb-5" onSubmit={(event) => { event.preventDefault(); save.mutate({ provider: account.id, key: keys[account.id] }); }}>
+          <form key={account.id} className="space-y-2 border-b border-line pb-6 last-of-type:border-b-0" onSubmit={(event) => { event.preventDefault(); save.mutate({ provider: account.id, key: keys[account.id] }); }}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <label htmlFor={`key-${account.id}`} className="text-sm font-medium">{account.name} API key</label>
               <span className={`text-xs ${s?.source === "undecryptable" ? "text-warning" : "text-muted"}`}>{s ? SOURCE_LABEL[s.source] : "Loading…"}</span>
             </div>
             <p className="text-xs text-muted">{account.models}</p>
             <div className="flex flex-wrap gap-2">
-              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className="min-w-0 flex-1 basis-full rounded-lg sm:basis-0 border border-muted/40 bg-bg px-3 py-2 text-sm" />
-              <button type="submit" disabled={busy || !keys[account.id].trim()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">{save.isPending && save.variables?.provider === account.id ? "Saving…" : "Save key"}</button>
-              {s?.configured ? <button type="button" disabled={busy || test.isPending} onClick={() => test.mutate({ provider: account.id })} className="rounded-lg border border-muted/30 px-3 py-2 text-sm disabled:opacity-40">{test.isPending && test.variables?.provider === account.id ? "Testing…" : "Test"}</button> : null}
-              {s?.source === "saved" || s?.source === "undecryptable" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Remove</button> : null}
-              {s?.source === "environment" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "disable" })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Turn off</button> : null}
-              {s?.source === "disabled" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Turn back on</button> : null}
+              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className={`${fieldClass} min-w-0 flex-1 basis-full sm:basis-0`} />
+              <button type="submit" disabled={busy || !keys[account.id].trim()} className={buttonClass({ variant: "primary" })}>{save.isPending && save.variables?.provider === account.id ? "Saving…" : "Save key"}</button>
+              {s?.configured ? <button type="button" disabled={busy || test.isPending} onClick={() => test.mutate({ provider: account.id })} className={buttonClass()}>{test.isPending && test.variables?.provider === account.id ? "Testing…" : "Test"}</button> : null}
+              {s?.source === "saved" || s?.source === "undecryptable" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className={buttonClass({ variant: "quiet" })}>Remove</button> : null}
+              {s?.source === "environment" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "disable" })} className={buttonClass({ variant: "quiet" })}>Turn off</button> : null}
+              {s?.source === "disabled" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className={buttonClass({ variant: "quiet" })}>Turn back on</button> : null}
             </div>
             <ConnectionResult report={reports[account.id]} />
-            <a href={account.href} target="_blank" rel="noreferrer" className="inline-block py-1 text-xs text-primary hover:underline">Get {account.article} {account.name} key ↗</a>
+            <a href={account.href} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 text-xs text-primary underline-offset-4 hover:underline">Get {account.article} {account.name} key<ExternalIcon className="size-3.5" /></a>
           </form>
         );
       })}

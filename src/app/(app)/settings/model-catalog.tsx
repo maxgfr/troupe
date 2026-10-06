@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
-import { ErrorNote, SkeletonRows } from "~/app/_components/ui";
+import { ErrorNote, SkeletonRows, buttonClass, fieldClass, panelClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 export interface CatalogModelView {
@@ -49,8 +49,8 @@ export function DefaultModelPicker({ models, savedKey, effectiveKey, busy, noMod
   return (
     <div className="max-w-md space-y-2">
       <label className="block text-sm">
-        <span className="mb-1 block font-medium">Default model for new launches</span>
-        <select aria-label="Default model" value={savedKey ?? ""} disabled={busy} onChange={(e) => onChange(e.target.value || null)} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+        <span className="mb-1.5 block font-medium">Default model for new launches</span>
+        <select aria-label="Default model" value={savedKey ?? ""} disabled={busy} onChange={(e) => onChange(e.target.value || null)} data-field className={fieldClass}>
           <option value="">Automatic (first available)</option>
           {models.filter(launchable).map((m) => <option key={m.key} value={m.key}>{m.label} · {m.kind}</option>)}
         </select>
@@ -77,12 +77,12 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
   return (
     <ul className="max-w-3xl space-y-3">
       {models.map((m) => (
-        <li key={m.key} className={`rounded-xl border border-muted/25 px-4 py-3 ${m.archived ? "opacity-60" : ""}`}>
+        <li key={m.key} className={`px-4 py-4 sm:px-5 ${panelClass} ${m.archived ? "opacity-60" : ""}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="flex flex-wrap items-baseline gap-2">
                 <span className="font-medium">{m.label}</span>
-                <span className={`rounded-md px-2 py-0.5 text-xs ${m.kind === "local" ? "bg-success/15 text-success" : "bg-surface text-muted"}`}>{m.kind}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${m.kind === "local" ? "bg-success/15 text-success" : "bg-fg/[0.07] text-muted"}`}>{m.kind}</span>
                 <span className="text-xs text-muted">{m.vendor}</span>
               </p>
               <p className={`mt-0.5 text-xs ${m.status === "ready" ? "text-muted" : "text-warning"}`}>
@@ -95,16 +95,16 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
             <div className="flex flex-wrap items-center gap-2">
               {/* Nothing to test where the model cannot run: its status already says why. */}
               {m.status !== "unsupported-host" ? (
-                <button type="button" disabled={busy} onClick={() => onTest(m.key)} className="rounded-lg border border-muted/30 px-3 py-1.5 text-sm disabled:opacity-40">Test</button>
+                <button type="button" disabled={busy} onClick={() => onTest(m.key)} className={buttonClass({ size: "sm" })}>Test</button>
               ) : null}
               {!m.archived ? (
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" role="switch" aria-checked={m.enabled} aria-label={`Use ${m.label}`} checked={m.enabled} disabled={busy} onChange={(e) => onToggle(m.key, e.target.checked)} />
+                <label className="flex min-h-9 items-center gap-2 text-sm">
+                  <input type="checkbox" className="size-4 accent-[var(--troupe-color-primary)]" role="switch" aria-checked={m.enabled} aria-label={`Use ${m.label}`} checked={m.enabled} disabled={busy} onChange={(e) => onToggle(m.key, e.target.checked)} />
                   On
                 </label>
               ) : null}
               {m.kind === "local" && onArchive ? (
-                <button type="button" disabled={busy} onClick={() => onArchive(m.key, !m.archived)} className="rounded-lg px-3 py-1.5 text-sm text-muted hover:text-fg disabled:opacity-40">{m.archived ? "Restore" : "Archive"}</button>
+                <button type="button" disabled={busy} onClick={() => onArchive(m.key, !m.archived)} className={buttonClass({ variant: "quiet", size: "sm" })}>{m.archived ? "Restore" : "Archive"}</button>
               ) : null}
             </div>
           </div>
@@ -132,27 +132,27 @@ function LocalConnectionForm({ connection, label, busy, onSave }: { connection: 
   const [token, setToken] = useState("");
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer text-sm text-primary">Name, address and token</summary>
+      <summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-primary">Name, address and token</summary>
       <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={(e) => {
         e.preventDefault();
         onSave({ ...(name.trim() !== label ? { label: name.trim() } : {}), ...(baseUrl.trim() !== connection.baseUrl ? { baseUrl: baseUrl.trim() } : {}), ...(token.trim() ? { token: token.trim() } : {}) });
         setToken("");
       }}>
         <label className="text-sm">
-          <span className="mb-1 block">Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className={fieldClass} />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block">Address</span>
-          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2 font-mono text-xs" />
+          <span className="mb-1.5 block font-medium">Address</span>
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={`${fieldClass} font-mono text-xs`} />
         </label>
         <label className="text-sm sm:col-span-2">
-          <span className="mb-1 block">Token</span>
-          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={connection.hasToken ? "Saved — paste a replacement to change it" : "None"} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Token</span>
+          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={connection.hasToken ? "Saved — paste a replacement to change it" : "None"} className={fieldClass} />
         </label>
         <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <button type="submit" disabled={busy || !name.trim() || !baseUrl.trim()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">Save</button>
-          {connection.hasToken ? <button type="button" disabled={busy} onClick={() => onSave({ clearToken: true })} className="rounded-lg px-3 py-2 text-sm text-muted hover:text-fg disabled:opacity-40">Remove token</button> : null}
+          <button type="submit" disabled={busy || !name.trim() || !baseUrl.trim()} className={buttonClass({ variant: "primary" })}>Save</button>
+          {connection.hasToken ? <button type="button" disabled={busy} onClick={() => onSave({ clearToken: true })} className={buttonClass({ variant: "quiet" })}>Remove token</button> : null}
         </div>
       </form>
     </details>
@@ -170,28 +170,28 @@ function ModelPreferencesForm({ model, busy, onSave }: { model: CatalogModelView
   const valid = (priceValue === null || (Number.isFinite(priceValue) && priceValue >= 0)) && Number.isInteger(timeoutValue) && timeoutValue >= 1 && timeoutValue <= 1440;
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer text-sm text-primary">Launch defaults and limits</summary>
+      <summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-primary">Launch defaults and limits</summary>
       <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (valid) onSave({ defaults: { resolution, durationS, audio }, pricePerSecondUsd: priceValue, timeoutS: timeoutValue * 60 }); }}>
         <label className="text-sm">
-          <span className="mb-1 block">Resolution</span>
-          <select value={resolution} onChange={(e) => setResolution(e.target.value)} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+          <span className="mb-1.5 block font-medium">Resolution</span>
+          <select value={resolution} onChange={(e) => setResolution(e.target.value)} data-field className={fieldClass}>
             {model.capabilities.resolutions.map((r) => <option key={r}>{r}</option>)}
           </select>
         </label>
         <label className="text-sm">
-          <span className="mb-1 block">Length</span>
-          <select value={durationS} onChange={(e) => setDurationS(Number(e.target.value))} className="w-full rounded-lg border border-muted/30 bg-bg px-3 py-2">
+          <span className="mb-1.5 block font-medium">Length</span>
+          <select value={durationS} onChange={(e) => setDurationS(Number(e.target.value))} data-field className={fieldClass}>
             {model.capabilities.durationsS.map((d) => <option key={d} value={d}>{d} s</option>)}
           </select>
           <span className="mt-1 block text-xs text-muted">Launch and Compare start on it whenever the script fits; a longer script gets the shortest clip that holds it.</span>
         </label>
         <label className="text-sm">
-          <span className="mb-1 block">Price per second (USD)</span>
-          <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={model.kind === "local" ? "0 — runs locally" : "Unknown — check your provider"} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Price per second (USD)</span>
+          <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={model.kind === "local" ? "0 — runs locally" : "Unknown — check your provider"} className={fieldClass} />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block">Give up after (minutes)</span>
-          <input inputMode="numeric" value={timeoutMin} onChange={(e) => setTimeoutMin(e.target.value)} className="w-full rounded-lg border border-muted/40 bg-bg px-3 py-2" />
+          <span className="mb-1.5 block font-medium">Give up after (minutes)</span>
+          <input inputMode="numeric" value={timeoutMin} onChange={(e) => setTimeoutMin(e.target.value)} className={fieldClass} />
         </label>
         {model.capabilities.audio === "optional" ? (
           <label className="flex items-center gap-2 text-sm">
@@ -200,7 +200,7 @@ function ModelPreferencesForm({ model, busy, onSave }: { model: CatalogModelView
           </label>
         ) : <p className="text-xs text-muted">{model.capabilities.audio === "always" ? "This model always generates audio." : "This model makes silent video."}</p>}
         <div className="sm:col-span-2">
-          <button type="submit" disabled={busy || !valid} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-40">Save</button>
+          <button type="submit" disabled={busy || !valid} className={buttonClass({ variant: "primary" })}>Save</button>
           {!valid ? <span className="ml-3 text-xs text-warning">Enter a price of 0 or more and a limit between 1 and 1440 minutes.</span> : null}
         </div>
       </form>

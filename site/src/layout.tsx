@@ -32,7 +32,7 @@ export function NotFound() {
       <EmptyState
         title="Nothing at this address"
         body="The link may point to a page that no longer exists, or to a project deleted from this browser."
-        cta={{ label: "Back to the dashboard", href: "/dashboard" }}
+        cta={{ label: "Back to your projects", href: "/dashboard" }}
       />
     </>
   );

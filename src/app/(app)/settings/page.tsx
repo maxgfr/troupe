@@ -119,7 +119,7 @@ export default function SettingsPage() {
           </p>
         ) : (
           <div className="mt-3 max-w-md">
-            <div className="rounded-xl border border-muted/25 px-4 py-3 text-sm">
+            <div className="rounded-xl bg-surface px-4 py-3 text-sm">
               <p>
                 Last run <span className="font-medium">{beat.ageLabel}</span>
                 <span className="text-muted"> · processed {heartbeat.data!.processed}</span>

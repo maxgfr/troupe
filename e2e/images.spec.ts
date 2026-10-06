@@ -50,7 +50,13 @@ test("every Troupe image carries its license, the third-party notices and the GP
     expect(read("THIRD_PARTY_NOTICES.md"), service).toMatch(/^# Third-party notices/);
     expect(read("GPL-3.0.txt"), service).toContain("GNU GENERAL PUBLIC LICENSE");
     expect(
-      docker("image", "inspect", "--format", '{{ index .Config.Labels "org.opencontainers.image.licenses" }}', image).trim(),
+      docker(
+        "image",
+        "inspect",
+        "--format",
+        '{{ index .Config.Labels "org.opencontainers.image.licenses" }}',
+        image,
+      ).trim(),
       service,
     ).toBe(license);
   }

@@ -19,9 +19,14 @@ export const GO_TO = [
   { key: "s", href: "/settings", label: "Settings" },
 ] as const;
 
-function typing(target: EventTarget | null): boolean {
+// A dialog open anywhere (this list, the chat's sheet, a confirmation) keeps
+// the keys to itself, wherever the focus happens to be.
+const OPEN_DIALOG = "dialog[open], [role='dialog'], [role='alertdialog']";
+
+function busy(target: EventTarget | null): boolean {
+  if (document.querySelector(OPEN_DIALOG)) return true;
   if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || Boolean(target.closest("[role='dialog'],[role='alertdialog']"));
+  return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
 }
 
 export function Shortcuts() {
@@ -32,7 +37,7 @@ export function Shortcuts() {
   useEffect(() => {
     let leader = 0;
     function onKey(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || typing(event.target)) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || busy(event.target)) return;
       const key = event.key;
       if (leader && Date.now() - leader < 1200) {
         leader = 0;
@@ -96,29 +101,36 @@ export function Shortcuts() {
             <CloseIcon className="size-4" />
           </button>
         </div>
-        <dl className="mt-5 space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-4">
-            <dt>New project</dt>
-            <dd><Kbd>n</Kbd></dd>
-          </div>
-          {GO_TO.map((d) => (
-            <div key={d.key} className="flex items-center justify-between gap-4">
-              <dt>Go to {d.label}</dt>
-              <dd className="flex items-center gap-1 text-xs text-muted">
-                <Kbd>g</Kbd> then <Kbd>{d.key}</Kbd>
-              </dd>
-            </div>
-          ))}
-          <div className="flex items-center justify-between gap-4">
-            <dt>Search the library</dt>
-            <dd><Kbd>/</Kbd></dd>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <dt>This list</dt>
-            <dd><Kbd>?</Kbd></dd>
-          </div>
-        </dl>
+        <ShortcutList className="mt-5" />
       </div>
     </dialog>
+  );
+}
+
+// The shortcuts, as the dialog and Settings list them.
+export function ShortcutList({ className = "" }: { className?: string }) {
+  return (
+    <dl className={`space-y-3 text-sm ${className}`}>
+      <div className="flex items-center justify-between gap-4">
+        <dt>New project</dt>
+        <dd><Kbd>n</Kbd></dd>
+      </div>
+      {GO_TO.map((d) => (
+        <div key={d.key} className="flex items-center justify-between gap-4">
+          <dt>Go to {d.label}</dt>
+          <dd className="flex items-center gap-1 text-xs text-muted">
+            <Kbd>g</Kbd> then <Kbd>{d.key}</Kbd>
+          </dd>
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-4">
+        <dt>Search the library</dt>
+        <dd><Kbd>/</Kbd></dd>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <dt>This list</dt>
+        <dd><Kbd>?</Kbd></dd>
+      </div>
+    </dl>
   );
 }

@@ -65,6 +65,22 @@ describe("AppShell", () => {
     expect(screen.getByRole("heading", { name: "Keyboard shortcuts" })).toBeDefined();
   });
 
+  it("does nothing while a dialog is open, whatever holds the focus", () => {
+    render(
+      <WorkspaceProvider>
+        <AppShell>
+          <p>x</p>
+        </AppShell>
+      </WorkspaceProvider>,
+    );
+    fireEvent.keyDown(window, { key: "?" });
+    expect(screen.getByRole("heading", { name: "Keyboard shortcuts" })).toBeDefined();
+    fireEvent.keyDown(document.body, { key: "n" });
+    fireEvent.keyDown(document.body, { key: "g" });
+    fireEvent.keyDown(document.body, { key: "p" });
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("marks the active destination with aria-current", () => {
     render(
       <WorkspaceProvider>

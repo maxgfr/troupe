@@ -7,11 +7,13 @@ import { ProviderAccounts } from "./provider-accounts";
 import { DefaultModelSettings, ModelCatalogSettings } from "./model-catalog";
 import { AddLocalModel } from "./add-local-model";
 import { ChatSettings } from "./chat-settings";
+import { ShortcutList } from "~/app/_components/shortcuts";
 import { ThemeToggle } from "~/app/_components/theme-toggle";
 import { NeedsSelfHosted, useEdition } from "~/app/_components/edition";
 import { LocalDataSettings } from "~/app/_components/local-data";
 import {
   ErrorNote,
+  Kbd,
   PageHeader,
   ProviderWarning,
   Section,
@@ -46,6 +48,13 @@ export default function SettingsPage() {
           Dark is the control-room default — you judge renders in it. The choice persists on this
           device and follows your system preference until you pick one.
         </p>
+      </Section>
+
+      <Section title="Keyboard shortcuts">
+        <p className="mb-4 max-w-[65ch] text-sm text-muted">
+          Press <Kbd>?</Kbd> anywhere in the studio to see them; they never fire while you type.
+        </p>
+        <ShortcutList className="max-w-sm" />
       </Section>
 
       {edition.kind === "browser" ? (

@@ -18,7 +18,10 @@ import { ytDlpVersion } from "./ytdlp";
 
 type Env = Record<string, string | undefined>;
 
-// Readiness is checked at most this often: the queue asks for each item.
+// Readiness is checked at most this often: the queue asks for each item. A
+// check that could not reach Ollama or the renderer is not kept: a service
+// busy for a moment (the renderer during a render on a small machine) would
+// otherwise read as down for the whole period.
 const STATUS_TTL_MS = 30_000;
 
 interface Probe {
@@ -27,6 +30,8 @@ interface Probe {
   ollamaProblem: string | null;
   transcriber: { ok: true; model: string } | { ok: false; problem: string };
   ytDlp: string | null;
+  // Ollama or the renderer did not answer as expected.
+  unreachable: boolean;
 }
 
 // Each cache is kept per set of settings: a studio built from other settings
@@ -56,7 +61,7 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
   const probes = state.troupeLibraryProbes;
   const key = probeKey(env);
   const cached = probes.get(key);
-  if (cached && !force && Date.now() - cached.at < STATUS_TTL_MS) return cached;
+  if (cached && !force && !cached.unreachable && Date.now() - cached.at < STATUS_TTL_MS) return cached;
   const target = { baseUrl: env.ollamaUrl, timeoutMs: env.ollamaTimeoutMs };
   const [ollama, transcriber, ytDlp] = await Promise.all([
     env.embedModel || env.visionModel
@@ -70,7 +75,14 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
       : Promise.resolve({ ok: false as const, problem: "Transcription is off: set TROUPE_TRANSCRIBE_URL to a renderer with Whisper (docs/LIBRARY.md)." }),
     cachedYtDlpVersion(env.ytDlpPath),
   ]);
-  const next: Probe = { at: Date.now(), pulled: ollama.pulled, ollamaProblem: ollama.problem, transcriber, ytDlp };
+  const next: Probe = {
+    at: Date.now(),
+    pulled: ollama.pulled,
+    ollamaProblem: ollama.problem,
+    transcriber,
+    ytDlp,
+    unreachable: ollama.problem !== null || (Boolean(env.transcribeUrl) && !transcriber.ok),
+  };
   probes.set(key, next);
   return next;
 }
@@ -87,8 +99,9 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
   if (!env.enabled) return null;
   const ollama = { baseUrl: env.ollamaUrl, timeoutMs: env.ollamaTimeoutMs };
 
-  async function tools(force = false): Promise<AnalysisTools> {
-    const p = await probe(env, force);
+  // `checked`: a probe the caller already has, so one status reads one answer.
+  async function tools(force = false, checked?: Probe): Promise<AnalysisTools> {
+    const p = checked ?? (await probe(env, force));
     const setup = chat ? await chat.load() : null;
     return {
       media: serverMediaReader(db, { ffmpegPath: env.ffmpegPath }),
@@ -136,7 +149,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
     schedule,
     async status(): Promise<LibraryStatus> {
       const p = await probe(env);
-      const t = await tools();
+      const t = await tools(false, p);
       const line = (name: ToolStatus["name"], label: string, tool: Tool<unknown>, model: string | null, ok: string): ToolStatus => ({ name, label, ready: tool.ready, model, detail: tool.ready ? ok : tool.problem });
       return {
         edition: "self-hosted",

@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const { createServerLibrary } = await import("./index");
+const { json, startServer } = await import("~/test/local-server");
 
 // The tools' readiness is cached for a few seconds, per set of settings: a
 // studio built from other settings (a test, a second workspace process)
@@ -33,5 +34,34 @@ describe("the library's tool status", () => {
     expect(await videoLinks({ TROUPE_YTDLP_PATH: "off" })).toMatchObject({ ready: false, detail: expect.stringContaining("TROUPE_YTDLP_PATH=off") });
     expect(await videoLinks({ TROUPE_YTDLP_PATH: fakeYtDlp })).toMatchObject({ ready: true, model: "yt-dlp 2026.01.01" });
     expect(await videoLinks({ TROUPE_YTDLP_PATH: join(dir, "missing") })).toMatchObject({ ready: false, detail: expect.stringContaining("not installed") });
+  });
+});
+
+describe("the library's transcription status", () => {
+  // A renderer that is busy (a render on a small machine) can miss one health
+  // check: the next status asks again instead of repeating that miss for the
+  // whole cache period, so `troupe doctor` right after a render sees it ready.
+  it("asks the renderer again after a failed health check instead of keeping the failure", async () => {
+    let answered = 0;
+    const renderer = await startServer((req, res) => {
+      if (req.path !== "/transcribe/health") return json(res, 404, {});
+      answered++;
+      return answered === 1
+        ? json(res, 503, { ok: false, error: "Busy." })
+        : json(res, 200, { ok: true, model: "faster-whisper tiny" });
+    });
+    try {
+      const library = createServerLibrary(null as never, null, {
+        env: { ...quiet, TROUPE_YTDLP_PATH: "off", TROUPE_TRANSCRIBE_URL: renderer.url },
+      })!;
+      const transcription = async () => (await library.status()).tools.find((t) => t.name === "transcription")!;
+      expect(await transcription()).toMatchObject({ ready: false, detail: expect.stringContaining("Busy.") });
+      expect(await transcription()).toMatchObject({ ready: true, model: "faster-whisper tiny" });
+      // A ready answer is kept: no third question within the cache period.
+      await transcription();
+      expect(answered).toBe(2);
+    } finally {
+      await renderer.close();
+    }
   });
 });

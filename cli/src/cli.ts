@@ -230,7 +230,8 @@ async function createContext(io: Io, options: OptionValues): Promise<Context> {
       return remembered;
     },
     async project(ref) {
-      const wanted = ref ?? env.TROUPE_PROJECT ?? ownProfile?.project;
+      // An empty TROUPE_PROJECT (Compose passes it through when unset) is no choice.
+      const wanted = ref ?? (env.TROUPE_PROJECT || undefined) ?? ownProfile?.project;
       if (!wanted)
         throw usageError(
           "No project chosen. Pass --project <id|title>, or choose one with troupe projects use <project>.",

@@ -104,6 +104,23 @@ describe("command line", () => {
     });
   });
 
+  // docker-compose.yml passes TROUPE_PROJECT through, empty when unset: that
+  // must not hide the project `projects create` or `projects use` saved.
+  it("reads an empty TROUPE_PROJECT as unset and uses the saved project", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-cli-project-"));
+    folders.push(dir);
+    const env = { TROUPE_CONFIG_DIR: join(dir, "troupe") };
+    const url = `http://127.0.0.1:${closedPort}`;
+    await writeConfig(env, {
+      profile: "default",
+      profiles: { default: { url, project: "11111111-1111-4111-8111-111111111111" } },
+    });
+    const result = await run(["render", "list", "--json"], { ...env, TROUPE_PROJECT: "" });
+    // Past choosing the project, on to the (closed) studio.
+    expect(result.stderr).not.toContain("No project chosen");
+    expect(result.code).toBe(4);
+  });
+
   it("checks option values before calling the studio", async () => {
     expect(
       await run(["render", "watch", "--interval", "0"], { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" }),

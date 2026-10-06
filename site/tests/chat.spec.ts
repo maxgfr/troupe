@@ -107,7 +107,7 @@ test("asks the in-browser model for a change, applies it, then relaunches the re
 test("reads a video into the library, answers about it with citations, and writes ideas that become a project", async () => {
   test.setTimeout(25 * 60_000);
   await page.goto(`${APP}/library`);
-  await expect(page.getByRole("heading", { name: "Library" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible({ timeout: 60_000 });
   // The profile is kept between runs: this run's clip is the newest row.
   const rows = page.locator("table tbody tr");
   await expect(rows.first().or(page.getByText("Save your first piece"))).toBeVisible({ timeout: 60_000 });

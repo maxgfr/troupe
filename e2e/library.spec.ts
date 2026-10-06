@@ -88,7 +88,7 @@ test("upload a video, save an article and a video from links, search, ask, make 
   };
   await signIn(page);
   await page.getByRole("link", { name: "Library" }).click();
-  await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.getByText("Save your first piece")).toBeVisible();
 
   // A video from this computer.

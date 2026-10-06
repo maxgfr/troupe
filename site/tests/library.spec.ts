@@ -27,7 +27,7 @@ function watchConsole(page: Page) {
 test("upload a video → pictures, transcript and hook in the page → search by meaning → delete", async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto(`${APP}/library`);
-  await expect(page.getByRole("heading", { name: "Library" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible({ timeout: 60_000 });
   // Links need a server; the page says so instead of offering them.
   await expect(page.getByPlaceholder("Paste a text, or upload a file")).toBeVisible();
   await expect(page.getByText(/Everything stays in this browser/)).toBeVisible();

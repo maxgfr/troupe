@@ -128,20 +128,31 @@ export function createRendererServer(options: RendererOptions): Server {
   // Deletes the MP4s of jobs finished more than keepRendersS ago, then forgets
   // the jobs, so a job reported gone never has its video still served. Then
   // deletes the MP4s no job it remembers owns once they are that old: any
-  // left by an earlier run.
+  // left by an earlier run. A file it cannot delete is logged and tried again
+  // next time; the others are still swept (a job keeps its entry until then).
   const keepS = options.keepRendersS ?? KEEP_RENDERS_S;
+  const unswept = (name: string, error: unknown) =>
+    log(`Could not clean up the old render ${name}: ${error instanceof Error ? error.message : String(error)}`);
   async function sweep() {
     const cutoff = Date.now() - keepS * 1000;
     for (const [id, job] of jobs) {
       if (job.finishedAt === undefined || job.finishedAt >= cutoff) continue;
-      await rm(join(options.outDir, `${id}.mp4`), { force: true });
-      jobs.delete(id);
+      try {
+        await rm(join(options.outDir, `${id}.mp4`), { force: true });
+        jobs.delete(id);
+      } catch (error) {
+        unswept(`${id}.mp4`, error);
+      }
     }
     for (const name of await readdir(options.outDir)) {
       const id = VIDEO_FILE.exec(name)?.[1];
       if (!id || jobs.has(id)) continue;
-      const file = join(options.outDir, name);
-      if ((await stat(file)).mtimeMs < cutoff) await rm(file, { force: true });
+      try {
+        const file = join(options.outDir, name);
+        if ((await stat(file)).mtimeMs < cutoff) await rm(file, { force: true });
+      } catch (error) {
+        unswept(name, error);
+      }
     }
   }
   let sweeping: NodeJS.Timeout | undefined;

@@ -357,6 +357,32 @@ describe("renderer (contract v1)", () => {
     }
   });
 
+  it("keeps sweeping past a video it cannot delete, and says which", async () => {
+    const outDir = await mkdtemp(join(tmpdir(), "troupe-renderer-sweep-"));
+    try {
+      const hourAgo = new Date(Date.now() - 3600_000);
+      // A folder with a video's name: rm without recursive refuses it.
+      const stuck = join(outDir, "00000000-0000-0000-0000-000000000001.mp4");
+      await mkdir(stuck);
+      await writeFile(join(stuck, "x"), "x");
+      const orphans = ["00000000-0000-0000-0000-000000000002.mp4", "00000000-0000-0000-0000-000000000003.mp4"].map(
+        (name) => join(outDir, name),
+      );
+      for (const file of [stuck, ...orphans]) {
+        if (file !== stuck) await writeFile(file, "x");
+        await utimes(file, hourAgo, hourAgo);
+      }
+      const logged: string[] = [];
+      const server = createRendererServer({ speak: tone, outDir, keepRendersS: 1.5, log: (m) => logged.push(m) });
+      servers.push(server);
+      await expect.poll(() => orphans.filter(existsSync).length, { timeout: 2000 }).toBe(0);
+      expect(existsSync(stuck)).toBe(true);
+      expect(logged.join("\n")).toContain("00000000-0000-0000-0000-000000000001.mp4");
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
+    }
+  });
+
   it("reports a voice failure as a failed job with a readable error", async () => {
     const broken = await start(async () => {
       throw new Error("Could not load the Kokoro voices.");

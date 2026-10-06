@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { extractArticle } from "./article";
 import { checkPublicAddress, checkPublicUrl } from "./public-url";
 import { sniffType } from "./sniff";
-import { isVideoPlatform, ytDlpArgs } from "./ytdlp";
+import { libraryEnvironment } from "./config";
+import { isVideoPlatform, videoRefusal, ytDlpArgs, ytDlpInfoArgs } from "./ytdlp";
 
 const bytes = (...parts: (string | number[])[]) => new Uint8Array(parts.flatMap((p) => (typeof p === "string" ? [...Buffer.from(p, "latin1")] : p)));
 
@@ -83,6 +84,49 @@ describe("yt-dlp", () => {
     expect(args).toEqual(expect.arrayContaining(["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--no-exec", "--max-filesize", "500M", "--match-filter", "duration <= 3600", "--restrict-filenames"]));
     expect(args[args.indexOf("-o") + 1]).toBe("/tmp/x/media.%(ext)s");
     expect(args[args.indexOf("--ffmpeg-location") + 1]).toBe("/usr/bin/ffmpeg");
+    expect(args).not.toContain("--proxy");
+  });
+
+  it("uses the platforms' own extractors only: the generic one would fetch any page a link or a redirect points at", () => {
+    const args = ytDlpArgs("https://youtu.be/abc", { dir: "/tmp/x", maxBytes: 1024 * 1024, maxDurationS: 60 });
+    const at = args.indexOf("--use-extractors");
+    expect(args[at + 1]).toBe("default,-generic");
+    expect(at).toBeGreaterThan(-1);
+    expect(at).toBeLessThan(args.indexOf("--"));
+  });
+
+  it("goes through the proxy a self-hoster names", () => {
+    const args = ytDlpArgs("https://youtu.be/abc", { dir: "/tmp/x", maxBytes: 1024 * 1024, maxDurationS: 60, proxy: "http://egress:3128" });
+    expect(args[args.indexOf("--proxy") + 1]).toBe("http://egress:3128");
+    expect(args.indexOf("--proxy")).toBeLessThan(args.indexOf("--"));
+  });
+
+  it("says why a video cannot be saved, from its details, before downloading it", () => {
+    expect(videoRefusal({ live_status: "is_live", duration: null }, 3600)).toMatch(/live/);
+    expect(videoRefusal({ live_status: "is_upcoming" }, 3600)).toMatch(/not started|live/);
+    expect(videoRefusal({ is_live: true }, 3600)).toMatch(/live/);
+    expect(videoRefusal({}, 3600)).toMatch(/length is not known/);
+    expect(videoRefusal({ duration: 5400 }, 3600)).toMatch(/1:30:00 long.*1:00:00/);
+    expect(videoRefusal({ duration: 30, live_status: "was_live" }, 3600)).toBeNull();
+    expect(videoRefusal({ duration: 3600 }, 3600)).toBeNull();
+  });
+
+  it("asks for the details with the same guards, without downloading", () => {
+    const args = ytDlpInfoArgs("https://youtu.be/abc", { proxy: null });
+    expect(args).toEqual(expect.arrayContaining(["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--dump-single-json", "--skip-download"]));
+    expect(args[args.indexOf("--use-extractors") + 1]).toBe("default,-generic");
+    expect(args.slice(-2)).toEqual(["--", "https://youtu.be/abc"]);
+  });
+});
+
+describe("libraryEnvironment", () => {
+  it("turns video links off, and names a proxy for yt-dlp", () => {
+    expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "off" }).ytDlpPath).toBeNull();
+    expect(libraryEnvironment({}).ytDlpPath).toBe("yt-dlp");
+    expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "" }).ytDlpPath).toBe("yt-dlp");
+    expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "/opt/yt-dlp" }).ytDlpPath).toBe("/opt/yt-dlp");
+    expect(libraryEnvironment({ TROUPE_YTDLP_PROXY: "socks5://127.0.0.1:1080" }).ytDlpProxy).toBe("socks5://127.0.0.1:1080");
+    expect(libraryEnvironment({}).ytDlpProxy).toBeNull();
   });
 });
 

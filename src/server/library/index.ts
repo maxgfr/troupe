@@ -29,19 +29,33 @@ interface Probe {
   ytDlp: string | null;
 }
 
-const state = globalThis as unknown as { troupeLibraryProbe?: Probe; troupeLibraryQueue?: { running: Promise<void> | null; again: boolean }; troupeYtDlp?: { at: number; version: Promise<string | null> } };
+// Each cache is kept per set of settings: a studio built from other settings
+// never reads another's answer.
+const state = globalThis as unknown as {
+  troupeLibraryProbes?: Map<string, Probe>;
+  troupeLibraryQueue?: { running: Promise<void> | null; again: boolean };
+  troupeYtDlpVersions?: Map<string, { at: number; version: Promise<string | null> }>;
+};
 
 // yt-dlp's version changes only when the program does: asked every ten minutes.
-function cachedYtDlpVersion(path: string): Promise<string | null> {
-  const cached = state.troupeYtDlp;
+function cachedYtDlpVersion(path: string | null): Promise<string | null> {
+  if (!path) return Promise.resolve(null);
+  state.troupeYtDlpVersions ??= new Map();
+  const versions = state.troupeYtDlpVersions;
+  const cached = versions.get(path);
   if (cached && Date.now() - cached.at < 10 * 60_000) return cached.version;
   const version = ytDlpVersion(path);
-  state.troupeYtDlp = { at: Date.now(), version };
+  versions.set(path, { at: Date.now(), version });
   return version;
 }
 
+const probeKey = (env: LibraryEnvironment) => JSON.stringify([env.ollamaUrl, env.ollamaTimeoutMs, env.embedModel, env.visionModel, env.transcribeUrl, env.transcribeToken, env.transcribeTimeoutMs, env.ytDlpPath]);
+
 async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
-  const cached = state.troupeLibraryProbe;
+  state.troupeLibraryProbes ??= new Map();
+  const probes = state.troupeLibraryProbes;
+  const key = probeKey(env);
+  const cached = probes.get(key);
   if (cached && !force && Date.now() - cached.at < STATUS_TTL_MS) return cached;
   const target = { baseUrl: env.ollamaUrl, timeoutMs: env.ollamaTimeoutMs };
   const [ollama, transcriber, ytDlp] = await Promise.all([
@@ -57,7 +71,7 @@ async function probe(env: LibraryEnvironment, force = false): Promise<Probe> {
     cachedYtDlpVersion(env.ytDlpPath),
   ]);
   const next: Probe = { at: Date.now(), pulled: ollama.pulled, ollamaProblem: ollama.problem, transcriber, ytDlp };
-  state.troupeLibraryProbe = next;
+  probes.set(key, next);
   return next;
 }
 
@@ -132,7 +146,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
           { name: "links", label: "Links to pages", ready: true, model: null, detail: env.allowPrivateUrls ? "Pages and files at any address are saved, your network included (TROUPE_LIBRARY_ALLOW_PRIVATE_URLS)." : "Public pages are saved as articles, direct links to files as files." },
           p.ytDlp
             ? { name: "video-links", label: "Video links", ready: true, model: `yt-dlp ${p.ytDlp}`, detail: "Links to YouTube, TikTok, Instagram, Vimeo and other platforms are downloaded with yt-dlp." }
-            : { name: "video-links", label: "Video links", ready: false, model: null, detail: "yt-dlp is not installed on this server, so links to video platforms cannot be saved; upload the file instead (docs/LIBRARY.md)." },
+            : { name: "video-links", label: "Video links", ready: false, model: null, detail: env.ytDlpPath ? "yt-dlp is not installed on this server, so links to video platforms cannot be saved; upload the file instead (docs/LIBRARY.md)." : "Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off); upload the file instead." },
         ],
       };
     },

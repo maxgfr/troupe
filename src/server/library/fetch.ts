@@ -35,10 +35,11 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
   const url = checked.url;
 
   if (isVideoPlatform(url)) {
+    if (!env.ytDlpPath) throw new LibraryError("Links to video platforms are off on this server (TROUPE_YTDLP_PATH=off). Download the video and upload the file.", "PRECONDITION_FAILED");
     const dir = await mkdtemp(join(tmpdir(), "troupe-ytdlp-"));
     const dispose = () => rm(dir, { recursive: true, force: true });
     try {
-      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), { dir, maxBytes: env.maxUploadBytes, maxDurationS: env.maxDurationS, ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined, timeoutMs: 30 * 60_000, signal: options.signal });
+      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), { dir, maxBytes: env.maxUploadBytes, maxDurationS: env.maxDurationS, ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined, proxy: env.ytDlpProxy, timeoutMs: 30 * 60_000, signal: options.signal });
       return { kind: "file", url: video.webpageUrl, title: video.title, path: video.path, mimeType: "video/mp4", bytes: 0, checksum: "", durationS: video.durationS, dispose };
     } catch (error) {
       await dispose();

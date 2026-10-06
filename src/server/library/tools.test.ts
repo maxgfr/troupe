@@ -12,7 +12,7 @@ import { libraryEnvironment } from "./config";
 import { fetchSource } from "./fetch";
 import { receiveUpload } from "./files";
 import { frameTimes, cutsFromDifferences } from "~/modules/library";
-import { cutTimes, serverMediaReader } from "./media";
+import { cutTimes, inputArgs, serverMediaReader } from "./media";
 import { embeddingPrefixes, ollamaEmbedder, ollamaVision, pulledModels } from "./ollama";
 import { rendererTranscriber, transcriberHealth } from "./transcribe";
 
@@ -131,6 +131,17 @@ describe("receiving uploads", () => {
     expect(await receiveUpload(Readable.from([Buffer.from("Notes about hooks\n")]), { itemId: "22222222-2222-4222-8222-222222222222", fileName: "notes.txt", maxBytes: 1000 })).toEqual({ kind: "text", text: "Notes about hooks\n", fileName: "notes.txt" });
     await expect(receiveUpload(Readable.from([Buffer.from("<html><script>x</script>")]), { itemId: "33333333-3333-4333-8333-333333333333", fileName: "a.txt", maxBytes: 1000 })).rejects.toThrow("not one the library reads");
     await expect(receiveUpload(Readable.from([Buffer.alloc(600), Buffer.alloc(600)]), { itemId: "44444444-4444-4444-8444-444444444444", fileName: "big", maxBytes: 1000 })).rejects.toThrow("larger than");
+  });
+});
+
+describe("ffmpeg's input", () => {
+  it("reads local files only, with the demuxer of the type the file was sniffed as", () => {
+    expect(inputArgs("video/mp4", "/data/a.mp4")).toEqual(["-protocol_whitelist", "file", "-f", "mov", "-i", "/data/a.mp4"]);
+    expect(inputArgs("video/webm", "/d/b")).toEqual(["-protocol_whitelist", "file", "-f", "matroska", "-i", "/d/b"]);
+    expect(inputArgs("audio/mpeg", "/d/c")).toEqual(["-protocol_whitelist", "file", "-f", "mp3", "-i", "/d/c"]);
+    expect(inputArgs("audio/wav", "/d/d")).toContain("wav");
+    // A type without a demuxer of its own is still read from a file only.
+    expect(inputArgs("image/png", "/d/e")).toEqual(["-protocol_whitelist", "file", "-i", "/d/e"]);
   });
 });
 

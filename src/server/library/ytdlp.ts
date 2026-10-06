@@ -7,7 +7,12 @@ import { join } from "node:path";
 // has it). It runs with an argument list, never a shell: the link is one
 // argument after "--", so it can never be read as an option. No config files
 // or plugins are loaded, playlists are refused, and size and length are
-// capped. The download lands in a folder of its own, removed afterwards.
+// capped. Only the platforms' own extractors run: the generic one would
+// fetch whatever page a link, or a redirect on a platform, points at. The
+// requests yt-dlp makes are not checked against private addresses the way
+// the studio's own are (public-url.ts); TROUPE_YTDLP_PROXY sends them
+// through a proxy that can. The download lands in a folder of its own,
+// removed afterwards.
 
 const PLATFORMS = [
   "youtube.com",
@@ -37,20 +42,29 @@ export interface YtDlpLimits {
   maxBytes: number;
   maxDurationS: number;
   ffmpegLocation?: string;
+  proxy?: string | null;
+}
+
+// What both runs share: no configuration, plugins or playlists, the
+// platforms' extractors only, and the proxy if there is one.
+function guardArgs(proxy: string | null | undefined): string[] {
+  return ["--ignore-config", "--no-plugin-dirs", "--no-playlist", "--use-extractors", "default,-generic", "--socket-timeout", "30", ...(proxy ? ["--proxy", proxy] : [])];
+}
+
+// The video's details only (its length, whether it is live), to refuse it
+// with the right reason before downloading anything.
+export function ytDlpInfoArgs(url: string, options: { proxy?: string | null }): string[] {
+  return [...guardArgs(options.proxy), "--dump-single-json", "--skip-download", "--", url];
 }
 
 export function ytDlpArgs(url: string, limits: YtDlpLimits): string[] {
   return [
-    "--ignore-config",
-    "--no-plugin-dirs",
-    "--no-playlist",
+    ...guardArgs(limits.proxy),
     "--no-exec",
     "--no-cache-dir",
     "--no-progress",
     "--no-mtime",
     "--restrict-filenames",
-    "--socket-timeout",
-    "30",
     "--max-filesize",
     `${Math.max(1, Math.floor(limits.maxBytes / 1024 / 1024))}M`,
     "--match-filter",
@@ -94,7 +108,8 @@ function run(program: string, args: string[], options: { timeoutMs: number; sign
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => {
-      if (stdout.length < 100_000) stdout += chunk.toString();
+      // The details of a video run to a few hundred kilobytes.
+      if (stdout.length < 8_000_000) stdout += chunk.toString();
     });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-20_000);
@@ -114,24 +129,60 @@ export async function ytDlpVersion(program: string): Promise<string | null> {
   }
 }
 
+const clock = (s: number) => {
+  const whole = Math.round(s);
+  return `${Math.floor(whole / 3600)}:${String(Math.floor((whole % 3600) / 60)).padStart(2, "0")}:${String(whole % 60).padStart(2, "0")}`;
+};
+
+export interface VideoInfo {
+  duration?: unknown;
+  is_live?: unknown;
+  live_status?: unknown;
+  title?: unknown;
+  webpage_url?: unknown;
+}
+
+// Why the library will not download this video, or null when it will.
+export function videoRefusal(info: VideoInfo, maxDurationS: number): string | null {
+  if (info.live_status === "is_upcoming") return "That live stream has not started yet, so its length is not known. Save it once it has ended.";
+  if (info.is_live === true || info.live_status === "is_live" || info.live_status === "post_live") return "That is a live stream (or one still being processed), so its length is not known. Save it once it has ended and the platform has the full video.";
+  if (typeof info.duration !== "number" || !Number.isFinite(info.duration)) return "The video's length is not known, so the library does not download it (it takes videos up to TROUPE_LIBRARY_MAX_DURATION_S). Download it yourself and upload the file.";
+  if (info.duration > maxDurationS) return `The video is ${clock(info.duration)} long; the library takes up to ${clock(maxDurationS)} (TROUPE_LIBRARY_MAX_DURATION_S).`;
+  return null;
+}
+
 // yt-dlp's last ERROR line, said plainly.
 function explain(stderr: string): string {
   const line = stderr.split("\n").reverse().find((l) => l.startsWith("ERROR:")) ?? stderr.trim().split("\n").at(-1) ?? "";
   const said = line.replace(/^ERROR:\s*/, "").replace(/\s+/g, " ").slice(0, 300);
-  if (/does not pass filter/i.test(stderr)) return "The video is longer than the library takes (TROUPE_LIBRARY_MAX_DURATION_S).";
+  if (/does not pass filter/i.test(stderr)) return "The video is longer than the library takes, or its length is not known (TROUPE_LIBRARY_MAX_DURATION_S).";
   if (/larger than max-filesize|File is larger/i.test(stderr)) return "The video is larger than the library takes (TROUPE_LIBRARY_MAX_UPLOAD_MB).";
+  if (/No suitable extractor|Unsupported URL/i.test(said)) return "yt-dlp does not know that page as a video. Download the video and upload the file.";
   if (/sign in|login|private|cookies/i.test(said)) return `The platform refused the download: ${said}. Only public videos can be saved; download it yourself and upload the file.`;
   return said || "yt-dlp could not download it.";
 }
 
-export async function downloadWithYtDlp(program: string, url: string, limits: YtDlpLimits & { timeoutMs: number; signal?: AbortSignal }): Promise<YtDlpResult> {
-  let result: Awaited<ReturnType<typeof run>>;
+async function runYtDlp(program: string, args: string[], options: { timeoutMs: number; signal?: AbortSignal }) {
   try {
-    result = await run(program, ytDlpArgs(url, limits), limits);
+    return await run(program, args, options);
   } catch (error) {
     if ((error as { code?: string }).code === "ENOENT") throw new YtDlpError("yt-dlp is not installed on this server, so links to video platforms cannot be saved. Install it (docs/LIBRARY.md), or download the video and upload the file.");
     throw new YtDlpError(`yt-dlp could not run: ${(error as Error).message}`);
   }
+}
+
+export async function downloadWithYtDlp(program: string, url: string, limits: YtDlpLimits & { timeoutMs: number; signal?: AbortSignal }): Promise<YtDlpResult> {
+  const details = await runYtDlp(program, ytDlpInfoArgs(url, limits), { timeoutMs: Math.min(limits.timeoutMs, 120_000), signal: limits.signal });
+  if (details.code !== 0) throw new YtDlpError(explain(details.stderr));
+  let about: VideoInfo = {};
+  try {
+    about = JSON.parse(details.stdout) as VideoInfo;
+  } catch {
+    throw new YtDlpError("yt-dlp did not describe the video. The link may not be a video.");
+  }
+  const refused = videoRefusal(about, limits.maxDurationS);
+  if (refused) throw new YtDlpError(refused);
+  const result = await runYtDlp(program, ytDlpArgs(url, limits), limits);
   if (result.code !== 0) throw new YtDlpError(explain(result.stderr));
   const files = await readdir(limits.dir);
   const media = files.find((f) => f.startsWith("media.") && !f.endsWith(".json") && !f.endsWith(".part"));

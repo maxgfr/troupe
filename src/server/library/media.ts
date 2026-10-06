@@ -37,6 +37,27 @@ function ffmpeg(program: string, args: string[], options: { timeoutMs: number; s
   });
 }
 
+// The demuxer for each type a saved file can be (sniffed from its bytes,
+// src/server/library/sniff.ts).
+const DEMUXERS: Record<string, string> = {
+  "video/mp4": "mov",
+  "video/quicktime": "mov",
+  "audio/mp4": "mov",
+  "video/webm": "matroska",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/flac": "flac",
+};
+
+// ffmpeg and ffprobe read the saved file and nothing else: no network or
+// other protocol a crafted file could name, and the demuxer of the type the
+// file was sniffed as, never one ffmpeg guesses from its contents.
+export function inputArgs(mimeType: string, path: string): string[] {
+  const demuxer = DEMUXERS[mimeType];
+  return ["-protocol_whitelist", "file", ...(demuxer ? ["-f", demuxer] : []), "-i", path];
+}
+
 // A scene change: more than this share of the picture differs from the last frame.
 const SCENE = 0.3;
 
@@ -48,7 +69,7 @@ export function serverMediaReader(db: Db, settings: { ffmpegPath: string; timeou
   const timeoutMs = settings.timeoutMs ?? 20 * 60_000;
   return {
     async probe(item) {
-      const { stdout } = await run(ffprobePath(), ["-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", mediaFilePath(item.storagePath)], { timeout: 60_000 });
+      const { stdout } = await run(ffprobePath(), ["-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", ...inputArgs(item.mimeType, mediaFilePath(item.storagePath))], { timeout: 60_000 });
       const probe = JSON.parse(stdout) as { streams?: { codec_type?: string }[]; format?: { duration?: string } };
       const durationS = Number(probe.format?.duration);
       const types = new Set((probe.streams ?? []).map((s) => s.codec_type));
@@ -56,16 +77,16 @@ export function serverMediaReader(db: Db, settings: { ffmpegPath: string; timeou
     },
 
     async frames(item, options) {
-      const input = mediaFilePath(item.storagePath);
+      const input = inputArgs(item.mimeType, mediaFilePath(item.storagePath));
       // Small frames are enough to see a cut, and far quicker to compare.
-      const log = await ffmpeg(settings.ffmpegPath, ["-i", input, "-an", "-sn", "-dn", "-vf", `scale=320:-2,select='gt(scene,${SCENE})',showinfo`, "-f", "null", "-"], { timeoutMs, signal: options.signal });
+      const log = await ffmpeg(settings.ffmpegPath, [...input, "-an", "-sn", "-dn", "-vf", `scale=320:-2,select='gt(scene,${SCENE})',showinfo`, "-f", "null", "-"], { timeoutMs, signal: options.signal });
       const cutsAtS = cutTimes(log);
       const frames: { assetId: string; atS: number }[] = [];
       for (const [n, atS] of frameTimes(cutsAtS, options.durationS, options.max).entries()) {
         if (options.durationS && atS >= options.durationS) continue;
         const storagePath = libraryPath(item.itemId, `frame-${String(n).padStart(2, "0")}.jpg`);
         const output = mediaFilePath(storagePath);
-        await ffmpeg(settings.ffmpegPath, ["-y", "-ss", String(atS), "-i", input, "-frames:v", "1", "-vf", "scale='min(640,iw)':-2", "-q:v", "4", output], { timeoutMs: 60_000, signal: options.signal });
+        await ffmpeg(settings.ffmpegPath, ["-y", "-ss", String(atS), ...input, "-frames:v", "1", "-vf", "scale='min(640,iw)':-2", "-q:v", "4", output], { timeoutMs: 60_000, signal: options.signal });
         const bytes = await readFile(output).catch(() => null);
         if (!bytes || bytes.length === 0) continue;
         const assetId = randomUUID();
@@ -79,7 +100,7 @@ export function serverMediaReader(db: Db, settings: { ffmpegPath: string; timeou
       const dir = await mkdtemp(join(tmpdir(), "troupe-audio-"));
       const path = join(dir, "audio.flac");
       try {
-        await ffmpeg(settings.ffmpegPath, ["-i", mediaFilePath(item.storagePath), "-vn", "-sn", "-dn", "-ac", "1", "-ar", "16000", "-c:a", "flac", path], { timeoutMs, signal: options.signal });
+        await ffmpeg(settings.ffmpegPath, [...inputArgs(item.mimeType, mediaFilePath(item.storagePath)), "-vn", "-sn", "-dn", "-ac", "1", "-ar", "16000", "-c:a", "flac", path], { timeoutMs, signal: options.signal });
         await stat(path);
       } catch (error) {
         await rm(dir, { recursive: true, force: true });

@@ -134,7 +134,8 @@ Self-hosted (`.env.example`; every one is optional):
 | `TROUPE_LIBRARY_VISION_FRAMES` | `6` | Of those, how many the vision model reads (about 10 to 20 s each on a laptop CPU). |
 | `TROUPE_LIBRARY_FETCH_TIMEOUT_S` | `60` | Fetching a page. |
 | `TROUPE_LIBRARY_ALLOW_PRIVATE_URLS` | `0` | `1` also fetches links to this machine and your network (never link-local or cloud metadata addresses). |
-| `TROUPE_YTDLP_PATH` | `yt-dlp` | The yt-dlp program. |
+| `TROUPE_YTDLP_PATH` | `yt-dlp` | The yt-dlp program; `off` turns links to video platforms off. |
+| `TROUPE_YTDLP_PROXY` | unset | A proxy for yt-dlp's requests (`http://…`, `socks5://…`): see [Security](#security). |
 | `FFMPEG_PATH` | `ffmpeg` | The ffmpeg program (`FFPROBE_PATH` for ffprobe). |
 
 The renderer's own (`renderer/`, docker-compose.yml `TROUPE_WHISPER_*`):
@@ -183,7 +184,8 @@ embedding model yet are matched by keywords, and the result says so.
 
 ## Security
 
-- **Links** are fetched only from public addresses: the address as written
+- **Links the studio fetches itself** (pages and direct links to files) are
+  fetched only from public addresses: the address as written
   and every address its name resolves to, at connection time (so a name that
   points at a private address, or changes its answer, is refused), at every
   redirect (followed by hand, at most five). Loopback, private networks,
@@ -195,8 +197,24 @@ embedding model yet are matched by keywords, and the result says so.
   PNG, JPEG, WebP, GIF, PDF or plain text; HTML, SVG and anything else are
   refused. They are served with `nosniff`, a sandboxing CSP, and only media
   and pictures inline.
+- **Video platform links go to yt-dlp, which the checks above do not
+  cover.** The studio checks the link you paste, but yt-dlp then makes its
+  own requests (the platform's pages and APIs, its video servers, and any
+  redirect on the way), and those are **not** checked against private
+  addresses. To keep that small, yt-dlp runs with the platforms' own
+  extractors only (`--use-extractors default,-generic`: a link or redirect
+  to some other page is refused instead of fetched), reads the video's
+  details before downloading anything, and refuses playlists and live
+  streams. An open redirect on a platform that lands on a video URL inside
+  your network could still be fetched, and the file would be kept in the
+  library. If the server can reach internal services worth protecting:
+  set `TROUPE_YTDLP_PROXY` to an egress proxy that refuses private and
+  metadata addresses, or turn video links off with `TROUPE_YTDLP_PATH=off`
+  (or build the image with `--build-arg TROUPE_YTDLP=0`). Uploading the file
+  always works.
 - **Programs** (ffmpeg, ffprobe, yt-dlp, Whisper) run with argument lists,
   never a shell, with time limits; the link is one argument after `--`.
+  ffmpeg and ffprobe read local files only (`-protocol_whitelist file`).
   yt-dlp loads no configuration or plugins, refuses playlists, caps size and
   length, and gets only `PATH`, `HOME` and `LANG` from the studio's
   environment. Temporary files live in folders of their own, removed after.

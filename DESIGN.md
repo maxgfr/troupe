@@ -90,10 +90,14 @@ The vocabulary, screens and navigation are mapped in
   a dialog). The browser edition adds no banner: it is Troupe, not a
   preview of it.
 - **Projects** (`/dashboard`): a grid of posters (3:4): the newest saved
-  video (its top kept) standing on an early frame and playing muted while hovered or
-  focused (still with reduced motion), else the actor's portrait; the
-  stage (Script, Rendering, To review, Exported) on the picture's lower corner, the title
-  and platform · format · date below; a cobalt play button rises on hover.
+  video (its top kept) standing on an early frame and playing muted while
+  hovered or focused (still with reduced motion, back to its frame when
+  left), else the actor's portrait; the stage (Script, Rendering, To
+  review, Exported) on the picture's lower corner, the title and platform ·
+  format · date below; a cobalt play button rises on hover. Stills
+  (`VideoStill`, here, in render rows and export picks) fetch their video
+  only near the screen, and never when the visitor saves data (the
+  portrait or a film glyph stands in).
   Empty: the cast in a row, "about two minutes" and the three steps. A
   warning says once when no model can render yet.
 - **Wizard**: a stepper of four filling segments; each step asks its
@@ -111,7 +115,9 @@ The vocabulary, screens and navigation are mapped in
   editor that opens on the current text, and earlier versions to restore.
 - **Video tab**: the newest finished video is the star (no card around it,
   up to 560 px tall, glowing softly in the actor's hue); each render below
-  is a row with a small still of its video, and the list announces job
+  is a row with a small still of its video (the newest's row shows a play
+  mark rather than fetching it again), its figures wrapping on phones, and
+  the list announces job
   states in a live region; the raised launch panel only offers what the
   chosen model accepts. The script chat sits beside them, divided by a
   hairline (a bottom sheet below the large breakpoint): requests in a

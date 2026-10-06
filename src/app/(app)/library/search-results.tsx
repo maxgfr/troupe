@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import Link from "next/link";
 
 import { ErrorNote, SkeletonRows } from "~/app/_components/ui";
@@ -14,7 +15,7 @@ export function SearchResults({ workspaceId, query }: { workspaceId: string; que
     { placeholderData: (previous) => previous, retry: false },
   );
   if (search.isPending) return <SkeletonRows rows={3} />;
-  if (search.error) return <ErrorNote>The search failed: {search.error.message}</ErrorNote>;
+  if (search.error) return <ErrorNote>The search failed: {errorText(search.error)}</ErrorNote>;
   const { hits, mode, note } = search.data;
   return (
     <div className="space-y-3" aria-live="polite">

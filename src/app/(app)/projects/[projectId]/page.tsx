@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { GenerationTimeline, type GenerationRow } from "./generation-timeline";
 import { LaunchPanel } from "./launch-panel";
 import { ChatPanel } from "./chat-panel";
@@ -64,31 +65,31 @@ export default function ProjectMonitorPage({ params }: { params: Promise<{ proje
 
   const updateModel = api.studio.updateChoices.useMutation({
     onSuccess: () => utils.studio.getProject.invalidate({ projectId }),
-    onError: (error) => setLaunchError(error.message),
+    onError: (error) => setLaunchError(errorText(error)),
   });
   const launch = api.generation.launchText.useMutation({
     onSuccess: () => utils.generation.forProject.invalidate(),
-    onError: (e) => setLaunchError(e.message),
+    onError: (e) => setLaunchError(errorText(e)),
   });
   const relaunch = api.generation.relaunch.useMutation({
     onSuccess: () => utils.generation.forProject.invalidate(),
-    onError: (e) => setLaunchError(e.message),
+    onError: (e) => setLaunchError(errorText(e)),
   });
   const compare = api.benchmark.start.useMutation({
     // Open the comparison that was just started.
     onSuccess: (run) => router.push(`/benchmark?run=${run.id}`),
-    onError: (e) => setLaunchError(e.message),
+    onError: (e) => setLaunchError(errorText(e)),
   });
   const rename = api.studio.updateChoices.useMutation({
     onSuccess: () => utils.studio.getProject.invalidate({ projectId }),
-    onError: (error) => setLaunchError(error.message),
+    onError: (error) => setLaunchError(errorText(error)),
   });
   const remove = api.studio.deleteProject.useMutation({
     onSuccess: async () => {
       await utils.identity.projects.invalidate();
       router.push("/dashboard");
     },
-    onError: (error) => setLaunchError(error.message),
+    onError: (error) => setLaunchError(errorText(error)),
   });
   // The chat writes for, and relaunches with, the newest render's settings.
   const newest = generations.data?.[0];
@@ -151,7 +152,7 @@ export default function ProjectMonitorPage({ params }: { params: Promise<{ proje
       ) : workspace.status === "loading" || (enabled && generations.isPending) ? (
         <SkeletonRows rows={4} />
       ) : loadError ? (
-        <ErrorNote>The project failed to load: {loadError.message}</ErrorNote>
+        <ErrorNote>The project failed to load: {errorText(loadError)}</ErrorNote>
       ) : (
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-10">
           <div className="min-w-0 space-y-10">

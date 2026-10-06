@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { api } from "~/trpc/react";
 import { usePageTitle } from "~/app/_components/page-title";
 import { useWorkspace } from "~/app/_components/workspace-context";
@@ -119,7 +120,7 @@ export default function SettingsPage() {
           {heartbeat.isPending ? (
             <Skeleton className="mt-3 h-10 w-full max-w-md" />
           ) : heartbeat.error ? (
-            <ErrorNote>The worker status could not be loaded: {heartbeat.error.message}</ErrorNote>
+            <ErrorNote>The worker status could not be loaded: {errorText(heartbeat.error)}</ErrorNote>
           ) : beat === null ? (
             <p className="mt-3 max-w-[72ch] text-sm text-muted">
               No check has run yet. The Docker image runs them by itself; with{" "}

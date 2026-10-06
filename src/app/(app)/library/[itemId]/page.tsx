@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useRef, useState } from "react";
 
 import { useEdition } from "~/app/_components/edition";
+import { errorText, isUuid } from "~/app/_components/errors";
 import { usePageTitle } from "~/app/_components/page-title";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
@@ -40,12 +41,13 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
   const wide = useMediaQuery("(min-width: 1024px)");
   const startAt = Number(useSearchParams().get("t"));
   const ready = workspace.status === "ready";
+  const validId = isUuid(itemId);
   const workspaceId = workspace.workspaceId ?? "";
   const utils = api.useUtils();
   const item = api.library.get.useQuery(
     { workspaceId, itemId },
     {
-      enabled: ready,
+      enabled: ready && validId,
       retry: false,
       refetchInterval: (q) =>
         q.state.data && (q.state.data.status === "queued" || q.state.data.status === "analyzing") ? 2000 : false,
@@ -83,13 +85,13 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
   };
 
   if (workspace.status === "unauthenticated") return <SignedOutNotice />;
-  if (workspace.status === "loading" || (ready && item.isPending)) return <SkeletonRows rows={5} />;
+  if (workspace.status === "loading" || (ready && validId && item.isPending)) return <SkeletonRows rows={5} />;
   if (workspace.status === "error") return <ErrorNote>{workspace.message}</ErrorNote>;
   if (item.error || !item.data) {
     return (
       <EmptyState
         title="Not in your library"
-        body={item.error?.message ?? "This item may have been deleted."}
+        body={item.error && validId ? errorText(item.error) : "This item may have been deleted."}
         cta={{ label: "Back to the library", href: "/library" }}
       />
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import Link from "next/link";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
@@ -76,18 +77,18 @@ export function ChatPanel({
     onSuccess: () => utils.chat.history.invalidate({ projectId }),
     // The request comes back to the field, to send again or reword.
     onError: (e, input) => {
-      setError(e.message);
+      setError(errorText(e));
       setDraft((current) => current || input.message);
     },
   });
-  const apply = api.chat.applyProposal.useMutation({ onSuccess: refresh, onError: (e) => setError(e.message) });
+  const apply = api.chat.applyProposal.useMutation({ onSuccess: refresh, onError: (e) => setError(errorText(e)) });
   const applyAndLaunch = api.chat.applyAndLaunch.useMutation({
     onSuccess: async () => {
       await Promise.all([refresh(), utils.generation.forProject.invalidate({ projectId })]);
       onLaunched?.();
     },
     onError: async (e) => {
-      setError(e.message);
+      setError(errorText(e));
       await refresh();
     },
   });
@@ -143,7 +144,7 @@ export function ChatPanel({
             <Skeleton className="h-24 w-full" />
           </div>
         ) : history.error ? (
-          <ErrorNote>The chat failed to load: {history.error.message}</ErrorNote>
+          <ErrorNote>The chat failed to load: {errorText(history.error)}</ErrorNote>
         ) : messages.length === 0 && !send.isPending && unavailable ? null : messages.length === 0 &&
           !send.isPending ? (
           <div className="space-y-3 text-sm">

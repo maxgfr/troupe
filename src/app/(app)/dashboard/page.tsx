@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import {
   DashboardView,
   PosterSkeletons,
@@ -56,7 +57,7 @@ export default function DashboardPage() {
       ) : workspace.status === "error" ? (
         <ErrorNote>The workspace list failed to load: {workspace.message}</ErrorNote>
       ) : projects.error ? (
-        <ErrorNote>Projects failed to load: {projects.error.message}</ErrorNote>
+        <ErrorNote>Projects failed to load: {errorText(projects.error)}</ErrorNote>
       ) : (
         <DashboardView
           projects={(projects.data ?? []) as DashboardProject[]}

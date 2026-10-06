@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useId, useState } from "react";
 
 import { Button, ErrorNote, Skeleton, fieldSurface } from "~/app/_components/ui";
@@ -54,7 +55,7 @@ export function MakeIdeas({
   const noWriter = writer && !writer.ready ? writer.detail : null;
   // The studio could not say what can write (or how much): nothing runs, and
   // the reason shows instead of a skeleton that would never end.
-  const statusProblem = status.error ? status.error.message : null;
+  const statusProblem = status.error ? errorText(status.error) : null;
   const usable = ready && !noWriter && !statusProblem;
   const actors = api.actors.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   const available = (actors.data ?? []).filter((a) => a.status === "active");
@@ -66,7 +67,7 @@ export function MakeIdeas({
       setShort(shortfall(input.count ?? written.length, written.length, input.kind));
       return utils.library.ideas.list.invalidate();
     },
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(errorText(e)),
   });
   // How many a set holds: the studio says it for ideas (TROUPE_LIBRARY_IDEAS,
   // or the browser edition's); the browser's small model writes fewer

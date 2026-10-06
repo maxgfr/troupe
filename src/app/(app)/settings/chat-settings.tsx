@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useEffect, useState } from "react";
 
 import { api } from "~/trpc/react";
@@ -56,7 +57,7 @@ export function ChatSettings() {
   }, [view.data, draft]);
 
   if (view.isPending) return <Skeleton className="h-40 w-full max-w-2xl" />;
-  if (view.error) return <ErrorNote>The chat settings could not be loaded: {view.error.message}</ErrorNote>;
+  if (view.error) return <ErrorNote>The chat settings could not be loaded: {errorText(view.error)}</ErrorNote>;
   if (!draft) return null;
 
   const { offers, defaults, active } = view.data;
@@ -218,8 +219,8 @@ export function ChatSettings() {
           </span>
         ) : null}
       </div>
-      {save.error ? <ErrorNote>{save.error.message}</ErrorNote> : null}
-      {test.error ? <ErrorNote>{test.error.message}</ErrorNote> : null}
+      {save.error ? <ErrorNote>{errorText(save.error)}</ErrorNote> : null}
+      {test.error ? <ErrorNote>{errorText(test.error)}</ErrorNote> : null}
     </form>
   );
 }

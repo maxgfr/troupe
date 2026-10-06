@@ -93,12 +93,18 @@ function fulfilledParams(projectId: string) {
 function renderPage() {
   render(
     <Suspense fallback={null}>
-      <MonitorPage params={fulfilledParams("p1")} />
+      <MonitorPage params={fulfilledParams("11111111-1111-4111-8111-111111111111")} />
     </Suspense>,
   );
 }
 
-const baseProject = { id: "p1", title: "Ad", platform: "tiktok", format: "9:16", language: "en" };
+const baseProject = {
+  id: "11111111-1111-4111-8111-111111111111",
+  title: "Ad",
+  platform: "tiktok",
+  format: "9:16",
+  language: "en",
+};
 
 afterEach(() => {
   cleanup();
@@ -138,7 +144,7 @@ describe("launch panel", () => {
         .join(" "),
     ).toMatch(/unavailable: Add a fal.ai key/);
     fireEvent.change(screen.getByLabelText("Video model"), { target: { value: "veo" } });
-    expect(selectModel).toHaveBeenCalledWith({ projectId: "p1", modelKey: "veo" });
+    expect(selectModel).toHaveBeenCalledWith({ projectId: "11111111-1111-4111-8111-111111111111", modelKey: "veo" });
   });
 
   it("offers only the chosen model's lengths and resolutions, and the audio switch when optional", () => {

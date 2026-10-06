@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { BenchmarkCompare, type BenchmarkEntryView } from "./benchmark-compare";
 import { OpenRunForm, RunListSection, type RunSummaryView } from "./benchmark-sections";
 import { Suspense, useState } from "react";
@@ -143,7 +144,7 @@ function BenchmarkLab() {
           <Section>
             <RunListSection
               pending={runs.isPending}
-              errorMessage={runs.error?.message ?? null}
+              errorMessage={runs.error ? errorText(runs.error) : null}
               runs={allRuns}
               activeRunId={activeRunId}
               onOpen={setActiveRunId}
@@ -175,7 +176,7 @@ function BenchmarkLab() {
             ) : run.isPending ? (
               <SkeletonRows rows={3} />
             ) : run.error ? (
-              <ErrorNote>The run failed to load: {run.error.message}</ErrorNote>
+              <ErrorNote>The run failed to load: {errorText(run.error)}</ErrorNote>
             ) : (
               <>
                 {tie ? (
@@ -186,7 +187,7 @@ function BenchmarkLab() {
                 ) : null}
                 {vote.error || adopt.error || project.error || scripts.error || projectOffers.error ? (
                   <ErrorNote>
-                    {(vote.error ?? adopt.error ?? project.error ?? scripts.error ?? projectOffers.error)!.message}
+                    {errorText((vote.error ?? adopt.error ?? project.error ?? scripts.error ?? projectOffers.error)!)}
                   </ErrorNote>
                 ) : null}
                 <BenchmarkCompare

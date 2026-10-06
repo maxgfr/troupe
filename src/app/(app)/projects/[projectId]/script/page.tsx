@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { ScriptLines, type ScriptLineView } from "./script-lines";
 import { ScriptComposer } from "./script-composer";
 import { ScriptVersions, type ScriptVersionView } from "./script-versions";
@@ -61,7 +62,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
       ) : workspace.status === "loading" || (enabled && history.isPending) ? (
         <SkeletonRows rows={4} />
       ) : history.error ? (
-        <ErrorNote>The script history failed to load: {history.error.message}</ErrorNote>
+        <ErrorNote>The script history failed to load: {errorText(history.error)}</ErrorNote>
       ) : (
         <div className="max-w-2xl space-y-10">
           <p className="-mt-2 max-w-[65ch] text-pretty text-sm text-muted">
@@ -117,7 +118,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
             pending={paste.isPending}
             enabled={enabled && !setEmotion.isPending && !restore.isPending}
             initialText={latest ? latest.lines.map((l) => l.text).join("\n") : ""}
-            errorMessage={paste.error?.message ?? null}
+            errorMessage={paste.error ? errorText(paste.error) : null}
             limit={limit}
             onSave={(text) => workspace.workspaceId && paste.mutate({ projectId, text })}
           />
@@ -128,7 +129,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
             onRestore={(scriptId) => restore.mutate({ projectId, scriptId })}
           />
           {(setEmotion.error ?? restore.error) ? (
-            <ErrorNote>{(setEmotion.error ?? restore.error)!.message}</ErrorNote>
+            <ErrorNote>{errorText((setEmotion.error ?? restore.error)!)}</ErrorNote>
           ) : null}
         </div>
       )}

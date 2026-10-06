@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -42,11 +43,11 @@ function IdeaCard({
       await Promise.all([utils.library.ideas.list.invalidate(), utils.identity.projects.invalidate()]);
       router.push(`/projects/${projectId}`);
     },
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(errorText(e)),
   });
   const remove = api.library.ideas.delete.useMutation({
     onSuccess: () => utils.library.ideas.list.invalidate(),
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(errorText(e)),
   });
   const count = words(idea.lines);
   const sources = idea.itemIds.map((id) => titles.get(id)).filter(Boolean);
@@ -122,7 +123,7 @@ export function IdeaCards({ workspaceId, itemId, empty }: { workspaceId: string;
   const items = api.library.list.useQuery({ workspaceId }, { enabled: !itemId, staleTime: 30_000 });
   const actors = api.actors.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   if (ideas.isPending) return <Skeleton className="h-32 w-full" />;
-  if (ideas.error) return <ErrorNote>The ideas failed to load: {ideas.error.message}</ErrorNote>;
+  if (ideas.error) return <ErrorNote>The ideas failed to load: {errorText(ideas.error)}</ErrorNote>;
   if (ideas.data.length === 0) return <p className="max-w-[72ch] text-sm text-muted">{empty}</p>;
   const titles = new Map((items.data ?? []).map((i) => [i.id, i.title]));
   const names = new Map((actors.data ?? []).map((a) => [a.id, a.name]));

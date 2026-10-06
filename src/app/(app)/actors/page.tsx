@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { ActorGrid, type LibraryActor } from "./actor-grid";
 import { useState } from "react";
 
@@ -61,7 +62,7 @@ export default function ActorsPage() {
           actors.error.data?.code === "UNAUTHORIZED" ? (
             <SignedOutNotice />
           ) : (
-            <ErrorNote>The library failed to load: {actors.error.message}</ErrorNote>
+            <ErrorNote>The library failed to load: {errorText(actors.error)}</ErrorNote>
           )
         ) : (
           <ActorGrid actors={(actors.data ?? []) as LibraryActor[]} filtered={gender !== undefined} />

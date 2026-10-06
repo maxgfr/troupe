@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { Suspense, use, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -92,7 +93,7 @@ function ExportForm({ projectId }: { projectId: string }) {
       {workspace.status === "loading" || (enabled && generations.isPending) ? (
         <SkeletonRows rows={4} />
       ) : generations.error ? (
-        <ErrorNote>The renders failed to load: {generations.error.message}</ErrorNote>
+        <ErrorNote>The renders failed to load: {errorText(generations.error)}</ErrorNote>
       ) : completed.length === 0 ? (
         <EmptyState
           title="Nothing to export yet"
@@ -150,7 +151,7 @@ function ExportForm({ projectId }: { projectId: string }) {
               <span>Keep the original video format. I will crop it separately if needed.</span>
             </label>
           ) : null}
-          {specs.error ? <ErrorNote>{specs.error.message}</ErrorNote> : null}
+          {specs.error ? <ErrorNote>{errorText(specs.error)}</ErrorNote> : null}
 
           <CaptionFields
             caption={caption}
@@ -171,7 +172,7 @@ function ExportForm({ projectId }: { projectId: string }) {
             <span>I have checked the video and am ready to download it.</span>
           </label>
 
-          {create.error ? <ErrorNote>{create.error.message}</ErrorNote> : null}
+          {create.error ? <ErrorNote>{errorText(create.error)}</ErrorNote> : null}
 
           {/* One primary action at a time: create the export, then download it. */}
           {exported ? (

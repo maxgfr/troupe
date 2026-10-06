@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const push = vi.fn();
-const createProjectAsync = vi.fn(async () => ({ id: "p1" }));
+const createProjectAsync = vi.fn(async () => ({ id: "11111111-1111-4111-8111-111111111111" }));
 const createExportMutate = vi.fn();
 
 const COMPLETED_GEN = {
@@ -46,7 +46,13 @@ vi.mock("~/trpc/react", () => ({
       getProject: {
         useQuery: () => ({
           isPending: false,
-          data: { id: "p1", title: "Spring drop", platform: "youtube", format: "9:16", language: "en" },
+          data: {
+            id: "11111111-1111-4111-8111-111111111111",
+            title: "Spring drop",
+            platform: "youtube",
+            format: "9:16",
+            language: "en",
+          },
         }),
       },
       formatOptions: {
@@ -108,9 +114,9 @@ import ExportPage from "./(app)/projects/[projectId]/export/page";
 
 // React's use() reads an already-fulfilled thenable synchronously when the
 // status/value fields are present — no Suspense boundary needed in jsdom.
-const params = Object.assign(Promise.resolve({ projectId: "p1" }), {
+const params = Object.assign(Promise.resolve({ projectId: "11111111-1111-4111-8111-111111111111" }), {
   status: "fulfilled",
-  value: { projectId: "p1" },
+  value: { projectId: "11111111-1111-4111-8111-111111111111" },
 }) as Promise<{ projectId: string }>;
 
 afterEach(() => {
@@ -150,7 +156,7 @@ describe("wizard multi-step behavior", () => {
     expect(createProjectAsync).toHaveBeenCalledWith(
       expect.objectContaining({ title: "My ad", actorId: "a1", modelKey: "kling-3.0", format: "9:16" }),
     );
-    expect(push).toHaveBeenCalledWith("/projects/p1/script");
+    expect(push).toHaveBeenCalledWith("/projects/11111111-1111-4111-8111-111111111111/script");
   });
 
   it("an unavailable actor cannot be picked", () => {

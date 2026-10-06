@@ -235,3 +235,9 @@ test("an unknown app path shows the studio's not-found page", async ({ page }) =
   await page.getByRole("link", { name: "Back to your projects" }).click();
   await expect(page).toHaveURL(/\/troupe\/app\/dashboard$/);
 });
+
+test("a project id that is not a UUID shows the not-found page, not a validation error", async ({ page }) => {
+  await page.goto(`${APP}/projects/does-not-exist`);
+  await expect(page.getByText("Nothing at this address")).toBeVisible();
+  await expect(page.getByText("validation")).toHaveCount(0);
+});

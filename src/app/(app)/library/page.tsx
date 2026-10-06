@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useEffect, useId, useState } from "react";
 
 import { useEdition } from "~/app/_components/edition";
@@ -85,8 +86,8 @@ export default function LibraryPage() {
           title={edition.kind === "self-hosted" ? "The library is off" : "The library could not start"}
           body={
             edition.kind === "self-hosted"
-              ? `${status.error.message} Set TROUPE_LIBRARY=1 in the studio's environment (docs/LIBRARY.md) to turn it on.`
-              : `${status.error.message} Reload the page; if it keeps failing, this browser may be blocking the storage the library needs (site data for this page).`
+              ? `${errorText(status.error)} Set TROUPE_LIBRARY=1 in the studio's environment (docs/LIBRARY.md) to turn it on.`
+              : `${errorText(status.error)} Reload the page; if it keeps failing, this browser may be blocking the storage the library needs (site data for this page).`
           }
         />
       ) : uploader ? (
@@ -183,7 +184,7 @@ export default function LibraryPage() {
                 ) : items.isPending ? (
                   <SkeletonRows rows={4} />
                 ) : items.error ? (
-                  <ErrorNote>The library failed to load: {items.error.message}</ErrorNote>
+                  <ErrorNote>The library failed to load: {errorText(items.error)}</ErrorNote>
                 ) : items.data.length === 0 ? (
                   filtered ? (
                     <p className="rounded-2xl bg-surface/70 px-5 py-8 text-center text-sm text-muted">

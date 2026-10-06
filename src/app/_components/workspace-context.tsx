@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { createContext, useContext } from "react";
 
 import { api } from "~/trpc/react";
@@ -31,7 +32,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     state =
       query.error.data?.code === "UNAUTHORIZED"
         ? { status: "unauthenticated", workspaceId: null, workspaceName: null }
-        : { status: "error", workspaceId: null, workspaceName: null, message: query.error.message };
+        : { status: "error", workspaceId: null, workspaceName: null, message: errorText(query.error) };
   } else if (query.data.length === 0) {
     state = { status: "empty", workspaceId: null, workspaceName: null };
   } else {

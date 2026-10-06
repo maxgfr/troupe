@@ -6,8 +6,18 @@ import { afterEach, expect, it, vi } from "vitest";
 // link) is the studio's not-found page, with its way back, rather than a
 // project header over an error.
 let result: { data?: unknown; error: { message: string; data?: { code?: string } } | null } = { error: null };
+let useQueryOptions: unknown[] | null = null;
 vi.mock("~/trpc/react", () => ({
-  api: { studio: { getProject: { useQuery: () => result } } },
+  api: {
+    studio: {
+      getProject: {
+        useQuery: (_: unknown, options: unknown) => {
+          useQueryOptions?.push(options);
+          return result;
+        },
+      },
+    },
+  },
 }));
 
 import { ProjectGate } from "./project-gate";
@@ -15,12 +25,13 @@ import { ProjectGate } from "./project-gate";
 afterEach(() => {
   cleanup();
   result = { error: null };
+  useQueryOptions = null;
 });
 
 it("shows the not-found page when the project does not exist", () => {
   result = { error: { message: "project not found", data: { code: "NOT_FOUND" } } };
   render(
-    <ProjectGate projectId="p1">
+    <ProjectGate projectId="11111111-1111-4111-8111-111111111111">
       <p>Project tabs</p>
     </ProjectGate>,
   );
@@ -31,7 +42,7 @@ it("shows the not-found page when the project does not exist", () => {
 
 it("shows the page while the project loads, once it has, and on any other error", () => {
   render(
-    <ProjectGate projectId="p1">
+    <ProjectGate projectId="11111111-1111-4111-8111-111111111111">
       <p>Project tabs</p>
     </ProjectGate>,
   );
@@ -39,9 +50,23 @@ it("shows the page while the project loads, once it has, and on any other error"
   cleanup();
   result = { error: { message: "Database unavailable", data: { code: "INTERNAL_SERVER_ERROR" } } };
   render(
-    <ProjectGate projectId="p1">
+    <ProjectGate projectId="11111111-1111-4111-8111-111111111111">
       <p>Project tabs</p>
     </ProjectGate>,
   );
   expect(screen.getByText("Project tabs")).toBeDefined();
+});
+
+it("shows the not-found page, without querying, when the id is not a UUID", () => {
+  const seen: unknown[] = [];
+  useQueryOptions = seen;
+  result = { error: { message: '[ { "validation": "uuid" } ]', data: { code: "BAD_REQUEST" } } };
+  render(
+    <ProjectGate projectId="does-not-exist">
+      <p>Project tabs</p>
+    </ProjectGate>,
+  );
+  expect(screen.getByRole("heading", { name: "Page not found" })).toBeDefined();
+  expect(screen.queryByText("Project tabs")).toBeNull();
+  expect(seen).toEqual([{ enabled: false, retry: false }]);
 });

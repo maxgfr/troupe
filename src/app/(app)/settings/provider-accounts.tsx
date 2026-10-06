@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { ErrorNote, buttonClass, fieldSurface } from "~/app/_components/ui";
@@ -170,7 +171,7 @@ export function ProviderAccounts() {
         );
       })}
       {(status.error ?? save.error ?? clear.error ?? test.error) ? (
-        <ErrorNote>{(status.error ?? save.error ?? clear.error ?? test.error)!.message}</ErrorNote>
+        <ErrorNote>{errorText((status.error ?? save.error ?? clear.error ?? test.error)!)}</ErrorNote>
       ) : null}
     </div>
   );

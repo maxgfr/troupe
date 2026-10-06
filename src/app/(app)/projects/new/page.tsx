@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { WizardStepper } from "./wizard-stepper";
 import {
   ActorStep,
@@ -144,7 +145,7 @@ export default function NewProjectPage() {
         {wizard.step === 3 ? (
           <ActorStep
             pending={actors.isPending}
-            errorMessage={actors.error?.message ?? null}
+            errorMessage={actors.error ? errorText(actors.error) : null}
             actors={(actors.data ?? []) as ActorView[]}
             actorId={wizard.actorId}
             onActor={(actorId) => dispatch({ type: "actor", actorId })}
@@ -152,7 +153,7 @@ export default function NewProjectPage() {
         ) : null}
 
         {formatOptions.error || models.error ? (
-          <ErrorNote>{(formatOptions.error ?? models.error)!.message}</ErrorNote>
+          <ErrorNote>{errorText((formatOptions.error ?? models.error)!)}</ErrorNote>
         ) : null}
         {wizard.submitError ? <ErrorNote>{wizard.submitError}</ErrorNote> : null}
 

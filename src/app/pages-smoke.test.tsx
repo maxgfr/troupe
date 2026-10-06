@@ -86,7 +86,7 @@ describe("screen smoke renders", () => {
   it("Generation monitor mounts and shows its header while the project loads", () => {
     render(
       <Suspense fallback={<p>suspense…</p>}>
-        <MonitorPage params={fulfilledParams("p1")} />
+        <MonitorPage params={fulfilledParams("11111111-1111-4111-8111-111111111111")} />
       </Suspense>,
     );
     // While the project loads the header shows the neutral "Project" title.

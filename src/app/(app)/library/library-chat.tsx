@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import Link from "next/link";
 import { Fragment, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
@@ -129,7 +130,7 @@ export function LibraryChat({
   const send = api.library.chat.send.useMutation({
     onSuccess: () => utils.library.chat.history.invalidate({ workspaceId, itemId: itemId ?? null }),
     onError: (e, input) => {
-      setError(e.message);
+      setError(errorText(e));
       setDraft((current) => current || input.message);
     },
   });
@@ -206,7 +207,7 @@ export function LibraryChat({
             <Skeleton className="h-20 w-full" />
           </div>
         ) : history.error ? (
-          <ErrorNote>The chat failed to load: {history.error.message}</ErrorNote>
+          <ErrorNote>The chat failed to load: {errorText(history.error)}</ErrorNote>
         ) : messages.length === 0 && !send.isPending ? (
           unavailable ? null : (
             <div className="space-y-3 text-sm">

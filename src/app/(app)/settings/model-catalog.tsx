@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
@@ -423,7 +424,7 @@ export function ModelCatalogSettings({ kind }: { kind: "cloud" | "local" }) {
     onSuccess: () => Promise.all([refresh(), utils.settings.models.connections.invalidate()]),
   });
   if (list.isPending) return <SkeletonRows rows={3} />;
-  if (list.error) return <ErrorNote>The model list could not be loaded: {list.error.message}</ErrorNote>;
+  if (list.error) return <ErrorNote>The model list could not be loaded: {errorText(list.error)}</ErrorNote>;
   const byKey = new Map((connections.data ?? []).map((c) => [c.modelKey, c]));
   const models = (list.data.models as CatalogModelView[])
     .filter((m) => m.kind === kind)
@@ -445,7 +446,7 @@ export function ModelCatalogSettings({ kind }: { kind: "cloud" | "local" }) {
         onArchive={(modelKey, archived) => archive.mutate({ modelKey, archived })}
         onEditConnection={(modelKey, change) => editConnection.mutate({ modelKey, ...change })}
       />
-      {error ? <ErrorNote>{error.message}</ErrorNote> : null}
+      {error ? <ErrorNote>{errorText(error)}</ErrorNote> : null}
     </>
   );
 }
@@ -458,7 +459,7 @@ export function DefaultModelSettings() {
     onSuccess: () => Promise.all([utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate()]),
   });
   if (list.isPending) return <SkeletonRows rows={1} />;
-  if (list.error) return <ErrorNote>{list.error.message}</ErrorNote>;
+  if (list.error) return <ErrorNote>{errorText(list.error)}</ErrorNote>;
   return (
     <>
       <DefaultModelPicker
@@ -473,7 +474,7 @@ export function DefaultModelSettings() {
         }
         onChange={(modelKey) => setDefault.mutate({ modelKey })}
       />
-      {setDefault.error ? <ErrorNote>{setDefault.error.message}</ErrorNote> : null}
+      {setDefault.error ? <ErrorNote>{errorText(setDefault.error)}</ErrorNote> : null}
     </>
   );
 }

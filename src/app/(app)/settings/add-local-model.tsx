@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText } from "~/app/_components/errors";
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { HTTP_MODEL_DEFAULTS } from "~/modules/models/http-defaults";
@@ -418,13 +419,14 @@ export function AddLocalModel() {
     );
   }
   if (templates.isPending || suggested.isPending) return <p className="text-sm text-muted">Loading templates…</p>;
+  const formError = templates.error ?? create.error ?? test.error;
   return (
     <AddLocalModelForm
       templates={(templates.data ?? []) as TemplateView[]}
       comfyUrl={suggested.data?.comfyui ?? "http://127.0.0.1:8188"}
       busy={test.isPending || create.isPending}
       report={report}
-      error={(templates.error ?? create.error ?? test.error)?.message ?? null}
+      error={formError ? errorText(formError) : null}
       onTest={(draft) => {
         setTested(JSON.stringify(draft));
         test.mutate(draft as Parameters<typeof test.mutate>[0]);

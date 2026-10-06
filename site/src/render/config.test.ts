@@ -37,6 +37,9 @@ describe("parseRenderConfig", () => {
       sceneFontUrl: "fonts/Inter.woff2",
     });
     expect(parseRenderConfig({ VITE_RENDER_VIDEO_BITRATE: "medium" }).videoBitrate).toBe("medium");
+    // A path stays under the site's base: no step up out of it.
+    for (const outside of ["../Inter.woff2", "fonts/../../Inter.woff2", "fonts/..", ".."])
+      expect(() => parseRenderConfig({ VITE_SCENE_FONT_URL: outside }), outside).toThrow(/VITE_SCENE_FONT_URL/);
     expect(parseRenderConfig({ VITE_SCENE_FONT_URL: "https://fonts.example.com/Inter.ttf" }).sceneFontUrl).toBe(
       "https://fonts.example.com/Inter.ttf",
     );

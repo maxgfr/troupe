@@ -133,7 +133,10 @@ export function parseRenderConfig(env: Env): RenderConfig {
   }
 
   const sceneFontUrl = read("VITE_SCENE_FONT_URL") ?? defaults.sceneFontUrl;
-  if (sceneFontUrl !== null && !/^(https:\/\/[^\s]+|[\w.-][\w./-]*)\.(woff2?|ttf|otf)$/i.test(sceneFontUrl)) {
+  const fontFile = /^(https:\/\/[^\s]+|[\w.-][\w./-]*)\.(woff2?|ttf|otf)$/i;
+  // A path is under the site's base: none of its segments steps up out of it.
+  const stepsUp = (url: string) => !url.startsWith("https://") && url.split("/").includes("..");
+  if (sceneFontUrl !== null && (!fontFile.test(sceneFontUrl) || stepsUp(sceneFontUrl))) {
     problems.push(
       `VITE_SCENE_FONT_URL must be an https URL or a path under the site's base (no leading slash) to a .woff2, .woff, .ttf or .otf file (got "${sceneFontUrl}").`,
     );

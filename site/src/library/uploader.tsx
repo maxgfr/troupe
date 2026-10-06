@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import type { LibraryUploader } from "~/app/_components/edition";
 import { sha256Hex } from "~/modules/library/hash";
-import { EXTENSIONS, SNIFF_BYTES, sniffType } from "~/server/library/sniff";
+import { EXTENSIONS, fileRefusal, SNIFF_BYTES, sniffType } from "~/server/library/sniff";
 import { storeWhileRecording } from "../data/local-data";
 import { libraryDownload, subscribeToLibraryDownload } from "./client";
 import { pendingUploads } from "./pending";
@@ -18,8 +18,10 @@ const stem = (name: string) => name.replace(/\.[A-Za-z0-9]{1,5}$/, "").replace(/
 
 async function upload(file: File, input: { workspaceId: string; mine: boolean; onProgress?: (fraction: number) => void }): Promise<{ id: string }> {
   if (file.size > LIBRARY_CONFIG.maxUploadMb * 1024 * 1024) throw new Error(`The file is larger than ${LIBRARY_CONFIG.maxUploadMb} MB, the most this browser keeps.`);
-  const mimeType = sniffType(new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer()));
-  if (!mimeType) throw new Error("This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.");
+  const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+  const refused = fileRefusal(file.size, head);
+  if (refused) throw new Error(refused);
+  const mimeType = sniffType(head)!;
   const caller = await (await import("../server-link")).browserCaller();
   if (mimeType === "text/plain") {
     const item = await caller.library.addText({ workspaceId: input.workspaceId, text: await file.text(), title: stem(file.name), mine: input.mine });

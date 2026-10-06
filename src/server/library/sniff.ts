@@ -34,6 +34,16 @@ export function sniffType(head: Uint8Array): string | null {
   return textType(head);
 }
 
+export const EMPTY_FILE = "The file is empty.";
+export const UNREAD_FILE = "This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.";
+
+// Why the library cannot save a file, from its size and first bytes, or null:
+// the same answer from the studio's upload route and the browser edition.
+export function fileRefusal(size: number, head: Uint8Array): string | null {
+  if (size === 0) return EMPTY_FILE;
+  return sniffType(head) ? null : UNREAD_FILE;
+}
+
 // UTF-8 text with no control characters but tabs and line breaks, that does
 // not open like markup.
 function textType(head: Uint8Array): string | null {

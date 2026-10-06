@@ -7,7 +7,7 @@ import { Transform } from "node:stream";
 
 import { MAX_TEXT_CHARS, type ClaimedUpload } from "~/modules/library";
 import { mediaFilePath, mediaRoot } from "~/server/media/storage";
-import { EXTENSIONS, SNIFF_BYTES, sniffType } from "./sniff";
+import { EMPTY_FILE, EXTENSIONS, SNIFF_BYTES, sniffType, UNREAD_FILE } from "./sniff";
 
 // The library's files in the data folder (TROUPE_DATA_DIR): the original at
 // library/<item>/original.<ext>, pictures at library/<item>/frame-<n>.jpg.
@@ -54,7 +54,7 @@ export async function receiveUpload(source: AsyncIterable<Uint8Array>, input: { 
       }),
       createWriteStream(temporary, { mode: 0o600 }),
     );
-    if (size === 0) throw new UploadRefused("The file is empty.");
+    if (size === 0) throw new UploadRefused(EMPTY_FILE);
     return await settle(temporary, { itemId: input.itemId, fileName: input.fileName, bytes: size, checksum: hash.digest("hex") });
   } finally {
     await rm(temporary, { force: true });
@@ -74,7 +74,7 @@ async function settle(temporary: string, input: { itemId: string; fileName: stri
   const { bytesRead } = await handle.read(head, 0, SNIFF_BYTES, 0);
   await handle.close();
   const mimeType = sniffType(head.subarray(0, bytesRead));
-  if (!mimeType) throw new UploadRefused("This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.");
+  if (!mimeType) throw new UploadRefused(UNREAD_FILE);
   if (mimeType === "text/plain") {
     // A character takes at most four bytes: past that, the text cannot fit.
     if (input.bytes > MAX_TEXT_CHARS * 4) throw new UploadRefused(`The text is longer than ${MAX_TEXT_CHARS.toLocaleString("en")} characters. Save a shorter part of it.`);

@@ -157,6 +157,8 @@ export interface LibraryStatus {
   tools: ToolStatus[];
   // The largest upload, in bytes.
   maxUploadBytes: number;
+  // How many ideas "ideas in this style" writes.
+  ideas: number;
 }
 
 // A page or file fetched from a link (self-hosted only).
@@ -177,6 +179,10 @@ export interface ClaimedUpload {
 // Injected through the tRPC context (ctx.library).
 export interface LibraryBackend {
   edition: "self-hosted" | "browser";
+  // The longest one writing request may take (a chat answer, a set of
+  // ideas, an item's analysis), all its model calls together, and how many
+  // ideas a set holds.
+  writing: { timeoutMs: number; ideas: number };
   status(): Promise<LibraryStatus>;
   // Read each time: a change in Settings (the chat's model) applies at once.
   tools(): Promise<AnalysisTools>;

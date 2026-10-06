@@ -120,6 +120,13 @@ describe("yt-dlp", () => {
 });
 
 describe("libraryEnvironment", () => {
+  it("bounds each writing request and the ideas a set holds", () => {
+    expect(libraryEnvironment({})).toMatchObject({ writeTimeoutMs: 300_000, ideas: 10 });
+    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "240", TROUPE_LIBRARY_IDEAS: "3" })).toMatchObject({ writeTimeoutMs: 240_000, ideas: 3 });
+    // Out of range: the default (env.js refuses it at startup).
+    expect(libraryEnvironment({ TROUPE_LIBRARY_WRITE_TIMEOUT_S: "5", TROUPE_LIBRARY_IDEAS: "40" })).toMatchObject({ writeTimeoutMs: 300_000, ideas: 10 });
+  });
+
   it("turns video links off, and names a proxy for yt-dlp", () => {
     expect(libraryEnvironment({ TROUPE_YTDLP_PATH: "off" }).ytDlpPath).toBeNull();
     expect(libraryEnvironment({}).ytDlpPath).toBe("yt-dlp");

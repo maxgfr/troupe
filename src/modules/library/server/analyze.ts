@@ -20,6 +20,9 @@ export interface AnalysisOptions {
   maxFrames?: number;
   visionFrames?: number;
   signal?: AbortSignal;
+  // The longest the writing model may take for an item's analysis (its
+  // answer and the one retry): past it, that step fails with the reason.
+  writeTimeoutMs?: number;
   removeFiles?: (files: { storagePath: string }[]) => Promise<void>;
   log?: (event: Record<string, unknown>) => void;
 }
@@ -251,17 +254,21 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
       await setStage("Writing the analysis");
       const transcriptText = transcript ? transcript.segments.map((s) => `[${formatTimestamp(s.startS)}] ${s.text.trim()}`).join("\n") : (body ?? "");
       const turns = buildInsightPrompt({ kind: item.kind, title: item.title, durationS, language, transcript: transcriptText, frames, hook: hookText });
+      // Its own time limit on top of the analysis's signal.
+      const limit = options.writeTimeoutMs ? AbortSignal.timeout(options.writeTimeoutMs) : null;
+      const writing = limit ? AbortSignal.any([signal, limit]) : signal;
       try {
-        let answer = await tools.writer.tool.propose(turns, { schema: insightSchema(), signal, maxTokens: 900 });
+        let answer = await tools.writer.tool.propose(turns, { schema: insightSchema(), signal: writing, maxTokens: 900 });
         insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         if (!insights) {
-          answer = await tools.writer.tool.propose([...turns, { role: "assistant", content: answer.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object." }], { schema: insightSchema(), signal, maxTokens: 900 });
+          answer = await tools.writer.tool.propose([...turns, { role: "assistant", content: answer.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object." }], { schema: insightSchema(), signal: writing, maxTokens: 900 });
           insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         }
         if (insights) step("insights", "done");
         else step("insights", "failed", `${tools.writer.modelId ?? "The model"} did not write a usable analysis.`);
       } catch (error) {
-        step("insights", "failed", `${tools.writer.modelId ?? "The model"} could not write the analysis: ${message(error)}`);
+        if (limit?.aborted && !signal.aborted) step("insights", "failed", `${tools.writer.modelId ?? "The model"} took longer than ${Math.max(1, Math.round(options.writeTimeoutMs! / 1000))} s to write the analysis and was stopped (TROUPE_LIBRARY_WRITE_TIMEOUT_S). Read it again to try once more.`);
+        else step("insights", "failed", `${tools.writer.modelId ?? "The model"} could not write the analysis: ${message(error)}`);
       }
     }
     const found = insights ?? heuristicInsights({ words, hook: hookText, transcript, durationS });

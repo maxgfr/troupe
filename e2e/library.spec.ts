@@ -22,6 +22,12 @@ const ARTICLE = `<!doctype html><html><head><title>Three hooks that work | Field
 <p>${"Ask a question the viewer cannot answer yet, and answer it in the last line, never earlier. ".repeat(3)}</p></article></body></html>`;
 // Readings take minutes on a CI runner's CPU.
 const READING = { timeout: 15 * 60_000 };
+// The test stack stops a writing request after TROUPE_LIBRARY_WRITE_TIMEOUT_S
+// (240 s, docker-compose.test.yml) and says so: every ask settles by then.
+const WRITING = { timeout: (240 + 60) * 1000 };
+// What the model's slowness or slips look like on the page: the loops below
+// ask again, as a person would, and the tRPC logger prints them too.
+const ASK_AGAIN = /did not write usable scripts|took longer than \d+ s to (answer|write the ideas)/;
 
 test.describe.configure({ mode: "serial" });
 
@@ -123,17 +129,18 @@ test("upload a video, save an article and a video from links, search, ask, make 
   const chat = page.getByRole("complementary", { name: "Ask your library" });
   const sources = chat.getByRole("list", { name: "Sources" });
   const answers = chat.getByRole("article", { name: "Answer" });
-  let asks = 0;
-  while (asks < 3 && (await sources.count()) === 0) {
+  const asked: string[] = [];
+  while (asked.length < 3 && (await sources.count()) === 0) {
     const before = await answers.count();
     await chat.getByLabel("Ask your library").fill("Which saved piece talks about cold brew, and how does it open?");
     await chat.getByRole("button", { name: "Ask" }).click();
-    asks += 1;
-    await expect(answers).toHaveCount(before + 1, { timeout: 10 * 60_000 });
-    await expect(chat.getByRole("alert")).toHaveCount(0);
+    // Settled: an answer, or the reason there is none (the server's time limit).
+    await expect(answers.nth(before).or(chat.getByRole("alert"))).toBeVisible(WRITING);
+    const alert = chat.getByRole("alert");
+    asked.push((await alert.isVisible()) ? `stopped: ${await alert.innerText()}` : (await sources.count()) > 0 ? "cited" : "no citation");
   }
-  testInfo.annotations.push({ type: "library chat asks", description: String(asks) });
-  expect(await sources.count(), `no answer cited a source in ${asks} asks`).toBeGreaterThan(0);
+  testInfo.annotations.push({ type: "library chat asks", description: asked.join(" | ") });
+  expect(await sources.count(), `no answer cited a source in ${asked.length} asks: ${asked.join(" | ")}`).toBeGreaterThan(0);
   // A citation opens the item it cites.
   await expect(sources.first().getByRole("link").first()).toHaveAttribute("href", /\/library\/[0-9a-f-]{36}/);
   await shot("03-chat");
@@ -143,19 +150,24 @@ test("upload a video, save an article and a video from links, search, ask, make 
   // writes none, or only long ones: a person asks again, and the report says
   // how many tries it took and, when none fits, every length it wrote.
   await page.locator("table").getByRole("link", { name: /cold brew trick/i }).click();
-  const write = page.getByRole("button", { name: "10 ideas in this style" });
+  // The stack writes three at a time (TROUPE_LIBRARY_IDEAS).
+  const write = page.getByRole("button", { name: "3 ideas in this style" });
   const cards = page.locator("li").filter({ has: page.getByRole("button", { name: "Create project" }) });
   const fitting = cards.filter({ hasText: /about ([1-9]|1[0-5]) s/ }).getByRole("button", { name: "Create project" });
-  let tries = 0;
-  while (tries < 3 && (await fitting.count()) === 0) {
+  const tried: string[] = [];
+  while (tried.length < 3 && (await fitting.count()) === 0) {
+    const before = await cards.count();
     await write.click();
-    tries += 1;
-    await expect(page.getByRole("button", { name: "Writing 10 ideas…" })).toBeVisible();
-    await expect(write).toBeEnabled({ timeout: 10 * 60_000 });
+    await expect(page.getByRole("button", { name: "Writing 3 ideas…" })).toBeVisible();
+    // Settled: the button is back once the server has answered, with ideas
+    // or with the reason it stopped, within its time limit.
+    await expect(write).toBeEnabled(WRITING);
+    const alert = page.getByRole("alert").filter({ hasText: ASK_AGAIN });
+    tried.push((await alert.isVisible()) ? `stopped: ${await alert.innerText()}` : `${(await cards.count()) - before} ideas`);
   }
-  testInfo.annotations.push({ type: "library ideas tries", description: String(tries) });
+  testInfo.annotations.push({ type: "library ideas tries", description: tried.join(" | ") });
   const lengths = (await cards.allInnerTexts()).map((text) => /about (\d+) s/.exec(text)?.[1] ?? "?");
-  expect(await fitting.count(), `no idea of 15 s or less in ${tries} tries; lengths written: ${lengths.join(", ") || "none"}`).toBeGreaterThan(0);
+  expect(await fitting.count(), `no idea of 15 s or less in ${tried.length} tries (${tried.join(" | ")}); lengths written: ${lengths.join(", ") || "none"}`).toBeGreaterThan(0);
   await shot("04-ideas");
   await fitting.first().click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
@@ -177,9 +189,9 @@ test("upload a video, save an article and a video from links, search, ask, make 
   expect(played.duration).toBeGreaterThan(2);
   expect(played.at).toBeGreaterThan(0.5);
   await shot("05-rendered");
-  // The tRPC logger also prints the error the page shows when the 0.5B model
-  // writes no usable idea, which the ideas loop above asks again for.
-  expect(errors.filter((error) => !error.includes("did not write usable scripts"))).toEqual([]);
+  // The tRPC logger also prints the errors the page shows when the 0.5B
+  // model slips or runs out of time, which the loops above ask again for.
+  expect(errors.filter((error) => !ASK_AGAIN.test(error))).toEqual([]);
 });
 
 test("the CLI saves, lists, searches, asks and writes ideas, and doctor checks the library's tools", () => {

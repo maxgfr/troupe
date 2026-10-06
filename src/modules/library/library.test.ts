@@ -326,7 +326,7 @@ describe("the inspiration library", () => {
     expect(await thumbnailOf(t.db, [black!, shot!, other!].map((f, i) => ({ assetId: f.id, atS: i })))).toBe(shot!.id);
   });
 
-  it("keeps the complete ideas of an answer cut off by the token limit, after asking again with the problem", async () => {
+  it("keeps the complete ideas of an answer cut off by the token limit, without asking again", async () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
     const cut = '{"ideas": [{"title": "Jar test", "hook": "Got a jar?", "lines": [{"role": "hook", "text": "Got a jar?", "emotion": "excited"}, {"role": "cta", "text": "Try it tonight.", "emotion": "happy"}]}, {"title": "Half';
@@ -334,8 +334,61 @@ describe("the inspiration library", () => {
     const truncating = { async propose(messages: ChatTurn[]) { seen.push(messages); return { text: cut, proposal: null }; } };
     const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: truncating, provider: "ollama", modelId: "tiny" } });
     expect(ideas.map((i) => i.title)).toEqual(["Jar test"]);
+    // One answer was enough: a second would have cost another full answer's time.
+    expect(seen).toHaveLength(1);
+  });
+
+  it("asks again with the problem when a cut-off answer holds no complete idea", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
+    const seen: ChatTurn[][] = [];
+    const truncating = { async propose(messages: ChatTurn[]) { seen.push(messages); return { text: '{"ideas": [{"title": "Half', proposal: null }; } };
+    await expect(generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: truncating, provider: "ollama", modelId: "tiny" } })).rejects.toThrow("did not write usable scripts");
     expect(seen).toHaveLength(2);
     expect(seen[1]!.at(-1)!.content).toContain('"ideas" must hold 3 different items');
+  });
+
+  it("bounds each answer by the clip's word budget", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
+    const limits: (number | undefined)[] = [];
+    const writer = fakeWriter();
+    const counting = { async propose(messages: ChatTurn[], options: Parameters<typeof writer.propose>[1]) { limits.push(options.maxTokens); return writer.propose(messages, options); } };
+    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 15, wordsPerSecond: 2.5, writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    // 37 words a script: 110 + 52 tokens an idea, and 200 for the rest.
+    expect(limits).toEqual([686]);
+  });
+
+  it("keeps the ideas it has when the time runs out while asking for shorter ones", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
+    const long = (title: string) => ({ title, hook: "Hook?", lines: Array.from({ length: 6 }, () => ({ role: "body", text: Array.from({ length: 20 }, () => "word").join(" "), emotion: "calm" })) });
+    let calls = 0;
+    const slow = {
+      async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) {
+        calls += 1;
+        if (calls === 1) {
+          const answer = { ideas: [long("Long one"), long("Long two")] };
+          return { text: JSON.stringify(answer), proposal: answer };
+        }
+        // The shorter ask never ends on its own.
+        return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+      },
+    };
+    const started = Date.now();
+    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, writer: { model: slow, provider: "ollama", modelId: "tiny" }, signal: AbortSignal.timeout(300) });
+    expect(ideas.map((i) => i.title)).toEqual(["Long one", "Long two"]);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("gives the analysis's writing a time limit, and the item is still read", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    const hanging = { async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) { return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason))); } };
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null, writer: { ready: true, tool: hanging, modelId: "tiny", label: "Tiny" } }), { writeTimeoutMs: 200 });
+    const detail = await getItem(t.db, workspaceId, item.id);
+    expect(detail.status).toBe("ready");
+    expect(detail.problem).toMatch(/Failed: the hook, structure and tags\. tiny took longer than 1 s to write the analysis/);
+    expect(detail.embedded).toBeGreaterThan(0);
   });
 
   it("asks again when every idea is far over the clip's word budget, and lists the ones that fit first", async () => {

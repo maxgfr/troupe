@@ -19,6 +19,8 @@
 //   E2E_CACHE_DIR     where model downloads are kept between runs (.cache/e2e)
 //   E2E_WEB_RENDER    0 skips the in-browser render of the browser edition
 //   E2E_WAIT_S        how long the stack may take to become healthy (1800)
+//   E2E_COMPOSE_OVERLAY  one more Compose file over the test one, e.g. to
+//                     cap Ollama at a CI runner's two CPUs
 //
 // The timings it prints (build, first healthy start) are the numbers
 // docs/SELF-HOSTING.md quotes.
@@ -38,7 +40,8 @@ const on = (name: string) => process.env[name] === "1" || process.env[name] === 
 
 // The Compose command every step (and the CLI tests) runs. --env-file keeps a
 // .env next to docker-compose.yml, meant for a real stack, out of the run.
-const COMPOSE = ["compose", "-p", PROJECT, "-f", "docker-compose.yml", "-f", "docker-compose.test.yml", "--env-file", join(REPO, "e2e", "stack.env")];
+const OVERLAY = process.env.E2E_COMPOSE_OVERLAY ? ["-f", resolve(process.env.E2E_COMPOSE_OVERLAY)] : [];
+const COMPOSE = ["compose", "-p", PROJECT, "-f", "docker-compose.yml", "-f", "docker-compose.test.yml", ...OVERLAY, "--env-file", join(REPO, "e2e", "stack.env")];
 // The `cli` service only runs on demand (`run --rm`); build and remove it too.
 const WITH_CLI = ["--profile", "cli"];
 

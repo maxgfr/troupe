@@ -22,6 +22,11 @@ services:
       # The test's pages and files are served from this computer
       # (host.docker.internal), a private address the library refuses otherwise.
       TROUPE_LIBRARY_ALLOW_PRIVATE_URLS: "1"
+      # A 0.5B model on a CI runner's two CPUs writes about 20 tokens a
+      # second: three ideas at a time, and a request stops after 4 minutes
+      # with its reason (the test then asks again, as a person would).
+      TROUPE_LIBRARY_IDEAS: "3"
+      TROUPE_LIBRARY_WRITE_TIMEOUT_S: "240"
 
   ollama:
     image: troupe-e2e/ollama:${E2E_TAG:-local}

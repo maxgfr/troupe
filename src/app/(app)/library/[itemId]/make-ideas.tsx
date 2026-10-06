@@ -32,14 +32,20 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
     onSuccess: () => utils.library.ideas.list.invalidate(),
     onError: (e) => setError(e.message),
   });
-  // The browser's small model writes fewer at a time, within its context.
-  const count = (kind: Kind) => (browser ? { ideas: 5, remix: 3, script: 1, repurpose: 2 }[kind] : undefined);
+  // The studio says how many ideas a set holds (TROUPE_LIBRARY_IDEAS; five
+  // in the browser edition). The browser's small model also writes fewer
+  // remixes and cuts, within its context.
+  const ideaCount = status.data?.ideas ?? (browser ? 5 : 10);
+  const count = (kind: Kind) => (browser && kind !== "ideas" ? { remix: 3, script: 1, repurpose: 2 }[kind] : undefined);
   const run = (kind: Kind, extra: { actorId?: string } = {}) => {
     setError(null);
     generate.mutate({ workspaceId, kind, itemIds: [itemId], ...(count(kind) ? { count: count(kind) } : {}), ...extra });
   };
   const pending = generate.isPending ? generate.variables?.kind : null;
-  const label = (a: (typeof ACTIONS)[number]) => (pending === a.kind ? a.busy : browser && a.kind === "ideas" ? "5 ideas in this style" : a.label);
+  const label = (a: (typeof ACTIONS)[number]) => {
+    if (a.kind !== "ideas") return pending === a.kind ? a.busy : a.label;
+    return pending === "ideas" ? `Writing ${ideaCount} idea${ideaCount === 1 ? "" : "s"}…` : `${ideaCount} idea${ideaCount === 1 ? "" : "s"} in this style`;
+  };
 
   return (
     <div className="space-y-3">

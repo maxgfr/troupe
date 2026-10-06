@@ -43,8 +43,9 @@ let scheduled = 0;
 const removed: string[][] = [];
 const library = (extra: Partial<LibraryBackend> = {}): LibraryBackend => ({
   edition: "browser",
+  writing: { timeoutMs: 60_000, ideas: 10 },
   async status() {
-    return { edition: "browser", maxUploadBytes: 1, tools: [] };
+    return { edition: "browser", maxUploadBytes: 1, ideas: 10, tools: [] };
   },
   async tools() {
     return tools;
@@ -117,6 +118,47 @@ describe("library router", () => {
     expect(item).toMatchObject({ id: uploadId, kind: "video", title: "clip", mine: true, mediaUrl: `/api/media/${item.assetId}` });
     await caller(MEMBER, backend).library.delete({ workspaceId: fx.workspaceId, itemId: item.id });
     expect(removed.at(-1)).toEqual([`library/${uploadId}/original.mp4`]);
+  });
+
+  it("stops a chat answer or ideas that take longer than the time limit, saying so", async () => {
+    const item = await caller().library.addText({ workspaceId: fx.workspaceId, text: "Cold brew: grind coarse, steep overnight, strain." });
+    await runLibraryQueue(db, async () => tools);
+    let stopped = 0;
+    const hanging: ChatBackend = {
+      ...chat,
+      async load() {
+        return {
+          ...(await chat.load()),
+          model: {
+            propose: (_turns, options) =>
+              new Promise<never>((_resolve, reject) =>
+                options.signal?.addEventListener("abort", () => {
+                  stopped += 1;
+                  reject(options.signal!.reason);
+                }),
+              ),
+          },
+        };
+      },
+    };
+    const slow = testCaller({ db, userId: MEMBER, chat: hanging, library: library({ writing: { timeoutMs: 300, ideas: 10 } }) });
+    const started = Date.now();
+    await expect(slow.library.ideas.generate({ workspaceId: fx.workspaceId, kind: "ideas", itemIds: [item.id] })).rejects.toMatchObject({ code: "TIMEOUT", message: expect.stringMatching(/^fake-writer took longer than 1 s to write the ideas and was stopped\. Try again, or ask for fewer\./) });
+    await expect(slow.library.chat.send({ workspaceId: fx.workspaceId, message: "What does it say?" })).rejects.toMatchObject({ code: "TIMEOUT", message: expect.stringContaining("took longer than 1 s to answer") });
+    expect(Date.now() - started).toBeLessThan(10_000);
+    // The model's requests were stopped, not left running.
+    expect(stopped).toBe(2);
+    await caller().library.delete({ workspaceId: fx.workspaceId, itemId: item.id });
+  });
+
+  it("writes as many ideas as the studio is set to when none are asked for", async () => {
+    const item = await caller().library.addText({ workspaceId: fx.workspaceId, text: "Cold brew: grind coarse, steep overnight, strain." });
+    await runLibraryQueue(db, async () => tools);
+    const seen: ChatTurn[][] = [];
+    const recording: ChatBackend = { ...chat, async load() { return { ...(await chat.load()), model: fakeWriter(seen) }; } };
+    await testCaller({ db, userId: MEMBER, chat: recording, library: library({ writing: { timeoutMs: 60_000, ideas: 3 } }) }).library.ideas.generate({ workspaceId: fx.workspaceId, kind: "ideas", itemIds: [item.id] });
+    expect(seen[0]!.map((t) => t.content).join("\n")).toContain('"ideas", a list of exactly 3 items');
+    await caller().library.delete({ workspaceId: fx.workspaceId, itemId: item.id });
   });
 
   it("removes a link's stored file when the item cannot be recorded", async () => {

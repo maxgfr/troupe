@@ -87,8 +87,23 @@ async function writerOf(chat: { load(): Promise<{ model: Writer["model"] | null;
   return { writer: { model: setup.model, provider: setup.provider, modelId: setup.modelId } satisfies Writer, wordsPerSecond: setup.wordsPerSecond };
 }
 
-// Model failures are logged, not shown: they may name hosts or data.
-function modelFailure(error: unknown, signal: AbortSignal | undefined, label: string): never {
+// One writing request (an answer, a set of ideas) gets a time limit for all
+// its model calls together: a small model on a slow CPU, or one that
+// rambles to its token limit and is asked again, must not hold the page
+// for ever. Its calls are stopped when the limit passes.
+const DEFAULT_WRITING = { timeoutMs: 300_000, ideas: 10 };
+
+function timeLimit(signal: AbortSignal | undefined, timeoutMs: number) {
+  const limit = AbortSignal.timeout(timeoutMs);
+  return { timeoutMs, limit, signal: signal ? AbortSignal.any([signal, limit]) : limit };
+}
+
+// Model failures are logged, not shown: they may name hosts or data. One
+// past the time limit says so, with what to do.
+function modelFailure(error: unknown, signal: AbortSignal | undefined, label: string, timed?: { limit: AbortSignal; timeoutMs: number; doing: string; next: string }): never {
+  if (timed?.limit.aborted && !signal?.aborted) {
+    throw new TRPCError({ code: "TIMEOUT", message: `${label} took longer than ${Math.max(1, Math.round(timed.timeoutMs / 1000))} s to ${timed.doing} and was stopped. ${timed.next}` });
+  }
   if (signal?.aborted) throw new TRPCError({ code: "CLIENT_CLOSED_REQUEST", message: "The request was stopped." });
   if (error instanceof TRPCError || error instanceof LibraryError || error instanceof ChatProviderError) asTrpcError(error);
   console.error(JSON.stringify({ event: "library.model.failed", message: (error as Error).message }));
@@ -209,11 +224,13 @@ export const libraryRouter = createTRPCRouter({
       .input(z.object({ itemId: z.string().uuid().nullish(), message: z.string().trim().min(1).max(2000) }))
       .mutation(async ({ ctx, input, signal }) => {
         const { writer } = await writerOf(ctx.chat);
-        const { embedder } = await backend(ctx.library).tools();
+        const library = backend(ctx.library);
+        const { embedder } = await library.tools();
+        const timed = timeLimit(signal, library.writing.timeoutMs);
         try {
-          return await sendLibraryMessage(ctx.db, { ...input, writer, embedder, signal });
+          return await sendLibraryMessage(ctx.db, { ...input, writer, embedder, signal: timed.signal });
         } catch (error) {
-          modelFailure(error, signal, writer.modelId);
+          modelFailure(error, signal, writer.modelId, { ...timed, doing: "answer", next: "Try again, with a shorter question or a faster model." });
         }
       }),
 
@@ -242,11 +259,13 @@ export const libraryRouter = createTRPCRouter({
       )
       .mutation(async ({ ctx, input, signal }) => {
         const { writer, wordsPerSecond } = await writerOf(ctx.chat);
-        const defaults = { ideas: 10, remix: 5, script: 1, repurpose: 3 } as const;
+        const writing = ctx.library?.writing ?? DEFAULT_WRITING;
+        const defaults = { ideas: writing.ideas, remix: 5, script: 1, repurpose: 3 } as const;
+        const timed = timeLimit(signal, writing.timeoutMs);
         try {
-          return await generateIdeas(ctx.db, { ...input, count: input.count ?? defaults[input.kind], durationS: input.durationS ?? ideaSeconds(ctx.catalog), wordsPerSecond, writer, signal });
+          return await generateIdeas(ctx.db, { ...input, count: input.count ?? defaults[input.kind], durationS: input.durationS ?? ideaSeconds(ctx.catalog), wordsPerSecond, writer, signal: timed.signal });
         } catch (error) {
-          modelFailure(error, signal, writer.modelId);
+          modelFailure(error, signal, writer.modelId, { ...timed, doing: input.kind === "script" ? "write the script" : "write the ideas", next: "Try again, or ask for fewer." });
         }
       }),
 

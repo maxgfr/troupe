@@ -27,6 +27,10 @@ let again = false;
 
 const MODEL = (id: string) => id.split("/").pop() ?? id;
 
+// WebLLM in a tab: five ideas at a time fit its context, and a quarter of an
+// hour covers loading the model the first time.
+const WRITING = { timeoutMs: 15 * 60_000, ideas: 5 };
+
 export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend {
   async function tools(): Promise<AnalysisTools> {
     const setup = await chat.load();
@@ -59,7 +63,7 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
         await requeueStale(db, 0);
         do {
           again = false;
-          await runLibraryQueue(db, tools, { maxFrames: LIBRARY_CONFIG.frames, removeFiles: (files) => browserMedia.remove(files.map((f) => ({ storagePath: f.storagePath, storage: "local" as const }))) });
+          await runLibraryQueue(db, tools, { maxFrames: LIBRARY_CONFIG.frames, writeTimeoutMs: WRITING.timeoutMs, removeFiles: (files) => browserMedia.remove(files.map((f) => ({ storagePath: f.storagePath, storage: "local" as const }))) });
         } while (again);
       };
       if (navigator.locks) await navigator.locks.request(LOCK, work);
@@ -73,6 +77,7 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
 
   return {
     edition: "browser",
+    writing: WRITING,
     tools,
     schedule,
     async status(): Promise<LibraryStatus> {
@@ -80,6 +85,7 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
       return {
         edition: "browser",
         maxUploadBytes: LIBRARY_CONFIG.maxUploadMb * 1024 * 1024,
+        ideas: WRITING.ideas,
         tools: [
           { name: "transcription", label: "Transcription", ready: true, model: MODEL(LIBRARY_CONFIG.whisperModel), detail: "Speech is transcribed in this tab, by Whisper on your computer." },
           { name: "vision", label: "Pictures", ready: false, model: null, detail: NO_VISION },

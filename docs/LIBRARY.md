@@ -60,7 +60,7 @@ opens its item at its moment.
 an item's page from that item. Every answer cites the passages it used as
 `[1]`, `[2]`; a citation opens the item at that moment.
 
-**Make.** On an item: **10 ideas in this style** (new subjects, the same
+**Make.** On an item: **10 ideas in this style** (`TROUPE_LIBRARY_IDEAS`; new subjects, the same
 kind of hook, structure and pace), **Remix the hook** (five openings that
 work the same way), **Cut into short scripts** (a long item into three) and
 **A script for one actor**. Each idea card is a whole script, lines with
@@ -143,6 +143,8 @@ Self-hosted (`.env.example`; every one is optional):
 | `TROUPE_LIBRARY_FRAMES` | `12` | Pictures taken from a video. |
 | `TROUPE_LIBRARY_VISION_FRAMES` | `6` | Of those, how many the vision model reads (about 10 to 20 s each on a laptop CPU). |
 | `TROUPE_LIBRARY_FETCH_TIMEOUT_S` | `60` | Fetching a page. |
+| `TROUPE_LIBRARY_IDEAS` | `10` | How many ideas "ideas in this style" writes (1 to 10); fewer is quicker with a small model on a CPU. |
+| `TROUPE_LIBRARY_WRITE_TIMEOUT_S` | `300` | The longest one writing request may take, all its model calls together: a chat answer, a set of ideas, an item's analysis. Past it the request stops and says so ("try again, or ask for fewer"); ideas already written are kept. |
 | `TROUPE_LIBRARY_ALLOW_PRIVATE_URLS` | `0` | `1` also fetches links to this machine and your network (never link-local or cloud metadata addresses). |
 | `TROUPE_YTDLP_PATH` | `yt-dlp` | The yt-dlp program; `off` turns links to video platforms off. |
 | `TROUPE_YTDLP_PROXY` | unset | A proxy for yt-dlp's requests (`http://…`, `socks5://…`): see [Security](#security). |

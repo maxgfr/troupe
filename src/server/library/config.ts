@@ -25,6 +25,9 @@ export interface LibraryEnvironment {
   fetchTimeoutMs: number;
   allowPrivateUrls: boolean;
   // yt-dlp, or null when video links are off (TROUPE_YTDLP_PATH=off).
+  // TROUPE_LIBRARY_WRITE_TIMEOUT_S and TROUPE_LIBRARY_IDEAS.
+  writeTimeoutMs: number;
+  ideas: number;
   ytDlpPath: string | null;
   // A proxy for yt-dlp's requests (TROUPE_YTDLP_PROXY).
   ytDlpProxy: string | null;
@@ -61,6 +64,8 @@ export function libraryEnvironment(env: Env = process.env): LibraryEnvironment {
     ollamaTimeoutMs: number(env.TROUPE_LIBRARY_OLLAMA_TIMEOUT_S, 300, 10, 3600) * 1000,
     fetchTimeoutMs: number(env.TROUPE_LIBRARY_FETCH_TIMEOUT_S, 60, 5, 3600) * 1000,
     allowPrivateUrls: on(env.TROUPE_LIBRARY_ALLOW_PRIVATE_URLS, false),
+    writeTimeoutMs: number(env.TROUPE_LIBRARY_WRITE_TIMEOUT_S, 300, 30, 3600) * 1000,
+    ideas: Math.round(number(env.TROUPE_LIBRARY_IDEAS, 10, 1, 10)),
     ytDlpPath: /^(off|none|0)$/i.test(env.TROUPE_YTDLP_PATH?.trim() ?? "") ? null : env.TROUPE_YTDLP_PATH?.trim() || "yt-dlp",
     ytDlpProxy: env.TROUPE_YTDLP_PROXY?.trim() || null,
     ffmpegPath: env.FFMPEG_PATH?.trim() || "ffmpeg",

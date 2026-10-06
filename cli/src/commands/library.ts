@@ -213,7 +213,7 @@ const generate: Command = {
   options: {
     item: { type: "string", multiple: true, value: "<item>", description: "An item to work from (repeat for several)." },
     kind: { type: "string", value: "<kind>", description: `${IDEA_KINDS.join(", ")} (default ideas).` },
-    count: { type: "string", value: "<n>", description: "How many (1 to 10; default 10 ideas, 5 remixes, 3 cuts)." },
+    count: { type: "string", value: "<n>", description: "How many (1 to 10; default: the studio's TROUPE_LIBRARY_IDEAS ideas, 10 unless set; 5 remixes, 3 cuts)." },
     actor: { type: "string", value: "<actor>", description: "With --kind script: the actor who will say it." },
     duration: { type: "string", value: "<seconds>", description: "How long each script lasts (default 20, or the default video model's longest clip when shorter)." },
     brief: { type: "string", value: "<text>", description: "What you want, in your words." },

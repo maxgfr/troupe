@@ -116,6 +116,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
         await runLibraryQueue(db, () => tools(), {
           maxFrames: env.frames,
           visionFrames: env.visionFrames,
+          writeTimeoutMs: env.writeTimeoutMs,
           removeFiles: removeLibraryFiles,
           log: (event) => console.info(JSON.stringify(event)),
         });
@@ -129,6 +130,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
 
   return {
     edition: "self-hosted",
+    writing: { timeoutMs: env.writeTimeoutMs, ideas: env.ideas },
     tools: () => tools(),
     schedule,
     async status(): Promise<LibraryStatus> {
@@ -138,6 +140,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
       return {
         edition: "self-hosted",
         maxUploadBytes: env.maxUploadBytes,
+        ideas: env.ideas,
         tools: [
           line("transcription", "Transcription", t.transcriber, p.transcriber.ok ? p.transcriber.model : null, "Speech in videos and sound files is transcribed by the stack's renderer."),
           line("vision", "Pictures", t.vision, env.visionModel, "Frames are described, and their on-screen text read, by Ollama."),

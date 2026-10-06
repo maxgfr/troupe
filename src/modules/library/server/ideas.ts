@@ -113,37 +113,45 @@ export async function generateIdeas(
     voice: voice.profile,
     brief: input.brief?.trim() || null,
   });
-  const answer = await ask(input.writer, turns, ideasSchema(), (raw) => {
+  // Each script has at most `budget` words: the answer is bounded to what
+  // that many ideas take in JSON (about 110 tokens of keys, title, hook,
+  // roles and emotions, and 1.4 tokens a word), so a small model that
+  // rambles stops early instead of writing for minutes.
+  const budget = Math.max(8, Math.floor(input.durationS * input.wordsPerSecond));
+  const maxTokens = 200 + count * (110 + Math.ceil(budget * 1.4));
+  const readSome = (raw: unknown) => {
     const read = readIdeas(raw, count);
     return read.length > 0 ? read : null;
-  }, {
+  };
+  const answer = await ask(input.writer, turns, ideasSchema(), readSome, {
     signal: input.signal,
-    maxTokens: 400 + count * 220,
+    maxTokens,
     repair: `That answer cannot be used: "ideas" must hold ${count} different item${count === 1 ? "" : "s"}, each a short script of two to six lines. Answer again with only the JSON object.`,
+    // An answer cut off by the token limit still holds its complete ideas.
+    salvage: (text) => {
+      const raw = parseJsonAnswer(text) ?? completeItems(text, "ideas");
+      return raw ? readSome(raw) : null;
+    },
   });
   let ideas = answer.value ?? [];
-  if (ideas.length === 0 && answer.text) {
-    // An answer cut off by the token limit still holds its complete ideas.
-    const raw = parseJsonAnswer(answer.text) ?? completeItems(answer.text, "ideas");
-    ideas = raw ? readIdeas(raw, count) : [];
-  }
   // Over the clip's word budget, a script cannot render at that length: when
   // every idea runs well past it, ask once more with the budget spelled out,
-  // then list the ideas that fit first.
-  const budget = Math.max(8, Math.floor(input.durationS * input.wordsPerSecond));
+  // then list the ideas that fit first. When the time limit ends that ask,
+  // the ideas already written are kept.
   const fits = (idea: WrittenIdea) => countWords(idea.lines) <= Math.ceil(budget * 1.25);
   if (ideas.length > 0 && !ideas.some(fits)) {
-    const shorter = await ask(
-      input.writer,
-      [...turns, { role: "assistant", content: answer.text }, { role: "user", content: `Those scripts are too long for ${input.durationS} seconds: each must have at most ${budget} words in all. Write the ${count} idea${count === 1 ? "" : "s"} again, much shorter, as the same JSON object.` }],
-      ideasSchema(),
-      (raw) => {
-        const read = readIdeas(raw, count);
-        return read.length > 0 ? read : null;
-      },
-      { signal: input.signal, maxTokens: 400 + count * 220 },
-    );
-    if (shorter.value?.some(fits)) ideas = shorter.value;
+    try {
+      const shorter = await ask(
+        input.writer,
+        [...turns, { role: "assistant", content: answer.text }, { role: "user", content: `Those scripts are too long for ${input.durationS} seconds: each must have at most ${budget} words in all. Write the ${count} idea${count === 1 ? "" : "s"} again, much shorter, as the same JSON object.` }],
+        ideasSchema(),
+        readSome,
+        { signal: input.signal, maxTokens },
+      );
+      if (shorter.value?.some(fits)) ideas = shorter.value;
+    } catch (error) {
+      if (!input.signal?.aborted) throw error;
+    }
   }
   ideas = [...ideas.filter(fits), ...ideas.filter((idea) => !fits(idea))];
   if (ideas.length === 0) {

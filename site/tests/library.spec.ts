@@ -12,6 +12,10 @@ const APP = "/troupe/app";
 const CLIP = fileURLToPath(new URL("fixtures/library-clip.mp4", import.meta.url));
 // The first run downloads the models; a CI runner's CPU is slow too.
 const ANALYSIS = { timeout: 8 * 60_000 };
+// A fresh browser profile starts the studio's database and runs every
+// migration before the page knows its workspace: 25 s on one loaded CPU,
+// as long as smoke.spec.ts allows. The heading shows before that.
+const FIRST_BOOT = { timeout: 60_000 };
 
 test.setTimeout(12 * 60_000);
 
@@ -29,7 +33,7 @@ test("upload a video → pictures, transcript and hook in the page → search by
   await page.goto(`${APP}/library`);
   await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible({ timeout: 60_000 });
   // Links need a server; the page says so instead of offering them.
-  await expect(page.getByPlaceholder("Paste a text, or upload a file")).toBeVisible();
+  await expect(page.getByPlaceholder("Paste a text, or upload a file")).toBeVisible(FIRST_BOOT);
   await expect(page.getByText(/Everything stays in this browser/)).toBeVisible();
   // What cannot run here says so: pictures need a vision model, links a server.
   const tools = page.getByRole("button", { expanded: false }).filter({ hasText: "not ready" });

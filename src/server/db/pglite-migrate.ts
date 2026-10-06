@@ -42,23 +42,38 @@ type Tx = Pick<PGliteInterface, "exec" | "query">;
 const byName = (migrations: readonly Migration[]) =>
   [...migrations].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
-async function apply(tx: Tx, migration: Migration) {
-  for (const statement of migration.sql.split("--> statement-breakpoint")) {
-    const sql = statement.trim();
-    if (sql) await tx.exec(sql);
-  }
-  await tx.query("insert into troupe_static_migrations (name) values ($1)", [migration.name]);
+const literal = (text: string) => `'${text.replaceAll("'", "''")}'`;
+
+// Migrations, each followed by its record in the ledger, as one script: a
+// single call to the database whatever their number. In the browser every call
+// crosses to the database's worker, so a first visit, which applies them all,
+// stays one call. Statements are split on their own lines, so a trailing
+// comment cannot swallow the separator.
+function script(migrations: readonly Migration[]): string {
+  return migrations
+    .flatMap((migration) => [
+      ...migration.sql
+        .split("--> statement-breakpoint")
+        .map((statement) => statement.trim())
+        .filter(Boolean),
+      `insert into troupe_static_migrations (name) values (${literal(migration.name)})`,
+    ])
+    .join("\n;\n");
 }
 
-// Applies the migrations not recorded yet, each in its own transaction.
-// Returns the names it applied, in order.
+async function apply(tx: Tx, migrations: readonly Migration[]) {
+  if (migrations.length > 0) await tx.exec(script(migrations));
+}
+
+// Applies the migrations not recorded yet, in one transaction: all of them or,
+// when one fails, none. Returns the names it applied, in order.
 export async function migratePglite(pg: Pg, migrations: readonly Migration[]): Promise<string[]> {
   await pg.exec(AUTH_PREAMBLE);
   const done = new Set(
     (await pg.query<{ name: string }>("select name from troupe_static_migrations")).rows.map((r) => r.name),
   );
   const pending = byName(migrations.filter((m) => !done.has(m.name)));
-  for (const migration of pending) await pg.transaction((tx) => apply(tx, migration));
+  if (pending.length > 0) await pg.transaction((tx) => apply(tx, pending));
   await pg.exec(GRANTS);
   return pending.map((m) => m.name);
 }
@@ -71,7 +86,7 @@ export async function rebuildPglite(pg: Pg, migrations: readonly Migration[]): P
   await pg.transaction(async (tx) => {
     await tx.exec("drop schema public cascade; create schema public;");
     await tx.exec(AUTH_PREAMBLE);
-    for (const migration of all) await apply(tx, migration);
+    await apply(tx, all);
     await tx.exec(GRANTS);
   });
   return all.map((m) => m.name);
@@ -169,7 +184,10 @@ export async function restorePglite(
   await pg.transaction(async (tx) => {
     await tx.exec("drop schema public cascade; create schema public;");
     await tx.exec(AUTH_PREAMBLE);
-    for (const migration of all.filter((m) => recorded.has(m.name))) await apply(tx, migration);
+    await apply(
+      tx,
+      all.filter((m) => recorded.has(m.name)),
+    );
     const tables = await publicTables(tx);
     const missing = Object.keys(snapshot.tables).filter((name) => !tables.includes(name));
     if (missing.length > 0)
@@ -187,7 +205,7 @@ export async function restorePglite(
     }
     await tx.exec("set local session_replication_role = origin");
     await checkForeignKeys(tx);
-    for (const migration of later) await apply(tx, migration);
+    await apply(tx, later);
     await tx.exec(GRANTS);
   });
   return later.map((m) => m.name);

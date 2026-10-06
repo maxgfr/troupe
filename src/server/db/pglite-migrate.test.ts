@@ -91,6 +91,34 @@ describe("PGlite migrations", () => {
     expect(open.rows.map((r) => r.relname)).toEqual([]);
   });
 
+  // In the browser each call crosses to the database's worker and a committed
+  // transaction is written back to IndexedDB: a first visit, which has every
+  // migration to apply, pays for one batch, not one per statement.
+  it("applies every pending migration in one call to the database", async () => {
+    pg = new PGlite();
+    const db = pg;
+    let calls = 0;
+    type Calls = Pick<PGlite, "exec" | "query">;
+    const counted = (target: Calls): Calls => ({
+      exec: (sql, options) => {
+        calls++;
+        return target.exec(sql, options);
+      },
+      query: (sql, params, options) => {
+        calls++;
+        return target.query(sql, params, options);
+      },
+    });
+    const all = readMigrations();
+    await migratePglite(
+      { ...counted(db), transaction: (fn) => db.transaction((tx) => fn(counted(tx) as typeof tx)) },
+      all,
+    );
+    expect(await recorded(db)).toEqual(all.map((m) => m.name));
+    // The auth preamble, the ledger read, the migrations, the grants.
+    expect(calls).toBe(4);
+  });
+
   it("rolls back a failing migration entirely and does not record it", async () => {
     pg = new PGlite();
     const broken = {

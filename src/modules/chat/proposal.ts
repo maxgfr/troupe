@@ -83,15 +83,24 @@ export const StoredProposal = z.object({
 // What the actor says, as plain text: small models like to add Markdown
 // emphasis, which the voice would read and the captions would show.
 // A bracketed role or emotion copied from the prompt ("[hook, excited]") goes
-// too, and so do emoji (with their skin tones and joiners): there is nothing
-// in them to say.
+// too.
 const TAG = new RegExp(`\\[[^\\]]*\\b(?:${[...LINE_ROLES, ...SUPPORTED_EMOTIONS].join("|")})\\b[^\\]]*\\]`, "gi");
+
+// So do emoji, whole: a pictograph or a regional-indicator letter (two make a
+// flag) or a keycap ("1️⃣"), with what rides on it (presentation selector,
+// skin tone, the tags of a flag like England's) and the joiner to the next
+// pictograph ("👩‍💻"). There is nothing in them to say. A joiner inside a word
+// (Hindi's "क्‍ष") is not touched, nor are ©, ® and ™, which belong to the
+// names they follow; ✔ and ♥ go.
+const EMOJI = /(?:[#*0-9]\uFE0F?\u20E3|(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|[\u{E0020}-\u{E007F}]|\u200D(?=\p{Extended_Pictographic}))*/gu;
 
 export function spoken(text: string): string {
   return text
     .replace(TAG, "")
     .replace(/[*`]+/g, "")
-    .replace(/\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f/gu, "")
+    .replace(EMOJI, "")
+    // A presentation selector left on a kept sign ("©️") shows nothing.
+    .replace(/\uFE0F/g, "")
     .replace(/^\s*(?:[-•]|#+)\s+/, "")
     .replace(/\s+/g, " ")
     .trim();

@@ -74,6 +74,11 @@ describe("reading the model's answer", () => {
     const check = checkProposal({ summary: "Warmer", lines: [{ role: "hook", text: "Grab a cold brew today! ☕", emotion: "happy" }, { role: "cta", text: "Warm up 🥂 with us 👋🏽 ❤️", emotion: "happy" }], actor: null }, context);
     expect(check.ok && check.proposal.lines.map((l) => l.text)).toEqual(["Grab a cold brew today!", "Warm up with us"]);
     expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "🔥🔥", emotion: "neutral" }], actor: null }, context)).toEqual({ ok: false, problem: "a line has no words to say" });
+    // Flags, keycaps and tag-sequence flags go whole; a zero-width joiner
+    // inside a word (Hindi's क्‍ष) stays.
+    expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "Bonjour 🇫🇷 tout le monde 1️⃣ 🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F} 👩‍💻 fin", emotion: "happy" }, { role: "cta", text: "क्\u200dष नमस्ते", emotion: "happy" }], actor: null }, context)).toMatchObject({ proposal: { lines: [{ text: "Bonjour tout le monde fin" }, { text: "क्\u200dष नमस्ते" }] } });
+    // Trademark signs belong to names and stay; ticks and hearts are not said.
+    expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "Troupe™ and Acme® ©2026 ✔ ♥ done ✔️", emotion: "happy" }], actor: null }, context)).toMatchObject({ proposal: { lines: [{ text: "Troupe™ and Acme® ©2026 done" }] } });
     // Digits, symbols and accents are words the voice says.
     expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "Café #1: 2 × 50 % off", emotion: "neutral" }], actor: null }, context)).toMatchObject({ proposal: { lines: [{ text: "Café #1: 2 × 50 % off" }] } });
   });

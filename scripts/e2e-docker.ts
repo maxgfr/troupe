@@ -9,9 +9,13 @@
 //   pnpm e2e:docker -- --project studio   # extra arguments go to Playwright
 //
 // Settings (all optional):
-//   E2E_PROJECT       Compose project name (troupe-e2e); only its volumes are deleted
-//   E2E_TAG           tag of the images it builds (local); give each checkout its own
-//                     tag, project and ports to run two stacks side by side
+//   E2E_PROJECT       Compose project name (troupe-e2e); only its volumes are deleted.
+//                     It also names the images' tag and the browser profile below,
+//                     so two checkouts with their own project (and ports) never share
+//                     an image or a profile
+//   E2E_TAG           tag of the images it builds (local, or E2E_PROJECT when set)
+//   RENDER_PROFILE    the Chrome profile of the in-browser render, kept between runs
+//                     (troupe-render-profile-<project> in the temp directory)
 //   E2E_APP_PORT      studio port on 127.0.0.1 (3190)
 //   E2E_WEB_PORT      browser edition port on 127.0.0.1 (3191)
 //   E2E_OLLAMA_MODEL  the chat model (qwen2.5:0.5b, about 400 MB)
@@ -27,6 +31,7 @@
 
 import { spawn } from "node:child_process";
 import { chmodSync, createWriteStream, mkdirSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const REPO = resolve(import.meta.dirname, "..");
@@ -60,7 +65,10 @@ const WITH_CLI = ["--profile", "cli"];
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   E2E_CACHE_DIR: CACHE,
-  E2E_TAG: process.env.E2E_TAG || "local",
+  // "local" for the default project, as docker-compose.test.yml and CI's bake expect.
+  E2E_TAG: process.env.E2E_TAG || process.env.E2E_PROJECT || "local",
+  // A Chrome profile is locked by the browser that has it open: one per project.
+  RENDER_PROFILE: process.env.RENDER_PROFILE || join(tmpdir(), `troupe-render-profile-${PROJECT}`),
   E2E_APP_PORT: APP_PORT,
   E2E_WEB_PORT: WEB_PORT,
   E2E_APP_URL: `http://127.0.0.1:${APP_PORT}`,

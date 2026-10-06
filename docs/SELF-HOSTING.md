@@ -343,7 +343,12 @@ checkout, starts the stack under its own Compose project (`troupe-e2e`, ports
   WebGPU.
 
 It then deletes that project's containers and volumes, never another's.
-Model downloads are kept in `.cache/e2e` between runs. `E2E_KEEP=1` leaves the
+Model downloads are kept in `.cache/e2e` between runs. To run two checkouts
+at once, give each its own project and ports, for example
+`E2E_PROJECT=troupe-e2e-b E2E_APP_PORT=3290 E2E_WEB_PORT=3291 pnpm e2e:docker`:
+the project also names the images' tag and the Chrome profile of the
+in-browser render (`troupe-render-profile-<project>` in the temp directory),
+so the two runs never share an image or a locked profile. `E2E_KEEP=1` leaves the
 stack running; [scripts/e2e-docker.ts](../scripts/e2e-docker.ts) lists the
 other settings. CI runs it on every push (`docker-e2e` in
 [ci.yml](../.github/workflows/ci.yml)), with the images and model downloads

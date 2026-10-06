@@ -52,8 +52,10 @@ opening Settings. Add API keys or GPU models there when you want them. The
 browser edition is at <http://localhost:3101/troupe/>, and the CLI runs in the
 stack: `docker compose run --rm cli doctor`.
 
-`docker compose up` pulls the published images (`ghcr.io/maxgfr/troupe*`); to
-build them from your checkout, add `--build`. Another port or project name
+`docker compose up` pulls the published images (`ghcr.io/maxgfr/troupe*`,
+from the first tagged release on) and builds them from your checkout when
+they cannot be pulled, which adds several minutes to the first start; add
+`--build` to always build them. Another port or project name
 for a second stack: `TROUPE_PORT=3200 TROUPE_WEB_PORT=3201 docker compose -p
 troupe-2 up -d --wait`. The
 [self-hosting guide](docs/SELF-HOSTING.md) covers the services, profiles (CLI,

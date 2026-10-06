@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cleanTags, readChatAnswer, readIdeas, readInsights } from "./prompts";
+import { cleanTags, completeItems, readChatAnswer, readIdeas, readInsights } from "./prompts";
 
 describe("readInsights", () => {
   const answer = (starts: (number | null)[]) => ({ summary: "S.", hook_why: "W.", structure: starts.map((s, i) => ({ part: i === 0 ? "hook" : "body", start_s: s, summary: `Part ${i}` })), tone: ["Calm"], tags: ["#Coffee", "coffee", "Cold Brew"] });
@@ -43,5 +43,17 @@ describe("readIdeas", () => {
     const one = { title: "T", hook: "H", lines: [{ role: "hook", text: "H", emotion: "neutral" }] };
     expect(readIdeas({ ideas: [one, one, one] }, 2)).toHaveLength(2);
     expect(readIdeas({ summary: "x" }, 2)).toEqual([]);
+  });
+});
+
+describe("completeItems", () => {
+  it("keeps the complete objects of a list cut off mid-way", () => {
+    const cut = '{"ideas": [{"title": "A", "lines": [{"text": "x {not a brace}"}]}, {"title": "B \\"quoted\\"", "lines": []}, {"title": "C", "lines": [{"te';
+    expect(completeItems(cut, "ideas")).toEqual({ ideas: [{ title: "A", lines: [{ text: "x {not a brace}" }] }, { title: 'B "quoted"', lines: [] }] });
+  });
+
+  it("finds nothing without the list or a complete item", () => {
+    expect(completeItems('{"other": []}', "ideas")).toBeNull();
+    expect(completeItems('{"ideas": [{"title": "A"', "ideas")).toBeNull();
   });
 });

@@ -244,4 +244,16 @@ describe("the inspiration library", () => {
     const [black, shot, other] = await t.db.insert(mediaAssets).values([1200, 24_000, 21_000].map((bytes, i) => ({ workspaceId, kind: "frame" as const, storagePath: `library/${item.id}/f${i}.jpg`, mimeType: "image/jpeg", bytes, checksum: "x", meta: { itemId: item.id } }))).returning();
     expect(await thumbnailOf(t.db, [black!, shot!, other!].map((f, i) => ({ assetId: f.id, atS: i })))).toBe(shot!.id);
   });
+
+  it("keeps the complete ideas of an answer cut off by the token limit, after asking again with the problem", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
+    const cut = '{"ideas": [{"title": "Jar test", "hook": "Got a jar?", "lines": [{"role": "hook", "text": "Got a jar?", "emotion": "excited"}, {"role": "cta", "text": "Try it tonight.", "emotion": "happy"}]}, {"title": "Half';
+    const seen: ChatTurn[][] = [];
+    const truncating = { async propose(messages: ChatTurn[]) { seen.push(messages); return { text: cut, proposal: null }; } };
+    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 20, wordsPerSecond: 2.5, writer: { model: truncating, provider: "ollama", modelId: "tiny" } });
+    expect(ideas.map((i) => i.title)).toEqual(["Jar test"]);
+    expect(seen).toHaveLength(2);
+    expect(seen[1]!.at(-1)!.content).toContain('"ideas" must hold 3 different items');
+  });
 });

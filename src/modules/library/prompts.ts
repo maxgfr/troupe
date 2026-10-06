@@ -329,6 +329,43 @@ const IdeaAnswer = z.object({
     .max(20),
 });
 
+// The complete objects of `key`'s list in an answer cut off mid-way (a
+// small model that ran out of tokens): `{ [key]: [...complete objects] }`,
+// or null when there is none. Strings are skipped so braces inside them do
+// not count.
+export function completeItems(text: string, key: string): Record<string, unknown[]> | null {
+  const start = new RegExp(`"${key}"\\s*:\\s*\\[`).exec(text);
+  if (!start) return null;
+  const items: unknown[] = [];
+  let depth = 0;
+  let from = -1;
+  let inString = false;
+  for (let i = start.index + start[0].length; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "{") {
+      if (depth === 0) from = i;
+      depth++;
+    } else if (c === "}") {
+      depth--;
+      if (depth === 0 && from >= 0) {
+        try {
+          items.push(JSON.parse(text.slice(from, i + 1)));
+        } catch {
+          // A malformed item is skipped; the next one may be fine.
+        }
+        from = -1;
+      }
+    } else if (c === "]" && depth === 0) break;
+  }
+  return items.length ? { [key]: items } : null;
+}
+
 export interface WrittenIdea {
   title: string;
   hook: string;

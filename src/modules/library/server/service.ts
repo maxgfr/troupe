@@ -10,6 +10,7 @@ import { createProjectFromWizard, formatOptionsFor, type Platform } from "~/modu
 import { LibraryError, type Citation, type ClaimedUpload, type Embedder, type ItemAnalysis, type ItemKind, type ItemStatus, type Tool } from "../model";
 import {
   buildIdeasPrompt,
+  completeItems,
   buildLibraryChatPrompt,
   chatAnswerSchema,
   CHAT_SOURCE_CHARS,
@@ -392,12 +393,12 @@ async function passagesFor(db: Db, input: { workspaceId: string; itemId?: string
 }
 
 // One answer in the schema, with one more try when it cannot be read.
-async function ask<T>(writer: Writer, turns: ChatTurn[], schema: Parameters<ChatModel["propose"]>[1]["schema"], read: (raw: unknown) => T | null, options: { signal?: AbortSignal; maxTokens?: number }): Promise<{ text: string; value: T | null }> {
+async function ask<T>(writer: Writer, turns: ChatTurn[], schema: Parameters<ChatModel["propose"]>[1]["schema"], read: (raw: unknown) => T | null, options: { signal?: AbortSignal; maxTokens?: number; repair?: string }): Promise<{ text: string; value: T | null }> {
   const first = await writer.model.propose(turns, { schema, signal: options.signal, maxTokens: options.maxTokens });
   const firstValue = first.proposal === null ? null : read(first.proposal);
   if (firstValue !== null) return { text: first.text, value: firstValue };
   const second = await writer.model.propose(
-    [...turns, { role: "assistant", content: first.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object, following the same rules." }],
+    [...turns, { role: "assistant", content: first.text }, { role: "user", content: options.repair ?? "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object, following the same rules." }],
     { schema, signal: options.signal, maxTokens: options.maxTokens },
   );
   const secondValue = second.proposal === null ? null : read(second.proposal);
@@ -545,10 +546,15 @@ export async function generateIdeas(
   const answer = await ask(input.writer, turns, ideasSchema(), (raw) => {
     const read = readIdeas(raw, count);
     return read.length > 0 ? read : null;
-  }, { signal: input.signal, maxTokens: 400 + count * 220 });
+  }, {
+    signal: input.signal,
+    maxTokens: 400 + count * 220,
+    repair: `That answer cannot be used: "ideas" must hold ${count} different item${count === 1 ? "" : "s"}, each a short script of two to six lines. Answer again with only the JSON object.`,
+  });
   let ideas = answer.value ?? [];
-  if (ideas.length === 0) {
-    const raw = answer.text ? parseJsonAnswer(answer.text) : null;
+  if (ideas.length === 0 && answer.text) {
+    // An answer cut off by the token limit still holds its complete ideas.
+    const raw = parseJsonAnswer(answer.text) ?? completeItems(answer.text, "ideas");
     ideas = raw ? readIdeas(raw, count) : [];
   }
   if (ideas.length === 0) {

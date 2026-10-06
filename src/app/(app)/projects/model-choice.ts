@@ -69,8 +69,10 @@ export type ComparisonPlan =
 // Up to three models that share a duration and a resolution fitting the
 // script. The length follows Launch's rule with the first model's default.
 export function comparisonPlan(options: ModelOptionView[], estimatedS: number): ComparisonPlan {
-  const candidates = options.filter(usable);
-  if (candidates.length < 2) return { ok: false, reason: "Comparing needs at least two available models for this format." };
+  // A model none of whose clips holds the script cannot take part, and must
+  // not keep the others from being compared.
+  const candidates = options.filter((o) => usable(o) && o.capabilities.durationsS.some((d) => d >= estimatedS));
+  if (candidates.length < 2) return { ok: false, reason: "Comparing needs at least two available models for this format whose clips hold this script." };
   for (let size = Math.min(3, candidates.length); size >= 2; size--) {
     const group = candidates.slice(0, size);
     const durations = group[0]!.capabilities.durationsS.filter((d) => d >= estimatedS && group.every((o) => o.capabilities.durationsS.includes(d)));

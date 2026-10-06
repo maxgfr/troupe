@@ -62,6 +62,12 @@ describe("comparisonPlan", () => {
     expect(comparisonPlan([option("a"), option("b"), option("c", {}, { durationsS: [5] })], 2)).toMatchObject({ ok: true, modelKeys: ["a", "b"] });
     expect(comparisonPlan([option("a")], 2)).toMatchObject({ ok: false });
   });
+
+  it("leaves out a model whose clips are all shorter than the script, so it never blocks the others", () => {
+    // A 5 s clip model (the renderer's AI video mode) listed second, an 8 s script.
+    const plan = comparisonPlan([option("renderer"), option("ltx", {}, { durationsS: [5] }), option("renderer-b")], 8);
+    expect(plan).toEqual({ ok: true, modelKeys: ["renderer", "renderer-b"], durationS: 8, resolution: "720p" });
+  });
 });
 
 describe("formatCost", () => {

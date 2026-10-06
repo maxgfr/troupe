@@ -4,93 +4,127 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useEdition } from "./edition";
+import { ActorsIcon, CompareIcon, LibraryIcon, PlusIcon, ProjectsIcon, SettingsIcon } from "./icons";
 import { DeleteLocalData } from "./local-data";
+import { Shortcuts } from "./shortcuts";
+import { StageProvider } from "./stage";
+import { Button, ButtonLink, ErrorNote } from "./ui";
 import { Wordmark } from "./wordmark";
 import { useWorkspace } from "./workspace-context";
-import { ErrorNote } from "./ui";
 
-// Personal studio navigation. Project tools stay within each project. On
-// phones the wordmark leads to the dashboard and its own link leaves the
-// row, so the bar keeps one row down to 360 px.
+// The studio's navigation (docs/PRODUCT-MAP.md): the four sections in the
+// top bar, New project and Settings on its right. On phones the sections
+// move to a tab bar at the bottom, within reach of a thumb, and the top bar
+// keeps the wordmark, New project and Settings.
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", phone: false },
-  { href: "/library", label: "Library", phone: true },
-  { href: "/actors", label: "Actors", phone: true },
-  { href: "/benchmark", label: "Benchmark", phone: true },
+  { href: "/dashboard", label: "Projects", Icon: ProjectsIcon, also: ["/projects"] },
+  { href: "/library", label: "Library", Icon: LibraryIcon, also: [] },
+  { href: "/actors", label: "Actors", Icon: ActorsIcon, also: [] },
+  { href: "/benchmark", label: "Compare", Icon: CompareIcon, also: [] },
 ] as const;
 
-// Three sliders: the studio's settings, on phones where the name does not fit.
-function SettingsIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="size-[18px] sm:hidden">
-      <path d="M3 5h14M3 10h14M3 15h14" opacity="0.55" />
-      <circle cx="7" cy="5" r="1.9" fill="currentColor" />
-      <circle cx="13" cy="10" r="1.9" fill="currentColor" />
-      <circle cx="9" cy="15" r="1.9" fill="currentColor" />
-    </svg>
-  );
+function isActive(pathname: string, item: (typeof NAV)[number]): boolean {
+  return [item.href, ...item.also].some((href) => pathname === href || pathname.startsWith(`${href}/`)) && pathname !== "/projects/new";
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const workspace = useWorkspace();
   const edition = useEdition();
+  const settingsActive = pathname.startsWith("/settings");
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">Skip to content</a>
-      <header className="sticky top-0 z-20 border-b border-muted/20 bg-surface">
-        {/* One row down to 360 px: tighter steps, and an icon for Settings, on phones. */}
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 max-[380px]:gap-1 sm:gap-3 sm:px-6 sm:py-3">
-          <div className="flex min-w-0 items-center gap-2 max-[380px]:gap-1 sm:gap-8">
-            <Wordmark href="/dashboard" />
-            <nav aria-label="Primary" className="flex items-center sm:gap-1">
-              {NAV.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
+    <div className="relative isolate flex min-h-dvh flex-col">
+      <StageProvider>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">
+          Skip to content
+        </a>
+        <header className="sticky top-0 z-30 bg-bg/75 shadow-[0_1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150">
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
+            <div className="flex min-w-0 items-center gap-6 lg:gap-8">
+              <Wordmark href="/dashboard" />
+              <nav aria-label="Primary" className="flex items-center gap-1 max-sm:hidden">
+                {NAV.map((item) => {
+                  const active = isActive(pathname, item);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex min-h-10 items-center rounded-lg px-3 text-sm font-medium transition-colors duration-150 ${
+                        active ? "bg-fg/[0.08] text-fg" : "text-muted hover:text-fg"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <ButtonLink href="/projects/new" variant="primary" size="sm" className="max-sm:size-10 max-sm:px-0">
+                <PlusIcon className="size-4" />
+                <span className="max-sm:sr-only">New project</span>
+              </ButtonLink>
+              <Link
+                href="/settings"
+                aria-current={settingsActive ? "page" : undefined}
+                className={`flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-medium transition-colors duration-150 sm:px-3 ${
+                  settingsActive ? "bg-fg/[0.08] text-fg" : "text-muted hover:text-fg"
+                }`}
+              >
+                <SettingsIcon className="size-[18px]" />
+                {/* The name stays the link's accessible name on phones too. */}
+                <span className="max-sm:sr-only">Settings</span>
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <main id="main-content" tabIndex={-1} key={pathname} className="page-in mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 outline-none sm:px-6 sm:pt-10 sm:pb-16">
+          {workspace.status === "error" || workspace.status === "empty" ? (
+            <div className="max-w-2xl space-y-4">
+              <ErrorNote>{workspace.status === "error" ? `The studio could not load: ${workspace.message}` : "The personal studio could not be initialized."}</ErrorNote>
+              <Button variant="primary" onClick={() => window.location.reload()}>
+                Reload studio
+              </Button>
+              {edition.kind === "browser" ? (
+                <div className="space-y-2 border-t border-line pt-4">
+                  <p className="max-w-[65ch] text-sm text-muted">If reloading does not help, the data saved in this browser may be damaged. Deleting it starts an empty studio.</p>
+                  <DeleteLocalData deleteAll={edition.data.deleteAll} />
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+
+        {/* Phones: the sections, at the bottom of the screen. */}
+        <nav
+          aria-label="Sections"
+          className="fixed inset-x-0 bottom-0 z-30 bg-bg/85 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
+        >
+          <ul className="mx-auto grid max-w-md grid-cols-4">
+            {NAV.map((item) => {
+              const active = isActive(pathname, item);
+              return (
+                <li key={item.href}>
                   <Link
-                    key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`${item.phone ? "flex" : "max-sm:hidden sm:flex"} min-h-11 items-center rounded-lg px-2 text-sm transition-colors duration-150 max-[380px]:px-1.5 max-[380px]:text-[13px] sm:min-h-0 sm:px-3 sm:py-1.5 ${
-                      active
-                        ? "bg-primary/15 font-medium text-primary"
-                        : "text-muted hover:text-fg"
-                    }`}
+                    className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150 ${active ? "text-fg" : "text-muted"}`}
                   >
+                    <item.Icon className={`size-[22px] transition-colors duration-150 ${active ? "text-primary" : ""}`} />
                     {item.label}
                   </Link>
-                );
-              })}
-            </nav>
-          </div>
-          <Link
-            href="/settings"
-            aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-            className={`flex size-11 items-center justify-center rounded-lg text-sm transition-colors duration-150 sm:size-auto sm:px-3 sm:py-1.5 ${
-              pathname.startsWith("/settings") ? "bg-primary/15 font-medium text-primary" : "text-muted hover:text-fg"
-            }`}
-          >
-            <SettingsIcon />
-            {/* The name stays the link's accessible name on phones too. */}
-            <span className="sr-only sm:not-sr-only">{workspace.status === "ready" ? workspace.workspaceName : "Settings"}</span>
-          </Link>
-        </div>
-      </header>
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        {workspace.status === "error" || workspace.status === "empty" ? (
-          <div className="space-y-4">
-            <ErrorNote>{workspace.status === "error" ? `The studio could not load: ${workspace.message}` : "The personal studio could not be initialized."}</ErrorNote>
-            <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 text-sm text-on-primary">Reload studio</button>
-            {edition.kind === "browser" ? (
-              <div className="space-y-2 border-t border-muted/15 pt-4">
-                <p className="max-w-[72ch] text-sm text-muted">If reloading does not help, the data saved in this browser may be damaged. Deleting it starts an empty studio.</p>
-                <DeleteLocalData deleteAll={edition.data.deleteAll} />
-              </div>
-            ) : null}
-          </div>
-        ) : children}
-      </main>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <Shortcuts />
+      </StageProvider>
     </div>
   );
 }

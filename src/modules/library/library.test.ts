@@ -355,8 +355,18 @@ describe("the inspiration library", () => {
     const writer = fakeWriter();
     const counting = { async propose(messages: ChatTurn[], options: Parameters<typeof writer.propose>[1]) { limits.push(options.maxTokens); return writer.propose(messages, options); } };
     await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 3, durationS: 15, wordsPerSecond: 2.5, writer: { model: counting, provider: "ollama", modelId: "tiny" } });
-    // 37 words a script: 110 + 52 tokens an idea, and 200 for the rest.
-    expect(limits).toEqual([686]);
+    // 15 s of speech: 110 + 7 tokens a second an idea, and 200 for the rest.
+    expect(limits).toEqual([200 + 3 * (110 + 105)]);
+    // Japanese, Chinese or Thai have no spaces to count words by: the
+    // allowance follows the seconds of speech, never fewer than 250 tokens
+    // for a 20-second idea.
+    limits.length = 0;
+    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, language: "ja", writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    expect(limits).toEqual([200 + 2 * 250]);
+    // A fast speaker's word budget wins when it asks for more.
+    limits.length = 0;
+    await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 1, durationS: 10, wordsPerSecond: 6, writer: { model: counting, provider: "ollama", modelId: "tiny" } });
+    expect(limits).toEqual([200 + (110 + 84)]);
   });
 
   it("keeps the ideas it has when the time runs out while asking for shorter ones", async () => {
@@ -384,10 +394,10 @@ describe("the inspiration library", () => {
   it("gives the analysis's writing a time limit, and the item is still read", async () => {
     const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
     const hanging = { async propose(_messages: ChatTurn[], options: { signal?: AbortSignal }) { return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason))); } };
-    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null, writer: { ready: true, tool: hanging, modelId: "tiny", label: "Tiny" } }), { writeTimeoutMs: 200 });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null, writer: { ready: true, tool: hanging, modelId: "tiny", label: "Tiny" } }), { writeTimeoutMs: 200, writeTimeoutSetting: "TROUPE_LIBRARY_WRITE_TIMEOUT_S" });
     const detail = await getItem(t.db, workspaceId, item.id);
     expect(detail.status).toBe("ready");
-    expect(detail.problem).toMatch(/Failed: the hook, structure and tags\. tiny took longer than 1 s to write the analysis/);
+    expect(detail.problem).toMatch(/Failed: the hook, structure and tags\. tiny took longer than 1 s to write the analysis and was stopped \(TROUPE_LIBRARY_WRITE_TIMEOUT_S\)\./);
     expect(detail.embedded).toBeGreaterThan(0);
   });
 

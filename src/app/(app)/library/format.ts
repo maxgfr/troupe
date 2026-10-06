@@ -30,3 +30,12 @@ export function sizeLabel(bytes: number): string {
 }
 
 export const IDEA_LABELS = { ideas: "In this style", remix: "Hook remix", script: "Script", repurpose: "Repurposed" } as const;
+
+const SET_NOUNS = { ideas: "ideas", remix: "hooks", script: "scripts", repurpose: "scripts" } as const;
+
+// A set the model wrote fewer of than asked (an answer cut off by its token
+// or time limit keeps only its complete ideas), said once, or null.
+export function shortfall(asked: number, wrote: number, kind: keyof typeof SET_NOUNS): string | null {
+  if (wrote >= asked) return null;
+  return `Wrote ${wrote} of ${asked} ${SET_NOUNS[kind]}: the model's answer was cut short. Ask again for more.`;
+}

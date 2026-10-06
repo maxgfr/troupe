@@ -209,7 +209,7 @@ const ideas: Command = {
 
 const generate: Command = {
   path: ["library", "ideas", "generate"],
-  summary: "Write idea cards from saved items: ideas in their style (default 10), a remix of a hook, a script for one actor, or a long item cut into short scripts.",
+  summary: "Write idea cards from saved items: ideas in their style (as many as the studio's TROUPE_LIBRARY_IDEAS, 10 unless set), a remix of a hook, a script for one actor, or a long item cut into short scripts.",
   options: {
     item: { type: "string", multiple: true, value: "<item>", description: "An item to work from (repeat for several)." },
     kind: { type: "string", value: "<kind>", description: `${IDEA_KINDS.join(", ")} (default ideas).` },

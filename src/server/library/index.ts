@@ -117,6 +117,7 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
           maxFrames: env.frames,
           visionFrames: env.visionFrames,
           writeTimeoutMs: env.writeTimeoutMs,
+          writeTimeoutSetting: "TROUPE_LIBRARY_WRITE_TIMEOUT_S",
           removeFiles: removeLibraryFiles,
           log: (event) => console.info(JSON.stringify(event)),
         });

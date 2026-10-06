@@ -113,12 +113,14 @@ export async function generateIdeas(
     voice: voice.profile,
     brief: input.brief?.trim() || null,
   });
-  // Each script has at most `budget` words: the answer is bounded to what
-  // that many ideas take in JSON (about 110 tokens of keys, title, hook,
-  // roles and emotions, and 1.4 tokens a word), so a small model that
-  // rambles stops early instead of writing for minutes.
+  // The answer is bounded to what that many ideas take in JSON, so a small
+  // model that rambles stops early instead of writing for minutes: about
+  // 110 tokens of keys, title, hook, roles and emotions an idea, and its
+  // lines: 7 tokens a second of speech (Japanese, Chinese or Thai, which
+  // have no spaces to count words by, take about that), or 1.4 a word of
+  // the budget when a fast speaker's is larger.
   const budget = Math.max(8, Math.floor(input.durationS * input.wordsPerSecond));
-  const maxTokens = 200 + count * (110 + Math.ceil(budget * 1.4));
+  const maxTokens = 200 + count * (110 + Math.ceil(Math.max(input.durationS * 7, budget * 1.4)));
   const readSome = (raw: unknown) => {
     const read = readIdeas(raw, count);
     return read.length > 0 ? read : null;

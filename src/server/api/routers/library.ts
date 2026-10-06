@@ -91,8 +91,6 @@ async function writerOf(chat: { load(): Promise<{ model: Writer["model"] | null;
 // its model calls together: a small model on a slow CPU, or one that
 // rambles to its token limit and is asked again, must not hold the page
 // for ever. Its calls are stopped when the limit passes.
-const DEFAULT_WRITING = { timeoutMs: 300_000, ideas: 10 };
-
 function timeLimit(signal: AbortSignal | undefined, timeoutMs: number) {
   const limit = AbortSignal.timeout(timeoutMs);
   return { timeoutMs, limit, signal: signal ? AbortSignal.any([signal, limit]) : limit };
@@ -259,7 +257,7 @@ export const libraryRouter = createTRPCRouter({
       )
       .mutation(async ({ ctx, input, signal }) => {
         const { writer, wordsPerSecond } = await writerOf(ctx.chat);
-        const writing = ctx.library?.writing ?? DEFAULT_WRITING;
+        const { writing } = backend(ctx.library);
         const defaults = { ideas: writing.ideas, remix: 5, script: 1, repurpose: 3 } as const;
         const timed = timeLimit(signal, writing.timeoutMs);
         try {

@@ -74,7 +74,10 @@ async function signIn(page: Page) {
 const row = (page: Page, title: RegExp): Locator => page.locator("table").getByRole("row", { name: title }).first();
 
 test("upload a video, save an article and a video from links, search, ask, make an idea a project, render it and play it", async ({ page }, testInfo) => {
-  test.setTimeout(60 * 60_000);
+  // CI's docker-e2e job has 60 minutes for everything (images, the other
+  // projects: about 15): this flow gets 30, two tries per model loop of at
+  // most 5 minutes each, and ends with its annotations before the job does.
+  test.setTimeout(30 * 60_000);
   const errors = watchConsole(page);
   const shot = async (name: string) => {
     const path = testInfo.outputPath(`${name}.png`);
@@ -130,7 +133,7 @@ test("upload a video, save an article and a video from links, search, ask, make 
   const sources = chat.getByRole("list", { name: "Sources" });
   const answers = chat.getByRole("article", { name: "Answer" });
   const asked: string[] = [];
-  while (asked.length < 3 && (await sources.count()) === 0) {
+  while (asked.length < 2 && (await sources.count()) === 0) {
     const before = await answers.count();
     await chat.getByLabel("Ask your library").fill("Which saved piece talks about cold brew, and how does it open?");
     await chat.getByRole("button", { name: "Ask" }).click();
@@ -155,7 +158,7 @@ test("upload a video, save an article and a video from links, search, ask, make 
   const cards = page.locator("li").filter({ has: page.getByRole("button", { name: "Create project" }) });
   const fitting = cards.filter({ hasText: /about ([1-9]|1[0-5]) s/ }).getByRole("button", { name: "Create project" });
   const tried: string[] = [];
-  while (tried.length < 3 && (await fitting.count()) === 0) {
+  while (tried.length < 2 && (await fitting.count()) === 0) {
     const before = await cards.count();
     await write.click();
     await expect(page.getByRole("button", { name: "Writing 3 ideas…" })).toBeVisible();

@@ -23,6 +23,9 @@ export interface AnalysisOptions {
   // The longest the writing model may take for an item's analysis (its
   // answer and the one retry): past it, that step fails with the reason.
   writeTimeoutMs?: number;
+  // The setting that changes it, named in the reason (the self-hosted
+  // studio's; the browser edition has none).
+  writeTimeoutSetting?: string;
   removeFiles?: (files: { storagePath: string }[]) => Promise<void>;
   log?: (event: Record<string, unknown>) => void;
 }
@@ -267,7 +270,7 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
         if (insights) step("insights", "done");
         else step("insights", "failed", `${tools.writer.modelId ?? "The model"} did not write a usable analysis.`);
       } catch (error) {
-        if (limit?.aborted && !signal.aborted) step("insights", "failed", `${tools.writer.modelId ?? "The model"} took longer than ${Math.max(1, Math.round(options.writeTimeoutMs! / 1000))} s to write the analysis and was stopped (TROUPE_LIBRARY_WRITE_TIMEOUT_S). Read it again to try once more.`);
+        if (limit?.aborted && !signal.aborted) step("insights", "failed", `${tools.writer.modelId ?? "The model"} took longer than ${Math.max(1, Math.round(options.writeTimeoutMs! / 1000))} s to write the analysis and was stopped${options.writeTimeoutSetting ? ` (${options.writeTimeoutSetting})` : ""}. Read it again to try once more.`);
         else step("insights", "failed", `${tools.writer.modelId ?? "The model"} could not write the analysis: ${message(error)}`);
       }
     }

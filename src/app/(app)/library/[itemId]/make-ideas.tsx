@@ -4,13 +4,17 @@ import { useId, useState } from "react";
 
 import { ErrorNote, Skeleton } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
+import { shortfall } from "../format";
 
 type Kind = "ideas" | "remix" | "script" | "repurpose";
 
-const ACTIONS: { kind: Kind; label: string; busy: string; hint: string }[] = [
-  { kind: "ideas", label: "10 ideas in this style", busy: "Writing 10 ideas…", hint: "New subjects, the same kind of hook, structure and pace." },
-  { kind: "remix", label: "Remix the hook", busy: "Remixing the hook…", hint: "Five openings that work the way this one does." },
-  { kind: "repurpose", label: "Cut into short scripts", busy: "Cutting it up…", hint: "Three scripts, each built on one moment of it." },
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+// The ideas' label names how many a set holds (the studio's setting).
+const ACTIONS: { kind: Kind; label: (n: number) => string; busy: (n: number) => string; hint: string }[] = [
+  { kind: "ideas", label: (n) => `${plural(n, "idea")} in this style`, busy: (n) => `Writing ${plural(n, "idea")}…`, hint: "New subjects, the same kind of hook, structure and pace." },
+  { kind: "remix", label: () => "Remix the hook", busy: () => "Remixing the hook…", hint: "Openings that work the way this one does." },
+  { kind: "repurpose", label: () => "Cut into short scripts", busy: () => "Cutting it up…", hint: "Short scripts, each built on one moment of it." },
 ];
 
 // What the library writes from this item: idea cards, each a whole script
@@ -28,39 +32,46 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
   const available = (actors.data ?? []).filter((a) => a.status === "active");
   const [actorId, setActorId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [short, setShort] = useState<string | null>(null);
   const generate = api.library.ideas.generate.useMutation({
-    onSuccess: () => utils.library.ideas.list.invalidate(),
+    onSuccess: (written, input) => {
+      setShort(shortfall(input.count ?? written.length, written.length, input.kind));
+      return utils.library.ideas.list.invalidate();
+    },
     onError: (e) => setError(e.message),
   });
-  // The studio says how many ideas a set holds (TROUPE_LIBRARY_IDEAS; five
-  // in the browser edition). The browser's small model also writes fewer
-  // remixes and cuts, within its context.
-  const ideaCount = status.data?.ideas ?? (browser ? 5 : 10);
-  const count = (kind: Kind) => (browser && kind !== "ideas" ? { remix: 3, script: 1, repurpose: 2 }[kind] : undefined);
+  // How many a set holds: the studio says it for ideas (TROUPE_LIBRARY_IDEAS,
+  // or the browser edition's); the browser's small model writes fewer
+  // remixes and cuts too, within its context. Asked for explicitly, so a set
+  // cut short can say how many it has.
+  const ideaCount = status.data?.ideas ?? null;
+  const count = (kind: Kind) => ({ ideas: ideaCount ?? 1, remix: browser ? 3 : 5, script: 1, repurpose: browser ? 2 : 3 })[kind];
   const run = (kind: Kind, extra: { actorId?: string } = {}) => {
     setError(null);
-    generate.mutate({ workspaceId, kind, itemIds: [itemId], ...(count(kind) ? { count: count(kind) } : {}), ...extra });
+    setShort(null);
+    generate.mutate({ workspaceId, kind, itemIds: [itemId], count: count(kind), ...extra });
   };
   const pending = generate.isPending ? generate.variables?.kind : null;
-  const label = (a: (typeof ACTIONS)[number]) => {
-    if (a.kind !== "ideas") return pending === a.kind ? a.busy : a.label;
-    return pending === "ideas" ? `Writing ${ideaCount} idea${ideaCount === 1 ? "" : "s"}…` : `${ideaCount} idea${ideaCount === 1 ? "" : "s"} in this style`;
-  };
 
   return (
     <div className="space-y-3">
       <ul className="space-y-2">
         {ACTIONS.map((a) => (
           <li key={a.kind} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <button
-              type="button"
-              aria-describedby={`${hintId}-${a.kind}`}
-              disabled={!usable || generate.isPending}
-              onClick={() => run(a.kind)}
-              className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {label(a)}
-            </button>
+            {/* Until the studio says how many ideas a set holds, no number is guessed. */}
+            {a.kind === "ideas" && ideaCount === null ? (
+              <Skeleton className="h-10 w-44 rounded-lg" />
+            ) : (
+              <button
+                type="button"
+                aria-describedby={`${hintId}-${a.kind}`}
+                disabled={!usable || generate.isPending}
+                onClick={() => run(a.kind)}
+                className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {pending === a.kind ? a.busy(count(a.kind)) : a.label(count(a.kind))}
+              </button>
+            )}
             <span id={`${hintId}-${a.kind}`} className="text-pretty text-xs text-muted">
               {a.hint}
             </span>
@@ -95,6 +106,11 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
           <p className="text-xs text-muted">The chat model is writing; small models on a CPU can take a minute.</p>
           <Skeleton className="h-16 w-full" />
         </div>
+      ) : null}
+      {short ? (
+        <p role="status" className="text-pretty text-xs text-muted">
+          {short}
+        </p>
       ) : null}
       {error ? <ErrorNote>{error}</ErrorNote> : null}
     </div>

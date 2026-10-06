@@ -216,6 +216,7 @@ has the details.
 | `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | The host folder mounted, read-only, as the renderer's actors' pictures. |
 | `TROUPE_RENDERER_SCENE_HUE` | each actor's own | Passed to the renderer as `SCENE_HUE`. |
 | `TROUPE_RENDERER_SCENE_FONT_FILE` | Geist | Passed to the renderer as `SCENE_FONT_FILE`: a path inside the container. |
+| `TROUPE_RENDERER_KEEP_RENDERS_HOURS` | `24` | Passed to the renderer as `KEEP_RENDERS_HOURS`. |
 | `TROUPE_TRANSCRIPTION` | `1` | The renderer's transcription (`WHISPER_ENABLED`). |
 | `TROUPE_WHISPER_MODEL` | `base` | Passed as `WHISPER_MODEL`. |
 | `TROUPE_WHISPER_COMPUTE_TYPE` | `int8` | Passed as `WHISPER_COMPUTE_TYPE`. |

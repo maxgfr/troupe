@@ -163,6 +163,7 @@ services:
       # The card and captions' look (docs/CUSTOMIZING.md#the-video-scene).
       SCENE_HUE: ${TROUPE_RENDERER_SCENE_HUE:-}
       SCENE_FONT_FILE: ${TROUPE_RENDERER_SCENE_FONT_FILE:-}
+      KEEP_RENDERS_HOURS: ${TROUPE_RENDERER_KEEP_RENDERS_HOURS:-24}
       # Transcription for the library (faster-whisper on the CPU): the model
       # (tiny, base, small, medium, large-v3, turbo) downloads into the
       # `renderer` volume on first use; base is about 145 MB.
@@ -347,6 +348,7 @@ services:
       KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
       SCENE_HUE: ${TROUPE_RENDERER_SCENE_HUE:-}
       SCENE_FONT_FILE: ${TROUPE_RENDERER_SCENE_FONT_FILE:-}
+      KEEP_RENDERS_HOURS: ${TROUPE_RENDERER_KEEP_RENDERS_HOURS:-24}
       LTX_RESOLUTION: ${LTX_RESOLUTION:-}
       LTX_FRAMES: ${LTX_FRAMES:-}
       LTX_FPS: ${LTX_FPS:-}

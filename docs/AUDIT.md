@@ -372,7 +372,7 @@ that are not real, which is what a mistyped key looks like.
 | Projects, empty | The cast, "about two minutes", the three steps, one New project | pass | `s-dashboard-empty-*` (4 variants) |
 | Navigation and shortcuts | Top bar at 1280, bottom tab bar at 390; `?` lists the shortcuts, `g a` → Actors, `n` → New project; titles "Script · Cold brew mornings · Troupe" and so on | pass | `s-g-shortcuts-*`, `walk.log` |
 | Wizard | Platform → format and model (the stack's renderer preselected, "default"; cloud models say "Add a … key in Settings") → language → actor | pass | `s-flow-01…04` |
-| Script, emotions, versions | Three lines saved as version 1; "excited" on line 1 saved and drawn as an excited face in the render; versions restored (CLI) | pass | `s-flow-07-script-saved`, `s-flow-frames` |
+| Script, emotions, versions | Three lines saved as version 1; "excited" on line 1 saved and drawn as an excited face in the render; versions restored from the CLI (`script restore 1`) and, in the fix round under `pnpm dev`, from the page (**Earlier versions** → **Restore v1** made version 3 with version 1's lines) | pass | `s-flow-07-script-saved`, `s-flow-frames`, `fx-versions-1280-dark`, `fx-restore-1280-dark` |
 | Launch, progress, timeline, playback | Launch draft → video in 8.6 s; the bar fills while rendering; the player plays (720×1280, 8.92 s, no media error) | pass | `s-flow-09-launching`, `s-flow-10-rendered` |
 | Downloads and export | Timeline and export page both save `cold-brew-mornings-local-renderer-2026-10-06-1926.mp4`: h264 720×1280 + AAC, 8.917 s; the export marks the render final, gives TikTok's AI-label rule, and the project moves to Exported | pass | `s-flow-12/13`, `s-flow-14-dashboard` |
 | Script chat (Ollama) | Three requests on qwen3:4b: 21.7 s (model load), 6.9 s, 6.9 s; **Apply only** → version 2; the earlier proposal then says it was asked on version 1; **Apply & relaunch** (gold) → version 3 rendered in 8.6 s; phone bottom sheet opens and closes | pass | `s-chat-01…05`, `s-g-chat-sheet-390-*` |
@@ -383,12 +383,12 @@ that are not real, which is what a mistyped key looks like.
 | Library: search, ask, ideas | `/` focuses the search; "making coffee in the fridge overnight" → 20 passages by meaning; the library chat answered in 9.4 s citing the clip at 0:00; 10 ideas in 46.9 s; one became a project and rendered | pass | `s-lib-10…15` |
 | Actors | 30 actors with picture, voice and style; gender filters | pass | `s-actors-*`, `s-g-*` |
 | Compare | With the AI video mode's model (5 s clips) listed among three, no comparison was offered at all | fixed in `c914a34` | — |
-| Compare, after the fix | Compare 2 models → both render side by side; rated 5 and 4; **Adopt for project** (gold) | pass | `s-cmp-01…05` |
+| Compare, after the fix | Compare 2 models → both render side by side; rated 5 and 4; **Adopt for project** (gold), at 1280 dark. In the fix round, a comparison with two failed columns and one finished render at 390 and 1280, light and dark. When no comparison is possible the launch panel now says why (it said nothing) | pass; reason fixed in `256e68f` | `s-cmp-01…05`, `fx-compare-*`, `fx-*-launch-*` |
 | Settings | Theme saved per device (light after a reload); default model; launch defaults and limits; background checks ("Last run 23s ago") | pass | `s-settings-*`, `s-set-01`, `s-set-09` |
 | Provider accounts | No key: Test says "No key is configured for this account." A key that is not real: Google answers "Google rejected this API key: it is mistyped, deleted or expired…" (a real free request). Removing the key left that verdict under "Not configured" | fixed in `24653ca` | `s-set-02…04` |
 | Paid generation (Veo, Kling, Seedance) and the Claude chat | — | not run (no keys) | — |
 | Local models | ComfyUI not running → "Could not reach ComfyUI at http://host.docker.internal:8188…"; an HTTP model on an unreachable address is refused by the CLI unless `--skip-test` | pass | `s-set-08` |
-| AI video mode (LTX), opt-in | The stack's renderer answers `/ltx/health` with 503 "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md)"; Settings → Test shows it; `troupe doctor` warns; nothing is installed or downloaded. The UI still lets the model be added (status "Ready", the test result beside it), as for any model whose server is not up yet | pass (gated) | `s-set-06/07`, `cli-walk.log` |
+| AI video mode (LTX), opt-in | The stack's renderer answers `/ltx/health` with 503 "The AI video mode is off on this renderer. Start it with pnpm renderer:ltx (see docs/LOCAL-MODELS.md)"; Settings → Test shows it; `troupe doctor` warns; nothing is installed or downloaded. The UI lets the model be added, as for any model whose server is not up yet; it said "Ready" there, and now says "Added, not reachable" with the reason (the CLI: state `unreachable`) | pass (gated); label fixed in `a1024fc`, `fa6e338` | `s-set-06/07`, `cli-walk.log` |
 | AI video mode, a real clip | 25 GB of weights and minutes per clip; rendered end to end earlier (LOCAL-MODELS.md, "Measured on an Apple M5") | not run (heavy) | — |
 | Not-found page | An unknown address showed Next's bare "404 · This page could not be found."; now the studio's page in its shell, titled "Page not found · Troupe" | fixed in `0634c1b`, `c5b0933` | `s-notfound-*` (before), `s-g3-notfound-*` |
 | A project that does not exist | Its tabs over "The project failed to load: project not found", with no way out; now the not-found page with **Back to your projects** | fixed in `0cd74ab` | `s-g-project-missing-*` (before), `s-g3-project-missing-*` |
@@ -398,7 +398,7 @@ that are not real, which is what a mistyped key looks like.
 | Feature | How it was verified | Result | Evidence |
 |---|---|---|---|
 | Landing page | Headline, the two editions, steps that jump to chapters, cast, models, limits; **Open Troupe in your browser** opens the studio | pass | `w-landing-*`, `w-g-landing-*` |
-| Tour video | Plays from its poster (1920×1080). It still showed the studio before the navigation was unified (Dashboard · Actors · Benchmark, "My studio", no tabs, an old chat warning) | fixed in `02dbbe6` (recorded again with `pnpm tour:record`, cut with `pnpm tour:edit`: 53.9 s, both files under 7.5 MB) | `tour-grid` (before), `newtour-grid` |
+| Tour video | Plays from its poster (1920×1080). It still showed the studio before the navigation was unified (Dashboard · Actors · Benchmark, "My studio", no tabs, an old chat warning) | fixed in `02dbbe6` (recorded again with `pnpm tour:record`, cut with `pnpm tour:edit`: 53.9 s, both files under 7.5 MB); the steps' copy now quotes that take, checked against the video's captions by `landing.spec.ts` (`ba84ea5`) | `tour-grid` (before), `newtour-grid`, `fx-*-w-landing-*` |
 | Wizard | Cloud models say "Needs the self-hosted studio" (4 times) | pass | `w-wizard-format` |
 | In-browser render | First render 80.4 s including the 326 MB voice download; live progress; plays and seeks (720×1280, 9.79 s); timeline and export downloads `browser-cold-brew-kokoro-voice-captions-2026-10-06-1947.mp4`, h264 + AAC | pass | `w-rendering`, `w-rendered`, `w-exported`, `w-frame-*` |
 | Persistence, deep links | Reload keeps the render; a new tab opened straight on `/troupe/app/projects/<id>/script` shows version 1 | pass | `w10.out` |
@@ -406,7 +406,7 @@ that are not real, which is what a mistyped key looks like.
 | A render cut off | Chrome closed mid-render: the row says "The tab rendering this video was closed before it finished. Relaunch it."; Relaunch completed | pass | `w-chat-relaunched-done`, `w-relaunch-done` |
 | WebGPU gate | Chrome without WebGPU: "The chat runs on a GPU through WebGPU, and this browser offered none…"; the rest works | pass | `w-nogpu-video`, `w-nogpu-library` |
 | Library | A pasted link: "Links need the self-hosted studio."; a text and the clip read in 59.7 s in the tab; the item page says what was skipped (no vision model) | pass | `w-library-*`, `w-g-library-item-*` |
-| Library: refused input | Binary, HTML and empty files → "This file is not one the library reads…" | pass | `w-bad-*` |
+| Library: refused input | Binary and HTML files → "This file is not one the library reads…"; an empty file said the same, unlike the studio | fixed in `6e41adb` ("The file is empty." in both) | `w-bad-*` |
 | Your data | Storage figures; **Export data** → `troupe-backup-2026-10-06-2005.tar` (2.7 MB); **Delete all local data** → empty studio; **Import data…** names what the file holds, then the project and its render come back and play | pass | `w-settings`, `w-delete-confirm`, `w-import-confirm`, `w-after-import` |
 | Offline | Loaded, then offline: opening a project hung on skeletons, since React Query pauses calls while offline though everything here is local. Now the project opens in 50 ms, its render plays and an emotion is saved. (Reloading offline still needs the network: there is no offline shell, and the docs promise none.) | fixed in `3131fa0` | `w-offline-navigate` (before), `w-offline-project`, `w-offline-script` |
 | Not-found, missing project | "Page not found · Troupe" with Back to your projects, in both cases | pass | `w-g-notfound-*`, `w-g-project-missing-*` |
@@ -421,22 +421,59 @@ that are not real, which is what a mistyped key looks like.
 | Claude skill | `skills/troupe/SKILL.md` followed step by step in zsh: check (missing `troupe`, doctor `fail studio`, sign-in), cast, script within the word budget, a too-long launch refused, render `--watch --timeout 500`, the review block verbatim (ffprobe and three frames, looked at), chat iteration, restore, export with its disclosure, then the library loop (save `--mine`, show, search, item chat with a citation, a remix, an idea made a project and rendered). `claude plugin validate` passes for the marketplace and the plugin | pass | `skill-walk.log`, `skill-frames` |
 | Real-API checks | `pnpm verify:live` with no keys: paid jobs skipped with the variable each needs; an unreachable Ollama fails with its reason | pass (paid: not run, no keys) | `verify-live.log` |
 
+### Fix round
+
+After review, under `pnpm dev` with the native renderer (studio) and `pnpm
+site:preview` (browser edition), each fix test-first:
+
+| Change | Commit |
+|---|---|
+| A local model whose last test failed (Settings, `troupe models test`, or the test now run when it is added) says "Added, not reachable" and why, instead of "Ready"; the CLI's `state` is `unreachable`. The reason shows once, where a Test result goes, so the row's controls stay in place | `a1024fc`, `fa6e338` |
+| Settings' HTTP-endpoint form and `troupe models add http` start from one set of defaults (`src/modules/models/http-defaults.ts`: 9:16, 16:9, 1:1; 720p; 4, 6, 8, 10, 15 s; always with audio; 24 fps) instead of the form's silent 5 s; an unnamed HTTP model is no longer named after a ComfyUI template | `158442a` |
+| The launch panel says why Compare is not offered | `256e68f` |
+| An empty upload says "The file is empty." in both editions (one refusal, `fileRefusal` in `src/server/library/sniff.ts`) | `6e41adb` |
+| Emoji leave the lines whole: flags, keycaps and tag-sequence flags too; a joiner inside a word (Hindi's क्‍ष) stays; ©, ® and ™ stay with the names they follow, ✔ and ♥ go | `ce4cc1a` |
+| The troubleshooting guide says how to start the stack's Ollama, `-p <name>` included | `fece3f0` |
+| The landing page quotes the new take: the hook it rewrote (neutral → excited), the two lines it kept, the 9 s clip it ran past, the file it rendered (`cold-brew-launch-kokoro-voice-captions-2026-10-06-2006.mp4`, 11.3 s) | `ba84ea5` |
+| `pnpm lint` has no warnings (two unused imports in the settings router) | `a1024fc` |
+
+One slip in the fix round's own walk: a comparison launched while the test
+key that is not real was still saved sent two Veo jobs, which Google refused
+at once ("Google rejected this API key…", `PROVIDER_AUTH`); nothing was
+generated or billed.
+
 ### Design passes
 
-`impeccable` (critique, single context: this task runs without sub-agents)
-and `make-interfaces-feel-better` (quick) on the only new screen, the
-studio's not-found page, which reuses `PageHeader`, `EmptyState` and one
-primary `ButtonLink`: one cobalt action, the empty-state surface, the
-studio's shell and tab bar, titles at 32/28 px, readable in both themes and
-at 390 px; the detector found nothing. No change was needed. The other
-fixes change behaviour, not layout.
+The first pass: `impeccable` (critique, single context: this task runs
+without sub-agents) and `make-interfaces-feel-better` (quick) on the only new
+screen, the studio's not-found page, which reuses `PageHeader`, `EmptyState`
+and one primary `ButtonLink`; nothing to change.
+
+The fix round: `impeccable` audit and polish, and `make-interfaces-feel-better`
+(quick), on what this task changed: the not-found page, the missing-project
+state, the provider key verdicts, the local models' rows and the HTTP form,
+the launch panel and Compare, and the landing page's steps. Screenshots
+before and after at 390 and 1280, light and dark (`fx-before-*`,
+`fx-after-*`). Found and changed:
+
+- The unreachable label first carried the whole reason, which repeated the
+  Test result beneath it and pushed Test, On and Archive onto a second row
+  at 1280: the label is now "Added, not reachable" and the reason is shown
+  once, as the Test result (`fa6e338`).
+- The landing page's proposal tinted every line as changed: the two kept
+  lines are now untinted and muted, as in the studio's diff (`ba84ea5`).
+- The Compare reason joins the panel's closing note in the same muted text,
+  rather than a warning: nothing is wrong, there is only one model.
+- The detector flagged a flat type scale on `site/index.html`, a false
+  positive: it reads the HTML without `landing.css`, where the headings are
+  sized; nothing else.
 
 ### Gates
 
-On the final tip: `pnpm lint` (522 files, one existing warning), `pnpm
-typecheck`, `pnpm test` (148 files, 938 tests), `SKIP_ENV_VALIDATION=1 pnpm
-build`, `pnpm site:build` and `pnpm site:test` (11 passed) all pass.
-`E2E_PROJECT=troupe-e2e-t9 pnpm e2e:docker` on `1185283` (the code this
-section describes), with a private `RENDER_PROFILE`: images, studio, CLI,
-library, stack, browser edition and its in-browser renders, 28 passed in
-5.7 min; the stack and its volumes were removed afterwards.
+On the fix round's tip: `pnpm lint` (526 files, no warnings), `pnpm
+typecheck`, `pnpm test` (150 files, 945 tests), `SKIP_ENV_VALIDATION=1 pnpm
+build`, `pnpm site:build` and `pnpm site:test` (12 passed) all pass.
+`E2E_PROJECT=troupe-e2e-t9 pnpm e2e:docker` with a private `RENDER_PROFILE`
+passed 28 tests in 5.7 min on `1185283`, before the fix round (images,
+studio, CLI, library, stack, browser edition and its in-browser renders); the
+stack and its volumes were removed afterwards.

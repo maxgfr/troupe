@@ -1,5 +1,6 @@
 import { useEdition } from "~/app/_components/edition";
-import { DownloadIcon, FilmIcon } from "~/app/_components/icons";
+import { DownloadIcon, FilmIcon, PlayIcon } from "~/app/_components/icons";
+import { VideoStill } from "~/app/_components/video-still";
 import { Button, ButtonLink, EmptyState, ProgressBar, StatusChip, buttonClass } from "~/app/_components/ui";
 import { spokenLinesFromPrompt, vttFromLines } from "~/app/_components/captions";
 import { downloadUrl, renderFileName } from "~/app/_components/download-name";
@@ -54,20 +55,22 @@ export function shownLength(g: Pick<GenerationRow, "durationS" | "mediaDurationS
   return `${g.durationS} s`;
 }
 
-// A finished render's first moments, as a small still in its row.
-function RenderThumb({ g }: { g: GenerationRow }) {
-  if (g.status === "completed" && g.outputAssetUrl) {
-    return (
-      <span aria-hidden className="relative block h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black shadow-[inset_0_0_0_1px_var(--picture-edge)]">
-        <video src={`${g.outputAssetUrl}#t=0.6`} muted playsInline preload="metadata" className="size-full object-cover" />
-      </span>
-    );
-  }
+const THUMB = "h-14 w-10 shrink-0 rounded-md";
+
+// A render's glyph tile: a film for one without a video yet, a play mark for
+// the one already on the stage above (no second fetch of its video).
+function RenderGlyph({ g, playing = false }: { g: GenerationRow; playing?: boolean }) {
   return (
-    <span aria-hidden className={`flex h-14 w-10 shrink-0 items-center justify-center rounded-md ${g.status === "failed" ? "bg-danger/10 text-danger" : "bg-fg/[0.06] text-muted"}`}>
-      <FilmIcon className="size-4" />
+    <span aria-hidden className={`flex items-center justify-center ${THUMB} ${playing ? "bg-primary/15 text-primary" : g.status === "failed" ? "bg-danger/10 text-danger" : "bg-fg/[0.06] text-muted"}`}>
+      {playing ? <PlayIcon className="size-4 translate-x-px" /> : <FilmIcon className="size-4" />}
     </span>
   );
+}
+
+// A finished render's first moments, as a small still in its row.
+function RenderThumb({ g, playing }: { g: GenerationRow; playing: boolean }) {
+  if (playing || g.status !== "completed" || !g.outputAssetUrl) return <RenderGlyph g={g} playing={playing} />;
+  return <VideoStill src={g.outputAssetUrl} fallback={<RenderGlyph g={g} />} className={`${THUMB} shadow-[inset_0_0_0_1px_var(--picture-edge)]`} />;
 }
 
 // Pure view — the launch timeline. The newest completed render is the star:
@@ -136,13 +139,14 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
             const cost = g.costUsd == null ? null : Number(g.costUsd);
             const running = g.status === "in_progress" || g.status === "queued";
             return (
-              <li key={g.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+              <li key={g.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <RenderThumb g={g} />
+                  <RenderThumb g={g} playing={g.id === star?.id && Boolean(star.outputAssetUrl)} />
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <StatusChip status={g.status} />
-                      <span className="min-w-0 truncate font-mono text-xs tabular-nums text-muted">
+                      {/* Whole on phones (it wraps), on one line from the small breakpoint. */}
+                      <span className="min-w-0 font-mono text-xs tabular-nums text-muted [overflow-wrap:anywhere] sm:truncate">
                         <span className={g.tier === "final" ? "text-success" : undefined}>{g.tier === "final" ? "final" : "draft"}</span>
                         {" · "}{g.modelLabel ?? `${g.provider}/${g.modelId}`} · {shownLength(g)}
                         {cost !== null ? ` · ${formatCost(cost, g.costSource)}` : ""}
@@ -151,7 +155,7 @@ export function GenerationTimeline({ generations, projectId, projectTitle, onRel
                     {failure ? <p className="text-pretty text-xs text-warning">{failure}</p> : null}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-13 sm:pl-0">
                   {g.outputAssetUrl ? (
                     <a href={downloadUrl(g.outputAssetUrl, fileName(g))} className={buttonClass({ variant: "quiet", size: "sm" })}>
                       <DownloadIcon className="size-4" />

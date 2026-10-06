@@ -2,7 +2,9 @@
 
 import { disclosureFor } from "~/modules/export/disclosure";
 import { PLATFORMS, platformName, type PlatformId } from "~/modules/studio/platforms";
+import { FilmIcon } from "~/app/_components/icons";
 import { ProviderWarning, chipClass, fieldClass } from "~/app/_components/ui";
+import { VideoStill } from "~/app/_components/video-still";
 import { shownLength } from "../generation-timeline";
 
 // The export form's panels, one named component each — the page
@@ -52,9 +54,11 @@ export function RenderPicker({
               onChange={() => onChoose(g.id)}
             />
             {g.outputAssetUrl ? (
-              <span aria-hidden className="block h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black shadow-[inset_0_0_0_1px_var(--picture-edge)]">
-                <video src={`${g.outputAssetUrl}#t=0.6`} muted playsInline preload="metadata" className="size-full object-cover" />
-              </span>
+              <VideoStill
+                src={g.outputAssetUrl}
+                fallback={<span aria-hidden className="flex h-14 w-10 shrink-0 items-center justify-center rounded-md bg-fg/[0.06] text-muted"><FilmIcon className="size-4" /></span>}
+                className="h-14 w-10 shrink-0 rounded-md shadow-[inset_0_0_0_1px_var(--picture-edge)]"
+              />
             ) : null}
             <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1">
               <span className="min-w-0">

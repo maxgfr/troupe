@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
 import { ActorPortrait } from "./actor-portrait";
+import { VideoStill } from "./video-still";
 
-// A project's poster: its newest video, standing still on an early frame and
-// playing, muted, while the pointer rests on it or the card holds focus
-// (`active`); else its actor's portrait over the actor's hue. With reduced
-// motion the frame stays still. The caller sizes the frame.
+// A project's poster: its newest video as a still (playing, muted, while the
+// card is hovered or focused: `active`), else its actor's portrait over the
+// actor's hue, which also stands in when the video is not fetched (saving
+// data) or cannot load. The caller sizes the frame.
 export function VideoPoster({
   src,
   active,
@@ -17,7 +16,6 @@ export function VideoPoster({
   priority = false,
 }: {
   src?: string | null;
-  // The card around it is hovered or focused.
   active: boolean;
   actor?: { id: string; name: string; portraitUrl?: string | null } | null;
   className?: string;
@@ -25,42 +23,11 @@ export function VideoPoster({
   sizes?: string;
   priority?: boolean;
 }) {
-  const video = useRef<HTMLVideoElement>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    const node = video.current;
-    if (!node) return;
-    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (active && !still) {
-      void node.play().catch(() => {});
-    } else {
-      node.pause();
-    }
-  }, [active]);
-
-  if (src && !failed) {
-    return (
-      <span aria-hidden className={`relative block overflow-hidden bg-black ${className}`}>
-        <video
-          ref={video}
-          // An early frame, not the first (often black).
-          src={`${src}#t=0.6`}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          disablePictureInPicture
-          onError={() => setFailed(true)}
-          // A vertical video keeps its top (the actor's name) and its middle
-          // (the captions) in a shorter frame.
-          className="size-full object-cover object-top"
-        />
-      </span>
-    );
-  }
-  if (actor) {
-    return <ActorPortrait id={actor.id} name={actor.name} src={actor.portraitUrl} label="" sizes={sizes} priority={priority} className={className} />;
-  }
-  return <span aria-hidden className={`block bg-surface ${className}`} />;
+  const portrait = actor ? (
+    <ActorPortrait id={actor.id} name={actor.name} src={actor.portraitUrl} label="" sizes={sizes} priority={priority} className={className} />
+  ) : (
+    <span aria-hidden className={`block bg-surface ${className}`} />
+  );
+  if (!src) return portrait;
+  return <VideoStill src={src} active={active} fallback={portrait} className={className} />;
 }

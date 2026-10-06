@@ -101,6 +101,32 @@ describe("Generation monitor", () => {
     expect(screen.getByText("No render yet — the stage is lit")).toBeDefined();
   });
 
+  it("fetches the newest video once (its row shows a play mark), and a still for the others", () => {
+    const { container } = render(
+      <GenerationTimeline
+        projectId="p1"
+        generations={[
+          { id: "g2", provider: "local", modelId: "r", tier: "draft", status: "completed", durationS: 8, createdAt: new Date(), outputAssetUrl: "/api/media/new" },
+          { id: "g1", provider: "local", modelId: "r", tier: "draft", status: "completed", durationS: 8, createdAt: new Date(), outputAssetUrl: "/api/media/old" },
+        ]}
+      />,
+    );
+    const sources = [...container.querySelectorAll("video")].map((v) => v.getAttribute("src"));
+    expect(sources).toEqual(["/api/media/new", "/api/media/old#t=0.6"]);
+  });
+
+  it("keeps a render's length and cost whole on phones", () => {
+    render(
+      <GenerationTimeline
+        generations={[{ id: "g1", provider: "veo", modelId: "veo-3.1-fast", modelLabel: "Veo 3.1 Fast", tier: "final", status: "completed", durationS: 8, costUsd: 1.2, costSource: "estimate", createdAt: new Date() }]}
+      />,
+    );
+    const meta = screen.getByText(/Veo 3.1 Fast · 8 s/);
+    expect(meta.className).toContain("font-mono");
+    expect(meta.className).not.toMatch(/(^| )truncate( |$)/);
+    expect(meta.className).toContain("sm:truncate");
+  });
+
   it("announces job rows in a live region", () => {
     const { container } = render(
       <GenerationTimeline

@@ -22,10 +22,17 @@ one project in the browser edition, recorded in Chrome, waits sped up and
 marked. GitHub shows the poster here; the link opens the file. It also plays
 on the site's landing page.
 
-## Quick start (Docker)
+## Quick start
+
+Three ways to run it, each from a clone:
 
 ```bash
 git clone https://github.com/maxgfr/troupe.git && cd troupe
+```
+
+### The whole studio, with Docker
+
+```bash
 docker compose up -d --wait
 ```
 
@@ -46,9 +53,43 @@ browser edition is at <http://localhost:3101/troupe/>, and the CLI runs in the
 stack: `docker compose run --rm cli doctor`.
 
 `docker compose up` pulls the published images (`ghcr.io/maxgfr/troupe*`); to
-build them from your checkout, add `--build`. The
+build them from your checkout, add `--build`. Another port or project name
+for a second stack: `TROUPE_PORT=3200 TROUPE_WEB_PORT=3201 docker compose -p
+troupe-2 up -d --wait`. The
 [self-hosting guide](docs/SELF-HOSTING.md) covers the services, profiles (CLI,
 ComfyUI, the AI video mode), GPUs, volumes, backups and upgrades.
+
+### The browser edition alone, without a server
+
+```bash
+pnpm install
+pnpm site:build && pnpm site:preview
+```
+
+Open <http://localhost:4173/troupe/>. Projects, renders, the chat (WebGPU)
+and the library stay in that browser. The Docker stack serves the same build
+at <http://localhost:3101/troupe/>.
+
+### From source, for development
+
+Node.js 22, pnpm 10 (`corepack enable`), Docker for PostgreSQL, and `ffprobe`
+(FFmpeg) on your PATH:
+
+```bash
+pnpm install
+docker run -d --name troupe-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=troupe -p 127.0.0.1:5432:5432 postgres:16-alpine
+DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/troupe pnpm dev
+```
+
+Open <http://localhost:3000>. `pnpm dev` applies migrations on start and lets
+loopback requests in without an access code. To render, start the local
+renderer next to it (`pnpm renderer`, which needs FFmpeg, or the stack's:
+`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait renderer`)
+and add the HTTP model `http://127.0.0.1:8078` in Settings
+([LOCAL-MODELS.md](docs/LOCAL-MODELS.md#local-renderer)). The chat uses the
+Ollama on this computer: `ollama pull qwen3:4b`
+([SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)). [CONTRIBUTING.md](CONTRIBUTING.md)
+covers the tests and each part.
 
 ## Models
 
@@ -119,6 +160,29 @@ whole process for you, from the brief to the reviewed MP4:
 `/plugin marketplace add maxgfr/troupe`, then `/plugin install troupe@troupe`
 ([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
 
+## Make it yours
+
+Every setting is optional and listed, with its default, in
+[docs/CUSTOMIZING.md](docs/CUSTOMIZING.md): models and their limits, voices,
+the video's hue and font, the AI video mode, the chat's provider, model,
+address and house style, the library's models, the browser edition's base
+path and links, and where the colors and the name live for a fork. The test
+suite checks that page against the code, so it stays complete.
+
+## How it is put together
+
+| Part | Where | What |
+|---|---|---|
+| The studio | `src/` | Next.js 15, tRPC, Drizzle and PostgreSQL. Domain logic in `src/modules/<module>` ([map](src/modules/README.md)): projects, scripts, generation (one adapter per provider), the chat, the library, exports. |
+| The scene | `src/modules/scene` | What a render draws and says, in plain TypeScript: timed captions, the actor card, the voice casting. Both renderers share it. |
+| The local renderer | `renderer/` | A Node server that speaks the [HTTP contract](docs/LOCAL-MODELS.md#http-endpoint): Kokoro voices, the scene on a canvas, ffmpeg; LTX-Video (`renderer/ltx`) and faster-whisper (`renderer/whisper`) in Python, opt-in. |
+| The browser edition | `site/` | The same studio's pages built with Vite, its server code running in the browser on PGlite; renders in a worker (kokoro-js, Mediabunny), chat with WebLLM, plus the landing page. |
+| The script chat | `src/server/chat`, `src/modules/chat`, `site/src/chat` | Ollama or Claude on the server, WebLLM in the browser, all answering the same JSON schema. |
+| The CLI and skill | `cli/`, `skills/troupe` | `troupe`, a client for a running studio, and the Claude Code skill built on it. |
+| The stack | `docker-compose.yml`, `ollama/`, `scripts/docker` | One command for all of it; images published on GHCR by `.github/workflows/release.yml`. |
+
+[docs/PRODUCT-MAP.md](docs/PRODUCT-MAP.md) maps the screens.
+
 ## Honest status
 
 What was checked, and how (2026-10-05):
@@ -164,19 +228,26 @@ Reports are welcome.
   static site that runs in the browser, with no server; projects stay in that
   browser (export a backup to move them), and videos render in it with Kokoro
   voices and captions.
-- Development:
 
-  ```bash
-  pnpm install
-  docker run -d --name troupe-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=troupe -p 127.0.0.1:5432:5432 postgres:16-alpine
-  DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/troupe pnpm dev
-  ```
+## License
 
-  Open <http://localhost:3000>. `pnpm dev` applies migrations on start, needs
-  `ffprobe` (FFmpeg) on your PATH, and lets loopback requests in without an
-  access code.
+Troupe is [MIT licensed](LICENSE), the actors' pictures included. Two parts
+it builds on carry the GNU GPL, and you should know where:
 
-Next.js 15, tRPC, Drizzle and PostgreSQL. `pnpm test` replays every migration in
-PGlite and needs no API key. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- The browser edition and the local renderer include eSpeak NG (GPL version
+  3 or later), compiled to WebAssembly inside kokoro-js's phonemizer. A built
+  browser edition (`site/dist`, the `troupe-web` image) or renderer
+  (`troupe-renderer`) is distributed as a whole under the GPL version 3 or
+  later, with this repository as its source; Troupe's own files stay MIT.
+- The studio's image ships yt-dlp's self-contained build, which bundles GNU
+  Readline (GPL), as a separate program it runs (`--build-arg TROUPE_YTDLP=0`
+  leaves it out). FFmpeg is run the same way.
 
-[MIT license](LICENSE) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+Model weights are downloaded at run time, never distributed with Troupe, and
+keep their own licenses: Kokoro-82M, Qwen and Whisper are Apache 2.0 or MIT;
+the AI video mode's LTX-Video 2B 0.9.8 weights are not open source (a paid
+license above $10M annual revenue, and use restrictions such as disclosing
+that content is machine generated). [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+lists every component.
+
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)

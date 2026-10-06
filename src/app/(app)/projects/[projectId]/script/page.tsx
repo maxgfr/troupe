@@ -18,6 +18,7 @@ import {
 } from "~/app/_components/ui";
 import { pickModel, type ModelOptionView } from "../../model-choice";
 import { ProjectHeader } from "../project-header";
+import { useLineEmotion } from "./line-emotion";
 
 export default function ScriptPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
@@ -45,19 +46,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
   const restore = api.script.restore.useMutation({
     onSuccess: () => utils.script.history.invalidate(),
   });
-  // An emotion shows as chosen at once; the saved one comes back after.
-  const setEmotion = api.script.setLineEmotion.useMutation({
-    onMutate: async ({ scriptId, lineIndex, emotion }) => {
-      await utils.script.history.cancel({ projectId });
-      const previous = utils.script.history.getData({ projectId });
-      utils.script.history.setData({ projectId }, (versions) =>
-        versions?.map((v) => (v.id === scriptId ? { ...v, lines: v.lines.map((l) => (l.index === lineIndex ? { ...l, emotion } : l)) } : v)),
-      );
-      return { previous };
-    },
-    onError: (_error, _input, context) => utils.script.history.setData({ projectId }, context?.previous),
-    onSettled: () => utils.script.history.invalidate(),
-  });
+  const setEmotion = useLineEmotion(projectId);
 
   const latest = history.data?.[history.data.length - 1];
   const latestTooLong = Boolean(latest && limit && latest.estimatedDurationS > limit.seconds);

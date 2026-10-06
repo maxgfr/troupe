@@ -82,13 +82,16 @@ export const StoredProposal = z.object({
 
 // What the actor says, as plain text: small models like to add Markdown
 // emphasis, which the voice would read and the captions would show.
-// A bracketed role or emotion copied from the prompt ("[hook, excited]") goes too.
+// A bracketed role or emotion copied from the prompt ("[hook, excited]") goes
+// too, and so do emoji (with their skin tones and joiners): there is nothing
+// in them to say.
 const TAG = new RegExp(`\\[[^\\]]*\\b(?:${[...LINE_ROLES, ...SUPPORTED_EMOTIONS].join("|")})\\b[^\\]]*\\]`, "gi");
 
 export function spoken(text: string): string {
   return text
     .replace(TAG, "")
     .replace(/[*`]+/g, "")
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\u200d\ufe0f]/gu, "")
     .replace(/^\s*(?:[-•]|#+)\s+/, "")
     .replace(/\s+/g, " ")
     .trim();

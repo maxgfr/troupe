@@ -70,6 +70,14 @@ describe("reading the model's answer", () => {
     expect(tagged.ok && tagged.proposal.lines.map((l) => l.text)).toEqual(["Get your hands on it", "Two [sic] cups."]);
   });
 
+  it("drops emoji, which the voice cannot say", () => {
+    const check = checkProposal({ summary: "Warmer", lines: [{ role: "hook", text: "Grab a cold brew today! ☕", emotion: "happy" }, { role: "cta", text: "Warm up 🥂 with us 👋🏽 ❤️", emotion: "happy" }], actor: null }, context);
+    expect(check.ok && check.proposal.lines.map((l) => l.text)).toEqual(["Grab a cold brew today!", "Warm up with us"]);
+    expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "🔥🔥", emotion: "neutral" }], actor: null }, context)).toEqual({ ok: false, problem: "a line has no words to say" });
+    // Digits, symbols and accents are words the voice says.
+    expect(checkProposal({ summary: "x", lines: [{ role: "hook", text: "Café #1: 2 × 50 % off", emotion: "neutral" }], actor: null }, context)).toMatchObject({ proposal: { lines: [{ text: "Café #1: 2 × 50 % off" }] } });
+  });
+
   it("offers only the available actors, or none at all", () => {
     expect(proposalJsonSchema(["Léa"]).properties.actor).toEqual({ anyOf: [{ type: "string", enum: ["Léa"] }, { type: "null" }] });
     expect(proposalJsonSchema([]).properties.actor).toEqual({ type: "null" });

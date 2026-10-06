@@ -16,6 +16,7 @@ import {
   buttonClass,
 } from "~/app/_components/ui";
 import { ProjectHeader } from "../project-header";
+import { ProjectGate } from "../project-gate";
 import { platformName } from "~/modules/studio/platforms";
 import {
   CaptionFields,
@@ -34,9 +35,11 @@ export default function ExportPage({ params }: { params: Promise<{ projectId: st
   const { projectId } = use(params);
   // useSearchParams needs a Suspense boundary in the app router.
   return (
-    <Suspense fallback={null}>
-      <ExportForm projectId={projectId} />
-    </Suspense>
+    <ProjectGate projectId={projectId}>
+      <Suspense fallback={null}>
+        <ExportForm projectId={projectId} />
+      </Suspense>
+    </ProjectGate>
   );
 }
 

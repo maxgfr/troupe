@@ -22,6 +22,7 @@ import {
 } from "~/app/_components/ui";
 import { actorHue } from "~/modules/scene";
 import { ProjectHeader } from "./project-header";
+import { ProjectGate } from "./project-gate";
 import { pickModel, type ModelOptionView } from "../model-choice";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 
@@ -115,7 +116,7 @@ export default function ProjectMonitorPage({
   const loadError = project.error ?? generations.error ?? history.error ?? models.error;
 
   return (
-    <>
+    <ProjectGate projectId={projectId}>
       <ProjectHeader
         projectId={projectId}
         tab="video"
@@ -208,6 +209,6 @@ export default function ProjectMonitorPage({
         ) : null}
         </div>
       )}
-    </>
+    </ProjectGate>
   );
 }

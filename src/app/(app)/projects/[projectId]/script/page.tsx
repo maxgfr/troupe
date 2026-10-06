@@ -18,6 +18,7 @@ import {
 } from "~/app/_components/ui";
 import { pickModel, type ModelOptionView } from "../../model-choice";
 import { ProjectHeader } from "../project-header";
+import { ProjectGate } from "../project-gate";
 import { useLineEmotion } from "./line-emotion";
 
 export default function ScriptPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -51,7 +52,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
   const latest = history.data?.[history.data.length - 1];
   const latestTooLong = Boolean(latest && limit && latest.estimatedDurationS > limit.seconds);
   return (
-    <>
+    <ProjectGate projectId={projectId}>
       <ProjectHeader projectId={projectId} tab="script" />
 
       {workspace.status === "unauthenticated" ? (
@@ -121,6 +122,6 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
           {setEmotion.error ?? restore.error ? <ErrorNote>{(setEmotion.error ?? restore.error)!.message}</ErrorNote> : null}
         </div>
       )}
-    </>
+    </ProjectGate>
   );
 }

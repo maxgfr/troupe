@@ -87,13 +87,18 @@ export function createRendererServer(options: RendererOptions): Server {
     });
   }
 
-  // Forgets jobs finished more than keepRendersS ago and deletes the MP4s no
-  // job it remembers owns once they are that old: theirs, and any left by an
-  // earlier run.
+  // Deletes the MP4s of jobs finished more than keepRendersS ago, then forgets
+  // the jobs, so a job reported gone never has its video still served. Then
+  // deletes the MP4s no job it remembers owns once they are that old: any
+  // left by an earlier run.
   const keepS = options.keepRendersS ?? KEEP_RENDERS_S;
   async function sweep() {
     const cutoff = Date.now() - keepS * 1000;
-    for (const [id, job] of jobs) if (job.finishedAt !== undefined && job.finishedAt < cutoff) jobs.delete(id);
+    for (const [id, job] of jobs) {
+      if (job.finishedAt === undefined || job.finishedAt >= cutoff) continue;
+      await rm(join(options.outDir, `${id}.mp4`), { force: true });
+      jobs.delete(id);
+    }
     for (const name of await readdir(options.outDir)) {
       const id = VIDEO_FILE.exec(name)?.[1];
       if (!id || jobs.has(id)) continue;

@@ -8,9 +8,13 @@ import { buildScene } from "../../src/modules/scene";
 import { encodeFrames, framesInput } from "./render";
 
 // An "ffmpeg" that records its pid and reads frames until stdin closes, like
-// the real one waiting for the next frame.
+// the real one waiting for the next frame. The pid file appears whole, by a
+// rename: `echo $$ > pid` creates it empty first, and a kill in between left
+// "" to read, pid 0, and kill(0, 0) succeeds on our own process group.
 const FAKE_FFMPEG = `#!/bin/sh
-echo $$ > "$(dirname "$0")/pid"
+dir="$(dirname "$0")"
+echo $$ > "$dir/pid.tmp"
+mv "$dir/pid.tmp" "$dir/pid"
 exec cat > /dev/null
 `;
 
@@ -51,6 +55,7 @@ describe("encodeFrames", () => {
     };
     await expect(encodeFrames(framesInput(scene), scene, draw)).rejects.toThrow("The canvas broke.");
     const pid = Number(readFileSync(pidFile, "utf8"));
+    expect(pid).toBeGreaterThan(0);
     await expect.poll(() => alive(pid), { timeout: 2000 }).toBe(false);
   });
 });

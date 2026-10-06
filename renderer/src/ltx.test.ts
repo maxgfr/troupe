@@ -179,7 +179,9 @@ describe("generateClip", () => {
     const started = Date.now();
     await expect(generateClip(settings({ command: [process.execPath, FAKE, "--hang"], timeoutS: 1 }), job)).rejects.toThrow("LTX took longer than 1 s and was stopped (LTX_TIMEOUT_S).");
     expect(Date.now() - started).toBeLessThan(5000);
-    const { stdout } = await run("pgrep", ["-f", "fake-generate.mjs --hang"]).catch(() => ({ stdout: "" }));
+    // Our own children only: another test run on the machine has hanging
+    // fakes of its own.
+    const { stdout } = await run("pgrep", ["-P", String(process.pid), "-f", "fake-generate.mjs --hang"]).catch(() => ({ stdout: "" }));
     expect(stdout.trim()).toBe("");
   });
 

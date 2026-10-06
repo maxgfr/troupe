@@ -221,9 +221,13 @@ describe("renderer (contract v1)", () => {
       await expect.poll(status, { timeout: 20_000, interval: 100 }).toBe("succeeded");
       const video = join(outDir, `${id}.mp4`);
       expect(existsSync(video)).toBe(true);
+      // A job's video goes with the job, whatever the file's date says.
+      const hourAhead = new Date(Date.now() + 3600_000);
+      await utimes(video, hourAhead, hourAhead);
       // The orphan is older than keepRendersS: swept at once; the rest stays.
       await expect.poll(() => existsSync(orphan), { timeout: 2000 }).toBe(false);
       expect(existsSync(notes)).toBe(true);
+      // Once the job is gone, so is its video: never a moment between.
       await expect.poll(status, { timeout: 5000, interval: 100 }).toBe("gone");
       expect(existsSync(video)).toBe(false);
     } finally {

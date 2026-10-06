@@ -26,6 +26,13 @@ programs under other licenses, listed below.
 - **FFmpeg** (GPL) is in the studio's and the renderer's images and is run as
   a separate program, the same way.
 
+The GNU GPL version 3's full text is in
+[LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt), as published at
+<https://www.gnu.org/licenses/gpl-3.0.txt>. The studio's, the renderer's, the
+CLI's and the `troupe-web` images carry it in `/usr/share/doc/troupe/` with
+Troupe's `LICENSE` and this file; the built browser edition carries all three
+at `<base>licenses/` (linked from the landing page's footer).
+
 ## Components
 
 - **FFmpeg / FFprobe.** The studio's Docker image installs Alpine Linux's

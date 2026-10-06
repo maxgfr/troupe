@@ -29,6 +29,10 @@ COPY src/modules/models/list-price.ts src/modules/models/http-defaults.ts src/mo
 RUN pnpm --filter troupe-cli build
 
 FROM node:24-alpine
+LABEL org.opencontainers.image.licenses="MIT"
+# Troupe's license, the third-party notices and the GNU GPL's text
+# (THIRD_PARTY_NOTICES.md says which parts carry it).
+COPY LICENSE THIRD_PARTY_NOTICES.md LICENSES/GPL-3.0.txt /usr/share/doc/troupe/
 COPY --from=build /app/cli/dist/troupe.mjs /usr/local/lib/troupe/troupe.mjs
 COPY --chmod=755 cli/docker-entrypoint.sh /usr/local/bin/troupe-cli-entrypoint
 # The CLI's profiles (~/.config/troupe) and where downloads land.

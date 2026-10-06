@@ -18,6 +18,10 @@ ENV SKIP_ENV_VALIDATION=1 \
 RUN pnpm build
 
 FROM node:24-alpine AS runner
+LABEL org.opencontainers.image.licenses="MIT"
+# Troupe's license, the third-party notices and the GNU GPL's text
+# (THIRD_PARTY_NOTICES.md says which parts carry it).
+COPY LICENSE THIRD_PARTY_NOTICES.md LICENSES/GPL-3.0.txt /usr/share/doc/troupe/
 # ffprobe validates every downloaded video; ffmpeg takes the library's
 # pictures and sound.
 RUN apk add --no-cache ffmpeg

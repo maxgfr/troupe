@@ -19,22 +19,27 @@ jobs:
       matrix:
         include:
           - name: troupe
+            license: MIT
             file: Dockerfile
             context: .
             target: ""
           - name: troupe-renderer
+            license: GPL-3.0-or-later
             file: renderer/Dockerfile
             context: .
             target: renderer
           - name: troupe-ollama
+            license: MIT
             file: ollama/Dockerfile
             context: ollama
             target: ""
           - name: troupe-web
+            license: GPL-3.0-or-later
             file: site/Dockerfile
             context: .
             target: ""
           - name: troupe-cli
+            license: MIT
             file: cli/Dockerfile
             context: .
             target: ""
@@ -55,6 +60,9 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+          # The image's own license (the Dockerfiles' LABEL), not the
+          # repository's: the renderer and the site carry the GPL as a whole.
+          labels: org.opencontainers.image.licenses=${{ matrix.license }}
       # The site and the CLI bundle build once, natively ($BUILDPLATFORM in
       # their Dockerfiles); only the runtime stages run under QEMU.
       - uses: docker/build-push-action@v6

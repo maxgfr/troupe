@@ -2,6 +2,9 @@
 # renderer needs. Replaces the root .dockerignore for this build.
 *
 !package.json
+!LICENSE
+!LICENSES/GPL-3.0.txt
+!THIRD_PARTY_NOTICES.md
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !renderer/package.json

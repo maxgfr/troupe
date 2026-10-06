@@ -37,6 +37,12 @@ RUN pnpm --filter @troupe/renderer deploy --prod --frozen-lockfile --config.inje
     done
 
 FROM node:24-bookworm-slim AS runtime
+# eSpeak NG (in kokoro-js) makes the renderer a GPL-3.0-or-later work as a
+# whole (THIRD_PARTY_NOTICES.md).
+LABEL org.opencontainers.image.licenses="GPL-3.0-or-later"
+# Troupe's license, the third-party notices and the GNU GPL's text
+# (THIRD_PARTY_NOTICES.md says which parts carry it).
+COPY LICENSE THIRD_PARTY_NOTICES.md LICENSES/GPL-3.0.txt /usr/share/doc/troupe/
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
  && rm -rf /var/lib/apt/lists/*

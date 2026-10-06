@@ -31,7 +31,13 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5
 ARG TROUPE_WEB_BASE=/troupe/
 # Read by the configuration template when the container starts.
 ENV TROUPE_WEB_BASE=${TROUPE_WEB_BASE}
+# eSpeak NG (in the render worker) makes the site a GPL-3.0-or-later work as
+# a whole (THIRD_PARTY_NOTICES.md).
+LABEL org.opencontainers.image.licenses="GPL-3.0-or-later"
 USER root
+# Troupe's license, the third-party notices and the GNU GPL's text
+# (THIRD_PARTY_NOTICES.md says which parts carry it).
+COPY --from=build /app/LICENSE /app/THIRD_PARTY_NOTICES.md /app/LICENSES/GPL-3.0.txt /usr/share/doc/troupe/
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY site/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 # The Content-Security-Policy, with the built pages' inline script hashes.

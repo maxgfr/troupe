@@ -245,6 +245,10 @@ it builds on carry the GNU GPL, and you should know where:
   Readline (GPL), as a separate program it runs (`--build-arg TROUPE_YTDLP=0`
   leaves it out). FFmpeg is run the same way.
 
+The GPL's full text is in [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt). Every
+image carries `LICENSE`, `THIRD_PARTY_NOTICES.md` and that text in
+`/usr/share/doc/troupe/`, and the built browser edition at `licenses/`.
+
 Model weights are downloaded at run time, never distributed with Troupe, and
 keep their own licenses: Kokoro-82M, Qwen and Whisper are Apache 2.0 or MIT;
 the AI video mode's LTX-Video 2B 0.9.8 weights are not open source (a paid

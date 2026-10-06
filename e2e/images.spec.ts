@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { TAG } from "./stack";
 
 // What the images and the Compose file do on their own, outside the running
-// stack: the licenses the Ollama image must carry, and the database's
+// stack: the licenses the images must carry, and the database's
 // first-start password, run from the exact script docker-compose.yml holds.
 
 const REPO = new URL("..", import.meta.url);
@@ -35,6 +35,25 @@ test("the Ollama image carries Ollama's license and the notices for what it bund
     `for f in ${files.join(" ")}; do test -e "$f" || echo "$f"; done`,
   );
   expect(missing.trim()).toBe("");
+});
+
+test("every Troupe image carries its license, the third-party notices and the GPL's text, and says which license applies", () => {
+  for (const [service, license] of [
+    ["app", "MIT"],
+    ["renderer", "GPL-3.0-or-later"],
+    ["web", "GPL-3.0-or-later"],
+    ["cli", "MIT"],
+  ] as const) {
+    const image = `troupe-e2e/${service}:${TAG}`;
+    const read = (file: string) => docker("run", "--rm", "--entrypoint", "cat", image, `/usr/share/doc/troupe/${file}`);
+    expect(read("LICENSE"), service).toMatch(/^MIT License/);
+    expect(read("THIRD_PARTY_NOTICES.md"), service).toMatch(/^# Third-party notices/);
+    expect(read("GPL-3.0.txt"), service).toContain("GNU GENERAL PUBLIC LICENSE");
+    expect(
+      docker("image", "inspect", "--format", '{{ index .Config.Labels "org.opencontainers.image.licenses" }}', image).trim(),
+      service,
+    ).toBe(license);
+  }
 });
 
 test("the app image runs yt-dlp, and the renderer image carries faster-whisper", () => {

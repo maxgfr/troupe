@@ -4,6 +4,8 @@ node_modules
 evals
 docs
 *.md
+# Shipped in the image at /usr/share/doc/troupe.
+!THIRD_PARTY_NOTICES.md
 .env
 .env.*
 !.env.example

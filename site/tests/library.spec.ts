@@ -31,6 +31,18 @@ test("upload a video → pictures, transcript and hook in the page → search by
   // Links need a server; the page says so instead of offering them.
   await expect(page.getByPlaceholder("Paste a text, or upload a file")).toBeVisible();
   await expect(page.getByText(/Everything stays in this browser/)).toBeVisible();
+  // What cannot run here says so: pictures need a vision model, links a server.
+  const tools = page.getByRole("button", { expanded: false }).filter({ hasText: "not ready" });
+  await expect(tools).toContainText("Pictures (not ready)");
+  await expect(tools).toContainText("Links (not ready)");
+  await tools.click();
+  await expect(page.getByText(/describing them needs a vision model/)).toBeVisible();
+  // A pasted link is refused with the way round it, and nothing is saved.
+  await page.getByLabel("A text to save").fill("https://www.youtube.com/watch?v=eRsGyueVLvQ");
+  await page.getByRole("button", { name: "Save link" }).click();
+  await expect(page.getByRole("alert")).toContainText("A page in your browser cannot fetch other sites");
+  await expect(page.getByText("Save your first piece")).toBeVisible();
+  await page.getByLabel("A text to save").fill("");
 
   await page.locator('input[type="file"]').setInputFiles(CLIP);
   const row = page.locator("table").getByRole("row", { name: /library clip/i });
@@ -53,6 +65,9 @@ test("upload a video → pictures, transcript and hook in the page → search by
     return v.duration;
   });
   expect(duration).toBeGreaterThan(10);
+  // Without WebGPU (this headless browser) the ideas say why they cannot be written.
+  const ideas = page.getByRole("button", { name: "5 ideas in this style" });
+  if (await ideas.isDisabled()) await expect(page.getByText(/Ideas are written by the chat model, which cannot run/)).toBeVisible();
 
   await page.getByRole("link", { name: "← Library" }).click();
   await page.getByLabel("Search your library").fill("how to make coffee in the fridge");

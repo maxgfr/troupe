@@ -10,6 +10,7 @@ import { looksLikeLink, sizeLabel } from "./format";
 const ACCEPT = "video/*,audio/*,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,.txt,.md";
 
 interface Upload {
+  id: string;
   name: string;
   fraction: number | null;
 }
@@ -63,19 +64,21 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
         setError(`${file.name} is larger than ${sizeLabel(maxUploadBytes)}, the most this studio takes.`);
         continue;
       }
-      setUploads((list) => [...list, { name: file.name, fraction: 0 }]);
+      // Two files of the same name are two uploads.
+      const uploadId = crypto.randomUUID();
+      setUploads((list) => [...list, { id: uploadId, name: file.name, fraction: 0 }]);
       try {
         const { id } = await uploader.upload(file, {
           workspaceId,
           mine,
-          onProgress: (fraction) => setUploads((list) => list.map((u) => (u.name === file.name ? { ...u, fraction } : u))),
+          onProgress: (fraction) => setUploads((list) => list.map((u) => (u.id === uploadId ? { ...u, fraction } : u))),
         });
         onAdded(id);
         await refresh();
       } catch (e) {
         setError(`${file.name}: ${(e as Error).message}`);
       } finally {
-        setUploads((list) => list.filter((u) => u.name !== file.name));
+        setUploads((list) => list.filter((u) => u.id !== uploadId));
       }
     }
   }
@@ -160,7 +163,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
       {uploads.length > 0 ? (
         <ul className="mt-3 space-y-2" aria-live="polite">
           {uploads.map((u) => (
-            <li key={u.name} className="space-y-1">
+            <li key={u.id} className="space-y-1">
               <p className="flex justify-between gap-3 text-xs">
                 <span className="truncate">Uploading {u.name}</span>
                 <span className="font-mono tabular-nums text-muted">{u.fraction === null ? "" : `${Math.round(u.fraction * 100)}%`}</span>

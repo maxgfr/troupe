@@ -33,6 +33,7 @@ export function ItemStatusChip({ status, stage }: { status: ItemStatus; stage?: 
   return (
     <span title={status === "analyzing" && stage ? stage : undefined} className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${STATUS_TONES[status]}`}>
       {STATUS_LABELS[status]}
+      {status === "analyzing" && stage ? <span className="sr-only">: {stage}</span> : null}
     </span>
   );
 }

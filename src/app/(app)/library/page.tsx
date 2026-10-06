@@ -68,7 +68,14 @@ export default function LibraryPage() {
       ) : workspace.status === "error" ? (
         <ErrorNote>{workspace.message}</ErrorNote>
       ) : status.error ? (
-        <EmptyState title="The library is off" body={`${status.error.message} Set TROUPE_LIBRARY=1 (docs/LIBRARY.md) to turn it on.`} />
+        <EmptyState
+          title={edition.kind === "self-hosted" ? "The library is off" : "The library could not start"}
+          body={
+            edition.kind === "self-hosted"
+              ? `${status.error.message} Set TROUPE_LIBRARY=1 in the studio's environment (docs/LIBRARY.md) to turn it on.`
+              : `${status.error.message} Reload the page; if it keeps failing, this browser may be blocking the storage the library needs (site data for this page).`
+          }
+        />
       ) : uploader ? (
         <>
           <div className="mb-6 space-y-3">

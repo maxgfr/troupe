@@ -4,7 +4,7 @@ import type { LibraryUploader } from "~/app/_components/edition";
 import { sha256Hex } from "~/modules/library/hash";
 import { createCaller } from "~/server/api/root";
 import { EXTENSIONS, SNIFF_BYTES, sniffType } from "~/server/library/sniff";
-import { deleteMediaFiles, saveMediaFile } from "../media";
+import { storeWhileRecording } from "../data/local-data";
 import { createBrowserContext } from "../trpc";
 import { libraryDownload, subscribeToLibraryDownload } from "./client";
 import { pendingUploads } from "./backend";
@@ -12,7 +12,9 @@ import { LIBRARY_CONFIG } from "./env";
 
 // The browser edition's uploads: the file is checked by its first bytes,
 // kept in this browser (IndexedDB, served by the media worker), then
-// recorded through the studio's own router, which starts its analysis.
+// recorded through the studio's own router, which starts its analysis. From
+// storing to recording it holds the data lock, so another tab's clean-up of
+// unreferenced files cannot take it meanwhile.
 
 const stem = (name: string) => name.replace(/\.[A-Za-z0-9]{1,5}$/, "").replace(/[_-]+/g, " ").trim() || name;
 
@@ -30,16 +32,15 @@ async function upload(file: File, input: { workspaceId: string; mine: boolean; o
   const assetId = crypto.randomUUID();
   const storagePath = `library/${itemId}/original.${EXTENSIONS[mimeType]}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const checksum = await sha256Hex(bytes);
   input.onProgress?.(0.5);
-  await saveMediaFile({ id: assetId, storagePath, blob: new Blob([bytes], { type: mimeType }) });
-  pendingUploads.set(itemId, { assetId, storagePath, mimeType, bytes: bytes.length, checksum: await sha256Hex(bytes), fileName: file.name.slice(0, 200) });
+  pendingUploads.set(itemId, { assetId, storagePath, mimeType, bytes: bytes.length, checksum, fileName: file.name.slice(0, 200) });
   try {
-    const item = await caller.library.addUpload({ workspaceId: input.workspaceId, uploadId: itemId, mine: input.mine });
+    const item = await storeWhileRecording({ id: assetId, storagePath, blob: new Blob([bytes], { type: mimeType }) }, () => caller.library.addUpload({ workspaceId: input.workspaceId, uploadId: itemId, mine: input.mine }));
     input.onProgress?.(1);
     return { id: item.id };
   } catch (error) {
     pendingUploads.delete(itemId);
-    await deleteMediaFiles([assetId]).catch(() => {});
     throw error;
   }
 }
@@ -47,8 +48,9 @@ async function upload(file: File, input: { workspaceId: string; mine: boolean; o
 // Under the add bar: what the first analysis downloads, then its progress.
 function LibraryNote() {
   const download = useSyncExternalStore(subscribeToLibraryDownload, libraryDownload);
-  if (download) {
-    const percent = download.totalBytes ? Math.round((download.loadedBytes / download.totalBytes) * 100) : 0;
+  // The worker sends a size only once it knows one; a failed download clears it.
+  if (download && download.totalBytes > 0) {
+    const percent = Math.round((download.loadedBytes / download.totalBytes) * 100);
     return (
       <div className="max-w-md space-y-1.5" role="status">
         <p className="flex items-baseline justify-between gap-3 text-xs">

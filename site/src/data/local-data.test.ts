@@ -27,7 +27,7 @@ vi.stubGlobal("window", { location: { assign, reload: vi.fn() } });
 // One tab here: no channel to the others.
 vi.stubGlobal("BroadcastChannel", undefined);
 
-const { localData, pruneUnreferencedMedia, restoreBackup } = await import("./local-data");
+const { localData, pruneUnreferencedMedia, restoreBackup, storeWhileRecording } = await import("./local-data");
 
 const file = (id: string, text: string) => ({ id, storagePath: `browser/${id}.mp4`, blob: new Blob([text], { type: "video/mp4" }) });
 const backup = (media: ReturnType<typeof file>[]): Backup => ({ createdAt: new Date(), database: { migrations: [], tables: {} }, media });
@@ -105,6 +105,35 @@ describe("files no media asset refers to", () => {
     await pruneUnreferencedMedia();
     expect((await mediaFileIds()).sort()).toEqual(["old", "shared"]);
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe("an upload stored before the database records it", () => {
+  it("is not taken for a leftover by a clean-up starting in another tab meanwhile", async () => {
+    let recorded = false;
+    let record!: () => void;
+    const recording = new Promise<void>((resolve) => (record = resolve));
+    // The database knows the upload only once its asset is recorded.
+    db.referencedMediaIds.mockImplementation(async () => new Set(recorded ? ["shared", "upload"] : ["shared"]));
+    const storing = storeWhileRecording(file("upload", "upload bytes"), async () => {
+      await recording;
+      recorded = true;
+      return "item";
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const pruning = pruneUnreferencedMedia();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    record();
+    expect(await storing).toBe("item");
+    await pruning;
+    expect((await mediaFileIds()).sort()).toEqual(["shared", "upload"]);
+  });
+
+  it("takes the stored file out again when the database refuses it", async () => {
+    await expect(storeWhileRecording(file("upload", "upload bytes"), async () => {
+      throw new Error("That item is not in your library.");
+    })).rejects.toThrow("not in your library");
+    expect(await mediaFileIds()).not.toContain("upload");
   });
 });
 

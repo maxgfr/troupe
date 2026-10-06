@@ -36,15 +36,15 @@ export function createBrowserLibrary(db: Db, chat: ChatBackend): LibraryBackend 
         ready: true,
         tool: {
           model: MODEL(LIBRARY_CONFIG.whisperModel),
-          async transcribe(audio) {
+          async transcribe(audio, options) {
             if (audio.kind !== "samples") throw new Error("The browser's transcriber takes decoded sound.");
-            const { segments } = await transcribeInWorker(audio.samples);
+            const { segments } = await transcribeInWorker(audio.samples, options.signal);
             return { language: null, model: MODEL(LIBRARY_CONFIG.whisperModel), segments };
           },
         },
       },
       vision: { ready: false, problem: NO_VISION },
-      embedder: { ready: true, tool: { model: MODEL(LIBRARY_CONFIG.embedModel), embed: (texts, kind) => embedInWorker(texts, kind) } },
+      embedder: { ready: true, tool: { model: MODEL(LIBRARY_CONFIG.embedModel), embed: (texts, kind, options) => embedInWorker(texts, kind, options?.signal) } },
       writer: setup.model ? { ready: true, tool: setup.model, label: setup.label, modelId: setup.modelId } : { ready: false, problem: setup.problem ?? "The in-browser chat model cannot run here." },
     };
   }

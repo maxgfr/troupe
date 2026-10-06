@@ -15,8 +15,10 @@ export interface BrowserLibraryConfig {
   device: "auto" | "webgpu" | "wasm";
   // Shown before the first analysis, in megabytes; 0 hides the figure.
   downloadMb: number;
-  // The largest file kept in this browser.
+  // The largest file kept in this browser, and the longest video or sound
+  // it analyses (decoding and transcribing in a tab take time and memory).
   maxUploadMb: number;
+  maxMinutes: number;
   // Pictures taken from a video.
   frames: number;
 }
@@ -32,6 +34,7 @@ export const DEFAULT_LIBRARY_CONFIG: BrowserLibraryConfig = {
   device: "wasm",
   downloadMb: 195,
   maxUploadMb: 300,
+  maxMinutes: 15,
   frames: 8,
 };
 
@@ -79,6 +82,7 @@ export function parseLibraryConfig(env: Env): BrowserLibraryConfig {
     device: device as BrowserLibraryConfig["device"],
     downloadMb: whole("VITE_LIBRARY_DOWNLOAD_MB", known ? d.downloadMb : 0, 0, 100_000),
     maxUploadMb: whole("VITE_LIBRARY_MAX_UPLOAD_MB", d.maxUploadMb, 1, 4000),
+    maxMinutes: whole("VITE_LIBRARY_MAX_MINUTES", d.maxMinutes, 1, 240),
     frames: whole("VITE_LIBRARY_FRAMES", d.frames, 1, 30),
   };
   if (problems.length > 0) throw new Error(`Invalid library settings:\n- ${problems.join("\n- ")}`);

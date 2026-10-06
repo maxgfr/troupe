@@ -19,7 +19,32 @@ const LIBRARY_SUGGESTIONS = ["Which hooks open with a question?", "What do these
 const ITEM_SUGGESTIONS = ["Why does this hook work?", "Walk me through its structure", "What could I reuse in my own videos?"];
 
 // An answer with its [n] markers as links to the passages they cite.
-function Cited({ text, citations, href, follow }: { text: string; citations: Citation[]; href: (c: Citation) => string; follow: (c: Citation) => (event: React.MouseEvent) => void }) {
+// A citation of the item whose page this is, without a time, points nowhere
+// else: it is shown, not linked.
+function CitationLink({ citation, href, follow, className, children, label }: { citation: Citation; href: (c: Citation) => string | null; follow: (c: Citation) => (event: React.MouseEvent) => void; className: string; children: ReactNode; label?: string }) {
+  const to = href(citation);
+  if (to === null) {
+    return (
+      <span className={className}>
+        {label ? (
+          <>
+            <span aria-hidden>{children}</span>
+            <span className="sr-only">{label}</span>
+          </>
+        ) : (
+          children
+        )}
+      </span>
+    );
+  }
+  return (
+    <Link href={to} onClick={follow(citation)} aria-label={label} className={className}>
+      {children}
+    </Link>
+  );
+}
+
+function Cited({ text, citations, href, follow }: { text: string; citations: Citation[]; href: (c: Citation) => string | null; follow: (c: Citation) => (event: React.MouseEvent) => void }) {
   const parts = text.split(/(\[\d{1,2}\])/g);
   return (
     <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed">
@@ -28,15 +53,16 @@ function Cited({ text, citations, href, follow }: { text: string; citations: Cit
         const cited = n ? citations.find((c) => c.n === Number(n)) : undefined;
         if (!cited) return <Fragment key={i}>{part}</Fragment>;
         return (
-          <Link
+          <CitationLink
             key={i}
-            href={href(cited)}
-            onClick={follow(cited)}
-            aria-label={`Source ${cited.n}: ${cited.title}${cited.startS !== null ? ` at ${clock(cited.startS)}` : ""}`}
+            citation={cited}
+            href={href}
+            follow={follow}
+            label={`Source ${cited.n}: ${cited.title}${cited.startS !== null ? ` at ${clock(cited.startS)}` : ""}`}
             className="relative mx-0.5 inline-flex min-w-5 items-center justify-center rounded-md bg-primary/15 px-1 align-[1px] font-mono text-[11px] tabular-nums text-primary transition-colors duration-150 after:absolute after:-inset-x-2.5 after:-inset-y-3 hover:bg-primary/25"
           >
             {cited.n}
-          </Link>
+          </CitationLink>
         );
       })}
     </p>
@@ -92,7 +118,9 @@ export function LibraryChat({
 
   // Said once the history is in: while it loads, nothing is known yet.
   const unavailable = !history.data ? null : writer === null ? "No chat model is set up, and the library chat answers with it." : writer.problem;
-  const href = (c: Citation) => (c.itemId === itemId && onSeek ? "#" : `/library/${c.itemId}${c.startS !== null ? `?t=${Math.floor(c.startS)}` : ""}`);
+  // On the item's own page a timed citation seeks the player (its link still
+  // names the moment); an untimed one has nowhere to go.
+  const href = (c: Citation) => (c.itemId === itemId && onSeek && c.startS === null ? null : `/library/${c.itemId}${c.startS !== null ? `?t=${Math.floor(c.startS)}` : ""}`);
   const follow = (c: Citation) => (event: React.MouseEvent) => {
     if (c.itemId === itemId && onSeek && c.startS !== null) {
       event.preventDefault();
@@ -116,7 +144,7 @@ export function LibraryChat({
         ) : null}
       </div>
 
-      <div ref={log} className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
+      <div ref={log} role="log" aria-live="polite" aria-label={itemId ? "The chat about this item" : "The library chat"} className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
         {history.isPending ? (
           <div className="space-y-2" role="status" aria-label="Loading the chat">
             <Skeleton className="h-10 w-2/3" />
@@ -142,23 +170,23 @@ export function LibraryChat({
                 {m.content}
               </p>
             ) : (
-              <div key={m.id} className="space-y-2">
+              <article key={m.id} aria-label="Answer" className="space-y-2">
                 <Cited text={m.content} citations={m.citations} href={href} follow={follow} />
                 {m.citations.length > 0 ? (
                   <ul aria-label="Sources" className="flex flex-wrap gap-1.5">
                     {m.citations.map((c) => (
                       <li key={c.n}>
-                        <Link href={href(c)} onClick={follow(c)} className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-md border border-muted/25 px-2 text-xs transition-colors duration-150 hover:border-muted/50">
+                        <CitationLink citation={c} href={href} follow={follow} className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-md border border-muted/25 px-2 text-xs transition-colors duration-150 hover:border-muted/50">
                           <span className="font-mono tabular-nums text-primary">{c.n}</span>
                           <span className="truncate">{c.title}</span>
                           {c.startS !== null ? <span className="font-mono tabular-nums text-muted">{clock(c.startS)}</span> : null}
-                        </Link>
+                        </CitationLink>
                       </li>
                     ))}
                   </ul>
                 ) : null}
                 {m.model && writer && m.model !== writer.modelId ? <p className="font-mono text-[11px] text-muted">{m.model}</p> : null}
-              </div>
+              </article>
             ),
           )
         )}

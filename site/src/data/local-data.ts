@@ -1,7 +1,7 @@
 import type { LocalData } from "~/app/_components/edition";
 import { referencedMediaIds, resetDatabase, restoreDatabase, snapshotDatabase } from "../db/client";
 import { MIGRATIONS } from "../db/migrations";
-import { clearMediaFiles, deleteMediaFiles, mediaFileIds, readMediaFiles, saveMediaFiles } from "../media";
+import { clearMediaFiles, deleteMediaFiles, mediaFileIds, readMediaFiles, saveMediaFile, saveMediaFiles, type MediaFile } from "../media";
 import { clearJobs } from "../render/jobs";
 import { checkMigrations, packBackup, summarize, unpackBackup, type Backup } from "./backup";
 import { storage } from "./storage";
@@ -92,6 +92,22 @@ export async function pruneUnreferencedMedia(): Promise<void> {
   } catch (error) {
     console.warn("Unused video files could not be cleared:", error);
   }
+}
+
+// A file that must be stored before the database can record it (a library
+// upload: the analysis reads it as soon as it is recorded). Held under the
+// data lock from storing to recording, so another tab's clean-up never sees
+// it stored and unrecorded; taken out again when the recording fails.
+export async function storeWhileRecording<T>(file: MediaFile, record: () => Promise<T>): Promise<T> {
+  return withDataLock(async () => {
+    await saveMediaFile(file);
+    try {
+      return await record();
+    } catch (error) {
+      await deleteMediaFiles([file.id]).catch(() => {});
+      throw error;
+    }
+  });
 }
 
 const KNOWN_MIGRATIONS = MIGRATIONS.map((migration) => migration.name);

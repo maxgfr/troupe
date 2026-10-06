@@ -22,6 +22,7 @@ export function ToolStatus({ tools }: { tools: Tool[] }) {
           <span key={t.name} className="inline-flex items-center gap-1.5">
             <span aria-hidden className={`size-2 rounded-full ${t.ready ? "bg-success" : "border border-warning"}`} />
             <span>{t.label}</span>
+            <span className="sr-only">{t.ready ? "(ready)," : "(not ready),"}</span>
           </span>
         ))}
         <span className="text-primary">{open ? "Hide details" : missing.length ? `${missing.length} not ready · details` : "Details"}</span>

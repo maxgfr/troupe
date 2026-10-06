@@ -3,13 +3,20 @@ import { cutsFromDifferences, frameTimes, type MediaReader, type StoredItemFile 
 import { mediaAssets } from "~/modules/generation";
 import type { Db } from "~/server/db/types";
 import { readMediaFile, saveMediaFile } from "../media";
+import { LIBRARY_CONFIG } from "./env";
+import { seekTo } from "./seek";
+import { readTracks, tooLongForBrowser } from "./tracks";
 
-// The library's media work in the page: a video element and a canvas take
+// The library's media work in the page: the container says what tracks a
+// file has (mediabunny, without decoding), a video element and a canvas take
 // the pictures (cuts found by comparing small frames every half second), Web
-// Audio decodes the sound and resamples it to 16 kHz for Whisper. Workers
-// have neither, so this runs in the tab that analyses.
+// Audio decodes the sound straight to 16 kHz mono for Whisper. Workers have
+// no video element, so this runs in the tab that analyses.
 
 const SAMPLE_RATE = 16000;
+// A seek or a file that does not answer within this long is given up on.
+const SEEK_TIMEOUT_MS = 15_000;
+const OPEN_TIMEOUT_MS = 30_000;
 const COMPARE_W = 32;
 const COMPARE_H = 18;
 const FRAME_W = 360;
@@ -25,64 +32,77 @@ async function blobOf(file: StoredItemFile): Promise<Blob> {
 function media(url: string, kind: "video" | "audio"): Promise<HTMLVideoElement | HTMLAudioElement> {
   return new Promise((resolve, reject) => {
     const element = document.createElement(kind);
+    const timer = setTimeout(() => reject(new Error("This browser could not open the file.")), OPEN_TIMEOUT_MS);
     element.muted = true;
     element.preload = "auto";
-    element.onloadedmetadata = () => resolve(element);
-    element.onerror = () => reject(new Error("This browser cannot play the file."));
+    element.onloadedmetadata = () => {
+      clearTimeout(timer);
+      resolve(element);
+    };
+    element.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("This browser cannot play the file."));
+    };
     element.src = url;
   });
 }
 
-function seek(video: HTMLVideoElement, atS: number): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      video.removeEventListener("seeked", done);
-      resolve();
-    };
-    video.addEventListener("seeked", done);
-    video.currentTime = atS;
-  });
+// Lets the element go of the file's memory.
+function release(element: HTMLMediaElement) {
+  element.removeAttribute("src");
+  element.load();
 }
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("The picture could not be saved."))), "image/jpeg", 0.82));
 }
 
-// Decoded sound by item: probe decodes it once, the transcription reuses it.
-const decoded = new Map<string, Float32Array | null>();
+// The sound track's codec by item, from the probe, for the reason when the
+// browser cannot decode it.
+const codecs = new Map<string, string | null>();
 
-async function decode(blob: Blob): Promise<Float32Array | null> {
-  const context = new AudioContext();
-  try {
-    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
-    const offline = new OfflineAudioContext(1, Math.max(1, Math.ceil(buffer.duration * SAMPLE_RATE)), SAMPLE_RATE);
-    const source = offline.createBufferSource();
-    source.buffer = buffer;
-    source.connect(offline.destination);
-    source.start();
-    return (await offline.startRendering()).getChannelData(0);
-  } catch {
-    return null;
-  } finally {
-    await context.close().catch(() => {});
+// The sound as 16 kHz mono: an OfflineAudioContext decodes at its own rate,
+// so the file's sound is never held at its native rate (three times the
+// memory at 48 kHz, twice again in stereo) before being resampled.
+async function decode16k(blob: Blob): Promise<Float32Array> {
+  const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
+  const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+  if (buffer.numberOfChannels === 1) return buffer.getChannelData(0);
+  const mono = new Float32Array(buffer.length);
+  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+    const data = buffer.getChannelData(channel);
+    for (let i = 0; i < data.length; i++) mono[i]! += data[i]! / buffer.numberOfChannels;
   }
+  return mono;
 }
 
 export function browserMediaReader(db: Db): MediaReader {
   return {
+    // What the file holds, without decoding it; refused past the length
+    // this browser analyses, before anything heavy runs.
     async probe(file) {
       const blob = await blobOf(file);
-      const url = URL.createObjectURL(blob);
-      try {
-        const element = await media(url, file.mimeType.startsWith("audio/") ? "audio" : "video");
-        const durationS = Number.isFinite(element.duration) ? Math.round(element.duration * 100) / 100 : null;
-        const hasVideo = element instanceof HTMLVideoElement && element.videoWidth > 0;
-        const samples = await decode(blob);
-        decoded.set(file.itemId, samples);
-        return { durationS, hasVideo, hasAudio: samples !== null && samples.length > 0 };
-      } finally {
-        URL.revokeObjectURL(url);
+      let tracks = await readTracks(blob);
+      if (!tracks) {
+        // A container mediabunny does not read: the media element says what it can.
+        const url = URL.createObjectURL(blob);
+        try {
+          const element = await media(url, file.mimeType.startsWith("audio/") ? "audio" : "video");
+          tracks = {
+            durationS: Number.isFinite(element.duration) ? Math.round(element.duration * 100) / 100 : null,
+            hasVideo: element instanceof HTMLVideoElement && element.videoWidth > 0,
+            // Unknown: the decoder will tell.
+            audioCodec: "an unknown codec",
+          };
+          release(element);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
       }
+      const tooLong = tooLongForBrowser(tracks.durationS, LIBRARY_CONFIG.maxMinutes);
+      if (tooLong) throw new Error(tooLong);
+      codecs.set(file.itemId, tracks.audioCodec);
+      return { durationS: tracks.durationS, hasVideo: tracks.hasVideo, hasAudio: tracks.audioCodec !== null };
     },
 
     async frames(file, options) {
@@ -96,8 +116,7 @@ export function browserMediaReader(db: Db): MediaReader {
         const differences: number[] = [];
         let previous: Uint8ClampedArray | null = null;
         for (let t = 0; t < durationS; t += step) {
-          if (options.signal?.aborted) throw new Error("Stopped.");
-          await seek(video, t);
+          await seekTo(video, t, { timeoutMs: SEEK_TIMEOUT_MS, signal: options.signal });
           small.drawImage(video, 0, 0, COMPARE_W, COMPARE_H);
           const pixels = small.getImageData(0, 0, COMPARE_W, COMPARE_H).data;
           if (previous) {
@@ -114,7 +133,7 @@ export function browserMediaReader(db: Db): MediaReader {
         const frames: { assetId: string; atS: number }[] = [];
         for (const [n, atS] of frameTimes(cutsAtS, durationS, options.max).entries()) {
           if (atS >= durationS) continue;
-          await seek(video, atS);
+          await seekTo(video, atS, { timeoutMs: SEEK_TIMEOUT_MS, signal: options.signal });
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const blob = await canvasBlob(canvas);
           const assetId = crypto.randomUUID();
@@ -124,17 +143,27 @@ export function browserMediaReader(db: Db): MediaReader {
           await saveMediaFile({ id: assetId, storagePath, blob });
           frames.push({ assetId, atS });
         }
+        release(video);
         return { frames, cutsAtS };
       } finally {
         URL.revokeObjectURL(url);
       }
     },
 
-    async audio(file) {
-      let samples = decoded.get(file.itemId);
-      if (samples === undefined) samples = await decode(await blobOf(file));
-      decoded.delete(file.itemId);
-      if (!samples) throw new Error("This browser cannot decode the file's sound.");
+    // The file has a sound track (the probe said so): decoded here, or the
+    // reason this browser could not.
+    async audio(file, options) {
+      const codec = codecs.get(file.itemId) ?? null;
+      codecs.delete(file.itemId);
+      options.signal?.throwIfAborted();
+      let samples: Float32Array;
+      try {
+        samples = await decode16k(await blobOf(file));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`this browser could not decode its sound${codec ? ` (${codec})` : ""}: ${reason}. The self-hosted studio reads it with ffmpeg.`);
+      }
+      if (samples.length === 0) throw new Error("its sound track is empty.");
       return { kind: "samples", samples, sampleRate: SAMPLE_RATE };
     },
 

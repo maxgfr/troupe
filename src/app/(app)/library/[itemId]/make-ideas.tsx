@@ -17,7 +17,13 @@ const ACTIONS: { kind: Kind; label: string; busy: string; hint: string }[] = [
 // that becomes a project in one click (the list below the actions).
 export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId: string; itemId: string; ready: boolean; browser: boolean }) {
   const actorField = useId();
+  const hintId = useId();
   const utils = api.useUtils();
+  // The chat model writes the ideas: without one, the buttons say why.
+  const status = api.library.status.useQuery(undefined, { retry: false, staleTime: 30_000 });
+  const writer = status.data?.tools.find((t) => t.name === "writer");
+  const noWriter = writer && !writer.ready ? writer.detail : null;
+  const usable = ready && !noWriter;
   const actors = api.actors.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   const available = (actors.data ?? []).filter((a) => a.status === "active");
   const [actorId, setActorId] = useState("");
@@ -37,20 +43,24 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      <ul className="space-y-2">
         {ACTIONS.map((a) => (
-          <button
-            key={a.kind}
-            type="button"
-            title={a.hint}
-            disabled={!ready || generate.isPending}
-            onClick={() => run(a.kind)}
-            className="rounded-lg border border-muted/30 px-3 py-2 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {label(a)}
-          </button>
+          <li key={a.kind} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              aria-describedby={`${hintId}-${a.kind}`}
+              disabled={!usable || generate.isPending}
+              onClick={() => run(a.kind)}
+              className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {label(a)}
+            </button>
+            <span id={`${hintId}-${a.kind}`} className="text-pretty text-xs text-muted">
+              {a.hint}
+            </span>
+          </li>
         ))}
-      </div>
+      </ul>
       <form
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
@@ -69,11 +79,11 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
             ))}
           </select>
         </label>
-        <button type="submit" disabled={!ready || !actorId || generate.isPending} className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="submit" disabled={!usable || !actorId || generate.isPending} className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40">
           {pending === "script" ? "Writing the script…" : "Write the script"}
         </button>
       </form>
-      {!ready ? <p className="text-xs text-muted">Available once the item is read.</p> : null}
+      {!ready ? <p className="text-xs text-muted">Available once the item is read.</p> : noWriter ? <p className="text-pretty text-xs text-muted">Ideas are written by the chat model, which cannot run: {noWriter}</p> : null}
       {generate.isPending ? (
         <div role="status" className="space-y-2">
           <p className="text-xs text-muted">The chat model is writing; small models on a CPU can take a minute.</p>

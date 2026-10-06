@@ -118,34 +118,44 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await page.getByLabel("Search your library").fill("");
 
   // Ask the library: the answer cites what it used. The test stack's 0.5B
-  // model sometimes answers without citing; a person asks again.
+  // model sometimes answers without citing; a person asks again, and the
+  // report says how many asks it took.
   const chat = page.getByRole("complementary", { name: "Ask your library" });
   const sources = chat.getByRole("list", { name: "Sources" });
-  for (let i = 0; i < 3 && (await sources.count()) === 0; i++) {
-    const answers = await chat.locator("p.whitespace-pre-wrap").count();
+  const answers = chat.getByRole("article", { name: "Answer" });
+  let asks = 0;
+  while (asks < 3 && (await sources.count()) === 0) {
+    const before = await answers.count();
     await chat.getByLabel("Ask your library").fill("Which saved piece talks about cold brew, and how does it open?");
     await chat.getByRole("button", { name: "Ask" }).click();
-    await expect(chat.locator("p.whitespace-pre-wrap")).toHaveCount(answers + 2, { timeout: 10 * 60_000 });
-    await expect(chat.getByText(/is reading your library/)).toBeHidden();
+    asks += 1;
+    await expect(answers).toHaveCount(before + 1, { timeout: 10 * 60_000 });
     await expect(chat.getByRole("alert")).toHaveCount(0);
   }
-  await expect(sources.first()).toBeVisible();
+  testInfo.annotations.push({ type: "library chat asks", description: String(asks) });
+  expect(await sources.count(), `no answer cited a source in ${asks} asks`).toBeGreaterThan(0);
   // A citation opens the item it cites.
   await expect(sources.first().getByRole("link").first()).toHaveAttribute("href", /\/library\/[0-9a-f-]{36}/);
   await shot("03-chat");
 
   // Ideas in the style of the video; one short enough for the stack's
   // renderer (15 s at most) made into a project. The 0.5B model sometimes
-  // writes none, or only long ones: a person asks again.
+  // writes none, or only long ones: a person asks again, and the report says
+  // how many tries it took and, when none fits, every length it wrote.
   await page.locator("table").getByRole("link", { name: /cold brew trick/i }).click();
   const write = page.getByRole("button", { name: "10 ideas in this style" });
-  const fitting = page.locator("li").filter({ hasText: /about ([1-9]|1[0-5]) s/ }).getByRole("button", { name: "Create project" });
-  for (let i = 0; i < 3 && (await fitting.count()) === 0; i++) {
+  const cards = page.locator("li").filter({ has: page.getByRole("button", { name: "Create project" }) });
+  const fitting = cards.filter({ hasText: /about ([1-9]|1[0-5]) s/ }).getByRole("button", { name: "Create project" });
+  let tries = 0;
+  while (tries < 3 && (await fitting.count()) === 0) {
     await write.click();
+    tries += 1;
     await expect(page.getByRole("button", { name: "Writing 10 ideas…" })).toBeVisible();
     await expect(write).toBeEnabled({ timeout: 10 * 60_000 });
   }
-  await expect(fitting.first()).toBeVisible();
+  testInfo.annotations.push({ type: "library ideas tries", description: String(tries) });
+  const lengths = (await cards.allInnerTexts()).map((text) => /about (\d+) s/.exec(text)?.[1] ?? "?");
+  expect(await fitting.count(), `no idea of 15 s or less in ${tries} tries; lengths written: ${lengths.join(", ") || "none"}`).toBeGreaterThan(0);
   await shot("04-ideas");
   await fitting.first().click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);

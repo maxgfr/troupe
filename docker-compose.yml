@@ -31,6 +31,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_PASSWORD_FILE: /run/troupe-secrets/postgres-password
       TROUPE_ACCESS_CODE: ${TROUPE_ACCESS_CODE:-}
+      TROUPE_TRUSTED_PROXIES: ${TROUPE_TRUSTED_PROXIES:-0}
       TROUPE_SECRET: ${TROUPE_SECRET:-}
       # A copy of the generated access code for the `cli` service.
       TROUPE_ACCESS_CODE_SHARE_DIR: /app/cli-access

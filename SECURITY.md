@@ -12,7 +12,10 @@ branches to patch.
 - **Access.** In production every page and every data or media request
   requires the access code's cookie, whatever the request's `Host` header
   says. Without `TROUPE_ACCESS_CODE` a code is generated on first start. After
-  five wrong codes an address waits 15 minutes. Requests from other origins
+  five wrong codes an address waits 15 minutes, and after 100 from all
+  addresses everyone does; the address is X-Forwarded-For's last hop, not its
+  first, which the client writes (`TROUPE_TRUSTED_PROXIES` behind several
+  proxies, [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md)). Requests from other origins
   are refused. Two routes are deliberately outside the code: `/api/health`
   (answers only `{ ok }`) and `/api/jobs/reconcile` (requires its own
   `RECONCILE_SECRET`, and refuses every call when that is unset).

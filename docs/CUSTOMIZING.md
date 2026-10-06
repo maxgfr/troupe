@@ -136,6 +136,7 @@ in `.env`: `docker-compose.yml` passes each one on to the `app` service.
 |---|---|---|
 | `DATABASE_URL` | built for the stack's `db` | PostgreSQL connection string; required outside Docker. On Supabase, the session pooler. |
 | `TROUPE_ACCESS_CODE` | generated on first start | The code that opens the studio, at least 12 characters ([SECURITY.md](../SECURITY.md)). |
+| `TROUPE_TRUSTED_PROXIES` | `0` | Proxies of your own behind the one facing the internet (0 to 10). Wrong access codes are counted per address, 5 per 15 minutes, read from X-Forwarded-For's last hop, or this many hops further left; 100 wrong codes from all addresses together stop sign-in for the rest of the window too. |
 | `TROUPE_SECRET` | generated (`secret.key` in the data folder) | Encrypts saved keys and tokens; back it up with the database. |
 | `TROUPE_DATA_DIR` | `./data` (`/app/data` in the image) | Videos, `access-code` and `secret.key`. |
 | `TROUPE_AUTO_MIGRATE` | `1` | Applies database migrations when the server starts; `0` leaves them to `pnpm db:migrate`. Never on Vercel. |

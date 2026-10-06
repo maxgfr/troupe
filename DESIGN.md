@@ -31,12 +31,12 @@ OKLCH tokens in `src/styles/design-tokens.json`, mirrored in
 | raised | `oklch(0.22 0.028 255)` | `oklch(1 0 0)` | Panels that hold controls (launch, models, proposals), sheets, dialogs |
 | foreground | `oklch(0.93 0.01 250)` | `oklch(0.22 0.02 255)` | Text (≥ 7:1) |
 | muted | `oklch(0.66 0.02 250)` | `oklch(0.45 0.02 255)` | Secondary text (≥ 4.5:1) |
-| primary | `oklch(0.7 0.14 250)` | `oklch(0.5 0.15 250)` | Actions, links, focus, selection, progress |
+| primary | `oklch(0.7 0.14 250)` | `oklch(0.46 0.15 252)` | Actions, links, focus, selection, progress |
 | on-primary | `oklch(0.15 0.02 255)` | `oklch(1 0 0)` | Text on cobalt |
 | secondary (spot) | `oklch(0.9 0.06 90)` | `oklch(0.8 0.1 88)` | Votes, adopting a comparison winner |
 | on-secondary | `oklch(0.28 0.05 85)` | `oklch(0.28 0.05 85)` | Ink on gold |
-| success | `oklch(0.72 0.15 155)` | `oklch(0.52 0.14 155)` | Finished render, ready model |
-| warning | `oklch(0.75 0.15 70)` | `oklch(0.6 0.14 70)` | Model limits, unavailable models |
+| success | `oklch(0.72 0.15 155)` | `oklch(0.45 0.12 155)` | Finished render, ready model |
+| warning | `oklch(0.75 0.15 70)` | `oklch(0.55 0.13 65)` | Model limits, unavailable models |
 | danger | `oklch(0.62 0.21 15)` | `oklch(0.52 0.2 15)` | Failed render, destructive actions |
 
 Hairlines (`--troupe-color-line`, `line-strong`) are the text colour at 12%

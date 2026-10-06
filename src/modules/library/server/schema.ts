@@ -42,8 +42,12 @@ export const libraryItems = createTable(
     analysis: d.jsonb().$type<ItemAnalysis>(),
     tags: d.text().array().notNull().default(sql`'{}'::text[]`),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
-    // When the analysis began (to retry one cut short) and ended.
+    // When the analysis began and ended. A running analysis touches
+    // heartbeatAt every half minute: one whose heartbeat stopped was cut short
+    // (a restart, a closed tab) and is retried, at most three times in all.
     startedAt: d.timestamp({ withTimezone: true }),
+    heartbeatAt: d.timestamp({ withTimezone: true }),
+    attempts: d.integer().notNull().default(0),
     analyzedAt: d.timestamp({ withTimezone: true }),
   }),
   (t) => [

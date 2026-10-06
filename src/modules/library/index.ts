@@ -6,7 +6,7 @@ export type { LibraryMessageView } from "./server/chat";
 export { listIdeas, deleteIdea, generateIdeas, createProjectFromIdea } from "./server/ideas";
 export type { IdeaView } from "./server/ideas";
 export type { Writer } from "./server/writer";
-export { analyzeItem, claimNextItem, requeueStale, runLibraryQueue, embedMissing, spread, thumbnailOf } from "./server/analyze";
+export { analyzeItem, claimNextItem, requeueStale, runLibraryQueue, embedMissing, spread, thumbnailOf, HEARTBEAT_MS, STALE_AFTER_MS, MAX_ATTEMPTS } from "./server/analyze";
 export type { AnalysisOptions } from "./server/analyze";
 export { libraryItems, libraryChunks, libraryMessages, libraryIdeas } from "./server/schema";
 export * from "./model";

@@ -119,6 +119,17 @@ describe("library router", () => {
     expect(removed.at(-1)).toEqual([`library/${uploadId}/original.mp4`]);
   });
 
+  it("removes a link's stored file when the item cannot be recorded", async () => {
+    let disposed = 0;
+    const backend = library({
+      fetchUrl: async () => ({ kind: "file", url: "https://example.com/a.zip", title: "a", path: "/tmp/a", mimeType: "application/zip", bytes: 2, checksum: "", durationS: null, dispose: async () => void (disposed += 1) }),
+      adoptFile: async (_source, target) => ({ assetId: crypto.randomUUID(), storagePath: `library/${target.itemId}/original.zip`, mimeType: "application/zip", bytes: 2, checksum: "x", fileName: "a.zip" }),
+    });
+    await expect(caller(MEMBER, backend).library.addUrl({ workspaceId: fx.workspaceId, url: "https://example.com/a.zip" })).rejects.toThrow(/takes videos/);
+    expect(removed.at(-1)).toEqual([expect.stringMatching(/^library\/[0-9a-f-]{36}\/original\.zip$/)]);
+    expect(disposed).toBe(1);
+  });
+
   it("writes the project's script chat in my voice once items are marked as mine", async () => {
     const mine = await caller().library.addText({ workspaceId: fx.workspaceId, text: "Your desk is lying to you. Fix the light first.", mine: true });
     await runLibraryQueue(db, async () => tools);

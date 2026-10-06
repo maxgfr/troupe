@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { mediaAssets } from "~/modules/generation/server/media";
@@ -6,6 +6,7 @@ import type { AnalysisStep, AnalysisTools, Embedder, Frame, ItemAnalysis, Stored
 import { buildInsightPrompt, insightSchema, readInsights, type Insights } from "../prompts";
 import { chunkText, chunkTranscript, formatTimestamp, hookFromText, hookFromTranscript, keywordTags, pacingOf } from "../text";
 import { itemFiles } from "./items";
+import { endAnalysis, startAnalysis } from "./running";
 import { libraryChunks, libraryItems } from "./schema";
 
 // The analysis of one saved item, the same in both editions: the tools
@@ -23,6 +24,11 @@ export interface AnalysisOptions {
   log?: (event: Record<string, unknown>) => void;
 }
 
+// A running analysis touches its item this often; one silent for
+// STALE_AFTER_MS was cut short. An item is tried MAX_ATTEMPTS times.
+export const HEARTBEAT_MS = 30_000;
+export const STALE_AFTER_MS = 5 * 60_000;
+export const MAX_ATTEMPTS = 3;
 const DEFAULT_FRAMES = 12;
 const DEFAULT_VISION_FRAMES = 6;
 const EMBED_BATCH = 16;
@@ -32,29 +38,69 @@ const STEP_NAMES: Record<AnalysisStep["name"], string> = { frames: "the pictures
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error)).replace(/\s+/g, " ").slice(0, 300);
 
-// Takes the oldest queued item for analysis; null when none waits.
+// Takes the oldest queued item for analysis; null when none waits. Each
+// claim counts as one attempt.
 export async function claimNextItem(db: Db): Promise<string | null> {
   const rows = await db.execute<{ id: string }>(sql`
-    update ${libraryItems} set status = 'analyzing', stage = 'Starting', "startedAt" = now()
+    update ${libraryItems} set status = 'analyzing', stage = 'Starting', "startedAt" = now(), "heartbeatAt" = now(), attempts = attempts + 1
     where id = (select id from ${libraryItems} where status = 'queued' order by "createdAt" limit 1 for update skip locked)
     returning id`);
   const list = (Array.isArray(rows) ? rows : (rows as { rows: { id: string }[] }).rows) as { id: string }[];
   return list[0]?.id ?? null;
 }
 
-// An analysis cut short (a restart, a closed tab) goes back in the queue.
+// Analyses whose heartbeat stopped more than `olderThanMs` ago were cut
+// short (a restart, a crash, a closed tab): back in the queue, or failed
+// with the reason after MAX_ATTEMPTS tries, so a file that brings the
+// analysis down every time cannot loop forever. An analysis running in
+// another process keeps beating and is left alone. Returns the items moved.
 export async function requeueStale(db: Db, olderThanMs: number): Promise<number> {
-  const before = new Date(Date.now() - olderThanMs);
-  const rows = await db
-    .update(libraryItems)
-    .set({ status: "queued", stage: null })
-    .where(and(eq(libraryItems.status, "analyzing"), lt(libraryItems.startedAt, before)))
-    .returning({ id: libraryItems.id });
-  return rows.length;
+  const stale = and(eq(libraryItems.status, "analyzing"), sql`coalesce(${libraryItems.heartbeatAt}, ${libraryItems.startedAt}, ${libraryItems.createdAt}) < now() - (${Math.max(0, Math.round(olderThanMs))} * interval '1 millisecond')`);
+  const rows = await db.select({ id: libraryItems.id, attempts: libraryItems.attempts, stage: libraryItems.stage }).from(libraryItems).where(stale);
+  let moved = 0;
+  for (const row of rows) {
+    const giveUp = row.attempts >= MAX_ATTEMPTS;
+    const problem = `The analysis stopped ${row.attempts} times before it finished${row.stage ? ` (the last time at "${row.stage}")` : ""}: the file may be too long or too heavy for this ${typeof window === "undefined" ? "server" : "browser"}. Read it again to try once more.`;
+    const updated = await db
+      .update(libraryItems)
+      .set(giveUp ? { status: "failed", stage: null, problem } : { status: "queued", stage: null })
+      .where(and(eq(libraryItems.id, row.id), eq(libraryItems.attempts, row.attempts), stale))
+      .returning({ id: libraryItems.id });
+    moved += updated.length;
+  }
+  return moved;
 }
 
-async function setStage(db: Db, itemId: string, stage: string) {
-  await db.update(libraryItems).set({ stage }).where(eq(libraryItems.id, itemId));
+// The item is no longer this analysis's to finish: deleted, or taken back
+// by another process.
+class ItemGone extends Error {
+  constructor() {
+    super("The item was deleted, or is analysed elsewhere.");
+    this.name = "ItemGone";
+  }
+}
+
+// Touches the claim (the item, at this attempt, still analysing): false
+// once the item is gone.
+async function touch(db: Db, itemId: string, attempt: number, stage?: string): Promise<boolean> {
+  const rows = await db
+    .update(libraryItems)
+    .set({ heartbeatAt: new Date(), ...(stage ? { stage } : {}) })
+    .where(and(eq(libraryItems.id, itemId), eq(libraryItems.attempts, attempt), eq(libraryItems.status, "analyzing")))
+    .returning({ id: libraryItems.id });
+  return rows.length > 0;
+}
+
+// Pictures (and their files) left by an analysis whose item was deleted
+// while it ran: the deletion listed the item's files before they existed.
+async function dropLeftovers(db: Db, itemId: string, removeFiles: AnalysisOptions["removeFiles"]): Promise<number> {
+  const [still] = await db.select({ id: libraryItems.id }).from(libraryItems).where(eq(libraryItems.id, itemId)).limit(1);
+  if (still) return 0;
+  const files = await itemFiles(db, itemId);
+  if (files.length === 0) return 0;
+  await db.delete(mediaAssets).where(inArray(mediaAssets.id, files.map((f) => f.id)));
+  await removeFiles?.(files).catch(() => {});
+  return files.length;
 }
 
 // The frames to show the vision model: spread over the video.
@@ -75,10 +121,30 @@ function heuristicInsights(input: { words: string; hook: string | null; transcri
 export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, options: AnalysisOptions = {}): Promise<void> {
   const log = options.log ?? (() => {});
   const [item] = await db.select().from(libraryItems).where(eq(libraryItems.id, itemId)).limit(1);
-  if (!item) return;
+  if (!item || item.status !== "analyzing") return;
   const started = Date.now();
   const steps: AnalysisStep[] = [];
   const step = (name: AnalysisStep["name"], status: AnalysisStep["status"], detail?: string) => steps.push({ name, status, ...(detail ? { detail } : {}) });
+  // This analysis's own signal: aborted by the caller, by deleting the item
+  // in this process, or when the heartbeat finds the item gone.
+  const run = startAnalysis(item.id, options.signal);
+  const signal = run.signal;
+  const attempt = item.attempts;
+  const beat = setInterval(() => {
+    touch(db, item.id, attempt).then(
+      (alive) => {
+        if (!alive) run.abort(new ItemGone());
+      },
+      () => {},
+    );
+  }, HEARTBEAT_MS);
+  const setStage = async (stage: string) => {
+    signal.throwIfAborted();
+    if (!(await touch(db, item.id, attempt, stage))) {
+      run.abort(new ItemGone());
+      throw new ItemGone();
+    }
+  };
   try {
     let durationS = item.durationS;
     let frames: Frame[] = [];
@@ -102,13 +168,13 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
 
     if (item.kind === "video" || item.kind === "audio") {
       if (!tools.media || !file) throw new Error("This studio cannot read video or sound files.");
-      await setStage(db, item.id, "Reading the file");
+      await setStage("Reading the file");
       const probe = await tools.media.probe(file);
       durationS = probe.durationS ?? durationS;
       if (probe.hasVideo) {
-        await setStage(db, item.id, "Taking pictures from the video");
+        await setStage("Taking pictures from the video");
         try {
-          const taken = await tools.media.frames(file, { max: options.maxFrames ?? DEFAULT_FRAMES, durationS, signal: options.signal });
+          const taken = await tools.media.frames(file, { max: options.maxFrames ?? DEFAULT_FRAMES, durationS, signal });
           frames = taken.frames.map((f) => ({ assetId: f.assetId, atS: f.atS }));
           cuts = taken.cutsAtS;
           step("frames", "done");
@@ -116,18 +182,26 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
           step("frames", "failed", `The pictures could not be taken: ${message(error)}`);
         }
       }
-      if (!probe.hasAudio) step("transcript", "skipped", "The file has no sound.");
+      if (!probe.hasAudio) step("transcript", "skipped", "The file has no sound track.");
       else if (!tools.transcriber.ready) step("transcript", "skipped", tools.transcriber.problem);
       else {
-        await setStage(db, item.id, "Transcribing");
-        const audio = await tools.media.audio(file, { signal: options.signal });
+        await setStage("Transcribing");
+        let audio: Awaited<ReturnType<typeof tools.media.audio>> | null = null;
         try {
-          transcript = await tools.transcriber.tool.transcribe(audio, { signal: options.signal });
-          step("transcript", "done");
+          audio = await tools.media.audio(file, { signal });
         } catch (error) {
-          step("transcript", "failed", `${tools.transcriber.tool.model} could not transcribe it: ${message(error)}`);
-        } finally {
-          await audio.dispose?.().catch(() => {});
+          // The file has sound this studio cannot decode: the step says why.
+          step("transcript", "failed", `The sound could not be read: ${message(error)}`);
+        }
+        if (audio) {
+          try {
+            transcript = await tools.transcriber.tool.transcribe(audio, { signal });
+            step("transcript", "done");
+          } catch (error) {
+            step("transcript", "failed", `${tools.transcriber.tool.model} could not transcribe it: ${message(error)}`);
+          } finally {
+            await audio.dispose?.().catch(() => {});
+          }
         }
       }
     }
@@ -135,7 +209,7 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     if (item.kind === "pdf" && !body && file) {
       if (!tools.media?.pdfText) step("insights", "skipped", "This studio cannot read PDFs.");
       else {
-        await setStage(db, item.id, "Reading the PDF");
+        await setStage("Reading the PDF");
         body = (await tools.media.pdfText(file)).trim().slice(0, 200_000) || null;
         if (!body) step("transcript", "skipped", "The PDF has no text to read (a scan needs the vision model).");
       }
@@ -148,9 +222,9 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
         let read = 0;
         let lastError = "";
         for (const [i, frame] of chosen.entries()) {
-          await setStage(db, item.id, `Looking at the pictures (${i + 1} of ${chosen.length})`);
+          await setStage(`Looking at the pictures (${i + 1} of ${chosen.length})`);
           try {
-            const seen = await tools.vision.tool.read(await tools.media.picture(frame.assetId), { signal: options.signal });
+            const seen = await tools.vision.tool.read(await tools.media.picture(frame.assetId), { signal });
             frame.description = seen.description.trim() || undefined;
             frame.text = seen.text.trim() || undefined;
             read += 1;
@@ -174,14 +248,14 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     if (!tools.writer.ready) step("insights", "skipped", tools.writer.problem);
     else if (!words.trim() && !frames.some((f) => f.description)) step("insights", "skipped", "There is nothing to read in it.");
     else {
-      await setStage(db, item.id, "Writing the analysis");
+      await setStage("Writing the analysis");
       const transcriptText = transcript ? transcript.segments.map((s) => `[${formatTimestamp(s.startS)}] ${s.text.trim()}`).join("\n") : (body ?? "");
       const turns = buildInsightPrompt({ kind: item.kind, title: item.title, durationS, language, transcript: transcriptText, frames, hook: hookText });
       try {
-        let answer = await tools.writer.tool.propose(turns, { schema: insightSchema(), signal: options.signal, maxTokens: 900 });
+        let answer = await tools.writer.tool.propose(turns, { schema: insightSchema(), signal, maxTokens: 900 });
         insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         if (!insights) {
-          answer = await tools.writer.tool.propose([...turns, { role: "assistant", content: answer.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object." }], { schema: insightSchema(), signal: options.signal, maxTokens: 900 });
+          answer = await tools.writer.tool.propose([...turns, { role: "assistant", content: answer.text }, { role: "user", content: "That answer cannot be used: it does not follow the JSON schema. Answer again with only the JSON object." }], { schema: insightSchema(), signal, maxTokens: 900 });
           insights = answer.proposal === null ? null : readInsights(answer.proposal, durationS);
         }
         if (insights) step("insights", "done");
@@ -226,9 +300,9 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
     let embedModel: string | null = null;
     if (!tools.embedder.ready) step("embeddings", "skipped", tools.embedder.problem);
     else {
-      await setStage(db, item.id, "Indexing for search");
+      await setStage("Indexing for search");
       try {
-        vectors = await embedAll(tools.embedder.tool, passages.map((p) => p.text), options.signal);
+        vectors = await embedAll(tools.embedder.tool, passages.map((p) => p.text), signal);
         embedModel = tools.embedder.tool.model;
         step("embeddings", "done");
       } catch (error) {
@@ -238,6 +312,7 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
 
     // "Skipped: what the pictures show (why)." once per step.
     const notes = steps.filter((s) => s.status !== "done" && s.detail).map((s) => `${s.status === "failed" ? "Failed" : "Skipped"}: ${STEP_NAMES[s.name]}. ${s.detail}`);
+    await setStage("Saving");
     await db.transaction(async (tx) => {
       await tx.delete(libraryChunks).where(eq(libraryChunks.itemId, item.id));
       await tx.insert(libraryChunks).values(
@@ -246,17 +321,26 @@ export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, 
       await tx
         .update(libraryItems)
         .set({ status: "ready", stage: null, problem: notes.length ? [...new Set(notes)].join(" ") : null, analysis, tags: found.tags, durationS, body, analyzedAt: new Date() })
-        .where(eq(libraryItems.id, item.id));
+        .where(and(eq(libraryItems.id, item.id), eq(libraryItems.attempts, attempt)));
     });
     log({ event: "library.analyzed", itemId: item.id, kind: item.kind, ms: Date.now() - started, steps: steps.map((s) => `${s.name}:${s.status}`) });
   } catch (error) {
-    // Deleted meanwhile: nothing left to record.
-    await db
-      .update(libraryItems)
-      .set({ status: "failed", stage: null, problem: message(error), analysis: { version: 1, steps } })
-      .where(eq(libraryItems.id, item.id))
-      .catch(() => {});
-    log({ event: "library.analysis.failed", itemId: item.id, message: message(error) });
+    if (error instanceof ItemGone || signal.reason instanceof ItemGone || (signal.aborted && !options.signal?.aborted)) {
+      log({ event: "library.analysis.dropped", itemId: item.id, message: message(signal.reason ?? error) });
+    } else {
+      // Only this attempt's claim is marked failed (deleted meanwhile: nothing to record).
+      await db
+        .update(libraryItems)
+        .set({ status: "failed", stage: null, problem: message(error), analysis: { version: 1, steps } })
+        .where(and(eq(libraryItems.id, item.id), eq(libraryItems.attempts, attempt)))
+        .catch(() => {});
+      log({ event: "library.analysis.failed", itemId: item.id, message: message(error) });
+    }
+  } finally {
+    clearInterval(beat);
+    endAnalysis(item.id, run);
+    const dropped = await dropLeftovers(db, item.id, options.removeFiles).catch(() => 0);
+    if (dropped) log({ event: "library.analysis.leftovers", itemId: item.id, files: dropped });
   }
 }
 

@@ -134,7 +134,11 @@ export const libraryRouter = createTRPCRouter({
         const itemId = crypto.randomUUID();
         try {
           const file = await library.adoptFile(source, { workspaceId: input.workspaceId, itemId });
-          const item = await addFileItem(ctx.db, { workspaceId: input.workspaceId, itemId, file, title: input.title?.trim() || source.title, sourceUrl: source.url, mine: input.mine, durationS: source.durationS ?? null });
+          // Not recorded: the stored original goes too.
+          const item = await addFileItem(ctx.db, { workspaceId: input.workspaceId, itemId, file, title: input.title?.trim() || source.title, sourceUrl: source.url, mine: input.mine, durationS: source.durationS ?? null }).catch(async (error: unknown) => {
+            await library.removeFiles([{ storagePath: file.storagePath }]).catch(() => {});
+            throw error;
+          });
           library.schedule();
           return withUrls(ctx.media, item);
         } finally {

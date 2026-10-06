@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ChatBackend } from "~/modules/chat";
-import { LibraryError, requeueStale, runLibraryQueue, type AnalysisTools, type LibraryBackend, type LibraryStatus, type Tool, type ToolStatus } from "~/modules/library";
+import { LibraryError, requeueStale, runLibraryQueue, STALE_AFTER_MS, type AnalysisTools, type LibraryBackend, type LibraryStatus, type Tool, type ToolStatus } from "~/modules/library";
 import type { Db } from "~/server/db/types";
 import { libraryEnvironment, type LibraryEnvironment } from "./config";
 import { fetchSource } from "./fetch";
@@ -161,13 +161,13 @@ export function createServerLibrary(db: Db, chat: ChatBackend | null, options: {
 }
 
 // The worker loop's pass (TROUPE_INPROCESS_WORKER): an analysis cut short
-// by a restart goes back in the queue, and the queue runs.
+// by a restart goes back in the queue, and the queue runs. A running
+// analysis touches its item every half minute, in whichever process or
+// replica runs it, so only one silent for STALE_AFTER_MS is retried.
 export async function libraryPass(db: Db, chat: ChatBackend | null): Promise<void> {
   const library = createServerLibrary(db, chat);
   if (!library) return;
-  // This process is the only one analysing: with its queue idle, an item
-  // still marked "analyzing" was cut short.
-  const requeued = state.troupeLibraryQueue?.running ? 0 : await requeueStale(db, 0);
+  const requeued = await requeueStale(db, STALE_AFTER_MS);
   if (requeued) console.info(JSON.stringify({ event: "library.requeued", items: requeued }));
   library.schedule();
 }

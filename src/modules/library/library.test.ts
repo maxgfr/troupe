@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createTestDb, resetAuth, setAuthUser, type TestDb } from "~/test/db";
@@ -21,6 +21,7 @@ import {
   libraryChunks,
   libraryItems,
   listItems,
+  requeueItem,
   requeueStale,
   runLibraryQueue,
   thumbnailOf,
@@ -148,9 +149,89 @@ describe("the inspiration library", () => {
 
     const other = await saveVideo(t, workspaceId, "Second");
     await claimNextItem(t.db);
-    await t.db.update(libraryItems).set({ startedAt: new Date(Date.now() - 60 * 60_000) }).where(eq(libraryItems.id, other.id));
+    await t.db.update(libraryItems).set({ heartbeatAt: new Date(Date.now() - 60 * 60_000) }).where(eq(libraryItems.id, other.id));
     expect(await requeueStale(t.db, 30 * 60_000)).toBe(1);
     expect((await getItem(t.db, workspaceId, other.id)).status).toBe("queued");
+  });
+
+  it("retries an analysis whose heartbeat stopped, never one still running elsewhere, and fails it after three tries", async () => {
+    const item = await saveVideo(t, workspaceId);
+    const stopBeating = () => t.db.update(libraryItems).set({ heartbeatAt: new Date(Date.now() - 10 * 60_000) }).where(eq(libraryItems.id, item.id));
+    for (const attempt of [1, 2, 3]) {
+      expect(await claimNextItem(t.db)).toBe(item.id);
+      // Another process (a second replica, a second tab) is analysing it.
+      expect(await requeueStale(t.db, 5 * 60_000)).toBe(0);
+      await stopBeating();
+      expect(await requeueStale(t.db, 5 * 60_000)).toBe(1);
+      const [row] = await t.db.select().from(libraryItems).where(eq(libraryItems.id, item.id));
+      expect(row).toMatchObject({ attempts: attempt, status: attempt < 3 ? "queued" : "failed" });
+    }
+    expect((await getItem(t.db, workspaceId, item.id)).problem).toMatch(/stopped 3 times before it finished/);
+    // "Read it again" starts the count over.
+    await requeueItem(t.db, { workspaceId, itemId: item.id });
+    expect((await t.db.select().from(libraryItems).where(eq(libraryItems.id, item.id)))[0]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("stops analysing an item deleted meanwhile, and leaves none of its pictures behind", async () => {
+    const item = await saveVideo(t, workspaceId);
+    await claimNextItem(t.db);
+    const removed: string[] = [];
+    let deleted!: () => void;
+    const afterDelete = new Promise<void>((resolve) => (deleted = resolve));
+    let picturesTaken!: () => void;
+    const taking = new Promise<void>((resolve) => (picturesTaken = resolve));
+    const media: MediaReader = {
+      ...fakeMedia(t, workspaceId),
+      async frames(file) {
+        const frame = async (atS: number) => (await t.db.insert(mediaAssets).values({ workspaceId, kind: "frame", storagePath: `library/${file.itemId}/frame-${atS}.jpg`, mimeType: "image/jpeg", bytes: 10, checksum: "x", meta: { itemId: file.itemId, atS } }).returning())[0]!;
+        const first = await frame(0);
+        picturesTaken();
+        await afterDelete;
+        // A picture written after the item's files were listed for deletion.
+        const late = await frame(6);
+        return { frames: [first, late].map((f, i) => ({ assetId: f.id, atS: i * 6 })), cutsAtS: [6] };
+      },
+    };
+    let transcribing: AbortSignal | undefined;
+    const running = analyzeItem(t.db, item.id, tools(t, workspaceId, { media, transcriber: { ready: true, tool: { model: "w", transcribe: async (_audio, options) => { transcribing = options.signal; return { language: "en", model: "w", segments: [] }; } } } }), {
+      removeFiles: async (files) => {
+        removed.push(...files.map((f) => f.storagePath));
+      },
+    });
+    await taking;
+    await deleteItem(t.db, { workspaceId, itemId: item.id });
+    deleted();
+    await running;
+    expect(transcribing).toBeUndefined();
+    expect(await t.db.select().from(mediaAssets).where(sql`${mediaAssets.meta}->>'itemId' = ${item.id}`)).toEqual([]);
+    expect(removed).toEqual([`library/${item.id}/frame-6.jpg`]);
+  });
+
+  it("aborts the running step at once when its item is deleted in this process", async () => {
+    const item = await saveVideo(t, workspaceId);
+    await claimNextItem(t.db);
+    let started!: () => void;
+    const transcribing = new Promise<void>((resolve) => (started = resolve));
+    let stopped = false;
+    const transcriber = {
+      ready: true as const,
+      tool: {
+        model: "w",
+        transcribe: (_audio: unknown, options: { signal?: AbortSignal }) =>
+          new Promise<never>((_resolve, reject) => {
+            started();
+            options.signal?.addEventListener("abort", () => {
+              stopped = true;
+              reject(new Error("stopped"));
+            });
+          }),
+      },
+    };
+    const running = analyzeItem(t.db, item.id, tools(t, workspaceId, { transcriber }));
+    await transcribing;
+    await deleteItem(t.db, { workspaceId, itemId: item.id });
+    await running;
+    expect(stopped).toBe(true);
   });
 
   it("saves pasted text, analyses it without media tools and finds it by meaning", async () => {

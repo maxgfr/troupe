@@ -4,6 +4,7 @@ import type { Db } from "~/server/db/types";
 import { mediaAssets } from "~/modules/generation/server/media";
 import { LibraryError, type ClaimedUpload, type Embedder, type ItemAnalysis, type ItemKind, type ItemStatus, type Tool } from "../model";
 import { keywordScore, rankByCosine, styleProfile, type VoiceSample } from "../text";
+import { stopAnalysis } from "./running";
 import { libraryChunks, libraryItems } from "./schema";
 
 // Saved items: saving, reading, changing and deleting them, search over
@@ -188,21 +189,25 @@ export async function updateItem(db: Db, input: { workspaceId: string; itemId: s
 export async function requeueItem(db: Db, input: { workspaceId: string; itemId: string }): Promise<LibraryItemView> {
   const row = await itemRow(db, input.workspaceId, input.itemId);
   if (row.status === "queued" || row.status === "analyzing") return view(row);
-  const [updated] = await db.update(libraryItems).set({ status: "queued", stage: null, problem: null, startedAt: null }).where(eq(libraryItems.id, row.id)).returning();
+  const [updated] = await db.update(libraryItems).set({ status: "queued", stage: null, problem: null, startedAt: null, heartbeatAt: null, attempts: 0 }).where(eq(libraryItems.id, row.id)).returning();
   return view(updated!);
 }
 
 // Deletes the item with its passages and chat; returns the stored files for
 // the caller to remove once the rows are gone.
+// An analysis running in this process stops at once; one in another process
+// stops at its next heartbeat. Either removes the pictures it takes meanwhile.
 export async function deleteItem(db: Db, input: { workspaceId: string; itemId: string }): Promise<{ files: { storagePath: string }[] }> {
   await itemRow(db, input.workspaceId, input.itemId);
-  return db.transaction(async (tx) => {
+  const deleted = await db.transaction(async (tx) => {
     const conn = tx as unknown as Db;
     const files = await itemFiles(conn, input.itemId);
     await tx.delete(libraryItems).where(eq(libraryItems.id, input.itemId));
     if (files.length) await tx.delete(mediaAssets).where(inArray(mediaAssets.id, files.map((f) => f.id)));
     return { files: files.map((f) => ({ storagePath: f.storagePath })) };
   });
+  stopAnalysis(input.itemId);
+  return deleted;
 }
 
 // --- Search ---------------------------------------------------------------

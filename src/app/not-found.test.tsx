@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/no-such-page", useRoute
 
 import { EditionProvider } from "./_components/edition";
 import { NotFoundPage } from "./_components/not-found-page";
-import NotFound from "./not-found";
+import NotFound, { metadata } from "./not-found";
 
 afterEach(cleanup);
 
@@ -24,6 +24,8 @@ describe("the not-found page", () => {
     expect(screen.getByRole("link", { name: "Back to your projects" }).getAttribute("href")).toBe("/dashboard");
     expect(screen.getByText(/deleted from this studio/)).toBeDefined();
     expect(document.title).toBe("Page not found · Troupe");
+    // The server's title too: Next sets it after the page's own effect.
+    expect(metadata).toEqual({ title: "Page not found" });
   });
 
   it("speaks of this browser in the browser edition", () => {

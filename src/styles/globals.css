@@ -14,9 +14,9 @@
   [data-theme="dark"] {
     --background: var(--troupe-color-background);
     --foreground: var(--troupe-color-foreground);
-    --surface: var(--troupe-color-surface);
+    --surface: var(--troupe-color-raised);
     --surface-foreground: var(--troupe-color-foreground);
-    --overlay: var(--troupe-color-surface);
+    --overlay: var(--troupe-color-raised);
     --overlay-foreground: var(--troupe-color-foreground);
     --muted: var(--troupe-color-muted);
     --accent: var(--troupe-color-primary);
@@ -41,6 +41,9 @@
   --color-bg: var(--troupe-color-background);
   --color-fg: var(--troupe-color-foreground);
   --color-surface: var(--troupe-color-surface);
+  --color-raised: var(--troupe-color-raised);
+  --color-line: var(--troupe-color-line);
+  --color-line-strong: var(--troupe-color-line-strong);
   --color-muted: var(--troupe-color-muted);
   --color-primary: var(--troupe-color-primary);
   --color-on-primary: var(--troupe-color-on-primary);
@@ -49,6 +52,10 @@
   --color-success: var(--troupe-color-success);
   --color-warning: var(--troupe-color-warning);
   --color-danger: var(--troupe-color-danger);
+
+  --shadow-card: var(--troupe-shadow-card);
+  --shadow-overlay: var(--troupe-shadow-overlay);
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* The hairline around small pictures (actor avatars): white on the dark
@@ -65,10 +72,21 @@
   --picture-edge: oklch(0 0 0 / 0.1);
 }
 
+html {
+  scrollbar-color: color-mix(in srgb, var(--troupe-color-muted) 45%, transparent) var(--troupe-color-background);
+}
+
 body {
   background-color: var(--troupe-color-background);
   color: var(--troupe-color-foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--troupe-color-primary) 35%, transparent);
+  color: var(--troupe-color-foreground);
 }
 
 h1,
@@ -77,27 +95,10 @@ h3 {
   text-wrap: balance;
 }
 
-/* Landing hero — the one orchestrated entrance (brand permission). The
-   default state is fully visible; the animation only enhances it. */
-@keyframes hero-rise {
-  from {
-    opacity: 0.001;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.hero-rise {
-  animation: hero-rise 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-rise {
-    animation: none;
-  }
+p,
+li,
+dd {
+  text-wrap: pretty;
 }
 
 /* Cobalt generation progress — the only allowed theatre. */
@@ -121,13 +122,72 @@ h3 {
   }
 }
 
-/* Hidden radio controls retain a visible keyboard focus on their labels. */
-label:has(input.sr-only:focus-visible) {
-  outline: 2px solid var(--troupe-color-focus);
-  outline-offset: 3px;
+/* One focus ring for everything the keyboard reaches; fields draw theirs
+   with their own ring (fieldClass in src/app/_components/ui.tsx). In the
+   base layer, so a component can still adjust the offset. */
+@layer base {
+  :where(a, button, summary, [tabindex]:not([tabindex="-1"]), select:not([data-field])):focus-visible,
+  label:has(input.sr-only:focus-visible) {
+    outline: 2px solid var(--troupe-color-focus);
+    outline-offset: 3px;
+  }
 }
 
-a:focus-visible, button:focus-visible, select:focus-visible {
-  outline: 2px solid var(--troupe-color-focus);
-  outline-offset: 3px;
+/* A page arriving: a short fade, no travel, so moving between pages feels
+   continuous without making anyone wait. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.page-in {
+  animation: page-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-in {
+    animation: none;
+  }
+}
+
+/* The stage light (src/app/_components/stage.tsx): a soft wash at the top of
+   the page in the stage's hue, cobalt unless a project lights it in its
+   actor's colour. Behind everything, never under a control's text at more
+   than a few percent of lightness. */
+@property --stage-hue {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 250;
+}
+
+.stage-wash {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 34rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 100% at 18% 0%, oklch(0.42 0.11 var(--stage-hue) / 0.34), transparent 72%),
+    radial-gradient(50% 80% at 85% 0%, oklch(0.36 0.07 calc(var(--stage-hue) + 40) / 0.22), transparent 70%);
+  transition: --stage-hue 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .stage-wash {
+    background:
+      radial-gradient(70% 100% at 18% 0%, oklch(0.9 0.06 var(--stage-hue) / 0.7), transparent 72%),
+      radial-gradient(50% 80% at 85% 0%, oklch(0.93 0.04 calc(var(--stage-hue) + 40) / 0.6), transparent 70%);
+  }
+}
+:root[data-theme="light"] .stage-wash {
+  background:
+    radial-gradient(70% 100% at 18% 0%, oklch(0.9 0.06 var(--stage-hue) / 0.7), transparent 72%),
+    radial-gradient(50% 80% at 85% 0%, oklch(0.93 0.04 calc(var(--stage-hue) + 40) / 0.6), transparent 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-wash {
+    transition: none;
+  }
 }

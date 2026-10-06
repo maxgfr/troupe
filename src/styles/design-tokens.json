@@ -2,6 +2,7 @@
   "color": {
     "background": "oklch(0.15 0.02 255)",
     "surface": "oklch(0.19 0.025 255)",
+    "raised": "oklch(0.22 0.028 255)",
     "foreground": "oklch(0.93 0.01 250)",
     "muted": "oklch(0.66 0.02 250)",
     "primary": "oklch(0.7 0.14 250)",
@@ -16,6 +17,7 @@
   "color-light": {
     "background": "oklch(1 0 0)",
     "surface": "oklch(0.96 0.008 255)",
+    "raised": "oklch(1 0 0)",
     "foreground": "oklch(0.22 0.02 255)",
     "muted": "oklch(0.45 0.02 255)",
     "primary": "oklch(0.5 0.15 250)",
@@ -31,7 +33,7 @@
     "font-sans": "Geist, system-ui, sans-serif",
     "font-display": "Bricolage Grotesque, Geist, sans-serif",
     "font-mono": "JetBrains Mono, ui-monospace, monospace",
-    "scale": "12 / 14 / 16 / 20 / 24 / 32 px",
+    "scale": "12 / 14 / 16 / 20 / 24 / 32 px (page titles 28 on phones)",
     "line-height": "1.5 body · 1.2 headings"
   },
   "spacing": {
@@ -48,8 +50,10 @@
     "large": "14px"
   },
   "elevation": {
-    "card": "0 1px 3px rgba(0,0,0,.08)",
-    "overlay": "0 8px 30px rgba(0,0,0,.16)"
+    "card": "0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .28)",
+    "card-light": "0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .08)",
+    "overlay": "0 8px 30px rgb(0 0 0 / .32), 0 1px 3px rgb(0 0 0 / .2)",
+    "overlay-light": "0 8px 30px rgb(0 0 0 / .12), 0 1px 3px rgb(0 0 0 / .08)"
   },
   "motion": {
     "fast": "150ms ease-out",

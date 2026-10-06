@@ -8,6 +8,7 @@
 :root[data-theme="dark"] {
   --troupe-color-background: oklch(0.15 0.02 255);
   --troupe-color-surface: oklch(0.19 0.025 255);
+  --troupe-color-raised: oklch(0.22 0.028 255);
   --troupe-color-foreground: oklch(0.93 0.01 250);
   --troupe-color-muted: oklch(0.66 0.02 250);
   --troupe-color-primary: oklch(0.7 0.14 250);
@@ -28,12 +29,25 @@
   --troupe-radius-large: 14px;
   --troupe-motion-fast: 150ms ease-out;
   --troupe-motion-normal: 250ms ease-in-out;
+  --troupe-shadow-card: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .28);
+  --troupe-shadow-overlay: 0 8px 30px rgb(0 0 0 / .32), 0 1px 3px rgb(0 0 0 / .2);
+  color-scheme: dark;
+}
+
+/* Hairlines, from the text colour of the theme in use: structure, never depth. */
+:root {
+  --troupe-color-line: color-mix(in srgb, var(--troupe-color-foreground) 12%, transparent);
+  --troupe-color-line-strong: color-mix(in srgb, var(--troupe-color-foreground) 20%, transparent);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --troupe-color-background: oklch(1 0 0);
     --troupe-color-surface: oklch(0.96 0.008 255);
+    --troupe-color-raised: oklch(1 0 0);
+    --troupe-shadow-card: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .08);
+    --troupe-shadow-overlay: 0 8px 30px rgb(0 0 0 / .12), 0 1px 3px rgb(0 0 0 / .08);
+    color-scheme: light;
     --troupe-color-foreground: oklch(0.22 0.02 255);
     --troupe-color-muted: oklch(0.45 0.02 255);
     --troupe-color-primary: oklch(0.5 0.15 250);
@@ -50,6 +64,10 @@
 :root[data-theme="light"] {
   --troupe-color-background: oklch(1 0 0);
   --troupe-color-surface: oklch(0.96 0.008 255);
+  --troupe-color-raised: oklch(1 0 0);
+  --troupe-shadow-card: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .08);
+  --troupe-shadow-overlay: 0 8px 30px rgb(0 0 0 / .12), 0 1px 3px rgb(0 0 0 / .08);
+  color-scheme: light;
   --troupe-color-foreground: oklch(0.22 0.02 255);
   --troupe-color-muted: oklch(0.45 0.02 255);
   --troupe-color-primary: oklch(0.5 0.15 250);

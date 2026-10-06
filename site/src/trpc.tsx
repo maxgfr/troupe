@@ -3,16 +3,16 @@ import { loggerLink } from "@trpc/client";
 import { useState } from "react";
 
 import type { AppRouter } from "~/server/api/root";
-import { createQueryClient } from "~/trpc/query-client";
 import { api } from "~/trpc/react";
 import { afterFirstPaint } from "./first-paint";
 import { lazyLinks } from "./lazy-link";
+import { createBrowserQueryClient } from "./query-client";
 
 // The pages' tRPC client. Its calls run in the page against the studio's own
 // router and this browser's database (site/src/server-link.ts), loaded with
 // the first call so the shell paints first.
 export function BrowserTRPCProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(createQueryClient);
+  const [queryClient] = useState(createBrowserQueryClient);
   const [client] = useState(() =>
     api.createClient({
       links: [

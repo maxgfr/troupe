@@ -61,6 +61,8 @@ export function ProjectHeader({
               name={actor.name}
               src={actor.portraitUrl}
               label=""
+              sizes="80px"
+              priority
               className="size-16 shrink-0 rounded-2xl shadow-card outline-1 -outline-offset-1 outline-(--picture-edge) sm:size-20"
             />
           ) : undefined

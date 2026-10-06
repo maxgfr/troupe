@@ -217,6 +217,7 @@ export function ActorStep({
                 name={actor.name}
                 src={actor.portraitUrl}
                 label={`${actor.name} — ${actor.style}, ${actor.ageRange}`}
+                sizes="(min-width: 640px) 170px, 45vw"
                 className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
               <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />

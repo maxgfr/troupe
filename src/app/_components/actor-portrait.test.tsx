@@ -32,6 +32,25 @@ describe("ActorPortrait", () => {
     expect(fallback.textContent).toBe("LM");
   });
 
+  it("offers the 160 and 320 px copies for the width it shows, early when asked", () => {
+    render(<ActorPortrait {...props} src="/actors/lea-01/v1/front.webp" sizes="80px" priority />);
+    const picture = screen.getByRole("img", { name: props.label });
+    expect(picture.getAttribute("srcset")).toBe("/actors/lea-01/v1/front-160.webp 160w, /actors/lea-01/v1/front-320.webp 320w, /actors/lea-01/v1/front.webp 768w");
+    expect(picture.getAttribute("sizes")).toBe("80px");
+    expect(picture.getAttribute("loading")).toBe("eager");
+    expect(picture.getAttribute("fetchpriority")).toBe("high");
+  });
+
+  it("drops the copies when a cast folder lacks them, then the initials if the picture is missing too", () => {
+    render(<ActorPortrait {...props} src="/actors/custom-01/v1/front.webp" />);
+    fireEvent.error(screen.getByRole("img", { name: props.label }));
+    const full = screen.getByRole("img", { name: props.label });
+    expect(full.tagName).toBe("IMG");
+    expect(full.getAttribute("srcset")).toBeNull();
+    fireEvent.error(full);
+    expect(screen.getByRole("img", { name: props.label }).tagName.toLowerCase()).toBe("svg");
+  });
+
   it("shows the initials for an actor without a picture", () => {
     render(<ActorPortrait {...props} src={null} />);
     expect(screen.getByRole("img", { name: props.label }).tagName.toLowerCase()).toBe("svg");

@@ -1,5 +1,6 @@
 import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { EmptyState } from "~/app/_components/ui";
+import { POSTER_SIZES } from "../dashboard/dashboard-view";
 
 export interface LibraryActor {
   id: string;
@@ -32,7 +33,7 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
   }
   return (
     <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
-      {actors.map((actor) => (
+      {actors.map((actor, i) => (
         <li key={actor.id} className={`group ${actor.status === "unavailable" ? "opacity-50" : ""}`}>
           <div className="relative overflow-hidden rounded-xl shadow-card">
             <ActorPortrait
@@ -40,6 +41,8 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
               name={actor.name}
               src={actor.portraitUrl}
               label={`${actor.name} — ${actor.style}, ${actor.ageRange}, ${actor.voiceProfile} voice`}
+              sizes={POSTER_SIZES}
+              priority={i < 4}
               className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             />
             <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />

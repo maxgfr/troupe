@@ -13,12 +13,17 @@ export function VideoPoster({
   active,
   actor,
   className = "",
+  sizes,
+  priority = false,
 }: {
   src?: string | null;
   // The card around it is hovered or focused.
   active: boolean;
   actor?: { id: string; name: string; portraitUrl?: string | null } | null;
   className?: string;
+  // For the actor's picture: how wide it shows, and whether it is above the fold.
+  sizes?: string;
+  priority?: boolean;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
@@ -55,7 +60,7 @@ export function VideoPoster({
     );
   }
   if (actor) {
-    return <ActorPortrait id={actor.id} name={actor.name} src={actor.portraitUrl} label="" className={className} />;
+    return <ActorPortrait id={actor.id} name={actor.name} src={actor.portraitUrl} label="" sizes={sizes} priority={priority} className={className} />;
   }
   return <span aria-hidden className={`block bg-surface ${className}`} />;
 }

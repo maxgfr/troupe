@@ -76,7 +76,10 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
 
 // One project as a poster: its newest video (playing while hovered or
 // focused), else its actor; the title, where it goes and its stage below.
-function ProjectCard({ project, actor }: { project: DashboardProject; actor?: DashboardActor }) {
+// The grid's column width, for the pictures' sizes.
+export const POSTER_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw";
+
+function ProjectCard({ project, actor, priority }: { project: DashboardProject; actor?: DashboardActor; priority: boolean }) {
   const [active, setActive] = useState(false);
   const meta = `${project.platform ? platformName(project.platform) : "platform —"} · ${project.format ?? "format —"}${project.createdAt ? ` · ${new Date(project.createdAt).toLocaleDateString()}` : ""}`;
   return (
@@ -94,6 +97,8 @@ function ProjectCard({ project, actor }: { project: DashboardProject; actor?: Da
             src={project.latestVideoUrl}
             active={active}
             actor={actor}
+            sizes={POSTER_SIZES}
+            priority={priority}
             className="aspect-[3/4] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
           {/* The hairline that keeps a dark frame from melting into the stage. */}
@@ -137,7 +142,7 @@ function FirstProject({ actors, browser }: { actors: DashboardActor[]; browser: 
         cast.length ? (
           <span className="flex -space-x-3">
             {cast.map((a) => (
-              <ActorPortrait key={a.id} id={a.id} name={a.name} src={a.portraitUrl} label="" className="size-14 rounded-full shadow-[0_0_0_3px_var(--troupe-color-surface)] sm:size-16" />
+              <ActorPortrait key={a.id} id={a.id} name={a.name} src={a.portraitUrl} label="" sizes="64px" priority className="size-14 rounded-full shadow-[0_0_0_3px_var(--troupe-color-surface)] sm:size-16" />
             ))}
           </span>
         ) : undefined
@@ -180,8 +185,8 @@ export function DashboardView({
         <FirstProject actors={actors} browser={browser} />
       ) : (
         <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
-          {projects.map((p) => (
-            <ProjectCard key={p.id} project={p} actor={p.actorId ? byId.get(p.actorId) : undefined} />
+          {projects.map((p, i) => (
+            <ProjectCard key={p.id} project={p} actor={p.actorId ? byId.get(p.actorId) : undefined} priority={i < 4} />
           ))}
         </ul>
       )}

@@ -8,6 +8,7 @@ import { useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { ArrowLeftIcon, ArrowRightIcon } from "~/app/_components/icons";
 import { Button, ErrorNote, PageHeader, SignedOutNotice, fieldSurface } from "~/app/_components/ui";
@@ -15,6 +16,7 @@ import { Button, ErrorNote, PageHeader, SignedOutNotice, fieldSurface } from "~/
 // The page is the coordinator — state in the wizard reducer, one
 // component per step, the launch sequence at the bottom.
 export default function NewProjectPage() {
+  usePageTitle("New project");
   const router = useRouter();
   const workspace = useWorkspace();
   const [wizard, dispatch] = useReducer(wizardReducer, initialWizardState);

@@ -3,6 +3,7 @@
 import { DashboardView, type DashboardActor, type DashboardProject, type ModelReadiness } from "./dashboard-view";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import {
   EmptyState,
@@ -28,6 +29,7 @@ function PosterSkeletons() {
 }
 
 export default function DashboardPage() {
+  usePageTitle("Projects");
   const workspace = useWorkspace();
   const projects = api.identity.projects.useQuery(
     { workspaceId: workspace.workspaceId ?? "" },

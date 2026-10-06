@@ -4,6 +4,7 @@ import { ActorGrid, type LibraryActor } from "./actor-grid";
 import { useState } from "react";
 
 import { api } from "~/trpc/react";
+import { usePageTitle } from "~/app/_components/page-title";
 import {
   ErrorNote,
   PageHeader,
@@ -16,6 +17,7 @@ import {
 const GENDERS = ["female", "male", "nonbinary"] as const;
 
 export default function ActorsPage() {
+  usePageTitle("Actors");
   const [gender, setGender] = useState<string | undefined>();
   const actors = api.actors.list.useQuery(gender ? { gender } : undefined, { retry: false });
 

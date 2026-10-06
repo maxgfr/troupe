@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { ActorPortrait } from "~/app/_components/actor-portrait";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useStageHue } from "~/app/_components/stage";
 import { PageHeader } from "~/app/_components/ui";
 import { useWorkspace } from "~/app/_components/workspace-context";
@@ -39,6 +40,7 @@ export function ProjectHeader({
   const actors = api.actors.list.useQuery(undefined, { enabled: Boolean(project.data?.actorId), retry: false, staleTime: 5 * 60_000 });
   const actor = actors.data?.find((a) => a.id === project.data?.actorId);
   useStageHue(actor ? actorHue(actor.id) : null);
+  usePageTitle(TABS.find((t) => t.id === tab)?.label, project.data?.title);
 
   return (
     <>

@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "~/trpc/react";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { ProviderAccounts } from "./provider-accounts";
 import { DefaultModelSettings, ModelCatalogSettings } from "./model-catalog";
@@ -20,6 +21,7 @@ import { describeHeartbeat } from "./heartbeat-age";
 
 // Personal studio settings.
 export default function SettingsPage() {
+  usePageTitle("Settings");
   const workspace = useWorkspace();
   const edition = useEdition();
   const browser = edition.kind === "browser";

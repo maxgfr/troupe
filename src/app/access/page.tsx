@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePageTitle } from "~/app/_components/page-title";
 import { Wordmark } from "~/app/_components/wordmark";
 import { Button, ErrorNote, fieldSurface } from "~/app/_components/ui";
 
 export default function AccessPage() {
+  usePageTitle("Your private studio");
   const router = useRouter();
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);

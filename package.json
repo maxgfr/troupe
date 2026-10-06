@@ -2,7 +2,7 @@
   "name": "troupe",
   "version": "0.1.0",
   "private": true,
-  "description": "A personal, self-hosted open-source studio for AI video experiments.",
+  "description": "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
   "license": "MIT",
   "type": "module",
   "engines": {

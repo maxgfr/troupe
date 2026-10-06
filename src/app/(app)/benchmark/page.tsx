@@ -10,6 +10,7 @@ import { tallyWinner } from "~/modules/benchmark/winner";
 import { BENCHMARK_LIST_LIMIT } from "~/modules/benchmark/list-limit";
 import { dedupeRunsById } from "~/modules/benchmark/dedupe-runs";
 import { launchSettings, type ModelOptionView } from "../projects/model-choice";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import {
   EmptyState,
@@ -32,6 +33,7 @@ export default function BenchmarkPage() {
 }
 
 function BenchmarkLab() {
+  usePageTitle("Compare");
   const router = useRouter();
   const workspace = useWorkspace();
   const utils = api.useUtils();

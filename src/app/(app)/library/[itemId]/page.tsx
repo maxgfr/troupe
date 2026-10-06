@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useRef, useState } from "react";
 
 import { useEdition } from "~/app/_components/edition";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { ArrowLeftIcon, ExternalIcon } from "~/app/_components/icons";
@@ -31,6 +32,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
   const workspaceId = workspace.workspaceId ?? "";
   const utils = api.useUtils();
   const item = api.library.get.useQuery({ workspaceId, itemId }, { enabled: ready, retry: false, refetchInterval: (q) => (q.state.data && (q.state.data.status === "queued" || q.state.data.status === "analyzing") ? 2000 : false) });
+  usePageTitle(item.data?.title, "Library");
   const refresh = () => Promise.all([utils.library.get.invalidate({ workspaceId, itemId }), utils.library.list.invalidate()]);
   const update = api.library.update.useMutation({ onSuccess: refresh });
   const reanalyze = api.library.reanalyze.useMutation({ onSuccess: refresh });

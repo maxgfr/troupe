@@ -6,9 +6,10 @@ import { Bricolage_Grotesque, Geist, JetBrains_Mono } from "next/font/google";
 import { TRPCReactProvider } from "~/trpc/react";
 import { THEME_SCRIPT } from "./theme-script";
 
+// The same name and description as the browser edition's (site/app/index.html).
 export const metadata: Metadata = {
-  title: "Troupe — open-source video studio",
-  description: "A personal, self-hosted studio for AI video experiments. Bring your own API keys.",
+  title: { default: "Troupe", template: "%s · Troupe" },
+  description: "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 

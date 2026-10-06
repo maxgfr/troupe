@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 
 import { useEdition } from "~/app/_components/edition";
+import { usePageTitle } from "~/app/_components/page-title";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { SearchIcon } from "~/app/_components/icons";
@@ -28,6 +29,7 @@ function useDebounced<T>(value: T, ms: number): T {
 
 // The inspiration library: save, search, ask, and turn what works into ideas.
 export default function LibraryPage() {
+  usePageTitle("Library");
   const workspace = useWorkspace();
   const edition = useEdition();
   const wide = useMediaQuery("(min-width: 1024px)");

@@ -27,7 +27,10 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
   const status = api.library.status.useQuery(undefined, { retry: false, staleTime: 30_000 });
   const writer = status.data?.tools.find((t) => t.name === "writer");
   const noWriter = writer && !writer.ready ? writer.detail : null;
-  const usable = ready && !noWriter;
+  // The studio could not say what can write (or how much): nothing runs, and
+  // the reason shows instead of a skeleton that would never end.
+  const statusProblem = status.error ? status.error.message : null;
+  const usable = ready && !noWriter && !statusProblem;
   const actors = api.actors.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   const available = (actors.data ?? []).filter((a) => a.status === "active");
   const [actorId, setActorId] = useState("");
@@ -59,7 +62,7 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
         {ACTIONS.map((a) => (
           <li key={a.kind} className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {/* Until the studio says how many ideas a set holds, no number is guessed. */}
-            {a.kind === "ideas" && ideaCount === null ? (
+            {a.kind === "ideas" && ideaCount === null && !statusProblem ? (
               <Skeleton className="h-10 w-44 rounded-lg" />
             ) : (
               <Button aria-describedby={`${hintId}-${a.kind}`} disabled={!usable || generate.isPending} onClick={() => run(a.kind)}>
@@ -94,6 +97,7 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
           {pending === "script" ? "Writing the script…" : "Write the script"}
         </Button>
       </form>
+      {statusProblem ? <ErrorNote>Ideas cannot be written right now: {statusProblem}</ErrorNote> : null}
       {!ready ? <p className="text-xs text-muted">Available once the item is read.</p> : noWriter ? <p className="text-pretty text-xs text-muted">Ideas are written by the chat model, which cannot run: {noWriter}</p> : null}
       {generate.isPending ? (
         <div role="status" className="space-y-2">

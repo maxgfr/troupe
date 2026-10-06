@@ -27,7 +27,8 @@ describe("model catalog settings", () => {
 
   it("says a local model was out of reach at its last test, with the reason, instead of Ready", () => {
     render(<ModelCatalogList models={[model("Box", { kind: "local", lastTest: { ok: false, message: "Could not reach http://127.0.0.1:1. Is the server running and reachable from Troupe?", at: "2026-10-06T18:00:00Z" } }), model("Renderer", { kind: "local", lastTest: { ok: true, message: "Renderer is reachable.", at: "2026-10-06T18:00:00Z" } })]} reports={{}} onToggle={vi.fn()} onTest={vi.fn()} onSave={vi.fn()} />);
-    expect(screen.getByText("Added, not reachable: Could not reach http://127.0.0.1:1. Is the server running and reachable from Troupe?")).toBeDefined();
+    expect(screen.getByText("Added, not reachable")).toBeDefined();
+    expect(screen.getByRole("status").textContent).toBe("Could not reach http://127.0.0.1:1. Is the server running and reachable from Troupe?");
     expect(screen.getAllByText("Ready")).toHaveLength(1);
   });
 

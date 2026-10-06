@@ -91,7 +91,7 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
                 <span className="text-xs text-muted">{m.vendor}</span>
               </p>
               <p className={`mt-0.5 text-xs ${m.status === "ready" && !unreachable(m) ? "text-muted" : "text-warning"}`}>
-                {m.archived ? "Archived" : m.status === "ready" ? (!m.enabled ? "Turned off" : unreachable(m) ? `Added, not reachable: ${m.lastTest!.message}` : "Ready") : m.status === "missing-credentials" && m.credential ? (
+                {m.archived ? "Archived" : m.status === "ready" ? (!m.enabled ? "Turned off" : unreachable(m) ? "Added, not reachable" : "Ready") : m.status === "missing-credentials" && m.credential ? (
                   // This page holds the key form: point to it, not to "Settings".
                   <>Add a {CREDENTIAL_NAMES[m.credential]} key under <a href="#provider-accounts" className="underline underline-offset-2">Provider accounts</a> below.</>
                 ) : m.statusDetail}
@@ -113,7 +113,8 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
               ) : null}
             </div>
           </div>
-          <ConnectionResult report={reports[m.key]} />
+          {/* This visit's Test, else the reason the last one failed. */}
+          <ConnectionResult report={reports[m.key] ?? (unreachable(m) ? { ok: false, message: m.lastTest!.message } : undefined)} />
           {m.connection && onEditConnection && !m.archived ? (
             <LocalConnectionForm connection={m.connection} label={m.label} busy={busy} onSave={(change) => onEditConnection(m.key, change)} />
           ) : null}

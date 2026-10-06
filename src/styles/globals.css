@@ -1,6 +1,14 @@
 @import "tailwindcss";
-/* HeroUI v3 — Tailwind v4 native, no Provider wrapper needed. */
-@import "@heroui/react/styles";
+/* HeroUI v3 (Tailwind v4 native, no Provider): only what the studio uses, the
+   chat's bottom sheet. Its whole stylesheet (every component) is some 400 kB
+   of CSS that every page would wait for. Import a component's own file here
+   when a page starts using it. */
+@import "@heroui/styles/base/base.css" layer(base);
+@import "@heroui/styles/themes/shared/theme.css";
+@import "@heroui/styles/themes/default/variables.css" layer(theme);
+@import "@heroui/styles/components/drawer.css" layer(components);
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/variants";
 @import "./design-tokens.css";
 
 /* « Régie avant le direct » : HeroUI theme variables are remapped onto the

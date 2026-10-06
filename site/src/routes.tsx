@@ -1,11 +1,13 @@
 import { lazy, useMemo, type ComponentType } from "react";
 import { createBrowserRouter, Navigate, Outlet, useParams } from "react-router";
 
-// Each page loads with its first visit (the shell and the studio's data layer
-// come first), as Next splits the self-hosted studio by route.
+import DashboardPage from "~/app/(app)/dashboard/page";
+import { BrowserLayout, NotFound } from "./layout";
+
+// Each page loads with its first visit, as Next splits the self-hosted studio
+// by route; Projects, where the studio opens, comes with the shell.
 const ActorsPage = lazy(() => import("~/app/(app)/actors/page"));
 const BenchmarkPage = lazy(() => import("~/app/(app)/benchmark/page"));
-const DashboardPage = lazy(() => import("~/app/(app)/dashboard/page"));
 const LibraryItemPage = lazy(() => import("~/app/(app)/library/[itemId]/page"));
 const LibraryPage = lazy(() => import("~/app/(app)/library/page"));
 const ProjectExportPage = lazy(() => import("~/app/(app)/projects/[projectId]/export/page"));
@@ -13,7 +15,6 @@ const ProjectMonitorPage = lazy(() => import("~/app/(app)/projects/[projectId]/p
 const ProjectScriptPage = lazy(() => import("~/app/(app)/projects/[projectId]/script/page"));
 const NewProjectPage = lazy(() => import("~/app/(app)/projects/new/page"));
 const SettingsPage = lazy(() => import("~/app/(app)/settings/page"));
-import { BrowserLayout, NotFound } from "./layout";
 
 // The same pages as src/app/(app), at the same paths, under /troupe/app.
 

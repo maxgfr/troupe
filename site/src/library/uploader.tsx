@@ -2,12 +2,10 @@ import { useSyncExternalStore } from "react";
 
 import type { LibraryUploader } from "~/app/_components/edition";
 import { sha256Hex } from "~/modules/library/hash";
-import { createCaller } from "~/server/api/root";
 import { EXTENSIONS, SNIFF_BYTES, sniffType } from "~/server/library/sniff";
 import { storeWhileRecording } from "../data/local-data";
-import { createBrowserContext } from "../trpc";
 import { libraryDownload, subscribeToLibraryDownload } from "./client";
-import { pendingUploads } from "./backend";
+import { pendingUploads } from "./pending";
 import { LIBRARY_CONFIG } from "./env";
 
 // The browser edition's uploads: the file is checked by its first bytes,
@@ -22,7 +20,7 @@ async function upload(file: File, input: { workspaceId: string; mine: boolean; o
   if (file.size > LIBRARY_CONFIG.maxUploadMb * 1024 * 1024) throw new Error(`The file is larger than ${LIBRARY_CONFIG.maxUploadMb} MB, the most this browser keeps.`);
   const mimeType = sniffType(new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer()));
   if (!mimeType) throw new Error("This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.");
-  const caller = createCaller(await createBrowserContext());
+  const caller = await (await import("../server-link")).browserCaller();
   if (mimeType === "text/plain") {
     const item = await caller.library.addText({ workspaceId: input.workspaceId, text: await file.text(), title: stem(file.name), mine: input.mine });
     input.onProgress?.(1);

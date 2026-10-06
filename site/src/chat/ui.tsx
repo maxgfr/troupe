@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { BrowserChat } from "~/app/_components/edition";
 import { CHAT_CONFIG } from "./env";
-import { chatModelCached, chatModelStage, chatSupport, subscribeToChatModel, type ChatModelStage } from "./webllm";
+import { chatModelCached, chatModelStage, chatSupport, subscribeToChatModel, type ChatModelStage } from "./state";
 
 // The chat panel's view of the in-browser model: what it downloads before
 // the first answer, and how far along it is.

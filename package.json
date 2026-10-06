@@ -42,6 +42,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",
     "@heroui/react": "^3.2.2",
+    "@heroui/styles": "^3.2.2",
     "@mozilla/readability": "0.6.0",
     "@supabase/supabase-js": "^2.116.0",
     "@t3-oss/env-nextjs": "^0.12.0",

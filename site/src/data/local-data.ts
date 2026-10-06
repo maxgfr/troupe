@@ -1,6 +1,4 @@
 import type { LocalData } from "~/app/_components/edition";
-import { referencedMediaIds, resetDatabase, restoreDatabase, snapshotDatabase } from "../db/client";
-import { MIGRATIONS } from "../db/migrations";
 import { clearMediaFiles, deleteMediaFiles, mediaFileIds, readMediaFiles, saveMediaFile, saveMediaFiles, type MediaFile } from "../media";
 import { clearJobs } from "../render/jobs";
 import { checkMigrations, packBackup, summarize, unpackBackup, type Backup } from "./backup";
@@ -10,6 +8,10 @@ import { storage } from "./storage";
 // the database (site/src/db), the renders (site/src/media.ts) and the render
 // jobs (site/src/render/jobs.ts). Deleting or importing reloads every open
 // tab of the studio onto the result.
+
+// The database and its migrations load when first needed, not with the shell
+// (Settings' panel imports this module).
+const database = () => import("../db/client");
 
 const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("troupe-local-data");
 
@@ -34,7 +36,7 @@ function withDataLock<T>(run: () => Promise<T>): Promise<T> {
 
 async function deleteAll(): Promise<void> {
   await withDataLock(async () => {
-    await resetDatabase();
+    await (await database()).resetDatabase();
     await clearMediaFiles();
     await clearJobs();
   });
@@ -42,8 +44,8 @@ async function deleteAll(): Promise<void> {
 }
 
 async function exportBackup() {
-  const database = await snapshotDatabase();
-  return packBackup({ database, media: await readMediaFiles() });
+  const snapshot = await (await database()).snapshotDatabase();
+  return packBackup({ database: snapshot, media: await readMediaFiles() });
 }
 
 // Until the database commits, nothing that was here changes: the backup's
@@ -58,7 +60,7 @@ export async function restoreBackup(backup: Backup): Promise<void> {
     const added = backup.media.filter((file) => !before.has(file.id));
     await saveMediaFiles(added);
     try {
-      await restoreDatabase(backup.database);
+      await (await database()).restoreDatabase(backup.database);
     } catch (error) {
       await deleteMediaFiles(added.map((file) => file.id)).catch((cleanup: unknown) => console.warn("The backup's files could not be taken out again:", cleanup));
       throw error;
@@ -86,7 +88,7 @@ export async function pruneUnreferencedMedia(): Promise<void> {
     await withDataLock(async () => {
       const stored = await mediaFileIds();
       if (stored.length === 0) return;
-      const referenced = await referencedMediaIds();
+      const referenced = await (await database()).referencedMediaIds();
       await deleteMediaFiles(stored.filter((id) => !referenced.has(id)));
     });
   } catch (error) {
@@ -110,14 +112,13 @@ export async function storeWhileRecording<T>(file: MediaFile, record: () => Prom
   });
 }
 
-const KNOWN_MIGRATIONS = MIGRATIONS.map((migration) => migration.name);
-
 export const localData: LocalData = {
   deleteAll,
   exportBackup,
   async readBackup(file) {
     const backup = await unpackBackup(file);
-    checkMigrations(backup, KNOWN_MIGRATIONS);
+    const { MIGRATIONS } = await import("../db/migrations");
+    checkMigrations(backup, MIGRATIONS.map((migration) => migration.name));
     return { summary: summarize(backup), restore: () => restoreBackup(backup) };
   },
   storage,

@@ -89,6 +89,26 @@ export function headScript(script: string): Plugin {
   };
 }
 
+// <link rel="preload"> for the font files the first paint draws with (Geist
+// for the text, Bricolage for titles and the wordmark), so the browser fetches
+// them with the page instead of after its stylesheet. Only in a build: the
+// files and their hashed names exist once bundled.
+export function fontPreloads({ base, match }: { base: string; match: RegExp[] }): Plugin {
+  return {
+    name: "troupe:font-preloads",
+    transformIndexHtml: {
+      order: "post",
+      handler: (_html, ctx) => {
+        const files = Object.values(ctx.bundle ?? {}).map((chunk) => chunk.fileName);
+        return match
+          .map((pattern) => files.find((file) => file.endsWith(".woff2") && pattern.test(file)))
+          .filter((file): file is string => Boolean(file))
+          .map((file) => ({ tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: `${base}${file}` }, injectTo: "head" as const }));
+      },
+    },
+  };
+}
+
 // `vite preview`: a path under `base` with no file (or folder with an
 // index.html) in `outDir` gets 404.html with a 404, as on GitHub Pages; so
 // does a URL that does not decode. Anything else goes on to Vite.

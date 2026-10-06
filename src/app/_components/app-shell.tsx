@@ -36,7 +36,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // The fade is for moving between pages, not for the first one: that one
   // paints at once.
   const shown = useRef<string | null>(null);
-  const navigated = shown.current !== null && shown.current !== pathname;
+  // ("/" only redirects to Projects: arriving there is still the first page.)
+  const navigated = shown.current !== null && shown.current !== "/" && shown.current !== pathname;
   useEffect(() => {
     shown.current = pathname;
   }, [pathname]);

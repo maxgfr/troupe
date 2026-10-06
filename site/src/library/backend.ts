@@ -1,9 +1,10 @@
 import type { ChatBackend } from "~/modules/chat";
-import { requeueStale, runLibraryQueue, type AnalysisTools, type ClaimedUpload, type LibraryBackend, type LibraryStatus } from "~/modules/library";
+import { requeueStale, runLibraryQueue, type AnalysisTools, type LibraryBackend, type LibraryStatus } from "~/modules/library";
 import type { Db } from "~/server/db/types";
 import { browserMedia } from "../media";
 import { embedInWorker, transcribeInWorker } from "./client";
 import { LIBRARY_CONFIG } from "./env";
+import { pendingUploads } from "./pending";
 import { browserMediaReader } from "./media";
 
 // The browser edition's ctx.library: everything runs in this tab and its
@@ -15,9 +16,6 @@ import { browserMediaReader } from "./media";
 const NO_LINKS = "A page in your browser cannot fetch other sites. Save the video or the page to a file and upload it, or paste its text.";
 const NO_VISION = "Pictures are taken from videos, but describing them needs a vision model, which runs in the self-hosted studio.";
 
-// Uploads the page has stored and not yet recorded, by item id: the router
-// runs in this same page, so a plain map hands them over.
-export const pendingUploads = new Map<string, ClaimedUpload>();
 
 // The analysis queue: one tab at a time analyses (Web Locks); while it holds
 // the lock nobody else analyses, so an item still "analyzing" was cut short.

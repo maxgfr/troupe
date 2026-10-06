@@ -9,7 +9,7 @@ import { ACTOR_CATALOG } from "../src/modules/actors/server/catalog";
 import { parseChatConfig } from "./src/chat/config";
 import { parseLibraryConfig } from "./src/library/config";
 import { parseRenderConfig } from "./src/render/config";
-import { actorPictures, headScript, landingPage, pagesFallback, parseBasePath, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
+import { actorPictures, fontPreloads, headScript, landingPage, pagesFallback, parseBasePath, parseLandingConfig, serverGuard, shimModules } from "./vite-plugins";
 
 // The browser edition: the studio's own pages and tRPC router, running in the
 // browser on PGlite. Served from https://<user>.github.io/troupe/: the landing
@@ -73,6 +73,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       guard(),
       react(),
       headScript(THEME_SCRIPT),
+      fontPreloads({ base: BASE, match: [/geist-latin-wght-normal/, /bricolage-grotesque-latin-wght-normal/] }),
       pagesFallback({ base: BASE, outDir: OUT }),
       actorPictures({ base: BASE, dir: portraitsDir, outDir: OUT }),
       landingPage({ base: BASE, ...landing, portraitsDir, cast: ACTOR_CATALOG }),

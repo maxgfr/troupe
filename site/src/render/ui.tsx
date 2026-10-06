@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { BrowserRendering } from "~/app/_components/edition";
 import { ProgressBar, ProviderWarning } from "~/app/_components/ui";
-import { BROWSER_MODEL_KEY } from "~/modules/generation";
+import { BROWSER_MODEL_KEY } from "./model-key";
 import { api } from "~/trpc/react";
 import { overallProgress, type RenderStage } from "./protocol";
 import { onRenderFinished, renderStage, subscribeToRenders } from "./runner";

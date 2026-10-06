@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { build } from "vite";
 
-import { actorPictures, actorPicturesMiddleware, landingPage, pagesNotFoundMiddleware, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
+import { actorPictures, actorPicturesMiddleware, fontPreloads, landingPage, pagesNotFoundMiddleware, parseBasePath, parseLandingConfig, serverGuard } from "./vite-plugins";
 
 // A throwaway project: an entry that imports one fake dependency.
 const dirs: string[] = [];
@@ -244,5 +244,29 @@ describe("base path", () => {
     for (const bad of ["https://example.com/", "/a b/", "/../", "/a//b/", "/a?b/", "/$x/"]) {
       expect(() => parseBasePath(bad)).toThrow(/VITE_BASE/);
     }
+  });
+});
+
+describe("font preloads", () => {
+  type Hook = (html: string, ctx: { bundle?: Record<string, { fileName: string }> }) => unknown;
+  const run = (plugin: ReturnType<typeof fontPreloads>, files: string[]) =>
+    (plugin.transformIndexHtml as unknown as { handler: Hook }).handler("", { bundle: Object.fromEntries(files.map((f) => [f, { fileName: f }])) });
+
+  it("preloads the built files of the faces the first paint uses, under the base, and nothing else", () => {
+    const tags = run(fontPreloads({ base: "/troupe/", match: [/geist-latin-wght/, /bricolage-grotesque-latin-wght/] }), [
+      "assets/geist-latin-wght-normal-abc.woff2",
+      "assets/geist-latin-ext-wght-normal-def.woff2",
+      "assets/bricolage-grotesque-latin-wght-normal-ghi.woff2",
+      "assets/jetbrains-mono-latin-wght-normal-jkl.woff2",
+      "assets/app.js",
+    ]);
+    expect(tags).toEqual([
+      { tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: "/troupe/assets/geist-latin-wght-normal-abc.woff2" }, injectTo: "head" },
+      { tag: "link", attrs: { rel: "preload", as: "font", type: "font/woff2", crossorigin: "", href: "/troupe/assets/bricolage-grotesque-latin-wght-normal-ghi.woff2" }, injectTo: "head" },
+    ]);
+  });
+
+  it("adds nothing in development, where nothing is bundled", () => {
+    expect((fontPreloads({ base: "/", match: [/geist/] }).transformIndexHtml as unknown as { handler: Hook }).handler("", {})).toEqual([]);
   });
 });

@@ -72,7 +72,7 @@ export function comparisonPlan(options: ModelOptionView[], estimatedS: number): 
   // A model none of whose clips holds the script cannot take part, and must
   // not keep the others from being compared.
   const candidates = options.filter((o) => usable(o) && o.capabilities.durationsS.some((d) => d >= estimatedS));
-  if (candidates.length < 2) return { ok: false, reason: "Comparing needs at least two available models for this format whose clips hold this script." };
+  if (candidates.length < 2) return { ok: false, reason: "Comparing needs at least two models that can render this format at this script's length." };
   for (let size = Math.min(3, candidates.length); size >= 2; size--) {
     const group = candidates.slice(0, size);
     const durations = group[0]!.capabilities.durationsS.filter((d) => d >= estimatedS && group.every((o) => o.capabilities.durationsS.includes(d)));
@@ -82,7 +82,7 @@ export function comparisonPlan(options: ModelOptionView[], estimatedS: number): 
       return { ok: true, modelKeys: group.map((o) => o.key), durationS: durations.includes(preferred) ? preferred : durations[0]!, resolution: resolutions.includes("720p") ? "720p" : resolutions[0]! };
     }
   }
-  return { ok: false, reason: "These models share no clip length and resolution that fits this script." };
+  return { ok: false, reason: "Comparing needs at least two models that share a clip length and a resolution for this script; these share none." };
 }
 
 export function formatCost(costUsd: number | null | undefined, source: "estimate" | "provider" | null | undefined): string {

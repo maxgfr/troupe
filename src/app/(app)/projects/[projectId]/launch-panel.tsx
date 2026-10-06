@@ -124,6 +124,8 @@ export function LaunchPanel({
       </div>
       <p className="max-w-[65ch] text-pretty text-xs text-muted">
         Every render is a draft to review here. The one you export becomes final.
+        {/* Why there is no Compare button, rather than no word about it. */}
+        {plan.ok ? null : <span> {plan.reason}</span>}
       </p>
     </div>
   );

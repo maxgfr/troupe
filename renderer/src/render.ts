@@ -15,6 +15,8 @@ export interface RenderDeps {
   onProgress?: (progress: number) => void;
   // The actors' pictures (portraits.ts; default: the checked-in cast).
   portraitsDir?: string;
+  // One hue for every actor's scene (SCENE_HUE); unset: each actor's own.
+  sceneHue?: number;
   log?: (message: string) => void;
 }
 
@@ -23,7 +25,7 @@ const VOICE_SHARE = 0.3;
 
 // Voices each line (unless the job is silent) and lays the scene out on the
 // measured speech. `onProgress` gets the share of lines voiced, in [0, 1].
-export async function voiceScene(request: RenderRequest, deps: Pick<RenderDeps, "speak" | "voices">, onProgress: (share: number) => void = () => {}): Promise<{ scene: Scene; speeches: Speech[] }> {
+export async function voiceScene(request: RenderRequest, deps: Pick<RenderDeps, "speak" | "voices" | "sceneHue">, onProgress: (share: number) => void = () => {}): Promise<{ scene: Scene; speeches: Speech[] }> {
   const speeches: Speech[] = [];
   if (request.audio) {
     for (const line of request.lines) {
@@ -37,6 +39,7 @@ export async function voiceScene(request: RenderRequest, deps: Pick<RenderDeps, 
     fps: request.fps,
     actor: request.actor,
     lines: request.lines,
+    ...(deps.sceneHue === undefined ? {} : { hue: deps.sceneHue }),
     ...(request.audio ? { speechS: speeches.map((s) => s.samples.length / s.sampleRate) } : {}),
   });
   return { scene, speeches };

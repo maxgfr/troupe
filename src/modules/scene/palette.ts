@@ -52,8 +52,19 @@ export interface Palette {
   inkMutedOver: string;
 }
 
-export function paletteFor(actorId: string): Palette {
-  const hue = actorHue(actorId);
+// One hue for every actor instead of each one's own (SCENE_HUE in the Node
+// renderer, VITE_SCENE_HUE in the browser edition): a whole number of
+// degrees from 0 to 359, or undefined when unset.
+export function parseSceneHue(raw: string | undefined): number | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  const hue = Number(value);
+  if (!/^\d+$/.test(value) || hue > 359) throw new Error(`The scene hue must be a whole number of degrees from 0 to 359 (got "${value}").`);
+  return hue;
+}
+
+// The actor's palette, in its own hue unless `hue` sets one for everyone.
+export function paletteFor(actorId: string, hue: number = actorHue(actorId)): Palette {
   return {
     backgroundTop: oklch(0.26, 0.05, hue),
     backgroundBottom: oklch(0.13, 0.03, (hue + 40) % 360),

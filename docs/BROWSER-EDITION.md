@@ -163,6 +163,8 @@ environment). The build checks them and stops on a bad value.
 | `VITE_RENDER_KEYFRAME_S` | `1` | seconds between key frames (seeking) |
 | `VITE_RENDER_AUDIO_BITRATE` | `128000` | bits per second |
 | `VITE_RENDER_AUDIO_CODECS` | `aac,opus` | audio codecs to try, in order |
+| `VITE_SCENE_HUE` | each actor's own | one hue, 0 to 359, for every actor's card and captions, as the local renderer's `SCENE_HUE` |
+| `VITE_SCENE_FONT_URL` | Geist | a font file drawn instead: a path under the site's base (a file added to `site/public`) or an `https://` URL ([CUSTOMIZING.md](CUSTOMIZING.md#the-video-scene)) |
 | `VITE_PORTRAITS_DIR` | `public/actors` | the actors' pictures copied to `/troupe/actors/`, a folder laid out like `public/actors` ([ACTORS.md](ACTORS.md)) |
 | `VITE_SITE_URL` | `https://maxgfr.github.io/troupe/` | where the site is published: the landing page's canonical link and social preview |
 | `VITE_REPO_URL` | `https://github.com/maxgfr/troupe` | the repository the landing page's docs and source links point at |

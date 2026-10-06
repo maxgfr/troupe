@@ -21,11 +21,18 @@ const scope = self as unknown as WorkerScope;
 
 let fontReady: Promise<void> | undefined;
 
-// The scene draws in Geist (SCENE_FONT). A worker sees none of the page's
-// fonts, so it loads the app's own Geist file under that exact family name.
+// The scene draws in Geist (SCENE_FONT), or in the build's
+// VITE_SCENE_FONT_URL. A worker sees none of the page's fonts, so it loads
+// that file under that exact family name.
+function sceneFontUrl(): string {
+  const custom = RENDER_CONFIG.sceneFontUrl;
+  if (!custom) return geistLatin;
+  return new URL(custom, new URL(import.meta.env.BASE_URL, self.location.href)).href;
+}
+
 function loadSceneFont(): Promise<void> {
   fontReady ??= (async () => {
-    const face = new FontFace(SCENE_FONT, `url(${geistLatin})`, { weight: "100 900" });
+    const face = new FontFace(SCENE_FONT, `url(${sceneFontUrl()})`, { weight: "100 900" });
     scope.fonts.add(await face.load());
   })().catch((error: unknown) => {
     fontReady = undefined;
@@ -56,6 +63,7 @@ async function render(jobId: string, job: BrowserRenderJob): Promise<Blob> {
     actor,
     lines,
     speechS: speeches.map((s) => s.samples.length / s.sampleRate),
+    ...(RENDER_CONFIG.sceneHue === null ? {} : { hue: RENDER_CONFIG.sceneHue }),
   });
   const portraits = await loadPortraits(actor.portraits, portraitShots(scene), import.meta.env.BASE_URL);
   try {

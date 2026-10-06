@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { buildScene } from "../../src/modules/scene";
-import { encodeFrames, framesInput } from "./render";
+import { buildScene, paletteFor } from "../../src/modules/scene";
+import { registerSceneFonts } from "./fonts";
+import { encodeFrames, framesInput, voiceScene } from "./render";
 
 // An "ffmpeg" that records its pid and reads frames until stdin closes, like
 // the real one waiting for the next frame. The pid file appears whole, by a
@@ -26,6 +27,20 @@ const alive = (pid: number) => {
     return false;
   }
 };
+
+describe("the scene's look", () => {
+  const request = { width: 720, height: 1280, fps: 24, audio: false, actor: { id: "a1", name: "Ana", gender: "female" as const }, lines: [{ role: "hook" as const, text: "Hello there.", emotion: "neutral" as const }] };
+  const speak = async () => ({ samples: new Float32Array(0), sampleRate: 24000 });
+
+  it("paints every actor in SCENE_HUE when it is set", async () => {
+    expect((await voiceScene(request, { speak })).scene.palette).toEqual(paletteFor("a1"));
+    expect((await voiceScene(request, { speak, sceneHue: 30 })).scene.palette).toEqual(paletteFor("someone else", 30));
+  });
+
+  it("refuses a SCENE_FONT_FILE it cannot read, naming it", () => {
+    expect(() => registerSceneFonts("/nowhere/Brand.woff2")).toThrow(/SCENE_FONT_FILE.*\/nowhere\/Brand\.woff2/);
+  });
+});
 
 describe("encodeFrames", () => {
   let dir = "";

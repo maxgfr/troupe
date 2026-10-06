@@ -1,5 +1,5 @@
 // A relative path: site/vite.config.ts loads this file without the ~ alias.
-import { KOKORO_VOICES, parseVoicePools, type VoicePools } from "../../../src/modules/scene";
+import { KOKORO_VOICES, parseSceneHue, parseVoicePools, type VoicePools } from "../../../src/modules/scene";
 
 // What a fork can change about the in-browser renderer, read from VITE_*
 // variables when the site is built (site/.env.example lists them). The build
@@ -23,6 +23,11 @@ export interface RenderConfig {
   audioBitrate: number;
   // Tried in order; the first one the browser can encode wins.
   audioCodecs: AudioCodecChoice[];
+  // One hue for every actor's card and captions; null: each actor's own.
+  sceneHue: number | null;
+  // A font file drawn instead of Geist: an https URL or a path under the
+  // site's base (a file a fork adds to site/public); null: Geist.
+  sceneFontUrl: string | null;
 }
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -39,6 +44,8 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   audioBitrate: 128_000,
   // AAC plays everywhere; Chromium on Linux has no AAC encoder, hence Opus.
   audioCodecs: ["aac", "opus"],
+  sceneHue: null,
+  sceneFontUrl: null,
 };
 
 // Weight files and their sizes in Kokoro-82M-v1.0-ONNX, by dtype.
@@ -108,6 +115,18 @@ export function parseRenderConfig(env: Env): RenderConfig {
     else problems.push(`VITE_RENDER_AUDIO_CODECS must list aac and/or opus, comma-separated (got "${rawCodecs}").`);
   }
 
+  let sceneHue = defaults.sceneHue;
+  try {
+    sceneHue = parseSceneHue(read("VITE_SCENE_HUE")) ?? defaults.sceneHue;
+  } catch (error) {
+    problems.push(`VITE_SCENE_HUE: ${(error as Error).message}`);
+  }
+
+  const sceneFontUrl = read("VITE_SCENE_FONT_URL") ?? defaults.sceneFontUrl;
+  if (sceneFontUrl !== null && !/^(https:\/\/[^\s]+|[\w.-][\w./-]*)\.(woff2?|ttf|otf)$/i.test(sceneFontUrl)) {
+    problems.push(`VITE_SCENE_FONT_URL must be an https URL or a path under the site's base (no leading slash) to a .woff2, .woff, .ttf or .otf file (got "${sceneFontUrl}").`);
+  }
+
   const config: RenderConfig = {
     kokoroModel: model ?? defaults.kokoroModel,
     device: oneOf("VITE_KOKORO_DEVICE", ["auto", "webgpu", "wasm"] as const, defaults.device),
@@ -121,6 +140,8 @@ export function parseRenderConfig(env: Env): RenderConfig {
     keyFrameIntervalS: number("VITE_RENDER_KEYFRAME_S", defaults.keyFrameIntervalS, 0.1, 30, false),
     audioBitrate: number("VITE_RENDER_AUDIO_BITRATE", defaults.audioBitrate, 32_000, 512_000),
     audioCodecs,
+    sceneHue,
+    sceneFontUrl,
   };
   if (problems.length > 0) throw new Error(`Invalid renderer settings:\n- ${problems.join("\n- ")}`);
   return config;

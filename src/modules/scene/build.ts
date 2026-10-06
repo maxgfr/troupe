@@ -26,6 +26,8 @@ export interface SceneInput {
   // Seconds of speech per line, as measured from the voice. Unset: estimated
   // from the word count, like the script's own duration estimate.
   speechS?: number[];
+  // One hue for every actor's palette (parseSceneHue). Unset: the actor's own.
+  hue?: number;
 }
 
 export interface Word {
@@ -153,7 +155,7 @@ export function buildScene(input: SceneInput): Scene {
     fps: input.fps ?? 24,
     durationS: cursor + TIMING.tailS,
     actor: { ...input.actor, initials: actorInitials(input.actor.name) },
-    palette: paletteFor(input.actor.id),
+    palette: paletteFor(input.actor.id, input.hue),
     layout: layoutFor(input.width, input.height),
     cues,
   };

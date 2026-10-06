@@ -154,6 +154,9 @@ services:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
       KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
+      # The card and captions' look (docs/CUSTOMIZING.md#the-video-scene).
+      SCENE_HUE: ${TROUPE_RENDERER_SCENE_HUE:-}
+      SCENE_FONT_FILE: ${TROUPE_RENDERER_SCENE_FONT_FILE:-}
       # Transcription for the library (faster-whisper on the CPU): the model
       # (tiny, base, small, medium, large-v3, turbo) downloads into the
       # `renderer` volume on first use; base is about 145 MB.
@@ -334,6 +337,8 @@ services:
       TOKEN: ${TROUPE_RENDERER_TOKEN:-}
       KOKORO_DTYPE: ${TROUPE_RENDERER_KOKORO_DTYPE:-q8}
       KOKORO_VOICES: ${TROUPE_RENDERER_KOKORO_VOICES:-}
+      SCENE_HUE: ${TROUPE_RENDERER_SCENE_HUE:-}
+      SCENE_FONT_FILE: ${TROUPE_RENDERER_SCENE_FONT_FILE:-}
       LTX_RESOLUTION: ${LTX_RESOLUTION:-}
       LTX_FRAMES: ${LTX_FRAMES:-}
       LTX_FPS: ${LTX_FPS:-}

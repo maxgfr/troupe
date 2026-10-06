@@ -32,6 +32,8 @@ export interface RendererOptions {
   voices?: VoicePools;
   // Where the actors' pictures are (default: the checked-in cast).
   portraitsDir?: string;
+  // One hue for every actor's scene (SCENE_HUE); unset: each actor's own.
+  sceneHue?: number;
   // The AI video mode, served under /ltx when set.
   ltx?: RenderMode;
   // Transcription for the studio's inspiration library, at /transcribe when set.
@@ -82,7 +84,7 @@ export function createRendererServer(options: RendererOptions): Server {
   const jobs = new Map<string, Job>();
   let queue = Promise.resolve();
   const fast: RenderMode = {
-    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, onProgress, portraitsDir: options.portraitsDir, log }),
+    render: (request, outFile, onProgress) => renderVideo(request, outFile, { speak: options.speak, voices: options.voices, sceneHue: options.sceneHue, onProgress, portraitsDir: options.portraitsDir, log }),
     // A render takes seconds: ask Troupe to check every second.
     pollEveryS: 1,
   };

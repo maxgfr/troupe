@@ -294,6 +294,8 @@ On first start it downloads Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`,
 | `OUT_DIR` | the OS temp folder | finished MP4s |
 | `KEEP_RENDERS_HOURS` | `24` | how long a finished job and its MP4 are kept before the renderer forgets the job and deletes the file (Troupe downloads each video as soon as it is done); MP4s an earlier run left in `OUT_DIR` go once they are that old; `0` keeps everything |
 | `PORTRAITS_DIR` | `public/actors` in this checkout | the actors' pictures, laid out as `<actor>/v1/front.webp` ([ACTORS.md](ACTORS.md)); a relative path is read from the repository root; a missing picture falls back to the front one, then to the initials, and a job's portrait path the renderer cannot use is logged and skipped |
+| `SCENE_HUE` | each actor's own | one hue, 0 to 359, for every actor's card and captions ([CUSTOMIZING.md](CUSTOMIZING.md#the-video-scene)); in Compose, `TROUPE_RENDERER_SCENE_HUE` |
+| `SCENE_FONT_FILE` | Geist | a `.woff2`, `.woff`, `.ttf` or `.otf` file drawn instead; in Compose, `TROUPE_RENDERER_SCENE_FONT_FILE`, a path inside the container |
 | `TROUPE_RENDERER_PORT` | `8078` | Compose with `docker-compose.dev.yml` only: the port published on `127.0.0.1` |
 | `TROUPE_RENDERER_KOKORO_DTYPE`, `TROUPE_RENDERER_KOKORO_VOICES` | as above | Compose only: passed on as `KOKORO_DTYPE` and `KOKORO_VOICES` |
 | `TROUPE_RENDERER_PORTRAITS_DIR` | `./public/actors` | Compose only: the host folder mounted, read-only, as the container's pictures (relative to the repository root, where `docker-compose.yml` is) |

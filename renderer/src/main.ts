@@ -13,7 +13,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseVoicePools, type VoicePools } from "../../src/modules/scene";
+import { parseSceneHue, parseVoicePools, type VoicePools } from "../../src/modules/scene";
 import { registerSceneFonts } from "./fonts";
 import { type KokoroDtype, kokoroVoice, parseKokoroDtype } from "./kokoro";
 import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } from "./ltx";
@@ -50,6 +50,14 @@ try {
   refuse(`KOKORO_VOICES: ${(error as Error).message}`);
 }
 
+// SCENE_HUE paints every actor's card and captions in one hue (0 to 359).
+let sceneHue: number | undefined;
+try {
+  sceneHue = parseSceneHue(process.env.SCENE_HUE);
+} catch (error) {
+  refuse(`SCENE_HUE: ${(error as Error).message}`);
+}
+
 // The AI video mode is opt-in: `--ltx` (pnpm renderer:ltx) or LTX_ENABLED=1.
 const LTX_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "ltx");
 let ltx: LtxSettings | undefined;
@@ -73,7 +81,12 @@ if (process.argv.includes("--whisper") || ["1", "true", "yes"].includes(process.
   }
 }
 
-registerSceneFonts();
+// SCENE_FONT_FILE: another font for the card and captions (default: Geist).
+try {
+  registerSceneFonts(process.env.SCENE_FONT_FILE?.trim() || undefined);
+} catch (error) {
+  refuse((error as Error).message);
+}
 const kokoro = kokoroVoice({
   cacheDir: process.env.KOKORO_CACHE ?? join(homedir(), ".cache", "troupe-renderer"),
   dtype,
@@ -82,12 +95,13 @@ const kokoro = kokoroVoice({
 const server = createRendererServer({
   speak: kokoro.speak,
   voices,
+  sceneHue,
   // PORTRAITS_DIR: another cast, laid out as <actor>/v1/front.webp.
   portraitsDir: portraitsDir(process.env.PORTRAITS_DIR),
   ...(ltx
     ? {
         ltx: {
-          render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, settings: ltx, onProgress, log }),
+          render: (request, outFile, onProgress) => renderLtxVideo(request, outFile, { speak: kokoro.speak, voices, sceneHue, settings: ltx, onProgress, log }),
           // A generation takes minutes.
           pollEveryS: 5,
           // The default command runs in renderer/ltx/.venv, made by the setup.

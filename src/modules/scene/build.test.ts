@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { sizeFor } from "~/modules/models/geometry";
 import { buildScene, cueAt, TIMING, type Box, type SceneInput } from "./build";
+import { paletteFor } from "./palette";
 
 const actor = { id: "6f1c0e8a-2b7d-4c1e-9a53-0d6e2f4b8c11", name: "Léa Martin" };
 const lines: SceneInput["lines"] = [
@@ -71,6 +72,13 @@ describe("buildScene timings", () => {
   it("refuses a script without lines and speech lengths that do not match the lines", () => {
     expect(() => scene({ lines: [] })).toThrow(/at least one line/);
     expect(() => scene({ speechS: [1, 2] })).toThrow(/3 lines/);
+  });
+});
+
+describe("buildScene palette", () => {
+  it("paints in the actor's own hue, or in the one hue it is given", () => {
+    expect(scene().palette).toEqual(paletteFor(actor.id));
+    expect(scene({ hue: 200 }).palette).toEqual(paletteFor("anyone", 200));
   });
 });
 

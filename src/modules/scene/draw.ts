@@ -44,7 +44,9 @@ export interface SceneContext<Image extends SceneImage = SceneImage> {
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): SceneGradient;
 }
 
-// The family renderers must make available (the app's sans-serif).
+// The family renderers must make available: Geist, the app's sans-serif, or
+// the file a self-hoster registers under this name instead (SCENE_FONT_FILE,
+// VITE_SCENE_FONT_URL).
 export const SCENE_FONT = "Geist";
 const font = (weight: number, px: number) => `${weight} ${px.toFixed(2)}px ${SCENE_FONT}, sans-serif`;
 

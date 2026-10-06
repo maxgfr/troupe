@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actorHue, oklch, paletteFor } from "./palette";
+import { actorHue, oklch, paletteFor, parseSceneHue } from "./palette";
 
 describe("actorHue", () => {
   it("is a stable hue in [0, 360) per actor id", () => {
@@ -45,5 +45,21 @@ describe("paletteFor", () => {
     const b = paletteFor("0b9e7f24-3c5a-4d8e-8f61-2a7c9d1e4b30");
     expect(a.backgroundTop).not.toBe(b.backgroundTop);
     expect(a.highlight).not.toBe(b.highlight);
+  });
+});
+
+describe("one hue for every actor", () => {
+  it("paints any actor in the hue a self-hoster chose", () => {
+    expect(paletteFor("abc", 200)).toEqual(paletteFor("xyz", 200));
+    expect(paletteFor("abc", 200).highlight).toBe(oklch(0.58, 0.12, 200));
+    expect(paletteFor("abc", undefined)).toEqual(paletteFor("abc"));
+  });
+
+  it("reads SCENE_HUE as a whole number of degrees, or nothing", () => {
+    expect(parseSceneHue(undefined)).toBeUndefined();
+    expect(parseSceneHue(" ")).toBeUndefined();
+    expect(parseSceneHue("0")).toBe(0);
+    expect(parseSceneHue(" 359 ")).toBe(359);
+    for (const bad of ["360", "-1", "12.5", "teal"]) expect(() => parseSceneHue(bad)).toThrow(/0 to 359/);
   });
 });

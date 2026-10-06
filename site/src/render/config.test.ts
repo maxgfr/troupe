@@ -20,6 +20,8 @@ describe("parseRenderConfig", () => {
       VITE_RENDER_KEYFRAME_S: "0.5",
       VITE_RENDER_AUDIO_BITRATE: "96000",
       VITE_RENDER_AUDIO_CODECS: "opus, aac",
+      VITE_SCENE_HUE: "210",
+      VITE_SCENE_FONT_URL: "fonts/Inter.woff2",
     });
     expect(config).toEqual({
       kokoroModel: "my-org/Kokoro-82M-ONNX",
@@ -31,8 +33,11 @@ describe("parseRenderConfig", () => {
       keyFrameIntervalS: 0.5,
       audioBitrate: 96_000,
       audioCodecs: ["opus", "aac"],
+      sceneHue: 210,
+      sceneFontUrl: "fonts/Inter.woff2",
     });
     expect(parseRenderConfig({ VITE_RENDER_VIDEO_BITRATE: "medium" }).videoBitrate).toBe("medium");
+    expect(parseRenderConfig({ VITE_SCENE_FONT_URL: "https://fonts.example.com/Inter.ttf" }).sceneFontUrl).toBe("https://fonts.example.com/Inter.ttf");
   });
 
   it("names every bad value at once", () => {
@@ -46,11 +51,13 @@ describe("parseRenderConfig", () => {
         VITE_RENDER_FPS: "0",
         VITE_RENDER_VIDEO_BITRATE: "best",
         VITE_RENDER_AUDIO_CODECS: "mp3",
+        VITE_SCENE_HUE: "400",
+        VITE_SCENE_FONT_URL: "/etc/fonts.conf",
       });
     } catch (error) {
       message = (error as Error).message;
     }
-    for (const name of ["VITE_KOKORO_MODEL", "VITE_KOKORO_DEVICE", "VITE_KOKORO_DTYPE_WASM", "VITE_KOKORO_VOICES", "VITE_RENDER_FPS", "VITE_RENDER_VIDEO_BITRATE", "VITE_RENDER_AUDIO_CODECS"]) {
+    for (const name of ["VITE_KOKORO_MODEL", "VITE_KOKORO_DEVICE", "VITE_KOKORO_DTYPE_WASM", "VITE_KOKORO_VOICES", "VITE_RENDER_FPS", "VITE_RENDER_VIDEO_BITRATE", "VITE_RENDER_AUDIO_CODECS", "VITE_SCENE_HUE", "VITE_SCENE_FONT_URL"]) {
       expect(message).toContain(name);
     }
   });

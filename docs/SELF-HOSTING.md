@@ -370,6 +370,12 @@ the images (BuildKit's cache then keeps them).
   retries, when the network fails). `ollama` restarting over and over with
   "The Ollama library has no model called …": fix the name in `OLLAMA_MODEL`
   or `TROUPE_OLLAMA_MODELS`.
+- The script chat says "Ollama is not answering at http://ollama:11434. Start
+  the stack's Ollama with `docker compose up -d ollama`": run that in the
+  folder with `docker-compose.yml`. The stack's project is `troupe` (the
+  file's `name:`); a stack started under another one (`docker compose -p
+  <name> …`) needs the same `-p <name>` here, as every `docker compose`
+  command in this guide does.
 - `db` restarting over and over with "this database was created with a
   password that is set nowhere now", or `app` logging `password
   authentication failed`: the database exists but its password is neither in

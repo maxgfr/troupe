@@ -5,7 +5,7 @@ import { mediaAssets } from "~/modules/generation/server/media";
 import type { AnalysisStep, AnalysisTools, Embedder, Frame, ItemAnalysis, StoredItemFile, Transcript } from "../model";
 import { buildInsightPrompt, insightSchema, readInsights, type Insights } from "../prompts";
 import { chunkText, chunkTranscript, formatTimestamp, hookFromText, hookFromTranscript, keywordTags, pacingOf } from "../text";
-import { itemFiles } from "./service";
+import { itemFiles } from "./items";
 import { libraryChunks, libraryItems } from "./schema";
 
 // The analysis of one saved item, the same in both editions: the tools

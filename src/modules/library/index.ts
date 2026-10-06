@@ -1,27 +1,11 @@
 // Public barrel of the `library` module — other modules import ONLY from here.
-export {
-  addTextItem,
-  addArticleItem,
-  addFileItem,
-  listItems,
-  getItem,
-  itemFiles,
-  updateItem,
-  requeueItem,
-  deleteItem,
-  searchLibrary,
-  voiceProfile,
-  listLibraryMessages,
-  clearLibraryMessages,
-  sendLibraryMessage,
-  listIdeas,
-  deleteIdea,
-  generateIdeas,
-  createProjectFromIdea,
-  kindForMime,
-  MAX_TEXT_CHARS,
-} from "./server/service";
-export type { LibraryItemView, LibraryItemDetail, SearchHit, SearchResult, LibraryMessageView, IdeaView, Writer } from "./server/service";
+export { addTextItem, addArticleItem, addFileItem, listItems, getItem, itemFiles, updateItem, requeueItem, deleteItem, searchLibrary, voiceProfile, kindForMime, MAX_TEXT_CHARS } from "./server/items";
+export type { LibraryItemView, LibraryItemDetail, SearchHit, SearchResult } from "./server/items";
+export { listLibraryMessages, clearLibraryMessages, sendLibraryMessage } from "./server/chat";
+export type { LibraryMessageView } from "./server/chat";
+export { listIdeas, deleteIdea, generateIdeas, createProjectFromIdea } from "./server/ideas";
+export type { IdeaView } from "./server/ideas";
+export type { Writer } from "./server/writer";
 export { analyzeItem, claimNextItem, requeueStale, runLibraryQueue, embedMissing, spread, thumbnailOf } from "./server/analyze";
 export type { AnalysisOptions } from "./server/analyze";
 export { libraryItems, libraryChunks, libraryMessages, libraryIdeas } from "./server/schema";

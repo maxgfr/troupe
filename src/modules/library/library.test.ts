@@ -256,4 +256,17 @@ describe("the inspiration library", () => {
     expect(seen).toHaveLength(2);
     expect(seen[1]!.at(-1)!.content).toContain('"ideas" must hold 3 different items');
   });
+
+  it("asks again when every idea is far over the clip's word budget, and lists the ones that fit first", async () => {
+    const item = await addTextItem(t.db, { workspaceId, text: "Stop buying cold brew. Make it at home overnight." });
+    await runLibraryQueue(t.db, async () => tools(t, workspaceId, { media: null }));
+    // Scripts of `words` words, in lines of ten.
+    const idea = (title: string, words: number) => ({ title, hook: "Hook?", lines: Array.from({ length: Math.ceil(words / 10) }, (_, i) => ({ role: i === 0 ? "hook" : "body", text: Array.from({ length: 10 }, () => "word").join(" "), emotion: "calm" })) });
+    const answers = [{ ideas: [idea("Long", 120), idea("Longer", 140)] }, { ideas: [idea("Still long", 90), idea("Fits", 20)] }];
+    const seen: ChatTurn[][] = [];
+    const wordy = { async propose(messages: ChatTurn[]) { seen.push(messages); const a = answers.shift()!; return { text: JSON.stringify(a), proposal: a }; } };
+    const ideas = await generateIdeas(t.db, { workspaceId, kind: "ideas", itemIds: [item.id], count: 2, durationS: 20, wordsPerSecond: 2.5, writer: { model: wordy, provider: "ollama", modelId: "tiny" } });
+    expect(ideas.map((i) => i.title)).toEqual(["Fits", "Still long"]);
+    expect(seen[1]!.at(-1)!.content).toContain("at most 50 words");
+  });
 });

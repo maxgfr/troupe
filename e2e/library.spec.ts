@@ -67,17 +67,6 @@ async function signIn(page: Page) {
 
 const row = (page: Page, title: RegExp): Locator => page.locator("table").getByRole("row", { name: title }).first();
 
-// A small model now and then answers with something unusable; a person asks
-// again, and so do these tests (at most three times).
-async function untilDone(attempt: () => Promise<void>, done: Locator, failed: Locator) {
-  for (let i = 0; i < 3; i++) {
-    await attempt();
-    await expect(done.or(failed)).toBeVisible({ timeout: 10 * 60_000 });
-    if (await done.isVisible()) return;
-  }
-  await expect(done).toBeVisible();
-}
-
 test("upload a video, save an article and a video from links, search, ask, make an idea a project, render it and play it", async ({ page }, testInfo) => {
   test.setTimeout(60 * 60_000);
   const errors = watchConsole(page);
@@ -145,19 +134,26 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await expect(sources.first().getByRole("link").first()).toHaveAttribute("href", /\/library\/[0-9a-f-]{36}/);
   await shot("03-chat");
 
-  // Ideas in the style of the video, one made into a project.
+  // Ideas in the style of the video; one short enough for the stack's
+  // renderer (15 s at most) made into a project. The 0.5B model sometimes
+  // writes none, or only long ones: a person asks again.
   await page.locator("table").getByRole("link", { name: /cold brew trick/i }).click();
-  await untilDone(
-    () => page.getByRole("button", { name: "10 ideas in this style" }).click(),
-    page.getByRole("button", { name: "Create project" }).first(),
-    page.getByRole("alert").filter({ hasText: "did not write usable scripts" }),
-  );
+  const write = page.getByRole("button", { name: "10 ideas in this style" });
+  const fitting = page.locator("li").filter({ hasText: /about ([1-9]|1[0-5]) s/ }).getByRole("button", { name: "Create project" });
+  for (let i = 0; i < 3 && (await fitting.count()) === 0; i++) {
+    await write.click();
+    await expect(page.getByRole("button", { name: "Writing 10 ideas…" })).toBeVisible();
+    await expect(write).toBeEnabled({ timeout: 10 * 60_000 });
+  }
+  await expect(fitting.first()).toBeVisible();
   await shot("04-ideas");
-  await page.getByRole("button", { name: "Create project" }).first().click();
+  await fitting.first().click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
 
   // It renders on the stack's renderer, and plays.
-  await page.getByRole("button", { name: "Launch draft" }).click();
+  const launch = page.getByRole("button", { name: "Launch draft" });
+  await expect(launch).toBeEnabled();
+  await launch.click();
   const video = page.locator("video").first();
   await expect(page.getByText("completed", { exact: true }).first()).toBeVisible({ timeout: 10 * 60_000 });
   const played = await video.evaluate(async (v: HTMLVideoElement) => {

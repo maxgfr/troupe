@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm"
 import type { Db } from "~/server/db/types";
 import { listActors } from "~/modules/actors";
 import type { ChatModel, ChatTurn } from "~/modules/chat";
-import { parseJsonAnswer } from "~/modules/chat";
+import { countWords, parseJsonAnswer } from "~/modules/chat";
 import { mediaAssets } from "~/modules/generation/server/media";
 import { saveScriptLines } from "~/modules/script";
 import { createProjectFromWizard, formatOptionsFor, type Platform } from "~/modules/studio";
@@ -20,6 +20,7 @@ import {
   type IdeaKind,
   type IdeaSource,
   type Source,
+  type WrittenIdea,
 } from "../prompts";
 import { formatTimestamp, keywordScore, rankByCosine, styleProfile, type VoiceSample } from "../text";
 import { libraryChunks, libraryIdeas, libraryItems, libraryMessages } from "./schema";
@@ -557,6 +558,25 @@ export async function generateIdeas(
     const raw = parseJsonAnswer(answer.text) ?? completeItems(answer.text, "ideas");
     ideas = raw ? readIdeas(raw, count) : [];
   }
+  // Over the clip's word budget, a script cannot render at that length: when
+  // every idea runs well past it, ask once more with the budget spelled out,
+  // then list the ideas that fit first.
+  const budget = Math.max(8, Math.floor(input.durationS * input.wordsPerSecond));
+  const fits = (idea: WrittenIdea) => countWords(idea.lines) <= Math.ceil(budget * 1.25);
+  if (ideas.length > 0 && !ideas.some(fits)) {
+    const shorter = await ask(
+      input.writer,
+      [...turns, { role: "assistant", content: answer.text }, { role: "user", content: `Those scripts are too long for ${input.durationS} seconds: each must have at most ${budget} words in all. Write the ${count} idea${count === 1 ? "" : "s"} again, much shorter, as the same JSON object.` }],
+      ideasSchema(),
+      (raw) => {
+        const read = readIdeas(raw, count);
+        return read.length > 0 ? read : null;
+      },
+      { signal: input.signal, maxTokens: 400 + count * 220 },
+    );
+    if (shorter.value?.some(fits)) ideas = shorter.value;
+  }
+  ideas = [...ideas.filter(fits), ...ideas.filter((idea) => !fits(idea))];
   if (ideas.length === 0) {
     // The answer stays in the log (the server's, or the browser's console).
     console.warn(JSON.stringify({ event: "library.ideas.unreadable", model: input.writer.modelId, answer: answer.text.slice(0, 4000) }));

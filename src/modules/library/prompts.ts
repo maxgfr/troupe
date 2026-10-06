@@ -322,12 +322,8 @@ export function buildIdeasPrompt(input: IdeaRequest): ChatTurn[] {
 }
 
 const IdeaLine = z.object({ role: z.enum(LINE_ROLES), text: z.string().trim().min(1).max(400), emotion: z.enum(SUPPORTED_EMOTIONS) });
-const IdeaAnswer = z.object({
-  ideas: z
-    .array(z.object({ title: z.string().trim().min(1).max(200), hook: z.string().trim().max(400).default(""), lines: z.array(IdeaLine).min(1).max(12) }))
-    .min(1)
-    .max(20),
-});
+const Idea = z.object({ title: z.string().trim().min(1).max(200), hook: z.string().trim().max(400).default(""), lines: z.array(IdeaLine).min(1).max(12) });
+const IdeaAnswer = z.object({ ideas: z.array(z.unknown()).min(1).max(20) });
 
 // The complete objects of `key`'s list in an answer cut off mid-way (a
 // small model that ran out of tokens): `{ [key]: [...complete objects] }`,
@@ -379,7 +375,11 @@ export function readIdeas(raw: unknown, max: number): WrittenIdea[] {
   const parsed = IdeaAnswer.safeParse(raw);
   if (!parsed.success) return [];
   const out: WrittenIdea[] = [];
-  for (const idea of parsed.data.ideas) {
+  // Each idea on its own: one malformed idea does not cost the others.
+  for (const item of parsed.data.ideas) {
+    const checked = Idea.safeParse(item);
+    if (!checked.success) continue;
+    const idea = checked.data;
     const lines = idea.lines.map((l) => ({ role: l.role, text: spoken(l.text), emotion: l.emotion as Emotion })).filter((l) => l.text);
     if (lines.length === 0) continue;
     const roled: DraftLine[] = lines.map((l, i) => ({ ...l, role: i === 0 ? "hook" : i === lines.length - 1 && lines.length > 1 ? "cta" : "body" }));

@@ -43,6 +43,8 @@ describe("readIdeas", () => {
     const one = { title: "T", hook: "H", lines: [{ role: "hook", text: "H", emotion: "neutral" }] };
     expect(readIdeas({ ideas: [one, one, one] }, 2)).toHaveLength(2);
     expect(readIdeas({ summary: "x" }, 2)).toEqual([]);
+    // A malformed idea is dropped, not the whole answer.
+    expect(readIdeas({ ideas: [{ title: "", lines: [] }, one] }, 2)).toHaveLength(1);
   });
 });
 

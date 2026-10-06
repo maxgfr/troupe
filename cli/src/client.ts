@@ -14,7 +14,7 @@ export type Inputs = inferRouterInputs<AppRouter>;
 // The cookie the studio sets once the access code is right
 // (ACCESS_COOKIE in src/server/api/access.ts).
 export const ACCESS_COOKIE = "troupe-access";
-export const USER_AGENT = "troupe-cli/0.1.0";
+export const USER_AGENT = "troupe-cli/0.2.0";
 
 export interface Connection {
   url: string;

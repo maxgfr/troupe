@@ -150,7 +150,7 @@ Everything is optional. Put what you change in `.env` next to
 | `TROUPE_RENDERER_PORT` | `8078` | With `docker-compose.dev.yml` only: the renderer's port on `127.0.0.1`, for a studio run with `pnpm dev`. |
 | `TROUPE_LIBRARY`, `TROUPE_LIBRARY_EMBED_MODEL`, `TROUPE_LIBRARY_VISION_MODEL` | `1`, `qwen3-embedding:0.6b`, `qwen3-vl:2b-instruct` | The [inspiration library](LIBRARY.md) and the Ollama models it searches and looks with (`off` skips one). `ollama` pulls them after the chat model, without holding up the start. |
 | `TROUPE_TRANSCRIPTION`, `TROUPE_WHISPER_MODEL` | `1`, `base` | The renderer's Whisper for the library ([LIBRARY.md](LIBRARY.md#settings) lists the library's other settings). |
-| `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.1.0`. |
+| `TROUPE_VERSION` | `latest` | Image tag to run, e.g. `0.2.0`. |
 
 Inside the app container: `TROUPE_DATA_DIR=/app/data` (videos, `access-code`,
 `secret.key`), `TROUPE_INPROCESS_WORKER=1` (background job checks) and
@@ -269,7 +269,7 @@ docker compose up -d --wait
 ```
 
 Migrations run on start; several app containers starting at once wait for one
-another. To pin a version, set `TROUPE_VERSION=0.1.0` in `.env`. The model
+another. To pin a version, set `TROUPE_VERSION=0.2.0` in `.env`. The model
 volumes are kept, so nothing downloads again unless `OLLAMA_MODEL` changed.
 
 ### From a stack without the renderer, Ollama and web services

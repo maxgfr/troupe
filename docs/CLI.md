@@ -28,7 +28,7 @@ Without installing it:
   so a copy of it works anywhere with Node.js 22.
 - `npx ./cli <command>` from the checkout, once built; or pack it
   (`cd cli && npm pack`) and run the tarball from anywhere:
-  `npx --package ./troupe-cli-0.1.0.tgz troupe <command>`.
+  `npx --package ./troupe-cli-0.2.0.tgz troupe <command>`.
 - `pnpm --silent troupe <command>` from the checkout runs the TypeScript
   source with Node's type stripping, which needs Node.js 22.6 or later;
   relative paths still mean the folder you typed it in.

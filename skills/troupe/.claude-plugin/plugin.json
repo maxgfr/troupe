@@ -1,7 +1,7 @@
 {
   "name": "troupe",
   "displayName": "Troupe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Make short videos with a self-hosted Troupe studio from Claude Code: check the setup, cast, script, render, review and export through the troupe CLI.",
   "author": {
     "name": "maxgfr",

@@ -1,6 +1,6 @@
 {
   "name": "troupe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
   "license": "MIT",

@@ -1,6 +1,6 @@
 {
   "name": "troupe-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Drive a self-hosted Troupe studio from the terminal: projects, scripts, the script chat, renders, exports and downloads. The built bin is one self-contained file.",
   "license": "MIT",

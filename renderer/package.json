@@ -1,6 +1,6 @@
 {
   "name": "@troupe/renderer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Troupe's local renderer: voices a script with Kokoro and composes the video with ffmpeg, optionally over an LTX-Video clip (HTTP contract v1); optionally transcribes sound for the studio's library.",
   "license": "MIT",

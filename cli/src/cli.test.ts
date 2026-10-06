@@ -4,9 +4,10 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { mainHelp, runCli } from "./cli.ts";
+import { mainHelp, runCli, VERSION } from "./cli.ts";
+import cliPackage from "../package.json" with { type: "json" };
 import type { Io } from "./command.ts";
-import { fetchMedia } from "./client.ts";
+import { fetchMedia, USER_AGENT } from "./client.ts";
 import { assertSecureTransport, LOCK_TIMING, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
 import { startServer } from "~/test/local-server";
 import { numberRanges, sentence, table } from "./output.ts";
@@ -55,7 +56,15 @@ describe("command line", () => {
     expect(command.stdout).toMatch(/^Usage: troupe script set <file\|-> \[options\]/);
     expect(command.stdout).toContain("-p, --project <project>");
     expect(command.stdout).toContain("--json");
-    expect((await run(["--version"])).stdout).toBe("0.1.0\n");
+    expect((await run(["--version"])).stdout).toBe(`${cliPackage.version}\n`);
+  });
+
+  it("reports the version every package of the release carries", async () => {
+    const root = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8")) as { version: string };
+    const renderer = JSON.parse(await readFile(new URL("../../renderer/package.json", import.meta.url), "utf8")) as { version: string };
+    const plugin = JSON.parse(await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8")) as { version: string };
+    expect([VERSION, USER_AGENT, renderer.version, plugin.version]).toEqual([root.version, `troupe-cli/${root.version}`, root.version, root.version]);
+    expect(cliPackage.version).toBe(root.version);
   });
 
   it("finds the command after global options", async () => {

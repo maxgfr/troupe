@@ -18,7 +18,7 @@ function PosterSkeletons() {
     <ul role="status" aria-label="Loading" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
       {Array.from({ length: 4 }, (_, i) => (
         <li key={i} className="space-y-3">
-          <Skeleton className="aspect-[4/5] w-full rounded-xl" />
+          <Skeleton className="aspect-[3/4] w-full rounded-xl" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-3 w-1/2" />
         </li>

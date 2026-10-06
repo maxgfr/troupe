@@ -47,7 +47,9 @@ export function VideoPoster({
           preload="metadata"
           disablePictureInPicture
           onError={() => setFailed(true)}
-          className="size-full object-cover"
+          // A vertical video keeps its top (the actor's name) and its middle
+          // (the captions) in a shorter frame.
+          className="size-full object-cover object-top"
         />
       </span>
     );

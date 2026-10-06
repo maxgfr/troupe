@@ -85,10 +85,10 @@ The vocabulary, screens and navigation are mapped in
   with a 150 ms fade. Shortcuts: `n`, `g` then a letter, `/`, `?` (listed in
   a dialog). The browser edition adds no banner: it is Troupe, not a
   preview of it.
-- **Projects** (`/dashboard`): a grid of posters (4:5): the newest saved
-  video standing on an early frame and playing muted while hovered or
+- **Projects** (`/dashboard`): a grid of posters (3:4): the newest saved
+  video (its top kept) standing on an early frame and playing muted while hovered or
   focused (still with reduced motion), else the actor's portrait; the
-  stage (Script, Rendering, To review, Exported) on the picture, the title
+  stage (Script, Rendering, To review, Exported) on the picture's lower corner, the title
   and platform · format · date below; a cobalt play button rises on hover.
   Empty: the cast in a row, "about two minutes" and the three steps. A
   warning says once when no model can render yet.

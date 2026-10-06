@@ -87,14 +87,14 @@ function ProjectCard({ project, actor }: { project: DashboardProject; actor?: Da
         onPointerLeave={() => setActive(false)}
         onFocus={() => setActive(true)}
         onBlur={() => setActive(false)}
-        className="group relative block rounded-xl outline-offset-4"
+        className="@container group relative block rounded-xl outline-offset-4"
       >
         <span className="relative block overflow-hidden rounded-xl bg-surface shadow-card">
           <VideoPoster
             src={project.latestVideoUrl}
             active={active}
             actor={actor}
-            className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            className="aspect-[3/4] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
           {/* The hairline that keeps a dark frame from melting into the stage. */}
           <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
@@ -111,8 +111,9 @@ function ProjectCard({ project, actor }: { project: DashboardProject; actor?: Da
           <span className="block truncate font-medium">{project.title}</span>
           <span className="mt-0.5 block truncate font-mono text-xs tabular-nums text-muted">{meta}</span>
         </span>
-        {/* Drawn on the poster, read after the title. */}
-        <span className="absolute top-2.5 left-2.5">
+        {/* Drawn on the poster's lower corner (its height is 4/3 of the
+            card's width), read after the title. */}
+        <span className="absolute top-[calc(133.333cqw-2.25rem)] left-2.5">
           <span className="sr-only">, </span>
           <StageChip status={project.status} />
         </span>

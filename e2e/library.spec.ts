@@ -167,7 +167,9 @@ test("upload a video, save an article and a video from links, search, ask, make 
   expect(played.duration).toBeGreaterThan(2);
   expect(played.at).toBeGreaterThan(0.5);
   await shot("05-rendered");
-  expect(errors).toEqual([]);
+  // The tRPC logger also prints the error the page shows when the 0.5B model
+  // writes no usable idea, which the ideas loop above asks again for.
+  expect(errors.filter((error) => !error.includes("did not write usable scripts"))).toEqual([]);
 });
 
 test("the CLI saves, lists, searches, asks and writes ideas, and doctor checks the library's tools", () => {

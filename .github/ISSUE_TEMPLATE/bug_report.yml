@@ -13,23 +13,46 @@ body:
     id: version
     attributes:
       label: Troupe version or commit
+      description: "The image tag (TROUPE_VERSION), `troupe --version`, or `git rev-parse --short HEAD`."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Part of Troupe
+      options:
+        - The studio (projects, scripts, renders, exports)
+        - The local renderer (voices, actor card, captions)
+        - The renderer's AI video mode (LTX-Video)
+        - The script chat
+        - The inspiration library
+        - The browser edition or its landing page
+        - The CLI or the Claude Code skill
+        - The Docker stack or installation
+        - Settings and configuration
+        - Something else
     validations:
       required: true
   - type: dropdown
     id: hosting
     attributes:
       label: How you run it
-      options: [Docker, Vercel + Supabase, pnpm dev / pnpm start]
+      options: [Docker, Vercel + Supabase, pnpm dev / pnpm start, Browser edition]
     validations:
       required: true
   - type: input
     id: model
     attributes:
       label: Model involved (if any)
-      placeholder: Veo 3.1 Fast, Kling 3.0, ComfyUI LTX-2, HTTP endpoint…
+      placeholder: Local renderer, Veo 3.1 Fast, Kling 3.0, ComfyUI LTX-2, HTTP endpoint, Ollama qwen3:4b, WebLLM…
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and computer (browser edition, chat in the browser)
+      placeholder: Chrome 140 on an Apple M5, Edge on Windows with an RTX 4060…
   - type: textarea
     id: logs
     attributes:
       label: Logs
-      description: "docker compose logs app" output. Remove API keys and tokens first.
+      description: "`docker compose logs app renderer ollama`, the browser console, or the CLI's output. Remove API keys, tokens and access codes first."
       render: text

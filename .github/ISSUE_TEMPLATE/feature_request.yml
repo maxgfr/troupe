@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement or a new model
+description: Suggest an improvement, a setting or a new model
 labels: [enhancement]
 body:
   - type: textarea
@@ -8,7 +8,21 @@ body:
       label: What are you trying to do?
     validations:
       required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Part of Troupe
+      options:
+        - The studio
+        - Models (cloud, ComfyUI, HTTP, the local renderer, the AI video mode)
+        - The script chat
+        - The inspiration library
+        - The browser edition
+        - The CLI or the Claude Code skill
+        - Self-hosting and settings
+        - Something else
   - type: textarea
     id: idea
     attributes:
       label: What would help
+      description: If it is a setting, check docs/CUSTOMIZING.md first; it may already exist.

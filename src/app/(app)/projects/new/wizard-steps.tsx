@@ -6,7 +6,7 @@
 import { ModelPicker } from "./model-picker";
 import type { ModelOptionView } from "../model-choice";
 import { ActorPortrait } from "~/app/_components/actor-portrait";
-import { EmptyState, ErrorNote, ProviderWarning, Skeleton } from "~/app/_components/ui";
+import { EmptyState, ErrorNote, ProviderWarning, Skeleton, chipClass } from "~/app/_components/ui";
 import { platformName } from "~/modules/studio/platforms";
 import { useEdition } from "~/app/_components/edition";
 import { LANGUAGES, PLATFORMS, type Format, type Language, type Platform } from "./wizard-state";
@@ -20,17 +20,10 @@ export function PlatformStep({
 }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium">Platform</legend>
+      <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Where will it play?</legend>
       <div className="flex flex-wrap gap-2">
         {PLATFORMS.map((p) => (
-          <label
-            key={p}
-            className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
-              platform === p
-                ? "border-primary bg-primary/15 font-medium text-primary"
-                : "border-muted/40 text-muted hover:text-fg"
-            }`}
-          >
+          <label key={p} className={chipClass(platform === p, "min-h-11 px-5")}>
             <input
               type="radio"
               name="platform"
@@ -43,6 +36,17 @@ export function PlatformStep({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+// The frame's shape, drawn to scale.
+function FormatGlyph({ format }: { format: Format }) {
+  const [w, h] = format.split(":").map(Number) as [number, number];
+  const scale = 18 / Math.max(w, h);
+  return (
+    <span aria-hidden className="flex size-6 items-center justify-center">
+      <span className="rounded-[3px] shadow-[inset_0_0_0_1.5px_currentColor] text-muted" style={{ width: `${w * scale}px`, height: `${h * scale}px` }} />
+    </span>
   );
 }
 
@@ -75,7 +79,7 @@ export function FormatStep({
 }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium">Format</legend>
+      <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Format and model</legend>
       {pending ? (
         <Skeleton className="h-12 w-full" />
       ) : (
@@ -83,13 +87,16 @@ export function FormatStep({
           {options.map((option) => (
             <label
               key={option.format}
-              className={`flex cursor-pointer items-center justify-between rounded-lg border px-4 py-2.5 text-sm transition-colors duration-150 ${
+              className={`flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl px-4 text-sm transition-[background-color,box-shadow] duration-150 ${
                 chosenFormat === option.format
-                  ? "border-primary bg-primary/15"
-                  : "border-muted/40 hover:border-muted"
+                  ? "bg-primary/10 shadow-[inset_0_0_0_1.5px_var(--troupe-color-primary)]"
+                  : "shadow-[inset_0_0_0_1px_var(--troupe-color-line)] hover:bg-fg/[0.04]"
               }`}
             >
-              <span className="font-mono">{option.format}</span>
+              <span className="flex items-center gap-3">
+                <FormatGlyph format={option.format} />
+                <span className="font-mono tabular-nums">{option.format}</span>
+              </span>
               <input
                 type="radio"
                 name="format"
@@ -126,17 +133,10 @@ export function LanguageStep({
 }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium">Language</legend>
+      <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Language</legend>
       <div className="flex flex-wrap gap-2">
         {LANGUAGES.map((l) => (
-          <label
-            key={l}
-            className={`cursor-pointer rounded-lg border px-4 py-2 font-mono text-sm uppercase transition-colors duration-150 ${
-              language === l
-                ? "border-primary bg-primary/15 font-medium text-primary"
-                : "border-muted/40 text-muted hover:text-fg"
-            }`}
-          >
+          <label key={l} className={chipClass(language === l, "min-h-11 px-5 font-mono uppercase")}>
             <input
               type="radio"
               name="language"
@@ -181,7 +181,7 @@ export function ActorStep({
   const restart = useEdition().kind === "browser" ? "reload this page" : "restart Troupe";
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium">Actor</legend>
+      <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Who plays it?</legend>
       {pending ? (
         <Skeleton className="h-40 w-full" />
       ) : errorMessage ? (
@@ -194,15 +194,15 @@ export function ActorStep({
       ) : actors.every((a) => a.status === "unavailable") ? (
         <ErrorNote>Every actor is unavailable because their portraits are missing. To restore the library, {restart}.</ErrorNote>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 sm:gap-4">
           {actors.map((actor) => (
             <label
               key={actor.id}
-              className={`cursor-pointer overflow-hidden rounded-xl border transition-colors duration-150 ${
+              className={`group relative cursor-pointer overflow-hidden rounded-xl transition-shadow duration-150 ${
                 actorId === actor.id
-                  ? "border-primary ring-2 ring-primary"
-                  : "border-muted/30 hover:border-muted"
-              } ${actor.status === "unavailable" ? "opacity-40" : ""}`}
+                  ? "shadow-[0_0_0_2px_var(--troupe-color-background),0_0_0_4px_var(--troupe-color-primary)]"
+                  : ""
+              } ${actor.status === "unavailable" ? "cursor-not-allowed opacity-40" : ""}`}
             >
               <input
                 type="radio"
@@ -217,11 +217,17 @@ export function ActorStep({
                 name={actor.name}
                 src={actor.portraitUrl}
                 label={`${actor.name} — ${actor.style}, ${actor.ageRange}`}
-                className="aspect-square w-full"
+                className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
-              <span className="block px-2 py-1.5 text-xs">
-                <strong>{actor.name}</strong> <span className="text-muted">· {actor.style}</span>
+              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
+              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-2.5 pt-8 pb-2 text-xs text-white">
+                <strong className="font-semibold">{actor.name}</strong> <span className="text-white/75">· {actor.style}</span>
               </span>
+              {actorId === actor.id ? (
+                <span aria-hidden className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card">
+                  <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                </span>
+              ) : null}
             </label>
           ))}
         </div>

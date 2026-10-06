@@ -23,16 +23,16 @@ export function ModelPicker(props: {
   const selected = props.options.find((o) => o.key === props.value);
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium">Video model</legend>
+      <legend className="mt-4 mb-2 text-sm font-medium">Video model</legend>
       <div className="space-y-2">
         {props.options.map((option) => {
           const disabled = !option.available || !option.compatible;
           return (
             <label
               key={option.key}
-              className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary ${
-                disabled ? "cursor-not-allowed border-muted/25 opacity-60" : "cursor-pointer"
-              } ${props.value === option.key ? "border-primary bg-primary/15" : disabled ? "" : "border-muted/40 hover:border-muted"}`}
+              className={`flex min-h-12 items-center justify-between gap-3 rounded-xl px-4 py-2.5 text-sm transition-[background-color,box-shadow] duration-150 ${
+                disabled ? "cursor-not-allowed opacity-60 shadow-[inset_0_0_0_1px_var(--troupe-color-line)]" : "cursor-pointer"
+              } ${props.value === option.key ? "bg-primary/10 shadow-[inset_0_0_0_1.5px_var(--troupe-color-primary)]" : disabled ? "" : "shadow-[inset_0_0_0_1px_var(--troupe-color-line)] hover:bg-fg/[0.04]"}`}
             >
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                 <span className="font-medium">{option.label}</span>
@@ -41,7 +41,7 @@ export function ModelPicker(props: {
                 {!option.available ? <span className="w-full text-xs text-muted">{option.unavailableReason}</span> : null}
                 {option.available && !option.compatible ? <span className="w-full text-xs text-muted">{option.warnings[0]}</span> : null}
               </span>
-              <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${option.kind === "local" ? "bg-success/15 text-success" : "bg-surface text-muted"}`}>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${option.kind === "local" ? "bg-success/15 text-success" : "bg-fg/[0.07] text-muted"}`}>
                 {option.kind}
               </span>
               <input

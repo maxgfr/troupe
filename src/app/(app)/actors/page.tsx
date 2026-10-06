@@ -10,6 +10,7 @@ import {
   Section,
   SignedOutNotice,
   Skeleton,
+  chipClass,
 } from "~/app/_components/ui";
 
 const GENDERS = ["female", "male", "nonbinary"] as const;
@@ -21,8 +22,8 @@ export default function ActorsPage() {
   return (
     <>
       <PageHeader
-        title="Actor presets"
-        lede="Each preset is a voice and a look. The local renderers show these pictures; video models get a description of the look, so faces can vary between generations."
+        title="Actors"
+        lede="Each actor is a look and a voice. The local renderers show these pictures; video models get a description of the look, so a face can vary from one render to the next."
       />
 
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by gender">
@@ -30,11 +31,7 @@ export default function ActorsPage() {
           type="button"
           onClick={() => setGender(undefined)}
           aria-pressed={gender === undefined}
-          className={`rounded-lg border px-3 py-1.5 text-sm transition-colors duration-150 ${
-            gender === undefined
-              ? "border-primary bg-primary/15 font-medium text-primary"
-              : "border-muted/40 text-muted hover:text-fg"
-          }`}
+          className={chipClass(gender === undefined)}
         >
           All
         </button>
@@ -44,11 +41,7 @@ export default function ActorsPage() {
             type="button"
             onClick={() => setGender(g)}
             aria-pressed={gender === g}
-            className={`rounded-lg border px-3 py-1.5 text-sm capitalize transition-colors duration-150 ${
-              gender === g
-                ? "border-primary bg-primary/15 font-medium text-primary"
-                : "border-muted/40 text-muted hover:text-fg"
-            }`}
+            className={chipClass(gender === g, "capitalize")}
           >
             {g}
           </button>
@@ -57,9 +50,12 @@ export default function ActorsPage() {
 
       <Section>
         {actors.isPending ? (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} className="aspect-[4/3] w-full" />
+          <div role="status" aria-label="Loading" className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="aspect-[4/5] w-full rounded-xl" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
             ))}
           </div>
         ) : actors.error ? (

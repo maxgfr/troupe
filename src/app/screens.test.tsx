@@ -206,6 +206,6 @@ describe("Creation wizard", () => {
     expect(steps.textContent).toContain("Format");
     expect(steps.textContent).toContain("Language");
     expect(steps.textContent).toContain("Actor");
-    expect(screen.getByText("2. Format").getAttribute("aria-current")).toBe("step");
+    expect(steps.querySelector('[aria-current="step"]')!.textContent).toBe("2 Format");
   });
 });

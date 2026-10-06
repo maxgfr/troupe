@@ -14,7 +14,8 @@ export interface LibraryActor {
   portraitUrl?: string | null;
 }
 
-// Pure view — the 30-actor grid.
+// Pure view — the 30-actor grid: each actor as a portrait card, the name on
+// the picture, the voice and style below.
 export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]; filtered?: boolean }) {
   if (actors.length === 0) {
     return filtered ? (
@@ -30,27 +31,27 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
     );
   }
   return (
-    <ul className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
       {actors.map((actor) => (
-        <li
-          key={actor.id}
-          className={`overflow-hidden rounded-xl border border-muted/25 transition-colors duration-150 hover:border-primary ${
-            actor.status === "unavailable" ? "opacity-50" : ""
-          }`}
-        >
-          <ActorPortrait
-            id={actor.id}
-            name={actor.name}
-            src={actor.portraitUrl}
-            label={`${actor.name} — ${actor.style}, ${actor.ageRange}, ${actor.voiceProfile} voice`}
-            className="aspect-[4/3] w-full"
-          />
-          <div className="px-4 py-3">
-            <p className="font-medium">{actor.name}</p>
-            <p className="mt-0.5 text-xs text-muted">
-              {actor.gender} · {actor.ageRange} · {actor.style} · voice {actor.voiceProfile}
-            </p>
+        <li key={actor.id} className={`group ${actor.status === "unavailable" ? "opacity-50" : ""}`}>
+          <div className="relative overflow-hidden rounded-xl shadow-card">
+            <ActorPortrait
+              id={actor.id}
+              name={actor.name}
+              src={actor.portraitUrl}
+              label={`${actor.name} — ${actor.style}, ${actor.ageRange}, ${actor.voiceProfile} voice`}
+              className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+            <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
+            <span aria-hidden className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 pt-10 pb-2.5 font-display text-lg font-semibold tracking-[-0.01em] text-white">
+              {actor.name}
+            </span>
           </div>
+          <p className="mt-2.5 text-pretty text-xs text-muted">
+            <span className="sr-only">{actor.name}: </span>
+            <span className="capitalize">{actor.gender}</span> · <span className="font-mono tabular-nums">{actor.ageRange}</span> · {actor.style}
+            <span className="block text-fg/80">Voice {actor.voiceProfile}</span>
+          </p>
         </li>
       ))}
     </ul>

@@ -9,7 +9,8 @@ import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
 import { useWorkspace } from "~/app/_components/workspace-context";
-import { ErrorNote, PageHeader, SignedOutNotice } from "~/app/_components/ui";
+import { ArrowLeftIcon, ArrowRightIcon } from "~/app/_components/icons";
+import { Button, ErrorNote, PageHeader, SignedOutNotice, fieldClass } from "~/app/_components/ui";
 
 // The page is the coordinator — state in the wizard reducer, one
 // component per step, the launch sequence at the bottom.
@@ -75,14 +76,14 @@ export default function NewProjectPage() {
     <>
       <PageHeader
         title="New project"
-        lede="Choose a platform, format, language and actor, then write your script."
+        lede="Four choices, then the script. Your first video is about two minutes away."
       />
       <WizardStepper current={wizard.step} />
 
       <div className="max-w-2xl space-y-8">
         <div className="space-y-1.5">
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">Project title</span>
+            <span className="mb-1.5 block font-medium">Project title</span>
             <input
               ref={titleRef}
               maxLength={200}
@@ -94,7 +95,7 @@ export default function NewProjectPage() {
                 if (e.target.value.trim()) setTitleMissing(false);
               }}
               placeholder="Spring drop — short video"
-              className={`w-full rounded-lg border bg-bg px-3 py-2 outline-none transition-colors duration-150 focus:border-primary ${titleMissing ? "border-warning" : "border-muted/40"}`}
+              className={`${fieldClass} px-4 py-2.5 text-base`}
             />
           </label>
           {titleMissing ? (
@@ -146,18 +147,15 @@ export default function NewProjectPage() {
         {formatOptions.error || models.error ? <ErrorNote>{(formatOptions.error ?? models.error)!.message}</ErrorNote> : null}
         {wizard.submitError ? <ErrorNote>{wizard.submitError}</ErrorNote> : null}
 
-        <div className="flex items-center justify-between border-t border-muted/15 pt-5">
-          <button
-            type="button"
-            onClick={() => dispatch({ type: "back" })}
-            disabled={wizard.step === 0 || busy}
-            className="rounded-lg px-4 py-2 text-sm text-muted transition-colors duration-150 hover:text-fg disabled:opacity-40"
-          >
+        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex items-center justify-between bg-bg/85 px-4 py-3 shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-0 sm:backdrop-blur-none">
+          <Button variant="quiet" onClick={() => dispatch({ type: "back" })} disabled={wizard.step === 0 || busy}>
+            <ArrowLeftIcon className="size-4" />
             Back
-          </button>
+          </Button>
           {wizard.step < STEPS.length - 1 ? (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() => {
                 if (wizard.step === 0 && !wizard.title.trim()) {
                   setTitleMissing(true);
@@ -167,19 +165,20 @@ export default function NewProjectPage() {
                 dispatch({ type: "next" });
               }}
               disabled={wizard.step === 1 && !chosenFormat}
-              className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
             >
               Continue
-            </button>
+              <ArrowRightIcon className="size-4" />
+            </Button>
           ) : (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="lg"
               onClick={launch}
               disabled={busy || !wizard.actorId || !wizard.title.trim() || workspace.status !== "ready"}
-              className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40"
             >
-              {busy ? "Creating…" : "Create project → script"}
-            </button>
+              {busy ? "Creating…" : "Create project"}
+              {busy ? null : <ArrowRightIcon className="size-4" />}
+            </Button>
           )}
         </div>
       </div>

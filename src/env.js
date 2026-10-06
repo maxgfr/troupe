@@ -25,6 +25,8 @@ export const env = createEnv({
     // Anthropic key is set. Values saved in Settings take precedence.
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_MODEL: z.string().optional(),
+    // Another address for Anthropic's API (a gateway or proxy); the SDK reads it.
+    ANTHROPIC_BASE_URL: z.string().url().optional(),
     OLLAMA_URL: z.string().url().optional(),
     OLLAMA_MODEL: z.string().optional(),
     TROUPE_CHAT_PROVIDER: z.enum(["auto", "ollama", "anthropic"]).optional(),
@@ -106,6 +108,7 @@ export const env = createEnv({
     RECONCILE_SECRET: process.env.RECONCILE_SECRET,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
     OLLAMA_URL: process.env.OLLAMA_URL,
     OLLAMA_MODEL: process.env.OLLAMA_MODEL,
     TROUPE_CHAT_PROVIDER: process.env.TROUPE_CHAT_PROVIDER,

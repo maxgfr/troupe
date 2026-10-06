@@ -36,6 +36,7 @@ services:
       TROUPE_ACCESS_CODE_SHARE_DIR: /app/cli-access
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       FAL_KEY: ${FAL_KEY:-}
       TROUPE_MODEL_IDS: ${TROUPE_MODEL_IDS:-}
       # The script chat: the stack's Ollama by default, Claude with a key.
@@ -43,6 +44,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       TROUPE_CHAT_PROVIDER: ${TROUPE_CHAT_PROVIDER:-}
       TROUPE_CHAT_INSTRUCTIONS: ${TROUPE_CHAT_INSTRUCTIONS:-}
       TROUPE_CHAT_WORDS_PER_SECOND: ${TROUPE_CHAT_WORDS_PER_SECOND:-}
@@ -50,6 +52,9 @@ services:
       TROUPE_CHAT_SEND_TIMEOUT_S: ${TROUPE_CHAT_SEND_TIMEOUT_S:-}
       TROUPE_CHAT_TEMPERATURE: ${TROUPE_CHAT_TEMPERATURE:-}
       TROUPE_CHAT_HISTORY_TURNS: ${TROUPE_CHAT_HISTORY_TURNS:-}
+      TROUPE_CHAT_ANTHROPIC_FALLBACK: ${TROUPE_CHAT_ANTHROPIC_FALLBACK:-}
+      # Where browsers load the actors' pictures (docs/ACTORS.md).
+      TROUPE_ACTOR_PORTRAITS_URL: ${TROUPE_ACTOR_PORTRAITS_URL:-}
       # First start: add the `renderer` service as a video model and make it
       # the default (src/server/autoconfigure.ts). Never changes it afterwards.
       TROUPE_AUTOCONFIGURE: ${TROUPE_AUTOCONFIGURE:-1}
@@ -77,6 +82,7 @@ services:
       TROUPE_YTDLP_PATH: ${TROUPE_YTDLP_PATH:-}
       TROUPE_YTDLP_PROXY: ${TROUPE_YTDLP_PROXY:-}
       TROUPE_TRANSCRIBE_URL: ${TROUPE_TRANSCRIBE_URL:-http://renderer:8078}
+      TROUPE_TRANSCRIBE_TOKEN: ${TROUPE_TRANSCRIBE_TOKEN:-}
       TROUPE_TRANSCRIBE_TIMEOUT_S: ${TROUPE_TRANSCRIBE_TIMEOUT_S:-}
     volumes:
       - troupe-media:/app/data

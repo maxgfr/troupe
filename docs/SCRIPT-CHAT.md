@@ -95,6 +95,7 @@ use the defaults below.
 | `OLLAMA_MODEL` | `qwen3:4b` | |
 | `ANTHROPIC_API_KEY` | — | a key saved in Settings takes precedence |
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | what each model is sent comes from a table of its capabilities (`src/server/chat/claude-models.ts`, below) |
+| `ANTHROPIC_BASE_URL` | Anthropic's API | another address that speaks Anthropic's API, such as a gateway or proxy |
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |

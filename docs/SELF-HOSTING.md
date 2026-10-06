@@ -126,7 +126,9 @@ overrides both, as always.
 ## Configuration
 
 Everything is optional. Put what you change in `.env` next to
-`docker-compose.yml` ([.env.example](../.env.example) lists every variable).
+`docker-compose.yml` ([.env.example](../.env.example) lists every variable;
+[CUSTOMIZING.md](CUSTOMIZING.md) describes every setting of every part, the
+video's look and the browser edition's build included).
 
 | Variable | Default | What it does |
 |---|---|---|

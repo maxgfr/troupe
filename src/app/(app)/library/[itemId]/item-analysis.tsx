@@ -42,7 +42,7 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
       "Tags",
       <span key="tags" className="flex flex-wrap gap-1">
         {tags.map((t) => (
-          <span key={t} className="rounded-md bg-surface px-1.5 py-0.5 text-xs text-muted">
+          <span key={t} className="rounded-full bg-fg/[0.07] px-2 py-0.5 text-xs text-muted">
             {t}
           </span>
         ))}
@@ -62,7 +62,7 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
     <div className="space-y-6">
       {analysis.hook ? (
         <figure className="space-y-1.5">
-          <blockquote className="text-pretty text-lg leading-snug font-semibold">“{analysis.hook.text}”</blockquote>
+          <blockquote className="font-display text-pretty text-xl leading-snug font-semibold tracking-[-0.01em] sm:text-2xl">“{analysis.hook.text}”</blockquote>
           <figcaption className="max-w-[72ch] text-pretty text-sm text-muted">
             <span className="text-fg">The hook</span>
             {analysis.hook.endS ? (

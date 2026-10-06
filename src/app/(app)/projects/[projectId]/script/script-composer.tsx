@@ -61,7 +61,7 @@ export function ScriptComposer({
       </div>
       {tooLong && limit ? (
         <ProviderWarning>
-          This takes about {spokenS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Cut a few words, or pick another model on the project page.
+          This takes about {spokenS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Cut a few words, or pick another model on the Video tab.
         </ProviderWarning>
       ) : null}
       {errorMessage ? <ErrorNote>{errorMessage}</ErrorNote> : null}

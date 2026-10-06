@@ -103,8 +103,8 @@ function ExportForm({ projectId }: { projectId: string }) {
       ) : completed.length === 0 ? (
         <EmptyState
           title="Nothing to export yet"
-          body="Render a video on the project page first, then come back to download it here."
-          cta={{ label: "Open the project", href: `/projects/${projectId}` }}
+          body="Render a video on the Video tab first, then come back to download it here."
+          cta={{ label: "Go to the Video tab", href: `/projects/${projectId}` }}
         />
       ) : (
         <form

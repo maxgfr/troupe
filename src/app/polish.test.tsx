@@ -72,7 +72,7 @@ describe("script composer", () => {
     expect(screen.getByText(/≈2 s spoken of 8 s/)).toBeDefined();
     // 25 words: about 10 s to say.
     fireEvent.change(field, { target: { value: "This line is far too long for an eight second clip because it keeps going and going and going until the viewer has scrolled away." } });
-    expect(screen.getByRole("status").textContent).toBe("This takes about 10 s to say, but Local renderer renders at most 8 s. Cut a few words, or pick another model on the project page.");
+    expect(screen.getByRole("status").textContent).toBe("This takes about 10 s to say, but Local renderer renders at most 8 s. Cut a few words, or pick another model on the Video tab.");
   });
 });
 

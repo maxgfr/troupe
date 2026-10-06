@@ -103,7 +103,7 @@ export default function ScriptPage({ params }: { params: Promise<{ projectId: st
               </div>
               {latestTooLong && limit ? (
                 <ProviderWarning>
-                  Version {latest.version} takes about {latest.estimatedDurationS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Shorten it below, or pick another model on the project page.
+                  Version {latest.version} takes about {latest.estimatedDurationS} s to say, but {limit.modelLabel} renders at most {limit.seconds} s. Shorten it below, or pick another model on the Video tab.
                 </ProviderWarning>
               ) : null}
             </div>

@@ -6,6 +6,15 @@ First public release.
 
 ### Added
 
+- One look and one map for the whole product ([docs/PRODUCT-MAP.md](docs/PRODUCT-MAP.md)):
+  Projects shows each project as a poster of its newest video (playing
+  while hovered), every project page opens on its actor with Video, Script
+  and Export tabs, the sections move to a tab bar on phones, New project and
+  Settings sit in the bar, keyboard shortcuts (`n`, `g` then a letter, `/`,
+  `?`), shared buttons, chips, fields and icons on every screen, a stage
+  light in the actor's hue, and the landing page lit the same way. The
+  Benchmark lab is now Compare.
+
 - The inspiration library ([docs/LIBRARY.md](docs/LIBRARY.md)): save files,
   pasted text and links (yt-dlp for video platforms, articles kept as text);
   your own models transcribe them (faster-whisper on the renderer, Whisper in

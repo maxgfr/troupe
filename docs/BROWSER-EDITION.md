@@ -301,10 +301,19 @@ site:test:chat` (WebGPU) also asks about it and makes an idea a project.
 ## Publishing
 
 CI (`.github/workflows/ci.yml`, the `site-smoke` job) builds and tests the
-browser edition on every pull request and push to `main`. Deploying it to
-GitHub Pages is manual for now: run `.github/workflows/pages.yml` on `main`
-from the Actions tab ("Run workflow"; enable Pages with "GitHub Actions" as
-the source first). It builds the site again and deploys it.
+browser edition on every pull request and push to `main`.
+`.github/workflows/pages.yml` deploys it to GitHub Pages on every push to
+`main`, or by hand from the Actions tab ("Run workflow"; enable Pages with
+"GitHub Actions" as the source first). Pages sends no headers of its own, so
+each page carries its Content-Security-Policy in a `<meta>` tag (the policy
+nginx sends below, without `frame-ancestors`, which a `<meta>` cannot set).
+The built site also ships its licenses at `<base>licenses/`: Troupe's, the
+third-party notices and the GNU GPL's text.
+
+Every project site of an account shares one origin (`maxgfr.github.io`), and
+with it the browser storage the studio keeps its projects in and its service
+worker's scope rules: publish the browser edition from a fork under its own
+account or domain, not next to sites you do not trust.
 
 ### With Docker
 

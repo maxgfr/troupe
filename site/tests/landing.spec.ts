@@ -159,6 +159,35 @@ test("every link and file the landing page points at on this site exists", async
   for (const id of anchors) expect(await page.locator(`[id="${id}"]`).count(), id).toBe(1);
 });
 
+test("ships Troupe's license, the third-party notices and the GNU GPL's text, linked from the footer", async ({
+  page,
+  request,
+}) => {
+  await page.goto(LANDING);
+  const footer = page.locator("footer");
+  for (const [name, file, opening] of [
+    ["MIT license", "LICENSE.txt", /^MIT License/],
+    ["Third-party notices", "THIRD_PARTY_NOTICES.txt", /^# Third-party notices/],
+    ["GNU GPL v3", "GPL-3.0.txt", /^\s*GNU GENERAL PUBLIC LICENSE\s+Version 3, 29 June 2007/],
+  ] as const) {
+    await expect(footer.getByRole("link", { name })).toHaveAttribute("href", `licenses/${file}`);
+    const response = await request.get(`${LANDING}licenses/${file}`);
+    expect(response.status(), file).toBe(200);
+    expect(await response.text()).toMatch(opening);
+  }
+});
+
+test("each page carries the Content-Security-Policy, as GitHub Pages sends no headers", async ({ request }) => {
+  for (const path of [LANDING, `${LANDING}app/`, `${LANDING}app/projects/unknown`]) {
+    const html = await (await request.get(path)).text();
+    const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)?.[1] ?? "";
+    expect(policy, path).toContain("default-src 'self'");
+    expect(policy, path).toMatch(/script-src 'self' 'wasm-unsafe-eval' 'sha256-/);
+    expect(policy, path).not.toContain("frame-ancestors");
+    expect(policy, path).not.toContain("'unsafe-eval'");
+  }
+});
+
 test("the steps quote the take the video shows", async ({ page, request }) => {
   // The video's captions track holds the lines it renders, in order.
   const vtt = await (await request.get("/troupe/tour/troupe-tour-captions.vtt")).text();

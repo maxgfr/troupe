@@ -14,6 +14,8 @@ import {
   fontPreloads,
   headScript,
   landingPage,
+  licenseFiles,
+  metaContentSecurityPolicy,
   pagesFallback,
   parseBasePath,
   parseLandingConfig,
@@ -26,7 +28,6 @@ import {
 // page at /troupe/, the app at /troupe/app/* (another path with VITE_BASE).
 const REPO = resolve(import.meta.dirname, "..");
 const SITE = import.meta.dirname;
-const OUT = resolve(SITE, "dist");
 
 // The browser bundle may not pull in Node built-ins, server code or Next
 // internals (site/vite-plugins.ts).
@@ -91,9 +92,11 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       react(),
       headScript(THEME_SCRIPT),
       fontPreloads({ base: BASE, match: [/geist-latin-wght-normal/, /bricolage-grotesque-latin-wght-normal/] }),
-      pagesFallback({ base: BASE, outDir: OUT }),
-      actorPictures({ base: BASE, dir: portraitsDir, outDir: OUT }),
+      pagesFallback({ base: BASE }),
+      actorPictures({ base: BASE, dir: portraitsDir }),
       landingPage({ base: BASE, ...landing, portraitsDir, cast: ACTOR_CATALOG }),
+      licenseFiles(),
+      metaContentSecurityPolicy(),
     ],
     css: {
       postcss: { plugins: [tailwindcss({ base: REPO })] },
@@ -105,7 +108,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       exclude: ["@electric-sql/pglite"],
     },
     build: {
-      outDir: OUT,
+      // Relative to the site: `vite build --outDir <dir>` moves it, and the
+      // plugins that add files follow.
+      outDir: "dist",
       emptyOutDir: true,
       target: "es2022",
       // The app chunk carries the whole studio, its router and the PGlite

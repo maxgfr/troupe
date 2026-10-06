@@ -1,7 +1,9 @@
-import { copyFileSync, cpSync, existsSync, readFileSync, statSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import { extname, join, relative, resolve, sep } from "node:path";
-import type { Connect, Plugin } from "vite";
+import type { Connect, Plugin, ResolvedConfig } from "vite";
+
+import { contentSecurityPolicy, inlineScriptHashes } from "./docker/csp.mjs";
 
 // Vite plugins for the browser edition: keep server code out of the bundle,
 // swap the few Node-only modules for browser stand-ins, and serve deep links
@@ -10,6 +12,8 @@ import type { Connect, Plugin } from "vite";
 const REPO = resolve(import.meta.dirname, "..");
 const ours = (file: string) => file.startsWith(REPO) && !file.includes("/node_modules/");
 const show = (file: string) => relative(REPO, file);
+// Where the build writes, `--outDir` included, for the plugins that add files.
+const buildOutDir = (config: ResolvedConfig) => resolve(config.root, config.build.outDir);
 
 // Packages that only make sense on a server. `server-only` marks a module
 // that must never reach a browser, so importing it is an error here too.
@@ -145,11 +149,15 @@ export function pagesNotFoundMiddleware(base: string, outDir: string): Connect.N
 // GitHub Pages has no rewrites: an unknown path such as
 // /troupe/app/projects/<id> gets 404.html, so 404.html is the app itself.
 // `vite dev` rewrites app paths to the app; `vite preview` answers like Pages.
-export function pagesFallback({ base, outDir }: { base: string; outDir: string }): Plugin {
+export function pagesFallback({ base }: { base: string }): Plugin {
   const app = `${base}app/`;
   const isAppRoute = (url: string) => url.startsWith(app) && !/\.[a-z0-9]+$/i.test(url.split("?")[0]!);
+  let outDir = "";
   return {
     name: "troupe:pages-fallback",
+    configResolved(config) {
+      outDir = buildOutDir(config);
+    },
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         if (req.url && isAppRoute(req.url) && req.url.split("?")[0] !== app) req.url = `${app}index.html`;
@@ -199,9 +207,13 @@ export function actorPicturesMiddleware(base: string, dir: string): Connect.Next
 // self-hosted app serves them from there). The site serves the same folder,
 // or `dir` when set, at <base>actors/: `vite dev` reads it in place and the
 // build copies it into the output.
-export function actorPictures({ base, dir, outDir }: { base: string; dir: string; outDir: string }): Plugin {
+export function actorPictures({ base, dir }: { base: string; dir: string }): Plugin {
+  let outDir = "";
   return {
     name: "troupe:actor-pictures",
+    configResolved(config) {
+      outDir = buildOutDir(config);
+    },
     configureServer(server) {
       server.middlewares.use(actorPicturesMiddleware(base, dir));
     },
@@ -316,4 +328,52 @@ export function landingPage({
       },
     },
   ];
+}
+
+// The licenses ship with the site, at <base>licenses/: Troupe's, the
+// third-party notices and the GNU GPL's text (the render worker bundles eSpeak
+// NG, THIRD_PARTY_NOTICES.md). Saved as .txt so a browser shows them rather
+// than downloading them.
+export const LICENSE_FILES: Record<string, string> = {
+  "LICENSE.txt": "LICENSE",
+  "THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.md",
+  "GPL-3.0.txt": "LICENSES/GPL-3.0.txt",
+};
+
+export function licenseFiles(): Plugin {
+  let outDir = "";
+  return {
+    name: "troupe:license-files",
+    apply: "build",
+    configResolved(config) {
+      outDir = buildOutDir(config);
+    },
+    writeBundle() {
+      mkdirSync(join(outDir, "licenses"), { recursive: true });
+      for (const [name, from] of Object.entries(LICENSE_FILES))
+        copyFileSync(join(REPO, from), join(outDir, "licenses", name));
+    },
+  };
+}
+
+// GitHub Pages sends no headers of its own: each built page carries the
+// policy site/docker/csp.mjs gives nginx, as a <meta> at the top of <head>
+// (after the charset, which must stay in the first 1024 bytes), with the
+// hashes of that page's inline scripts. A <meta> policy cannot set
+// frame-ancestors, so it is left out here. Only in a build: `vite dev`
+// injects scripts of its own. Keep this plugin last, so it sees every script.
+export function metaContentSecurityPolicy(): Plugin {
+  return {
+    name: "troupe:meta-csp",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler: (html) => {
+        const policy = contentSecurityPolicy(inlineScriptHashes(html), { frameAncestors: false });
+        const charset = /<meta charset="[^"]*"\s*\/?>/i.exec(html)?.[0] ?? "";
+        const tags = `${charset}\n    <meta http-equiv="Content-Security-Policy" content="${escapeHtml(policy)}" />`;
+        return html.replace(charset, "").replace(/<head>/i, `<head>\n    ${tags.trim()}`);
+      },
+    },
+  };
 }

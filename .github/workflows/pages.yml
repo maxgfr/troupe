@@ -1,11 +1,12 @@
 name: pages
 
-# Publishes the browser edition (site/) to GitHub Pages, by hand for now:
-# "Run workflow" on main builds it and deploys it. ci.yml's site-smoke job
-# already builds and tests it on every pull request and push, so this one
-# does not run there.
+# Publishes the browser edition (site/) to GitHub Pages on every push to main,
+# or by hand ("Run workflow" on main). ci.yml's site-smoke job builds and
+# tests it on every pull request and push; this one only deploys.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,8 @@ permissions:
 
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  # A deployment that has started finishes; the next one waits its turn.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,6 +30,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm site:build
+      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/dist

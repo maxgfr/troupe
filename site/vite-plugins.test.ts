@@ -9,6 +9,8 @@ import {
   actorPicturesMiddleware,
   fontPreloads,
   landingPage,
+  licenseFiles,
+  metaContentSecurityPolicy,
   pagesNotFoundMiddleware,
   parseBasePath,
   parseLandingConfig,
@@ -84,7 +86,7 @@ describe("actor pictures", () => {
       root,
       configFile: false,
       logLevel: "silent",
-      plugins: [actorPictures({ base: "/troupe/", dir: join(root, "cast"), outDir })],
+      plugins: [actorPictures({ base: "/troupe/", dir: join(root, "cast") })],
       build: { outDir, rollupOptions: { input: join(root, "index.js") } },
     });
     expect(readFileSync(join(outDir, "actors", "lea-01", "v1", "front.webp"), "utf8")).toBe("RIFF-front");
@@ -99,10 +101,58 @@ describe("actor pictures", () => {
         root,
         configFile: false,
         logLevel: "silent",
-        plugins: [actorPictures({ base: "/troupe/", dir: join(root, "nowhere"), outDir })],
+        plugins: [actorPictures({ base: "/troupe/", dir: join(root, "nowhere") })],
         build: { outDir, rollupOptions: { input: join(root, "index.js") } },
       }),
     ).rejects.toThrow(/pictures folder .*nowhere does not exist/);
+  });
+});
+
+describe("license files and the page's Content-Security-Policy", () => {
+  function page(html: string) {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "troupe-licenses-")));
+    dirs.push(root);
+    writeFileSync(join(root, "index.html"), html);
+    return root;
+  }
+
+  it("copies the licenses into the build, wherever --outDir puts it", async () => {
+    const root = page("<!doctype html><html><head></head><body></body></html>");
+    // A relative outDir, as `vite build --outDir` passes it.
+    await build({
+      root,
+      configFile: false,
+      logLevel: "silent",
+      plugins: [licenseFiles()],
+      build: { outDir: "elsewhere", rollupOptions: { input: join(root, "index.html") } },
+    });
+    expect(readFileSync(join(root, "elsewhere", "licenses", "LICENSE.txt"), "utf8")).toMatch(/^MIT License/);
+    expect(readFileSync(join(root, "elsewhere", "licenses", "THIRD_PARTY_NOTICES.txt"), "utf8")).toMatch(
+      /^# Third-party notices/,
+    );
+    expect(readFileSync(join(root, "elsewhere", "licenses", "GPL-3.0.txt"), "utf8")).toContain(
+      "GNU GENERAL PUBLIC LICENSE\n                       Version 3, 29 June 2007",
+    );
+  });
+
+  it("puts the policy after the charset, with the hash of each inline script and no frame-ancestors", async () => {
+    const root = page(
+      '<!doctype html><html><head><title>t</title><meta charset="utf-8" /><script>window.x = 1;</script></head><body></body></html>',
+    );
+    await build({
+      root,
+      configFile: false,
+      logLevel: "silent",
+      plugins: [metaContentSecurityPolicy()],
+      build: { outDir: "dist", rollupOptions: { input: join(root, "index.html") } },
+    });
+    const html = readFileSync(join(root, "dist", "index.html"), "utf8");
+    expect(html).toMatch(/<head>\s*<meta charset="utf-8" \/>\s*<meta http-equiv="Content-Security-Policy"/);
+    const policy = /content="([^"]+)"/.exec(html)![1]!;
+    expect(policy).toContain("'sha256-");
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval' 'sha256-");
+    expect(policy).not.toContain("frame-ancestors");
+    expect(html.match(/charset/g)).toHaveLength(1);
   });
 });
 

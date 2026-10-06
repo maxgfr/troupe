@@ -1,5 +1,5 @@
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
-import { request as httpRequest, type IncomingMessage } from "node:http";
+import { request as httpRequest, type ClientRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { isIP, type LookupFunction } from "node:net";
 
@@ -79,6 +79,8 @@ export interface PublicUrlOptions {
   // TROUPE_LIBRARY_ALLOW_PRIVATE_URLS: the LAN and this machine too (never
   // link-local or metadata addresses).
   allowPrivate?: boolean;
+  // The DNS lookup to guard (the system's by default; tests pass their own).
+  lookup?: typeof dnsLookup;
 }
 
 export function checkPublicUrl(raw: string, options: PublicUrlOptions = {}): PublicUrlCheck {
@@ -107,7 +109,7 @@ export function checkPublicUrl(raw: string, options: PublicUrlOptions = {}): Pub
 // every connection the library opens.
 function guardedLookup(options: PublicUrlOptions): LookupFunction {
   return (hostname, lookupOptions, callback) => {
-    dnsLookup(hostname, { ...lookupOptions, all: true }, (error, addresses) => {
+    (options.lookup ?? dnsLookup)(hostname, { ...lookupOptions, all: true }, (error, addresses) => {
       if (error) return callback(error, "", 4);
       const list = addresses as unknown as LookupAddress[];
       for (const entry of list) {
@@ -135,44 +137,74 @@ export interface PublicResponse {
   contentType: string;
   contentLength: number | null;
   body: IncomingMessage;
+  // More time for the body than the exchange's deadline (a large file).
+  keepFor(ms: number): void;
 }
 
 const USER_AGENT = "Mozilla/5.0 (compatible; TroupeLibrary/1.0; +https://github.com/maxgfr/troupe)";
 
 // GET a public link: redirects followed by hand (at most 5), each hop
 // checked, every connection's addresses checked. The caller reads `body`
-// with its own size limit, then destroys it.
+// with its own size limit, then destroys it. The whole exchange, the body
+// included, ends within `timeoutMs` (unless the caller gives the body more
+// with keepFor): a server that sends a byte now and then never trips the
+// socket's idle timeout, but does trip this one.
 export async function openPublicUrl(raw: string, options: PublicUrlOptions & { timeoutMs: number; accept?: string; signal?: AbortSignal }): Promise<PublicResponse> {
   const lookup = guardedLookup(options);
-  let target = raw;
-  for (let hop = 0; hop <= 5; hop++) {
-    const checked = checkPublicUrl(target, options);
-    if (!checked.ok) throw new FetchRefused(checked.reason);
-    const url = checked.url;
-    const response = await new Promise<IncomingMessage>((resolve, reject) => {
-      const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
-        url,
-        { method: "GET", lookup, headers: { "user-agent": USER_AGENT, accept: options.accept ?? "*/*", "accept-encoding": "identity" }, signal: options.signal, timeout: options.timeoutMs },
-        resolve,
-      );
-      request.on("timeout", () => request.destroy(new FetchRefused(`${url.host} took longer than ${Math.round(options.timeoutMs / 1000)} s to answer.`)));
-      request.on("error", (error: Error & { code?: string }) => {
-        if (error.code === "TROUPE_FORBIDDEN_ADDRESS") reject(new FetchRefused(`That link leads to ${error.message.replace(/^.* resolves to /, "")}, which the library does not fetch.`));
-        else if (error instanceof FetchRefused) reject(error);
-        else reject(new FetchRefused(`${url.host} could not be reached (${error.code ?? error.message}).`));
-      });
-      request.end();
-    });
-    const status = response.statusCode ?? 0;
-    if (status >= 300 && status < 400 && response.headers.location) {
-      response.resume();
-      target = new URL(response.headers.location, url).toString();
-      continue;
-    }
-    const length = Number(response.headers["content-length"]);
-    return { url, status, contentType: (response.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase(), contentLength: Number.isFinite(length) ? length : null, body: response };
+  const current: { host: string; request?: ClientRequest; response?: IncomingMessage } = { host: "" };
+  let timer: NodeJS.Timeout | undefined;
+  const arm = (ms: number) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const reason = new FetchRefused(`${current.host} took longer than ${Math.max(1, Math.round(ms / 1000))} s to answer.`);
+      if (current.response) current.response.destroy(reason);
+      else current.request?.destroy(reason);
+    }, ms);
+  };
+  arm(options.timeoutMs);
+  try {
+    return await follow();
+  } catch (error) {
+    clearTimeout(timer);
+    throw error;
   }
-  throw new FetchRefused("That link redirects too many times.");
+
+  async function follow(): Promise<PublicResponse> {
+    let target = raw;
+    for (let hop = 0; hop <= 5; hop++) {
+      const checked = checkPublicUrl(target, options);
+      if (!checked.ok) throw new FetchRefused(checked.reason);
+      const url = checked.url;
+      current.host = url.host;
+      current.response = undefined;
+      const response = await new Promise<IncomingMessage>((resolve, reject) => {
+        const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
+          url,
+          { method: "GET", lookup, headers: { "user-agent": USER_AGENT, accept: options.accept ?? "*/*", "accept-encoding": "identity" }, signal: options.signal, timeout: options.timeoutMs },
+          resolve,
+        );
+        current.request = request;
+        request.on("timeout", () => request.destroy(new FetchRefused(`${url.host} took longer than ${Math.round(options.timeoutMs / 1000)} s to answer.`)));
+        request.on("error", (error: Error & { code?: string }) => {
+          if (error.code === "TROUPE_FORBIDDEN_ADDRESS") reject(new FetchRefused(`That link leads to ${error.message.replace(/^.* resolves to /, "")}, which the library does not fetch.`));
+          else if (error instanceof FetchRefused) reject(error);
+          else reject(new FetchRefused(`${url.host} could not be reached (${error.code ?? error.message}).`));
+        });
+        request.end();
+      });
+      const status = response.statusCode ?? 0;
+      if (status >= 300 && status < 400 && response.headers.location) {
+        response.resume();
+        target = new URL(response.headers.location, url).toString();
+        continue;
+      }
+      current.response = response;
+      response.once("close", () => clearTimeout(timer));
+      const length = Number(response.headers["content-length"]);
+      return { url, status, contentType: (response.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase(), contentLength: Number.isFinite(length) ? length : null, body: response, keepFor: arm };
+    }
+    throw new FetchRefused("That link redirects too many times.");
+  }
 }
 
 // The whole body, refused past `maxBytes`.

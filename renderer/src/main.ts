@@ -101,7 +101,7 @@ const server = createRendererServer({
           model: whisper.model,
           maxBytes: whisper.maxBytes,
           ready: () => whisperReadiness(whisper.command, process.env.WHISPER_COMMAND?.trim() ? undefined : join(WHISPER_DIR, ".venv")),
-          transcribe: (file: string) => transcribeFile(whisper, file),
+          transcribe: (file: string, signal?: AbortSignal) => transcribeFile(whisper, file, signal),
         },
       }
     : {}),

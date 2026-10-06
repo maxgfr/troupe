@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -10,8 +10,9 @@ import { createTestDb } from "~/test/db";
 import { mediaFilePath } from "~/server/media/storage";
 import { libraryEnvironment } from "./config";
 import { fetchSource } from "./fetch";
-import { receiveUpload } from "./files";
-import { frameTimes, cutsFromDifferences } from "~/modules/library";
+import { openPublicUrl } from "./public-url";
+import { receiveUpload, removeLibraryFiles } from "./files";
+import { frameTimes, cutsFromDifferences, MAX_TEXT_CHARS } from "~/modules/library";
 import { cutTimes, inputArgs, serverMediaReader } from "./media";
 import { embeddingPrefixes, ollamaEmbedder, ollamaVision, pulledModels } from "./ollama";
 import { rendererTranscriber, transcriberHealth } from "./transcribe";
@@ -42,6 +43,13 @@ beforeAll(async () => {
     if (req.path === "/zip") {
       res.writeHead(200, { "content-type": "application/zip" });
       return void res.end("PK");
+    }
+    if (req.path === "/slow") {
+      // A page that never ends: a byte every 100 ms keeps the socket busy.
+      res.writeHead(200, { "content-type": "text/html" });
+      const drip = setInterval(() => res.write("<p>"), 100);
+      res.on("close", () => clearInterval(drip));
+      return;
     }
     if (req.path === "/to-metadata") {
       res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data" });
@@ -121,6 +129,19 @@ describe("saving links", () => {
   it("checks every redirect: one to a metadata address is refused", async () => {
     await expect(fetchSource(`${server.url}/to-metadata`, env(true))).rejects.toThrow(/link-local|metadata/);
   });
+
+  it("gives up on a page that keeps trickling past the time limit", async () => {
+    const started = Date.now();
+    await expect(fetchSource(`${server.url}/slow`, { ...env(true), fetchTimeoutMs: 600 })).rejects.toThrow(/took longer than/);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("refuses a name that resolves to this server, or to a metadata address, before connecting", async () => {
+    const resolvingTo = (address: string) => ((_host: string, _options: unknown, callback: (e: null, a: { address: string; family: number }[]) => void) => callback(null, [{ address, family: 4 }])) as never;
+    await expect(openPublicUrl("http://looks-public.example/", { timeoutMs: 2000, lookup: resolvingTo("127.0.0.1") })).rejects.toThrow(/this server itself/);
+    await expect(openPublicUrl("http://looks-public.example/", { timeoutMs: 2000, lookup: resolvingTo("10.0.0.7") })).rejects.toThrow(/private network/);
+    await expect(openPublicUrl("http://looks-public.example/", { allowPrivate: true, timeoutMs: 2000, lookup: resolvingTo("169.254.169.254") })).rejects.toThrow(/link-local/);
+  });
 });
 
 describe("receiving uploads", () => {
@@ -131,6 +152,23 @@ describe("receiving uploads", () => {
     expect(await receiveUpload(Readable.from([Buffer.from("Notes about hooks\n")]), { itemId: "22222222-2222-4222-8222-222222222222", fileName: "notes.txt", maxBytes: 1000 })).toEqual({ kind: "text", text: "Notes about hooks\n", fileName: "notes.txt" });
     await expect(receiveUpload(Readable.from([Buffer.from("<html><script>x</script>")]), { itemId: "33333333-3333-4333-8333-333333333333", fileName: "a.txt", maxBytes: 1000 })).rejects.toThrow("not one the library reads");
     await expect(receiveUpload(Readable.from([Buffer.alloc(600), Buffer.alloc(600)]), { itemId: "44444444-4444-4444-8444-444444444444", fileName: "big", maxBytes: 1000 })).rejects.toThrow("larger than");
+  });
+
+  it("refuses a text file too long to keep, before reading it", async () => {
+    const long = Buffer.alloc(MAX_TEXT_CHARS * 4 + 1, "a");
+    await expect(receiveUpload(Readable.from([long]), { itemId: "55555555-5555-4555-8555-555555555555", fileName: "long.txt", maxBytes: long.length + 1 })).rejects.toThrow(/text is longer than/);
+  });
+
+  it("removes an item's folder once its last file is gone, and leaves one that still holds files", async () => {
+    const item = "66666666-6666-4666-8666-666666666666";
+    const one = await receiveUpload(Readable.from([Buffer.from([0x89, ...Buffer.from("PNG\r\n"), 1, 2])]), { itemId: item, fileName: "a.png", maxBytes: 1000 });
+    if (one.kind !== "file") throw new Error("expected a file");
+    const folder = dirname(mediaFilePath(one.file.storagePath));
+    writeFileSync(join(folder, "frame-00.jpg"), "x");
+    await removeLibraryFiles([{ storagePath: one.file.storagePath }]);
+    expect(existsSync(folder)).toBe(true);
+    await removeLibraryFiles([{ storagePath: `library/${item}/frame-00.jpg` }]);
+    expect(existsSync(folder)).toBe(false);
   });
 });
 

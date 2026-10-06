@@ -17,6 +17,7 @@ import { downloadWithYtDlp, isVideoPlatform, YtDlpError } from "./ytdlp";
 // addresses are fetched (public-url.ts).
 
 const PAGE_BYTES = 5 * 1024 * 1024;
+const FILE_DEADLINE_MS = 30 * 60_000;
 const FILE_TYPES = /^(video|audio|image)\/|^application\/pdf$/;
 
 function charsetOf(contentType: string | undefined): string {
@@ -39,7 +40,7 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
     const dir = await mkdtemp(join(tmpdir(), "troupe-ytdlp-"));
     const dispose = () => rm(dir, { recursive: true, force: true });
     try {
-      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), { dir, maxBytes: env.maxUploadBytes, maxDurationS: env.maxDurationS, ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined, proxy: env.ytDlpProxy, timeoutMs: 30 * 60_000, signal: options.signal });
+      const video = await downloadWithYtDlp(env.ytDlpPath, url.toString(), { dir, maxBytes: env.maxUploadBytes, maxDurationS: env.maxDurationS, ffmpegLocation: env.ffmpegPath.includes("/") ? env.ffmpegPath : undefined, proxy: env.ytDlpProxy, timeoutMs: FILE_DEADLINE_MS, signal: options.signal });
       return { kind: "file", url: video.webpageUrl, title: video.title, path: video.path, mimeType: "video/mp4", bytes: 0, checksum: "", durationS: video.durationS, dispose };
     } catch (error) {
       await dispose();
@@ -78,6 +79,8 @@ export async function fetchSource(raw: string, env: LibraryEnvironment, options:
     response.body.destroy();
     throw new LibraryError(`That file is larger than ${Math.round(env.maxUploadBytes / 1024 / 1024)} MB (TROUPE_LIBRARY_MAX_UPLOAD_MB).`);
   }
+  // A file may take longer than a page: as long as yt-dlp's downloads.
+  response.keepFor(FILE_DEADLINE_MS);
   const dir = await mkdtemp(join(tmpdir(), "troupe-fetch-"));
   const dispose = () => rm(dir, { recursive: true, force: true });
   const path = join(dir, "download");

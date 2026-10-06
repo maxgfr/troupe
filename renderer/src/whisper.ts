@@ -87,8 +87,8 @@ export interface WhisperResult {
 }
 
 // Runs transcribe.py on one file; its own process group, stopped at the
-// time limit.
-export async function transcribeFile(settings: WhisperSettings, audio: string): Promise<WhisperResult> {
+// time limit or when `signal` aborts.
+export async function transcribeFile(settings: WhisperSettings, audio: string, signal?: AbortSignal): Promise<WhisperResult> {
   const program = settings.command[0];
   if (!program) throw new Error("WHISPER_COMMAND is empty.");
   const child = spawn(program, whisperArgs(settings, audio), { stdio: ["ignore", "pipe", "pipe"], detached: true });
@@ -100,21 +100,26 @@ export async function transcribeFile(settings: WhisperSettings, audio: string): 
   child.stderr.on("data", (d: Buffer) => {
     stderr = (stderr + d.toString()).slice(-8000);
   });
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
+  const kill = () => {
     if (child.pid) {
       try {
         process.kill(-child.pid, "SIGKILL");
       } catch {}
     }
+  };
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    kill();
   }, settings.timeoutS * 1000);
+  signal?.addEventListener("abort", kill, { once: true });
   try {
     const code = await new Promise<number | null>((resolve, reject) => {
       child.on("error", (error: NodeJS.ErrnoException) => reject(new Error(error.code === "ENOENT" ? `"${program}" is not installed. Install uv or set WHISPER_COMMAND.` : error.message)));
       child.on("close", resolve);
     });
     if (timedOut) throw new Error(`Transcription took longer than ${settings.timeoutS} s and was stopped (WHISPER_TIMEOUT_S).`);
+    if (signal?.aborted) throw new Error("The transcription was stopped.");
     if (code !== 0) {
       const last = stderr.trim().split("\n").filter((l) => l.trim()).at(-1)?.trim();
       throw new Error(last ? `Whisper failed: ${last.slice(0, 300)}` : `Whisper exited with ${code}.`);
@@ -124,5 +129,6 @@ export async function transcribeFile(settings: WhisperSettings, audio: string): 
     return parsed;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", kill);
   }
 }

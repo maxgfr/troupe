@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm, rmdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 
-import type { ClaimedUpload } from "~/modules/library";
+import { MAX_TEXT_CHARS, type ClaimedUpload } from "~/modules/library";
 import { mediaFilePath, mediaRoot } from "~/server/media/storage";
 import { EXTENSIONS, SNIFF_BYTES, sniffType } from "./sniff";
 
@@ -76,6 +76,8 @@ async function settle(temporary: string, input: { itemId: string; fileName: stri
   const mimeType = sniffType(head.subarray(0, bytesRead));
   if (!mimeType) throw new UploadRefused("This file is not one the library reads: use a video, a sound file, a picture (PNG, JPEG, WebP, GIF), a PDF or plain text.");
   if (mimeType === "text/plain") {
+    // A character takes at most four bytes: past that, the text cannot fit.
+    if (input.bytes > MAX_TEXT_CHARS * 4) throw new UploadRefused(`The text is longer than ${MAX_TEXT_CHARS.toLocaleString("en")} characters. Save a shorter part of it.`);
     const text = await readFile(temporary, "utf8");
     return { kind: "text", text, fileName: input.fileName };
   }
@@ -102,6 +104,7 @@ export async function removeLibraryFiles(files: { storagePath: string }[]): Prom
     folders.add(dirname(path));
   }
   for (const folder of folders) {
-    if (folder.startsWith(join(mediaRoot(), "library"))) await rm(folder, { recursive: false, force: true }).catch(() => {});
+    // rmdir removes a folder only when it is empty, which is the point.
+    if (folder.startsWith(join(mediaRoot(), "library"))) await rmdir(folder).catch(() => {});
   }
 }

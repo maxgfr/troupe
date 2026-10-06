@@ -49,7 +49,10 @@ export interface TranscribeMode {
   model: string;
   maxBytes: number;
   ready(): string | null;
-  transcribe(file: string): Promise<WhisperResult>;
+  // Stops when `signal` aborts: the studio that asked has gone.
+  transcribe(file: string, signal?: AbortSignal): Promise<WhisperResult>;
+  // Where posted sound waits for Whisper (default: the system's temp folder).
+  tmpDir?: string;
 }
 
 export const WHISPER_OFF = "Transcription is off on this renderer. Start it with WHISPER_ENABLED=1 after pnpm renderer:whisper:setup (docs/LIBRARY.md); the Docker image has it on.";
@@ -130,14 +133,50 @@ export function createRendererServer(options: RendererOptions): Server {
   // Transcriptions run one at a time too, apart from the renders.
   let transcriptions = Promise.resolve();
   function transcribe(req: import("node:http").IncomingMessage, res: ServerResponse, whisper: TranscribeMode) {
+    const tooLarge = { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` };
     const declared = Number(req.headers["content-length"]);
     if (Number.isFinite(declared) && declared > whisper.maxBytes) {
       req.resume();
-      return send(res, 413, { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` });
+      return send(res, 413, tooLarge);
     }
-    const dir = mkdtempSync(join(tmpdir(), "troupe-whisper-"));
+    let dir: string;
+    try {
+      dir = mkdtempSync(join(whisper.tmpDir ?? tmpdir(), "troupe-whisper-"));
+    } catch (error) {
+      req.resume();
+      return send(res, 507, { error: `The renderer could not store the sound: ${(error as Error).message}` });
+    }
+    let cleaned = false;
+    const clean = () => {
+      if (cleaned) return;
+      cleaned = true;
+      rmSync(dir, { recursive: true, force: true });
+    };
+    let answered = false;
+    const answer = (status: number, body: unknown) => {
+      if (answered) return;
+      answered = true;
+      send(res, status, body);
+    };
     const file = join(dir, "audio");
     const out = createWriteStream(file, { mode: 0o600 });
+    // The studio left (mid-upload, or while its turn came): its sound goes,
+    // and a transcription it no longer waits for stops.
+    const stop = new AbortController();
+    res.on("close", () => {
+      if (answered) return;
+      answered = true;
+      stop.abort();
+      out.destroy();
+      clean();
+    });
+    // A full disk (ENOSPC) or a vanished folder: said, never thrown.
+    out.on("error", (error) => {
+      req.unpipe(out);
+      req.resume();
+      clean();
+      answer(507, { error: `The renderer could not store the sound: ${error.message}` });
+    });
     let received = 0;
     let refused = false;
     req.on("data", (chunk: Buffer) => {
@@ -150,27 +189,31 @@ export function createRendererServer(options: RendererOptions): Server {
     });
     req.pipe(out);
     req.on("end", () => {
-      const done = () => rmSync(dir, { recursive: true, force: true });
       if (refused) {
-        done();
-        return send(res, 413, { error: `The sound is larger than ${Math.round(whisper.maxBytes / 1024 / 1024)} MB (WHISPER_MAX_MB).` });
+        clean();
+        return answer(413, tooLarge);
       }
       out.on("close", () => {
+        if (answered) return clean();
         if (received === 0) {
-          done();
-          return send(res, 400, { error: "Send the sound as the request body." });
+          clean();
+          return answer(400, { error: "Send the sound as the request body." });
         }
         transcriptions = transcriptions.then(async () => {
+          if (stop.signal.aborted) return clean();
           const started = Date.now();
           try {
-            const result = await whisper.transcribe(file);
+            const result = await whisper.transcribe(file, stop.signal);
             log(`Transcribed ${(received / 1024).toFixed(0)} KB of sound (${result.language ?? "?"}, ${result.segments.length} segments) in ${((Date.now() - started) / 1000).toFixed(1)} s`);
-            send(res, 200, result);
+            answer(200, result);
           } catch (error) {
-            log(`Transcription failed: ${(error as Error).message}`);
-            send(res, 500, { error: (error as Error).message || "The transcription failed." });
+            if (stop.signal.aborted) log("Transcription stopped: the studio is no longer waiting for it");
+            else {
+              log(`Transcription failed: ${(error as Error).message}`);
+              answer(500, { error: (error as Error).message || "The transcription failed." });
+            }
           } finally {
-            done();
+            clean();
           }
         });
       });

@@ -1,7 +1,32 @@
 # Third-party notices
 
 Troupe's own code is MIT licensed. Some distributions include third-party
-programs under other licenses:
+programs under other licenses, listed below.
+
+## The GNU GPL parts, in plain words
+
+- **The browser edition and the local renderer include eSpeak NG (GPL
+  version 3 or later).** kokoro-js turns text into phonemes with
+  [phonemizer](https://github.com/xenova/phonemizer.js), which embeds eSpeak
+  NG compiled to WebAssembly. It is bundled into the browser edition's render
+  worker (`site/dist`, the `troupe-web` image, any site you publish from it)
+  and loaded into the renderer's own process (`troupe-renderer`,
+  `pnpm renderer`). Troupe treats each of those builds as a combined work:
+  whoever distributes one distributes it under the GNU GPL version 3 or
+  later as a whole, with this repository as its source (Troupe's MIT code
+  is compatible with the GPL) and eSpeak NG's own source. Troupe's source
+  files themselves stay MIT, and so does any part of Troupe you use without
+  kokoro-js, such as the studio's server and the CLI.
+- **yt-dlp's self-contained build bundles GNU Readline (GPL version 3 or
+  later)** and other GNU libraries (below). The studio's image
+  (`ghcr.io/maxgfr/troupe`) ships that build as a separate program and runs
+  it as one, so the image is an aggregate, not a combined work: the yt-dlp
+  binary carries the GPL's terms, the studio does not. Build the image with
+  `--build-arg TROUPE_YTDLP=0` to leave it out.
+- **FFmpeg** (GPL) is in the studio's and the renderer's images and is run as
+  a separate program, the same way.
+
+## Components
 
 - **FFmpeg / FFprobe.** The studio's Docker image installs Alpine Linux's
   `ffmpeg` package and the renderer's image (`troupe-renderer`) Debian's;
@@ -88,6 +113,17 @@ programs under other licenses:
   - [Mediabunny](https://github.com/Vanilagy/mediabunny) 1.61: Mozilla Public
     License 2.0. Bundled unmodified; its source is available from that
     repository and npm.
+- **The browser edition's database.** [PGlite](https://github.com/electric-sql/pglite)
+  (`@electric-sql/pglite`) 0.5: PostgreSQL compiled to WebAssembly, bundled
+  into the browser edition (a worker, with its `.wasm` and data files) to
+  keep projects in the visitor's browser; the test suite runs on it too.
+  Dual-licensed under the Apache License 2.0 and the PostgreSQL License, at
+  the user's choice; its changes to PostgreSQL are under the PostgreSQL
+  License.
+- **The rest of the browser edition's bundle.** React and React DOM, React
+  Router, HeroUI, TanStack Query, tRPC, superjson and Zod (MIT License) and
+  Drizzle ORM (Apache License 2.0), bundled unmodified; their license files
+  are in `node_modules`.
 - **Geist font.** The browser edition ships Geist (`@fontsource-variable/geist`)
   and draws the video captions with it; the local renderer ships it too
   (`@fontsource/geist-sans`). Geist is licensed under the SIL Open Font

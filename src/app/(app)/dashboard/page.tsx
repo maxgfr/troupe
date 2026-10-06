@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
-
-import { DashboardView, type DashboardProject, type ModelReadiness } from "./dashboard-view";
+import { DashboardView, type DashboardActor, type DashboardProject, type ModelReadiness } from "./dashboard-view";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
 import { useWorkspace } from "~/app/_components/workspace-context";
@@ -10,10 +8,24 @@ import {
   EmptyState,
   ErrorNote,
   PageHeader,
-  Section,
   SignedOutNotice,
-  SkeletonRows,
+  Skeleton,
 } from "~/app/_components/ui";
+
+// The posters, while they load.
+function PosterSkeletons() {
+  return (
+    <ul role="status" aria-label="Loading" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+      {Array.from({ length: 4 }, (_, i) => (
+        <li key={i} className="space-y-3">
+          <Skeleton className="aspect-[4/5] w-full rounded-xl" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function DashboardPage() {
   const workspace = useWorkspace();
@@ -21,6 +33,9 @@ export default function DashboardPage() {
     { workspaceId: workspace.workspaceId ?? "" },
     { enabled: workspace.status === "ready", retry: false },
   );
+  // The actors' faces: posters for projects without a video yet, and the
+  // cast of the first project.
+  const actors = api.actors.list.useQuery(undefined, { enabled: workspace.status === "ready", retry: false, staleTime: 5 * 60_000 });
   // Whether anything can render yet: the empty state and the list say so.
   const edition = useEdition();
   const models = api.studio.modelOptions.useQuery({}, { enabled: workspace.status === "ready", retry: false });
@@ -32,36 +47,30 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        lede="Your scripts, video experiments and completed renders."
-        actions={
-          <Link
-            href="/projects/new"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90"
-          >
-            New project
-          </Link>
-        }
+        title="Projects"
+        lede="Every video you are making, newest first, with its latest render as the poster."
       />
-      <Section>
-        {workspace.status === "loading" || (workspace.status === "ready" && projects.isPending) ? (
-          <SkeletonRows rows={4} />
-        ) : workspace.status === "unauthenticated" ? (
-          <SignedOutNotice />
-        ) : workspace.status === "empty" ? (
-          <EmptyState
-            title="Setting up your studio"
-            body="Your studio is still being set up. Reload in a moment; if this stays, check that the database is running."
-            cta={{ label: "Reload", href: "/dashboard" }}
-          />
-        ) : workspace.status === "error" ? (
-          <ErrorNote>The workspace list failed to load: {workspace.message}</ErrorNote>
-        ) : projects.error ? (
-          <ErrorNote>Projects failed to load: {projects.error.message}</ErrorNote>
-        ) : (
-          <DashboardView projects={(projects.data ?? []) as DashboardProject[]} readiness={readiness} />
-        )}
-      </Section>
+      {workspace.status === "loading" || (workspace.status === "ready" && projects.isPending) ? (
+        <PosterSkeletons />
+      ) : workspace.status === "unauthenticated" ? (
+        <SignedOutNotice />
+      ) : workspace.status === "empty" ? (
+        <EmptyState
+          title="Setting up your studio"
+          body="Your studio is still being set up. Reload in a moment; if this stays, check that the database is running."
+          cta={{ label: "Reload", href: "/dashboard" }}
+        />
+      ) : workspace.status === "error" ? (
+        <ErrorNote>The workspace list failed to load: {workspace.message}</ErrorNote>
+      ) : projects.error ? (
+        <ErrorNote>Projects failed to load: {projects.error.message}</ErrorNote>
+      ) : (
+        <DashboardView
+          projects={(projects.data ?? []) as DashboardProject[]}
+          actors={(actors.data ?? []) as DashboardActor[]}
+          readiness={readiness}
+        />
+      )}
     </>
   );
 }

@@ -1,7 +1,13 @@
-import Link from "next/link";
+"use client";
 
+import Link from "next/link";
+import { useState } from "react";
+
+import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { SELF_HOSTING_URL, useEdition } from "~/app/_components/edition";
-import { EmptyState, ProviderWarning } from "~/app/_components/ui";
+import { PlayIcon } from "~/app/_components/icons";
+import { EmptyState, ProviderWarning, statusChipBase } from "~/app/_components/ui";
+import { VideoPoster } from "~/app/_components/video-poster";
 import { STAGE_LABELS, type ProjectStage } from "~/modules/studio/stage";
 import { platformName } from "~/modules/studio/platforms";
 
@@ -12,26 +18,37 @@ export interface DashboardProject {
   format: string | null;
   status: string;
   createdAt?: string | Date;
+  actorId?: string | null;
+  // The newest saved video, played as the project's poster.
+  latestVideoUrl?: string | null;
+}
+
+export interface DashboardActor {
+  id: string;
+  name: string;
+  portraitUrl?: string | null;
 }
 
 // Whether any model can render, and if not, why (the browser edition's own
 // model says why this browser cannot run it).
 export type ModelReadiness = { ready: true } | { ready: false; reason?: string | null };
 
-// Cobalt while the studio works on it, green once a video is ready, quiet
-// otherwise; never gold (a dashboard row is not a decision).
-const STAGE_TONES: Record<ProjectStage, string> = {
-  draft: "bg-surface text-muted",
-  scripting: "bg-surface text-muted",
-  generating: "bg-primary/15 text-primary",
-  review: "bg-success/15 text-success",
-  done: "bg-surface text-fg",
+// A project's stage, on its poster: a dark glass chip whose dot carries the
+// tone (cobalt while the studio works on it, green once a video is ready,
+// quiet otherwise; never gold: a project card is not a decision).
+const STAGE_DOTS: Record<ProjectStage, string> = {
+  draft: "bg-white/60",
+  scripting: "bg-white/60",
+  generating: "bg-primary animate-pulse motion-reduce:animate-none",
+  review: "bg-success",
+  done: "bg-white",
 };
 
 export function StageChip({ status }: { status: string }) {
   const stage = (status in STAGE_LABELS ? status : "scripting") as ProjectStage;
   return (
-    <span className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${STAGE_TONES[stage]}`}>
+    <span className={`${statusChipBase} bg-black/55 text-white backdrop-blur-md`}>
+      <span aria-hidden className={`size-1.5 rounded-full ${STAGE_DOTS[stage]}`} />
       {STAGE_LABELS[stage]}
     </span>
   );
@@ -46,7 +63,7 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
       {browser ? (
         <>
           {readiness.reason ?? "This browser cannot render videos."} You can still write projects and scripts here; to render them on your machine,{" "}
-          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">set up the self-hosted studio ↗</a>.
+          <a href={SELF_HOSTING_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">set up the self-hosted studio</a>.
         </>
       ) : (
         <>
@@ -57,46 +74,114 @@ function NoModelNotice({ readiness }: { readiness: ModelReadiness }) {
   );
 }
 
-// Pure view — testable without tRPC (screens.test.tsx).
-export function DashboardView({ projects, readiness = { ready: true } }: { projects: DashboardProject[]; readiness?: ModelReadiness }) {
-  const browser = useEdition().kind === "browser";
-  if (projects.length === 0) {
-    return (
-      <div className="space-y-4">
-        <NoModelNotice readiness={readiness} />
-        <EmptyState
-          title="Create your first project"
-          body={
-            browser
-              ? "Pick a platform, format, language and actor, write a short script, then render it right here. Everything you make is saved in this browser."
-              : "Pick a platform, format, language and actor, then write a short script and render it with your model."
-          }
-          cta={{ label: "New project", href: "/projects/new" }}
-        />
-      </div>
-    );
-  }
+// One project as a poster: its newest video (playing while hovered or
+// focused), else its actor; the title, where it goes and its stage below.
+function ProjectCard({ project, actor }: { project: DashboardProject; actor?: DashboardActor }) {
+  const [active, setActive] = useState(false);
+  const meta = `${project.platform ? platformName(project.platform) : "platform —"} · ${project.format ?? "format —"}${project.createdAt ? ` · ${new Date(project.createdAt).toLocaleDateString()}` : ""}`;
   return (
-    <div className="space-y-4">
-      <NoModelNotice readiness={readiness} />
-      <ul className="divide-y divide-muted/15 rounded-xl border border-muted/20">
-        {projects.map((p) => (
-          <li key={p.id}>
-            <Link
-              href={`/projects/${p.id}`}
-              className="flex items-center justify-between gap-4 px-4 py-3 transition-colors duration-150 hover:bg-surface"
+    <li>
+      <Link
+        href={`/projects/${project.id}`}
+        onPointerEnter={() => setActive(true)}
+        onPointerLeave={() => setActive(false)}
+        onFocus={() => setActive(true)}
+        onBlur={() => setActive(false)}
+        className="group block rounded-xl outline-offset-4"
+      >
+        <span className="relative block overflow-hidden rounded-xl bg-surface shadow-card">
+          <VideoPoster
+            src={project.latestVideoUrl}
+            active={active}
+            actor={actor}
+            className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          />
+          <span className="absolute top-2.5 left-2.5">
+            <StageChip status={project.status} />
+          </span>
+          {/* The hairline that keeps a dark frame from melting into the stage. */}
+          <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]" />
+          {project.latestVideoUrl ? (
+            <span
+              aria-hidden
+              className="absolute right-3 bottom-3 flex size-11 translate-y-1 items-center justify-center rounded-full bg-primary text-on-primary opacity-0 shadow-overlay transition-[opacity,translate] duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100"
             >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{p.title}</p>
-                <p className="mt-0.5 font-mono text-xs tabular-nums text-muted">
-                  {p.platform ? platformName(p.platform) : "platform —"} · {p.format ?? "format —"}{p.createdAt ? ` · ${new Date(p.createdAt).toLocaleDateString()}` : ""}
-                </p>
-              </div>
-              <StageChip status={p.status} />
-            </Link>
+              <PlayIcon className="size-4 translate-x-px" />
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-3 block min-w-0">
+          <span className="block truncate font-medium">{project.title}</span>
+          <span className="mt-0.5 block truncate font-mono text-xs tabular-nums text-muted">{meta}</span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+// The path to a first video, with the cast that will play it.
+function FirstProject({ actors, browser }: { actors: DashboardActor[]; browser: boolean }) {
+  const cast = actors.filter((a) => a.portraitUrl).slice(0, 5);
+  const steps = [
+    "Pick a platform, a format and an actor",
+    "Write three short lines",
+    browser ? "Render it in this tab and download the MP4" : "Render it with your model and download the MP4",
+  ];
+  return (
+    <EmptyState
+      title="Create your first project"
+      art={
+        cast.length ? (
+          <span className="flex -space-x-3">
+            {cast.map((a) => (
+              <ActorPortrait key={a.id} id={a.id} name={a.name} src={a.portraitUrl} label="" className="size-14 rounded-full shadow-[0_0_0_3px_var(--troupe-color-surface)] sm:size-16" />
+            ))}
+          </span>
+        ) : undefined
+      }
+      body={
+        browser
+          ? "Your first video takes about two minutes. Everything you make is saved in this browser."
+          : "Your first video takes about two minutes, start to finish."
+      }
+      cta={{ label: "New project", href: "/projects/new" }}
+    >
+      <ol className="mx-auto mt-6 grid max-w-2xl gap-3 text-left text-sm sm:grid-cols-3">
+        {steps.map((step, i) => (
+          <li key={step} className="flex gap-3 rounded-xl bg-bg/60 px-4 py-3">
+            <span className="font-mono text-xs leading-5 tabular-nums text-primary">{i + 1}</span>
+            <span className="text-pretty">{step}</span>
           </li>
         ))}
-      </ul>
+      </ol>
+    </EmptyState>
+  );
+}
+
+// Pure view — testable without tRPC (screens.test.tsx).
+export function DashboardView({
+  projects,
+  actors = [],
+  readiness = { ready: true },
+}: {
+  projects: DashboardProject[];
+  actors?: DashboardActor[];
+  readiness?: ModelReadiness;
+}) {
+  const browser = useEdition().kind === "browser";
+  const byId = new Map(actors.map((a) => [a.id, a]));
+  return (
+    <div className="space-y-6">
+      <NoModelNotice readiness={readiness} />
+      {projects.length === 0 ? (
+        <FirstProject actors={actors} browser={browser} />
+      ) : (
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+          {projects.map((p) => (
+            <ProjectCard key={p.id} project={p} actor={p.actorId ? byId.get(p.actorId) : undefined} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

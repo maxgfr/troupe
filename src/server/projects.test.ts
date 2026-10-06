@@ -67,3 +67,28 @@ describe("project stages on the dashboard", () => {
     expect(tiers.filter((g) => g.tier === "final").map((g) => g.id)).toEqual([second.id]);
   });
 });
+
+describe("project posters on the dashboard", () => {
+  it("name each project's newest saved video, and none before a video is saved", async () => {
+    const userId = "e4444444-4444-4444-8444-444444444444";
+    const fx = await seedFixture(t.db, { userId, name: "Posters" });
+    const posterOf = async () => (await listProjects(t.db, fx.workspaceId)).find((p) => p.id === fx.projectId)!.latestVideoAssetId;
+    expect(await posterOf()).toBeNull();
+
+    const older = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    await finishGeneration(t.db, older.id, { kind: "completed" });
+    // Completed, but its video is not saved yet: no poster.
+    expect(await posterOf()).toBeNull();
+    const olderVideo = await ingestRender(t.db, { generationId: older.id, bytes: 10, checksum: "a", probe: async () => ({ storage: "local" }) });
+    expect(await posterOf()).toBe(olderVideo.id);
+
+    const newer = await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    await finishGeneration(t.db, newer.id, { kind: "completed" });
+    const newerVideo = await ingestRender(t.db, { generationId: newer.id, bytes: 10, checksum: "b", probe: async () => ({ storage: "local" }) });
+    expect(await posterOf()).toBe(newerVideo.id);
+
+    // A render still running does not replace the poster.
+    await launchGeneration(t.db, { projectId: fx.projectId, scriptId: fx.scriptId, adapter: fakeAdapter(), tier: "draft", durationS: 8, resolution: "720p" });
+    expect(await posterOf()).toBe(newerVideo.id);
+  });
+});

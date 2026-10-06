@@ -265,6 +265,9 @@ describe("identity/workspace scoping is enforced at the router edge", () => {
     const older = await createDraftProject(t.db, { workspaceId: first.id, title: "Older" });
     await t.db.update(projects).set({ createdAt: new Date(Date.now() - 60_000) }).where(eq(projects.id, older.id));
     await createDraftProject(t.db, { workspaceId: first.id, title: "Newer" });
-    expect((await caller.identity.projects({ workspaceId: first.id })).map((p) => p.title)).toEqual(["Newer", "Older"]);
+    const listed = await caller.identity.projects({ workspaceId: first.id });
+    expect(listed.map((p) => p.title)).toEqual(["Newer", "Older"]);
+    // No video yet: no poster address (src/server/projects.test.ts covers one).
+    expect(listed.map((p) => p.latestVideoUrl)).toEqual([null, null]);
   });
 });

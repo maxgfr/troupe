@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, notExists, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import type { StoredFile } from "~/server/media/store";
@@ -8,7 +8,8 @@ import { exportRecords } from "~/modules/export";
 import { projectStage, projects, type ProjectStage } from "~/modules/studio";
 
 // A workspace's projects, newest first, each with the stage it is at
-// (studio/stage.ts), worked out from its renders and exports.
+// (studio/stage.ts), worked out from its renders and exports, and its newest
+// saved video (the poster the dashboard plays), if any.
 export async function listProjects(db: Db, workspaceId: string) {
   const rows = await db.select().from(projects).where(eq(projects.workspaceId, workspaceId)).orderBy(desc(projects.createdAt));
   if (rows.length === 0) return [];
@@ -27,10 +28,17 @@ export async function listProjects(db: Db, workspaceId: string) {
     .from(exportRecords)
     .where(inArray(exportRecords.projectId, ids))
     .groupBy(exportRecords.projectId);
+  const videos = await db
+    .selectDistinctOn([generations.projectId], { projectId: generations.projectId, assetId: generations.outputAssetId })
+    .from(generations)
+    .where(and(inArray(generations.projectId, ids), eq(generations.status, "completed"), isNotNull(generations.outputAssetId)))
+    .orderBy(generations.projectId, desc(generations.createdAt));
   const byProject = new Map(renders.map((r) => [r.projectId, r]));
   const exports = new Map(exported.map((e) => [e.projectId, e.n]));
+  const posters = new Map(videos.map((v) => [v.projectId, v.assetId]));
   return rows.map((row) => ({
     ...row,
+    latestVideoAssetId: posters.get(row.id) ?? null,
     status: projectStage({
       stored: row.status as ProjectStage,
       running: byProject.get(row.id)?.running ?? 0,

@@ -17,6 +17,9 @@ const PROVIDERS = ["google", "fal", "anthropic"] as const;
 export function modelState(m: Model): string {
   if (m.archived) return "archived";
   if (!m.enabled) return "disabled";
+  // Kept although its server did not answer its last test, as Settings says:
+  // it can still launch (the server may be up by then).
+  if (m.status === "ready" && m.lastTest?.ok === false) return "unreachable";
   return m.status;
 }
 
@@ -42,7 +45,7 @@ const modelsList: Command = {
     const shown = result.models.filter((m) => flag(options, "all") || !m.archived);
     return {
       // `state` and `launchable` spare scripts from combining status, enabled and archived.
-      data: { ...result, models: shown.map((m) => ({ ...m, state: modelState(m), launchable: modelState(m) === "ready" })) },
+      data: { ...result, models: shown.map((m) => ({ ...m, state: modelState(m), launchable: m.status === "ready" && m.enabled && !m.archived })) },
       text: table(
         ["MODEL", "NAME", "WHERE", "STATE", "FORMATS", "LENGTHS (S)", "AUDIO", "DEFAULT"],
         shown.map((m) => [

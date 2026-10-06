@@ -8,8 +8,6 @@ import {
   archiveLocalModel,
   canLaunch,
   getDefaultModelKey,
-  getModelConfig,
-  updateLocalModel,
   sanitizeDefaults,
   setDefaultModelKey,
   updateModelPreferences,
@@ -19,7 +17,7 @@ import { ApiKey, clearProviderKey, credentialStatus, saveProviderKey, type Crede
 import { SecretUnavailableError } from "~/server/settings/secrets";
 import { ChatSettingsPatch, saveChatSettings, type ChatBackend } from "~/modules/chat";
 import { MODEL_KEY } from "./generation";
-import { localModelProcedures, rememberPollPace } from "./local-models";
+import { localModelProcedures, recordTest } from "./local-models";
 
 const CREDENTIAL = z.enum(["google", "fal", "anthropic"]);
 
@@ -157,9 +155,9 @@ export const settingsRouter = createTRPCRouter({
         try {
           report = await adapter.testConnection();
         } catch {
-          return { ok: false, message: "The model could not be reached." };
+          report = { ok: false, message: "The model could not be reached." };
         }
-        await rememberPollPace(ctx.db, model.key, report);
+        if (model.kind === "local") await recordTest(ctx.db, model.key, report);
         return report;
       }),
   }),

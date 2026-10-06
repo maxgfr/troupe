@@ -303,8 +303,11 @@ troupe download <export-id>
 - `models list`: `{ models, defaultModelKey, savedDefaultModelKey }`; each
   model has `key, label, vendor, kind ("cloud" | "local"), capabilities
   { aspectRatios, resolutions, durationsS, audio }, defaults { resolution,
-  durationS, audio }, pricePerSecondUsd, status, enabled, archived` plus
-  `state` (`ready`, `disabled`, `archived` or the status) and `launchable`.
+  durationS, audio }, pricePerSecondUsd, status, enabled, archived,
+  lastTest` (a local model's last connection test, `{ ok, message, at }`, or
+  null) plus `state` (`ready`, `disabled`, `archived`, `unreachable` for a
+  local model whose last test failed, or the status) and `launchable` (an
+  unreachable model can still launch: its server may be up by then).
 - `models add`: `{ modelKey, test: { ok, message, details?, pollEveryS? }, default }`.
 - `actors list` / `actors show`: `{ id, name, gender, ageRange, style,
   voiceProfile, status, portraitUrl }` (absolute URL).

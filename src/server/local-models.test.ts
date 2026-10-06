@@ -62,6 +62,25 @@ describe("local model names", () => {
   });
 });
 
+describe("a local model's last test", () => {
+  it("is kept with the model, from its creation until a test passes", async () => {
+    let up = false;
+    const server = await startServer((r, res) => (up && r.path === "/health" ? json(res, 200, { ok: true, contract: 1 }) : json(res, 503, { ok: false, error: "The box is warming up." })));
+    servers.push(server);
+    const { modelKey } = await (await caller()).settings.models.createLocal({ family: "http", label: "Warming box", baseUrl: server.url, capabilities: caps });
+    const listed = async () => (await (await caller()).settings.models.list()).models.find((m) => m.key === modelKey)!;
+    // Added anyway (the server may come up later), and said to be out of reach.
+    expect((await listed()).lastTest).toMatchObject({ ok: false, message: expect.stringMatching(/warming up/) });
+    expect((await listed()).status).toBe("ready");
+    up = true;
+    expect(await (await caller()).settings.models.test({ modelKey })).toMatchObject({ ok: true });
+    expect((await listed()).lastTest).toMatchObject({ ok: true });
+    // Another address: what the old one answered no longer says anything.
+    await (await caller()).settings.models.updateLocal({ modelKey, baseUrl: "http://127.0.0.1:9" });
+    expect((await listed()).lastTest).toBeNull();
+  });
+});
+
 describe("local models end to end", () => {
   it("adds an HTTP model with a sealed token and renders through it to a stored MP4", async () => {
     const clip = await readFile("src/test/fixtures/clip.mp4");

@@ -21,8 +21,10 @@ export interface CatalogModelView {
   statusDetail: string | null;
   // The provider account a cloud model needs (null for local models).
   credential?: "google" | "fal" | null;
-  // Local models only: where it lives (never the token).
+  // Local models only: where it lives (never the token), and what its last
+  // connection test said.
   connection?: { baseUrl: string; hasToken: boolean };
+  lastTest?: { ok: boolean; message: string; at: string } | null;
 }
 
 export interface ModelPreferencesInput {
@@ -34,6 +36,9 @@ export interface ModelPreferencesInput {
 const CREDENTIAL_NAMES = { google: "Google AI", fal: "fal.ai" } as const;
 
 const launchable = (m: CatalogModelView) => m.status === "ready" && m.enabled && !m.archived;
+// A local model kept although its server did not answer its last test (the
+// CLI refuses to add one without --skip-test): never "Ready".
+const unreachable = (m: CatalogModelView) => m.kind === "local" && m.lastTest?.ok === false;
 
 // Pure view — the studio-wide default model.
 export function DefaultModelPicker({ models, savedKey, effectiveKey, busy, noModelHint = "No model can launch yet. Add an API key or a local model below.", onChange }: {
@@ -85,8 +90,8 @@ export function ModelCatalogList({ models, reports, busy, onToggle, onTest, onSa
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${m.kind === "local" ? "bg-success/15 text-success" : "bg-fg/[0.07] text-muted"}`}>{m.kind}</span>
                 <span className="text-xs text-muted">{m.vendor}</span>
               </p>
-              <p className={`mt-0.5 text-xs ${m.status === "ready" ? "text-muted" : "text-warning"}`}>
-                {m.archived ? "Archived" : m.status === "ready" ? (m.enabled ? "Ready" : "Turned off") : m.status === "missing-credentials" && m.credential ? (
+              <p className={`mt-0.5 text-xs ${m.status === "ready" && !unreachable(m) ? "text-muted" : "text-warning"}`}>
+                {m.archived ? "Archived" : m.status === "ready" ? (!m.enabled ? "Turned off" : unreachable(m) ? `Added, not reachable: ${m.lastTest!.message}` : "Ready") : m.status === "missing-credentials" && m.credential ? (
                   // This page holds the key form: point to it, not to "Settings".
                   <>Add a {CREDENTIAL_NAMES[m.credential]} key under <a href="#provider-accounts" className="underline underline-offset-2">Provider accounts</a> below.</>
                 ) : m.statusDetail}
@@ -215,7 +220,7 @@ export function ModelCatalogSettings({ kind }: { kind: "cloud" | "local" }) {
   const [reports, setReports] = useState<Record<string, Report | undefined>>({});
   const refresh = () => Promise.all([utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate()]);
   const update = api.settings.models.update.useMutation({ onSuccess: refresh });
-  const test = api.settings.models.test.useMutation({ onSuccess: (report, input) => setReports((r) => ({ ...r, [input.modelKey]: report })) });
+  const test = api.settings.models.test.useMutation({ onSuccess: async (report, input) => { setReports((r) => ({ ...r, [input.modelKey]: report })); await refresh(); } });
   const archive = api.settings.models.archive.useMutation({ onSuccess: refresh });
   const connections = api.settings.models.connections.useQuery(undefined, { enabled: kind === "local" });
   const editConnection = api.settings.models.updateLocal.useMutation({ onSuccess: () => Promise.all([refresh(), utils.settings.models.connections.invalidate()]) });

@@ -43,6 +43,20 @@ export interface ResolvedModel {
   archived: boolean;
   status: ModelStatus;
   statusDetail: string | null;
+  // A local model's last connection test (Settings, the CLI, or when it was
+  // added); null before any, and for cloud models, whose keys Settings tests.
+  lastTest: ModelTestResult | null;
+}
+
+export interface ModelTestResult {
+  ok: boolean;
+  message: string;
+  at: string;
+}
+
+function lastTestOf(connection: unknown): ModelTestResult | null {
+  const t = (connection as { lastTest?: Partial<ModelTestResult> } | null)?.lastTest;
+  return t && typeof t.ok === "boolean" && typeof t.message === "string" && typeof t.at === "string" ? { ok: t.ok, message: t.message, at: t.at } : null;
 }
 
 // What a request sees: every model with its status, an adapter for each model
@@ -100,6 +114,7 @@ export function resolveCatalog(input: {
       enabled: r?.enabled ?? true,
       archived: false,
       status,
+      lastTest: null,
       statusDetail: status === "missing-credentials" ? `Add a ${b.credential === "google" ? "Google AI" : "fal.ai"} key in Settings.` : status === "undecryptable" ? "The saved key can no longer be read. Enter it again." : null,
     };
   });
@@ -121,6 +136,7 @@ export function resolveCatalog(input: {
         archived: r.archived,
         status: veto?.status ?? "ready",
         statusDetail: veto?.detail ?? null,
+        lastTest: lastTestOf(r.connection),
       };
     });
   return [...builtins, ...locals];

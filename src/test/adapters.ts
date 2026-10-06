@@ -54,7 +54,7 @@ export function catalogOf(adapters: VideoProviderAdapter[], opts: { defaultModel
   const models = adapters.map((a): ResolvedModel => ({
     key: a.modelKey, family: a.family, label: a.modelKey, vendor: "Test", kind: "cloud", credential: null,
     modelId: a.modelId, capabilities: a.capabilities(), defaults: sanitizeDefaults(a.capabilities(), null),
-    pricePerSecondUsd: null, timeoutS: 1800, enabled: true, archived: false, status: "ready", statusDetail: null,
+    pricePerSecondUsd: null, timeoutS: 1800, enabled: true, archived: false, status: "ready", statusDetail: null, lastTest: null,
     ...opts.patch?.[a.modelKey],
   }));
   return {

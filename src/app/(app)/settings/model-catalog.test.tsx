@@ -25,6 +25,12 @@ describe("model catalog settings", () => {
     expect(onToggle).toHaveBeenCalledWith("Veo", false);
   });
 
+  it("says a local model was out of reach at its last test, with the reason, instead of Ready", () => {
+    render(<ModelCatalogList models={[model("Box", { kind: "local", lastTest: { ok: false, message: "Could not reach http://127.0.0.1:1. Is the server running and reachable from Troupe?", at: "2026-10-06T18:00:00Z" } }), model("Renderer", { kind: "local", lastTest: { ok: true, message: "Renderer is reachable.", at: "2026-10-06T18:00:00Z" } })]} reports={{}} onToggle={vi.fn()} onTest={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByText("Added, not reachable: Could not reach http://127.0.0.1:1. Is the server running and reachable from Troupe?")).toBeDefined();
+    expect(screen.getAllByText("Ready")).toHaveLength(1);
+  });
+
   it("saves launch defaults, price and time limit", () => {
     const onSave = vi.fn();
     render(<ModelCatalogList models={[model("Seedance")]} reports={{}} onToggle={vi.fn()} onTest={vi.fn()} onSave={onSave} />);

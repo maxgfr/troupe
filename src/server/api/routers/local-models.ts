@@ -123,18 +123,24 @@ async function testDraft(draft: LocalDraft, family: "http" | "comfyui"): Promise
   }
 }
 
-// A successful test of an HTTP model saves the polling pace its server asks
-// for now (or forgets it when the server stopped asking). With `baseUrl`, only
-// while the model still points there.
-export async function rememberPollPace(db: Db, modelKey: string, report: ConnectionReport, baseUrl?: string) {
-  if (report.ok !== true) return;
+// What a local model's last test said, kept with the model so Settings and
+// the CLI can tell a model that answered from one that did not, and, for an
+// HTTP model that answered, the polling pace its server asks for now (or
+// none when it stopped asking). With `baseUrl`, only while the model still
+// points there. A test with no verdict (ok: null) changes nothing.
+export async function recordTest(db: Db, modelKey: string, report: ConnectionReport, baseUrl?: string) {
+  if (report.ok === null) return;
   const row = await getModelConfig(db, modelKey);
-  if (row?.family !== "http") return;
-  const { pollEveryS: previous, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
+  if (row?.family !== "http" && row?.family !== "comfyui") return;
+  const { pollEveryS, lastTest: _previous, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
   if (baseUrl !== undefined && rest.baseUrl !== baseUrl) return;
-  if (previous === report.pollEveryS) return;
-  await updateLocalModel(db, modelKey, { connection: { ...rest, ...(report.pollEveryS ? { pollEveryS: report.pollEveryS } : {}) } });
+  const pace = row.family !== "http" ? {} : report.ok ? (report.pollEveryS ? { pollEveryS: report.pollEveryS } : {}) : pollEveryS === undefined ? {} : { pollEveryS };
+  await updateLocalModel(db, modelKey, { connection: { ...rest, ...pace, lastTest: { ok: report.ok, message: report.message, at: new Date().toISOString() } } });
 }
+
+// How long adding a model waits for its first test before answering; a
+// slower server's verdict is recorded when it comes.
+const ADD_TEST_WAIT_MS = 5000;
 
 // Procedures for adding, editing and testing local models.
 export const localModelProcedures = {
@@ -158,13 +164,18 @@ export const localModelProcedures = {
       id, family: input.family, label: input.label, capabilities, connection, timeoutS,
       secret: input.token ? seal(id, input.token) : null,
     });
-    // Added without a test (an API client, the CLI's --skip-test): ask the
-    // server for its pace once, in the background, instead of polling at the
-    // 20 s default until the next test. An unreachable server changes nothing.
-    if (input.family === "http" && connection.pollEveryS === undefined) {
-      void testDraft({ modelKey: id, label: input.label, capabilities, connection, token: input.token }, "http")
-        .then((report) => rememberPollPace(ctx.db, id, report, connection.baseUrl as string))
+    // An HTTP model sent with the pace its server gave the client's test
+    // (the form, the CLI) answered just now. Any other is tested once as
+    // added: one that cannot be reached is kept, as its server may come up
+    // later, but says so instead of "Ready", and an HTTP server's pace is
+    // saved instead of polling at the 20 s default.
+    if (connection.pollEveryS !== undefined) {
+      await recordTest(ctx.db, id, { ok: true, message: "It answered the test it was added after.", pollEveryS: connection.pollEveryS as number });
+    } else {
+      const tested = testDraft({ modelKey: id, label: input.label, capabilities, connection, token: input.token }, input.family)
+        .then((report) => recordTest(ctx.db, id, report, connection.baseUrl as string))
         .catch(() => {});
+      await Promise.race([tested, new Promise((resolve) => setTimeout(resolve, ADD_TEST_WAIT_MS))]);
     }
     return { modelKey: id };
   }),
@@ -184,9 +195,15 @@ export const localModelProcedures = {
         if (!url.ok) return bad(url.reason);
         const previous = (row.connection as { baseUrl?: unknown } | null)?.baseUrl;
         movedOrigin = typeof previous !== "string" || !sameOrigin(url.base, previous);
-        const { pollEveryS, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
-        // Another server has its own pace: forget the old one until a test.
-        connection = { ...rest, ...(movedOrigin ? {} : pollEveryS === undefined ? {} : { pollEveryS }), baseUrl: url.base };
+        const { pollEveryS, lastTest, ...rest } = (row.connection ?? {}) as Record<string, unknown>;
+        // Another server has its own pace and its own answer: forget both
+        // until a test.
+        connection = { ...rest, ...(movedOrigin ? {} : { ...(pollEveryS === undefined ? {} : { pollEveryS }), ...(lastTest === undefined ? {} : { lastTest }) }), baseUrl: url.base };
+      }
+      // Another token may be refused, or accepted: the last answer no longer holds.
+      if (input.token || input.clearToken) {
+        const { lastTest: _stale, ...rest } = connection ?? ((row.connection ?? {}) as Record<string, unknown>);
+        connection = rest;
       }
       await updateLocalModel(ctx.db, input.modelKey, {
         ...(input.label ? { label: input.label } : {}),

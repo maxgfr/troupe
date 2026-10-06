@@ -11,6 +11,7 @@ import { assertSecureTransport, LOCK_TIMING, normalizeUrl, readConfig, updateCon
 import { startServer } from "~/test/local-server";
 import { numberRanges, sentence, table } from "./output.ts";
 import { pick } from "./resolve.ts";
+import { modelState } from "./commands/models.ts";
 
 const folders: string[] = [];
 // A port nothing listens on: taken from the OS, then released.
@@ -240,5 +241,16 @@ describe("output and lookup", () => {
     expect(() => pick(items, "abc", opts)).toThrow('No actor matches "abc". List them with troupe actors list.');
     expect(() => pick(items, "abcd", opts)).not.toThrow();
     expect(() => pick([...items, { id: "abcd5678-0000", name: "Ana" }], "abcd", opts)).toThrow('"abcd" matches 2 actors');
+  });
+});
+
+describe("a model's state", () => {
+  const model = (patch: Partial<Parameters<typeof modelState>[0]>) => ({ archived: false, enabled: true, status: "ready", kind: "local", lastTest: null, ...patch }) as Parameters<typeof modelState>[0];
+
+  it("says a local model was out of reach at its last test, as Settings does, and still lets it launch", () => {
+    expect(modelState(model({}))).toBe("ready");
+    expect(modelState(model({ lastTest: { ok: false, message: "Could not reach it.", at: "2026-10-06T18:00:00Z" } }))).toBe("unreachable");
+    expect(modelState(model({ lastTest: { ok: true, message: "Fine.", at: "2026-10-06T18:00:00Z" } }))).toBe("ready");
+    expect(modelState(model({ enabled: false, lastTest: { ok: false, message: "x", at: "2026-10-06T18:00:00Z" } }))).toBe("disabled");
   });
 });

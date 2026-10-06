@@ -43,7 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="relative isolate flex min-h-dvh flex-col">
+    // The safe area's sides (a phone held sideways, its notch), as the viewport
+    // reaches the screen's edges (viewport-fit=cover).
+    <div className="relative isolate flex min-h-dvh flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
       <StageProvider>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary">
           Skip to content
@@ -112,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Phones: the sections, at the bottom of the screen. */}
         <nav
           aria-label="Sections"
-          className="fixed inset-x-0 bottom-0 z-30 bg-bg/85 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 bg-bg/85 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
         >
           <ul className="mx-auto grid max-w-md grid-cols-4">
             {NAV.map((item) => {

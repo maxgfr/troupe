@@ -20,7 +20,7 @@ export function ChatDrawer(props: Omit<ComponentProps<typeof ChatPanel>, "headin
       </Drawer.Trigger>
       <Drawer.Backdrop className="bg-black/55 backdrop-blur-[2px]">
         <Drawer.Content placement="bottom">
-          <Drawer.Dialog className="flex h-[88dvh] flex-col rounded-t-2xl bg-raised px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] text-fg shadow-overlay">
+          <Drawer.Dialog className="flex h-[88dvh] flex-col rounded-t-2xl bg-raised pt-2 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] text-fg shadow-overlay">
             <Drawer.Handle />
             <MarkModal />
             <ChatPanel

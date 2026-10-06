@@ -1,6 +1,6 @@
 import "~/styles/globals.css";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, JetBrains_Mono } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   description: "Troupe, your own video studio: write a short script, cast an actor and render an MP4 with your own models. Open source, no account.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
+
+// Edge to edge on phones with a notch or rounded corners: the shell keeps its
+// content inside the safe area (app-shell.tsx).
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 const geist = Geist({
   subsets: ["latin"],

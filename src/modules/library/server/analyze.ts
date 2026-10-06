@@ -108,11 +108,13 @@ class ItemGone extends Error {
 }
 
 // Touches the claim (the item, at this attempt, still analysing): false
-// once the item is gone.
+// once the item is gone. The database's clock, as the claim and the stale
+// check use: an app server whose clock drifts cannot make a live analysis
+// look stale.
 async function touch(db: Db, itemId: string, attempt: number, stage?: string): Promise<boolean> {
   const rows = await db
     .update(libraryItems)
-    .set({ heartbeatAt: new Date(), ...(stage ? { stage } : {}) })
+    .set({ heartbeatAt: sql`now()`, ...(stage ? { stage } : {}) })
     .where(and(eq(libraryItems.id, itemId), eq(libraryItems.attempts, attempt), eq(libraryItems.status, "analyzing")))
     .returning({ id: libraryItems.id });
   return rows.length > 0;

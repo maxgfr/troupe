@@ -477,3 +477,47 @@ build`, `pnpm site:build` and `pnpm site:test` (12 passed) all pass.
 passed 28 tests in 5.7 min on `1185283`, before the fix round (images,
 studio, CLI, library, stack, browser edition and its in-browser renders); the
 stack and its volumes were removed afterwards.
+
+## Known limitations
+
+Found in review and left as they are, each judged not worth its risk or
+cost before a release. One line each.
+
+- **Browser edition, first load**: Lighthouse mobile scores the app shell 92
+  (FCP 2.4 s, LCP 2.9 s under its simulated slow 4G). A static shell in the
+  HTML did not move the simulated FCP, and loading the scripts after it
+  painted traded FCP (1.1 s) for a later LCP (3.7–4.6 s, score 84–90):
+  reaching 95 needs less JavaScript before the first page, a redesign of the
+  boot. The database's first start went from 4.0 s to 1.2 s (migrations in
+  one call), so the first visit's wait is mostly the PGlite download.
+- **Locally built images** carry the published names
+  (`ghcr.io/maxgfr/troupe:latest` and the others) when Compose builds them
+  because it cannot pull them; a later `docker compose pull` replaces them.
+- **Adding a local model** waits up to 5 s for its first test before
+  answering; a model whose server is down is added and says so afterwards.
+- **Chat and concurrent edits**: a script restored or edited while the chat
+  model is writing is re-tagged without re-checking the base inside the
+  transaction; the proposal can then be one version behind.
+- **Token estimates** for the chat's prompt cap and `num_ctx` assume about 3
+  characters per token, which undercounts Chinese, Japanese and Korean.
+- **CLI config lock**: a lock older than its 3 s margin is taken over; two
+  very slow writers could still interleave.
+- **Library**: a search that needs embeddings while the in-browser model is
+  stopping fails once; the ideas button stays a skeleton when the library's
+  status cannot load; a library analysis cut short by its caller is marked
+  failed rather than queued again.
+- **Browser renders**: a clip whose length is unknown bypasses the browser
+  minutes cap in the fallback path, and that path reports its audio codec as
+  unknown; a render queued again on another tab can leave stray frames.
+- **Renderer**: the sweep and job-forgetting race is covered by the sweep
+  test, not asserted directly; the AI video mode's process check assumes
+  `pgrep -P`.
+- **Pages**: on a soft navigation the page title is set after Next's
+  metadata title; at 390 px the poster's caption can be cut in the
+  two-column grid.
+- **Images**: the Ollama image's NOTICE does not cover CUDA libraries it
+  does not ship; no CI job rebuilds the renderer image without its cache;
+  `pnpm install` warns about the dependencies' build scripts it skips.
+- **Tests**: `src/customizing.test.ts` checks that every studio setting
+  reaches the `app` service, not that every renderer setting reaches
+  `renderer`.

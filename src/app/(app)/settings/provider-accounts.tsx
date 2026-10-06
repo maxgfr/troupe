@@ -27,8 +27,10 @@ export function ProviderAccounts() {
   const [keys, setKeys] = useState({ google: "", fal: "", anthropic: "" });
   const [reports, setReports] = useState<Record<string, Report | undefined>>({});
   const refresh = () => Promise.all([utils.settings.credentials.status.invalidate(), utils.settings.models.list.invalidate(), utils.studio.modelOptions.invalidate(), utils.settings.chat.get.invalidate()]);
-  const save = api.settings.credentials.save.useMutation({ onSuccess: async (_d, input) => { setKeys((k) => ({ ...k, [input.provider]: "" })); await refresh(); } });
-  const clear = api.settings.credentials.clear.useMutation({ onSuccess: refresh });
+  // A test's verdict is about the key it tested: a new or removed key drops it.
+  const forget = (provider: string) => setReports((r) => ({ ...r, [provider]: undefined }));
+  const save = api.settings.credentials.save.useMutation({ onSuccess: async (_d, input) => { setKeys((k) => ({ ...k, [input.provider]: "" })); forget(input.provider); await refresh(); } });
+  const clear = api.settings.credentials.clear.useMutation({ onSuccess: async (_d, input) => { forget(input.provider); await refresh(); } });
   const test = api.settings.credentials.test.useMutation({ onSuccess: (report, input) => setReports((r) => ({ ...r, [input.provider]: report })) });
   const busy = save.isPending || clear.isPending;
 

@@ -35,6 +35,15 @@ describe("Ollama provider", () => {
 });
 
 describe("Ollama generation settings", () => {
+  it("asks for a longer context only when the prompt and the answer need one", async () => {
+    const chat = createOllamaChat({ baseUrl: `${server.url}/direct`, model: "qwen3:4b", timeoutMs: 5000 });
+    await chat.propose([{ role: "user", content: "Hi" }], { schema, maxTokens: 331 });
+    expect(JSON.parse(server.requests.at(-1)!.body).options).toEqual({ temperature: 0.4, num_predict: 331 });
+    // About 3 characters a token: 12,000 characters and 2,700 tokens of answer pass Ollama's 4,096.
+    await chat.propose([{ role: "user", content: "x".repeat(12_000) }], { schema, maxTokens: 2700 });
+    expect(JSON.parse(server.requests.at(-1)!.body).options).toEqual({ temperature: 0.4, num_predict: 2700, num_ctx: 8192 });
+  });
+
   it("sends the configured temperature, 0.4 when none is set", async () => {
     await createOllamaChat({ baseUrl: `${server.url}/direct`, model: "qwen3:4b", timeoutMs: 5000, temperature: 0.9 }).propose([{ role: "user", content: "Hi" }], { schema });
     expect(JSON.parse(server.requests.at(-1)!.body).options).toEqual({ temperature: 0.9 });

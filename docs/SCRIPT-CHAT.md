@@ -98,7 +98,7 @@ use the defaults below.
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
-| `TROUPE_CHAT_SEND_TIMEOUT_S` | `300` | how long one request may take in all, its answer and the retry when the first answer is not a usable script; past it the model is stopped, nothing is stored, and the chat says "took longer than N s … Try again, perhaps in fewer words". The browser edition allows 15 minutes, which covers loading its model the first time. Each answer is also held to what one proposal takes: about 300 tokens and 7 a second of the clip. |
+| `TROUPE_CHAT_SEND_TIMEOUT_S` | `300` | how long one request may take in all, its answer and the retry when the first answer is not a usable script; past it the model is stopped, nothing is stored, and the chat says "took longer than N s … Try again, perhaps in fewer words". The browser edition allows 15 minutes, which covers loading its model the first time. A usable script written before the limit (only longer than the clip) is kept. |
 | `TROUPE_CHAT_TEMPERATURE` | Ollama `0.4`, Claude its own | sampling temperature, 0 to 2 for Ollama; Claude takes 0 to 1 (a higher value is sent as 1), and only the models marked below accept one |
 | `TROUPE_CHAT_HISTORY_TURNS` | `6` | earlier turns sent with each request, 0 to 20 |
 | `TROUPE_CHAT_ANTHROPIC_FALLBACK` | `auto` | the server-side fallback below (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): `auto` sends it only when requests go to `api.anthropic.com` (no `ANTHROPIC_BASE_URL`, or that one), since a gateway may refuse the beta; `on` or `off` decides for any address |
@@ -109,6 +109,20 @@ use the defaults below.
 | `VITE_WEBLLM_DOWNLOAD_MB` | `880` for the default model | the size shown before the first request (0 hides it) |
 | `VITE_CHAT_INSTRUCTIONS`, `VITE_CHAT_WORDS_PER_SECOND` | —, `2.5` | defaults for the browser edition's Settings |
 | `VITE_WEBLLM_TEMPERATURE`, `VITE_WEBLLM_MAX_TOKENS`, `VITE_CHAT_HISTORY_TURNS` | `0.4`, `1024`, `6` | sampling temperature (0 to 2), the longest answer in tokens (256 to 3072; the default model's context is 4,096 in all), earlier turns sent |
+
+How long an answer may be, by provider. The chat asks for a cap sized to
+one proposal: about 200 tokens of summary and keys, 25 for each line (one
+every 3 seconds of the clip) and 7 for each second of speech (or 1.4 a word
+of the budget when that is more), so a Japanese, Chinese or Thai script fits
+too: 331 tokens for 8 s, 515 for 20 s, 1,120 for 60 s.
+- **Ollama** stops there (`num_predict`). It asks for a longer context than
+  Ollama's default 4,096 tokens (`num_ctx` 8192, about 1 GB more memory for a
+  4B model, and a model reload when it changes) only when the prompt and the
+  answer could pass it, which the script chat's rarely do.
+- **Claude** keeps at least 8,000 tokens, which its adaptive thinking needs;
+  structured output and `effort: low` keep its answers short.
+- **The browser edition's WebLLM** uses `VITE_WEBLLM_MAX_TOKENS` (1,024 by
+  default), raised for the library's longer answers up to 3,072.
 
 ### What each Claude model is sent
 

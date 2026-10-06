@@ -89,6 +89,8 @@ export function LibraryChat({
   const utils = api.useUtils();
   const history = api.library.chat.history.useQuery({ workspaceId, itemId: itemId ?? null }, { retry: false });
   const messages = history.data?.messages ?? [];
+  // Each answer has a name of its own for assistive technology: "Answer 3".
+  const answerNumber = new Map(messages.filter((m) => m.role === "assistant").map((m, i) => [m.id, i + 1]));
   const writer = history.data?.writer ?? null;
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export function LibraryChat({
                 {m.content}
               </p>
             ) : (
-              <article key={m.id} aria-label="Answer" className="space-y-2">
+              <article key={m.id} aria-label={`Answer ${answerNumber.get(m.id)}`} className="space-y-2">
                 <Cited text={m.content} citations={m.citations} href={href} follow={follow} />
                 {m.citations.length > 0 ? (
                   <ul aria-label="Sources" className="flex flex-wrap gap-1.5">

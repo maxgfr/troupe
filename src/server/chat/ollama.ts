@@ -52,6 +52,10 @@ async function errorOf(response: Response): Promise<string> {
   }
 }
 
+// What fits in Ollama's default context with room to spare.
+const CONTEXT_MARGIN = 3500;
+const promptTokens = (messages: { content: string }[]) => Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 3);
+
 export function createOllamaChat(options: OllamaOptions): ChatModel {
   return {
     async propose(messages, { schema, signal, maxTokens }) {
@@ -67,9 +71,17 @@ export function createOllamaChat(options: OllamaOptions): ChatModel {
             // Thinking models (qwen3) answer far sooner without the reasoning
             // pass; the schema already shapes the answer.
             ...(think ? {} : { think: false }),
-            // A long answer (the library's ideas) also needs a longer context than
-            // Ollama's default, which would cut the prompt silently.
-            options: { temperature: options.temperature ?? DEFAULT_OLLAMA_TEMPERATURE, ...(maxTokens ? { num_predict: maxTokens, num_ctx: 8192 } : {}) },
+            // The answer's cap, and a longer context than Ollama's default
+            // (4,096 tokens) only when the prompt (about 3 characters a token)
+            // and the answer could pass it, as the library's ten ideas can:
+            // a longer context holds more memory (KV cache, about 1 GB more
+            // for a 4B model at 8,192), and a change of context reloads the
+            // model.
+            options: {
+              temperature: options.temperature ?? DEFAULT_OLLAMA_TEMPERATURE,
+              ...(maxTokens ? { num_predict: maxTokens } : {}),
+              ...(maxTokens && promptTokens(messages) + maxTokens > CONTEXT_MARGIN ? { num_ctx: 8192 } : {}),
+            },
           }),
           signal,
         });

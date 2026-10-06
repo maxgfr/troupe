@@ -131,7 +131,7 @@ test("upload a video, save an article and a video from links, search, ask, make 
   // report says how many asks it took.
   const chat = page.getByRole("complementary", { name: "Ask your library" });
   const sources = chat.getByRole("list", { name: "Sources" });
-  const answers = chat.getByRole("article", { name: "Answer" });
+  const answers = chat.getByRole("article", { name: /^Answer \d+$/ });
   const asked: string[] = [];
   while (asked.length < 2 && (await sources.count()) === 0) {
     const before = await answers.count();

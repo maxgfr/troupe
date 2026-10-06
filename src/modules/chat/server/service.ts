@@ -86,7 +86,10 @@ function describeProblem(check: ProposalCheck, words: number | null, budget: num
 // too long for the clip, gets one more try with the problem spelled out.
 export async function sendChatMessage(
   db: Db,
-  input: { projectId: string; message: string; durationS: number; setup: ChatSetup; signal?: AbortSignal },
+  // `signal`: the person who asked has gone. `limit`: the request's time
+  // limit (TROUPE_CHAT_SEND_TIMEOUT_S), told apart so that a usable script
+  // written before it is kept.
+  input: { projectId: string; message: string; durationS: number; setup: ChatSetup; signal?: AbortSignal; limit?: AbortSignal },
 ): Promise<{ user: ChatMessageView; assistant: ChatMessageView }> {
   const { setup } = input;
   if (!setup.model) throw new ChatProviderError(setup.problem ?? "No chat model is set up. Choose one in Settings.");
@@ -116,13 +119,17 @@ export async function sendChatMessage(
     message: input.message,
   });
   const schema = proposalJsonSchema(choices.map((a) => a.name));
-  // The answer is bounded to what one proposal takes, so a small model that
-  // rambles stops early: about 300 tokens of summary, keys, roles and
-  // emotions, and its lines: 7 tokens a second of speech (Japanese, Chinese
-  // or Thai, with no spaces to count words by, take about that), or 1.4 a
-  // word of the budget when that is more.
-  const maxTokens = 300 + Math.ceil(Math.max(input.durationS * 7, budget * 1.4));
-  const ask = (turns: ChatTurn[]) => setup.model!.propose(turns, { schema, signal: input.signal, maxTokens });
+  // The answer is held to what one proposal takes where the provider can
+  // honour a cap (ChatModel.propose), so a small model that rambles stops
+  // early: about 200 tokens of summary and keys, 25 a line for its role,
+  // emotion and quotes (a line every 3 seconds or so), and its words: 7
+  // tokens a second of speech (Japanese, Chinese or Thai, with no spaces to
+  // count words by, take about that), or 1.4 a word of the budget when that
+  // is more.
+  const maxTokens = 200 + 25 * Math.ceil(input.durationS / 3) + Math.ceil(Math.max(input.durationS * 7, budget * 1.4));
+  const signals = [input.signal, input.limit].filter((s): s is AbortSignal => s !== undefined);
+  const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+  const ask = (turns: ChatTurn[]) => setup.model!.propose(turns, { schema, signal, maxTokens });
   const check = (answer: ChatAnswer): ProposalCheck =>
     answer.proposal === null ? { ok: false, problem: "it is not a JSON object" } : checkProposal(answer.proposal, context);
 
@@ -133,7 +140,16 @@ export async function sendChatMessage(
     outcome = { proposal: firstCheck.proposal, text: first.text };
   } else {
     const words = firstCheck.ok ? countWords(firstCheck.proposal.lines) : null;
-    const second = await ask([...messages, { role: "assistant", content: first.text }, repairTurn(describeProblem(firstCheck, words, budget))]);
+    let second: ChatAnswer;
+    try {
+      second = await ask([...messages, { role: "assistant", content: first.text }, repairTurn(describeProblem(firstCheck, words, budget))]);
+    } catch (error) {
+      // The time limit ended the retry, but the first answer is a script,
+      // only longer than the clip: it is kept (the panel shows its length).
+      // Nothing is kept for someone who has gone.
+      if (!(firstCheck.ok && input.limit?.aborted && !input.signal?.aborted)) throw error;
+      second = { text: "", proposal: null };
+    }
     const secondCheck = check(second);
     if (secondCheck.ok) outcome = { proposal: secondCheck.proposal, text: second.text };
     // Too long is still a script: the panel shows its length against the clip.

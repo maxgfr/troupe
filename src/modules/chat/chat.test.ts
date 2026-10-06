@@ -149,6 +149,55 @@ describe("sending a request", () => {
     expect(result.assistant.proposal?.lines).toHaveLength(1);
   });
 
+  it("keeps an over-long script when the time limit stops the retry, and stores it as the answer", async () => {
+    const long = answer([{ role: "hook", text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one", emotion: "neutral" }]);
+    let calls = 0;
+    const model: ChatModel = {
+      async propose(_messages, options) {
+        calls += 1;
+        if (calls === 1) return { text: long, proposal: JSON.parse(long) };
+        // The retry never ends on its own.
+        return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+      },
+    };
+    const result = await sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(model), limit: AbortSignal.timeout(200) });
+    expect(calls).toBe(2);
+    expect(result.assistant.proposal?.lines).toHaveLength(1);
+  });
+
+  it("does not keep anything when the person who asked has gone, or when no script came before the limit", async () => {
+    const long = answer([{ role: "hook", text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one", emotion: "neutral" }]);
+    const hangingAfter = (first: string): ChatModel => {
+      let calls = 0;
+      return {
+        async propose(_messages, options) {
+          calls += 1;
+          if (calls === 1) return { text: first, proposal: (() => { try { return JSON.parse(first); } catch { return null; } })() };
+          return new Promise<never>((_resolve, reject) => options.signal?.addEventListener("abort", () => reject(options.signal!.reason)));
+        },
+      };
+    };
+    const left = new AbortController();
+    setTimeout(() => left.abort(), 100);
+    await expect(sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(hangingAfter(long)), signal: left.signal, limit: AbortSignal.timeout(5000) })).rejects.toThrow();
+    await expect(sendChatMessage(db, { projectId: f.projectId, message: "Longer", durationS: 8, setup: setupWith(hangingAfter("not json")), limit: AbortSignal.timeout(200) })).rejects.toThrow();
+  });
+
+  it("gives each answer room for its lines, so a long Japanese script fits", async () => {
+    const limits: (number | undefined)[] = [];
+    const model: ChatModel = {
+      async propose(_messages, options) {
+        limits.push(options.maxTokens);
+        return { text: GOOD, proposal: JSON.parse(GOOD) };
+      },
+    };
+    for (const durationS of [8, 20, 60]) await sendChatMessage(db, { projectId: f.projectId, message: "Again", durationS, setup: setupWith(model) });
+    // 200 for the summary and keys, 25 a line (one every 3 s), 7 a second of
+    // speech: a 60 s Japanese script, about 420 tokens of text in 20 lines
+    // with their roles and emotions, fits in 1120.
+    expect(limits).toEqual([200 + 75 + 56, 200 + 175 + 140, 200 + 500 + 420]);
+  });
+
   it("refuses an actor that does not exist, and resolves one that does", async () => {
     const actors = await listActors(db, {});
     const other = actors.find((a) => a.id !== f.actorId && a.status === "active")!;

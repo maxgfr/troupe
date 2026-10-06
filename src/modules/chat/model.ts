@@ -20,8 +20,10 @@ export interface ChatAnswer {
 export type AnswerSchema = { readonly type: "object"; readonly [key: string]: unknown };
 
 export interface ChatModel {
-  // `maxTokens` asks for room for a longer answer (the library's ideas); a
-  // provider may hold it to what its model allows.
+  // `maxTokens`: a cap on the answer where the provider can honour one (Ollama
+  // stops there); providers may raise it (Claude keeps room for its
+  // thinking, WebLLM its configured length) or hold it to what their model
+  // allows. It is a bound, never a promise of room.
   propose(messages: ChatTurn[], options: { schema: AnswerSchema; signal?: AbortSignal; maxTokens?: number }): Promise<ChatAnswer>;
 }
 

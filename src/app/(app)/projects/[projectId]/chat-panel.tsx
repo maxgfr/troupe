@@ -48,6 +48,8 @@ export function ChatPanel({
   const utils = api.useUtils();
   const history = api.chat.history.useQuery({ projectId }, { retry: false });
   const messages = history.data?.messages ?? [];
+  // Each answer has a name of its own for assistive technology: "Answer 3".
+  const answerNumber = new Map(messages.filter((m) => m.role === "assistant").map((m, i) => [m.id, i + 1]));
   const recasts = messages.some((m) => m.proposal?.actorId);
   const actors = api.actors.list.useQuery(undefined, { enabled: recasts, staleTime: 5 * 60_000 });
   const actorName = (id: string | null | undefined) => (id ? (actors.data?.find((a) => a.id === id)?.name ?? "another actor") : "no actor");
@@ -119,7 +121,7 @@ export function ChatPanel({
         </div>
 
         {/* drawer-body: a drag here scrolls the log instead of closing the drawer. */}
-        <div ref={log} data-slot="drawer-body" className="mt-3 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
+        <div ref={log} role="log" aria-label="The script chat" data-slot="drawer-body" className="mt-3 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain pr-1 pb-2">
           {history.isPending ? (
             <div className="space-y-2" role="status" aria-label="Loading the chat">
               <Skeleton className="h-10 w-2/3" />
@@ -141,7 +143,7 @@ export function ChatPanel({
                   {m.content}
                 </p>
               ) : (
-                <article key={m.id} aria-label="Answer" className="space-y-2">
+                <article key={m.id} aria-label={`Answer ${answerNumber.get(m.id)}`} className="space-y-2">
                   {m.proposal ? (
                     <>
                       <p className="text-pretty text-sm">{m.content}</p>

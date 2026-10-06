@@ -17,7 +17,10 @@ let db: Db;
 let fx: Fixture;
 let ollama: Awaited<ReturnType<typeof startServer>>;
 // What the fake Ollama answers next.
-let reply: { status: number; body: unknown } = { status: 200, body: {} };
+let reply: { status: number; body: unknown; hang?: boolean } = { status: 200, body: {} };
+// Requests the fake Ollama left unanswered, and saw closed by the studio.
+let hung = 0;
+let closed = 0;
 
 const PROPOSAL = {
   summary: "A sharper hook.",
@@ -34,6 +37,13 @@ beforeAll(async () => {
   await seedFixture(db, { userId: STRANGER, name: "Stranger" });
   ollama = await startServer((req, res) => {
     if (req.path === "/api/tags") return json(res, 200, { models: [{ name: "qwen3:4b", model: "qwen3:4b" }] });
+    if (reply.hang) {
+      hung += 1;
+      res.on("close", () => {
+        closed += 1;
+      });
+      return;
+    }
     json(res, reply.status, reply.body);
   });
 });
@@ -70,11 +80,25 @@ describe("chat router with Ollama", () => {
       await asMember().chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS });
       return (JSON.parse(ollama.requests.at(-1)!.body) as { options: { num_predict?: number } }).options.num_predict;
     };
-    // 300 for the summary, keys, roles and emotions, then 7 a second of speech
-    // (Japanese, Chinese or Thai have no spaces to count words by), or 1.4 a
-    // word of the budget when that is more.
-    expect(await tokens(8)).toBe(300 + 56);
-    expect(await tokens(20)).toBe(300 + 140);
+    // 200 for the summary and keys, 25 a line (one every 3 s), then 7 a
+    // second of speech (Japanese, Chinese or Thai have no spaces to count
+    // words by), or 1.4 a word of the budget when that is more.
+    expect(await tokens(8)).toBe(200 + 75 + 56);
+    expect(await tokens(20)).toBe(200 + 175 + 140);
+  });
+
+  it("stops the HTTP request to Ollama at the time limit, and says so", async () => {
+    reply = { status: 200, body: {}, hang: true };
+    const real = chat();
+    const limited: ChatBackend = { ...real, load: async () => ({ ...(await real.load()), sendTimeoutMs: 300 }) };
+    const before = { hung, closed };
+    await expect(testCaller({ db, userId: MEMBER, chat: limited }).chat.send({ projectId: fx.projectId, message: "Sharper hook", durationS: 8 })).rejects.toMatchObject({
+      code: "TIMEOUT",
+      message: "qwen3:4b took longer than 1 s to write a new version and was stopped. Try again, perhaps in fewer words.",
+    });
+    // The request reached the fake Ollama, which saw it closed: nothing keeps running.
+    await vi.waitFor(() => expect(closed - before.closed).toBe(hung - before.hung));
+    expect(hung - before.hung).toBe(1);
   });
 
   it("stops an answer that takes longer than the time limit, both tries together, and says so", async () => {

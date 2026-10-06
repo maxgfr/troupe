@@ -66,7 +66,7 @@ export const chatRouter = createTRPCRouter({
       // model's calls stop, nothing is stored, and the chat says so.
       const limit = AbortSignal.timeout(setup.sendTimeoutMs);
       try {
-        return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal: signal ? AbortSignal.any([signal, limit]) : limit });
+        return await sendChatMessage(ctx.db, { projectId: input.projectId, message: input.message, durationS: input.durationS, setup, signal, limit });
       } catch (error) {
         if (limit.aborted && !signal?.aborted) {
           throw new TRPCError({ code: "TIMEOUT", message: `${setup.modelId} took longer than ${Math.max(1, Math.round(setup.sendTimeoutMs / 1000))} s to write a new version and was stopped. Try again, perhaps in fewer words.` });

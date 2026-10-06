@@ -27,6 +27,12 @@ function watchConsole(page: Page) {
 
 test("open the studio → new project → script → chat → render → play → export → download", async ({ page }, testInfo) => {
   expect(CODE, "E2E_ACCESS_CODE: run through pnpm e2e:docker").not.toBe("");
+  // The flow's own deadline, inside Playwright's (15 min, e2e/playwright.config.ts):
+  // a chat try (at most 5 min) starts only when it and the render after it
+  // (5 min) still fit, so a failure is reported with its annotations rather
+  // than cut off by the test's timeout.
+  const started = Date.now();
+  const left = () => testInfo.timeout - (Date.now() - started);
   const errors = watchConsole(page);
   const shot = async (name: string) => {
     const path = testInfo.outputPath(`${name}.png`);
@@ -80,9 +86,13 @@ test("open the studio → new project → script → chat → render → play �
   // each did recorded.
   const asks = ['Replace the first line with "Tired of slow mornings?" and keep the other two lines.', "Rewrite line 1 as: Tired of slow mornings?"];
   const apply = chat.getByRole("button", { name: "Apply & relaunch" });
-  const answers = chat.getByRole("article", { name: "Answer" });
+  const answers = chat.getByRole("article", { name: /^Answer \d+$/ });
   const tried: string[] = [];
   for (const ask of asks) {
+    if (tried.length > 0 && left() < 10 * 60_000) {
+      tried.push(`no time for another try (${Math.round(left() / 1000)} s left)`);
+      break;
+    }
     const before = await answers.count();
     await chat.getByLabel("Ask for a change").fill(ask);
     await chat.getByRole("button", { name: "Send" }).click();

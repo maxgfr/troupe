@@ -53,7 +53,10 @@ set in mono and marked "est." when estimated.
   name on their portrait. Letter-spacing ≥ -0.03em.
 - Interface: Geist; section titles 20 px semibold. Data: JetBrains Mono with
   `tabular-nums`.
-- Scale 12/14/16/20/24/32; body line height 1.5, headings 1.1–1.2.
+- Scale (px): 11 (mono caps labels: a line's role, a model stub), 12, 14,
+  15 (page ledes from the small breakpoint), 16, 20 (section titles), 24,
+  28 (page titles on phones), 32 (page titles), 40 (the sign-in title); the
+  wordmark is 22. Body line height 1.5, headings 1.1–1.2.
 
 ## Components
 
@@ -185,7 +188,8 @@ The vocabulary, screens and navigation are mapped in
 
 ## Radius and elevation
 
-- Radius 8 (controls) / 12 (posters, rows) / 16 (panels, empty states);
+- Radius tokens `small` 8 (controls and fields), `medium` 12 (posters, rows),
+  `large` 16 (panels, sheets, empty states);
   chips and status are pills. One elevation per element, a shadow or a
   hairline, never both: `--shadow-card` (dark `0 1px 2px rgb(0 0 0/.3), 0
   8px 24px rgb(0 0 0/.28)`, light `.06` / `.08`) and `--shadow-overlay`;

@@ -26,7 +26,7 @@
   --troupe-spacing-xl: 40px;
   --troupe-radius-small: 8px;
   --troupe-radius-medium: 12px;
-  --troupe-radius-large: 14px;
+  --troupe-radius-large: 16px;
   --troupe-motion-fast: 150ms ease-out;
   --troupe-motion-normal: 250ms ease-in-out;
   --troupe-shadow-card: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .28);

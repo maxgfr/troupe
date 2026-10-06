@@ -34,7 +34,8 @@
     --success: var(--troupe-color-success);
     --warning: var(--troupe-color-warning);
     --danger: var(--troupe-color-danger);
-    /* radius: HeroUI base 8px, fields 12px — caps at radius-large 14px. */
+    /* radius: HeroUI base 8px (radius-small), fields 12px (radius-medium);
+       panels, sheets and empty states use radius-large, 16px (rounded-2xl). */
     --radius: 0.5rem;
     --field-radius: 0.75rem;
   }

@@ -33,7 +33,7 @@
     "font-sans": "Geist, system-ui, sans-serif",
     "font-display": "Bricolage Grotesque, Geist, sans-serif",
     "font-mono": "JetBrains Mono, ui-monospace, monospace",
-    "scale": "12 / 14 / 16 / 20 / 24 / 32 px (page titles 28 on phones)",
+    "scale": "11 (mono caps labels) / 12 / 14 / 15 (ledes) / 16 / 20 / 24 / 28 (titles on phones) / 32 (titles) / 40 (sign-in) px; wordmark 22",
     "line-height": "1.5 body · 1.2 headings"
   },
   "spacing": {
@@ -47,7 +47,7 @@
   "radius": {
     "small": "8px",
     "medium": "12px",
-    "large": "14px"
+    "large": "16px"
   },
   "elevation": {
     "card": "0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .28)",

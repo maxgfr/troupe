@@ -121,7 +121,7 @@ function heuristicInsights(input: { words: string; hook: string | null; transcri
 export async function analyzeItem(db: Db, itemId: string, tools: AnalysisTools, options: AnalysisOptions = {}): Promise<void> {
   const log = options.log ?? (() => {});
   const [item] = await db.select().from(libraryItems).where(eq(libraryItems.id, itemId)).limit(1);
-  if (!item || item.status !== "analyzing") return;
+  if (item?.status !== "analyzing") return;
   const started = Date.now();
   const steps: AnalysisStep[] = [];
   const step = (name: AnalysisStep["name"], status: AnalysisStep["status"], detail?: string) => steps.push({ name, status, ...(detail ? { detail } : {}) });

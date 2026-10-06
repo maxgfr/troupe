@@ -122,7 +122,19 @@ describe("library router", () => {
   it("removes a link's stored file when the item cannot be recorded", async () => {
     let disposed = 0;
     const backend = library({
-      fetchUrl: async () => ({ kind: "file", url: "https://example.com/a.zip", title: "a", path: "/tmp/a", mimeType: "application/zip", bytes: 2, checksum: "", durationS: null, dispose: async () => void (disposed += 1) }),
+      fetchUrl: async () => ({
+        kind: "file",
+        url: "https://example.com/a.zip",
+        title: "a",
+        path: "/tmp/a",
+        mimeType: "application/zip",
+        bytes: 2,
+        checksum: "",
+        durationS: null,
+        dispose: async () => {
+          disposed += 1;
+        },
+      }),
       adoptFile: async (_source, target) => ({ assetId: crypto.randomUUID(), storagePath: `library/${target.itemId}/original.zip`, mimeType: "application/zip", bytes: 2, checksum: "x", fileName: "a.zip" }),
     });
     await expect(caller(MEMBER, backend).library.addUrl({ workspaceId: fx.workspaceId, url: "https://example.com/a.zip" })).rejects.toThrow(/takes videos/);

@@ -2,8 +2,7 @@ import { Suspense } from "react";
 
 import { AppShell } from "~/app/_components/app-shell";
 import { EditionProvider, type Edition } from "~/app/_components/edition";
-import { usePageTitle } from "~/app/_components/page-title";
-import { EmptyState, PageHeader, SkeletonRows } from "~/app/_components/ui";
+import { SkeletonRows } from "~/app/_components/ui";
 import { WorkspaceProvider } from "~/app/_components/workspace-context";
 import { browserChat } from "./chat/ui";
 import { localData } from "./data/local-data";
@@ -31,16 +30,5 @@ export function BrowserLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function NotFound() {
-  usePageTitle("Page not found");
-  return (
-    <>
-      <PageHeader title="Page not found" />
-      <EmptyState
-        title="Nothing at this address"
-        body="The link may point to a page that no longer exists, or to a project deleted from this browser."
-        cta={{ label: "Back to your projects", href: "/dashboard" }}
-      />
-    </>
-  );
-}
+// Any other address: the studio's own not-found page.
+export { NotFoundPage as NotFound } from "~/app/_components/not-found-page";

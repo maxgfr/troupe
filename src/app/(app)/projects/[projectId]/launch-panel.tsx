@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { SELF_HOSTING_URL, useEdition } from "~/app/_components/edition";
-import { Button, ProviderWarning, fieldClass } from "~/app/_components/ui";
+import { Button, ProviderWarning, fieldClass, fieldSurface } from "~/app/_components/ui";
 import { comparisonPlan, formatCost, launchSettings, type ModelOptionView } from "../model-choice";
 
 export interface LaunchRequest {
@@ -78,13 +78,13 @@ export function LaunchPanel({
           <>
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium">Length</span>
-              <select data-field aria-label="Clip length" value={settings.durationS ?? ""} disabled={busy} className={`${fieldClass} w-auto font-mono tabular-nums`} onChange={(event) => setChoice((c) => ({ ...c, durationS: Number(event.target.value) }))}>
+              <select data-field aria-label="Clip length" value={settings.durationS ?? ""} disabled={busy} className={`${fieldSurface} bg-surface px-3 py-2 font-mono text-sm tabular-nums`} onChange={(event) => setChoice((c) => ({ ...c, durationS: Number(event.target.value) }))}>
                 {settings.durations.map((d) => <option key={d} value={d}>{d} s</option>)}
               </select>
             </label>
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium">Resolution</span>
-              <select data-field aria-label="Resolution" value={settings.resolution} disabled={busy || model!.capabilities.resolutions.length < 2} className={`${fieldClass} w-auto font-mono tabular-nums`} onChange={(event) => setChoice((c) => ({ ...c, resolution: event.target.value }))}>
+              <select data-field aria-label="Resolution" value={settings.resolution} disabled={busy || model!.capabilities.resolutions.length < 2} className={`${fieldSurface} bg-surface px-3 py-2 font-mono text-sm tabular-nums`} onChange={(event) => setChoice((c) => ({ ...c, resolution: event.target.value }))}>
                 {model!.capabilities.resolutions.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </label>

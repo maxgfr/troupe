@@ -6,7 +6,7 @@ import { useEdition } from "~/app/_components/edition";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { SearchIcon } from "~/app/_components/icons";
-import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows, chipClass, fieldClass } from "~/app/_components/ui";
+import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows, chipClass, fieldSurface } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { AddBar } from "./add-bar";
 import { KIND_LABELS, type ItemKind } from "./format";
@@ -106,7 +106,7 @@ export default function LibraryPage() {
                         if (e.key === "Escape") setQuery("");
                       }}
                       placeholder="Search by meaning…"
-                      className={`${fieldClass} min-h-10 pl-9`}
+                      className={`${fieldSurface} min-h-10 w-full bg-surface py-2 pr-3 pl-9 text-sm`}
                     />
                   </div>
                   {searching ? null : (
@@ -114,7 +114,7 @@ export default function LibraryPage() {
                       <label htmlFor={kindId} className="sr-only">
                         Kind
                       </label>
-                      <select data-field id={kindId} value={kind} onChange={(e) => setKind(e.target.value as ItemKind | "")} className={`${fieldClass} min-h-10 w-auto`}>
+                      <select data-field id={kindId} value={kind} onChange={(e) => setKind(e.target.value as ItemKind | "")} className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}>
                         <option value="">All kinds</option>
                         {(Object.keys(KIND_LABELS) as ItemKind[]).map((k) => (
                           <option key={k} value={k}>
@@ -122,7 +122,7 @@ export default function LibraryPage() {
                           </option>
                         ))}
                       </select>
-                      <label className={chipClass(onlyMine, "min-h-10 rounded-lg")}>
+                      <label className={chipClass(onlyMine)}>
                         <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="size-4 accent-[var(--troupe-color-primary)]" />
                         Mine
                       </label>

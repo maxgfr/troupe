@@ -7,7 +7,7 @@ import Link from "next/link";
 
 // --- Controls -------------------------------------------------------------
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "quiet" | "danger" | "danger-solid";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "quiet" | "quiet-primary" | "quiet-danger" | "danger" | "danger-solid";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_BASE =
@@ -29,6 +29,10 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   // make ten primary buttons).
   outline: "font-medium text-primary shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-primary)_50%,transparent)] hover:bg-primary/10",
   quiet: "font-medium text-muted hover:bg-fg/[0.06] hover:text-fg",
+  // Text-only, in a colour: a secondary cobalt action ("Apply only"), or a
+  // destructive one that asks again before it does anything.
+  "quiet-primary": "font-medium text-primary hover:bg-primary/10",
+  "quiet-danger": "font-medium text-danger hover:bg-danger/10",
   danger: "font-medium text-danger shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-danger)_50%,transparent)] hover:bg-danger/10",
   "danger-solid": "bg-danger font-semibold text-on-primary hover:bg-danger/90",
 };
@@ -62,11 +66,18 @@ export function ButtonLink({
   );
 }
 
+const CHIP_SIZES = {
+  sm: "min-h-8 px-3 text-xs",
+  md: "min-h-9 px-3.5 text-sm",
+  lg: "min-h-11 px-5 text-sm",
+} as const;
+
 // A single choice among a few (platform, language, emotion, filters): a pill,
 // cobalt-tinted when chosen. Put it on a <label> around an sr-only radio, or
-// on a <button aria-pressed>.
-export function chipClass(selected: boolean, className = ""): string {
-  return `inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 text-sm transition-[background-color,box-shadow,color] duration-150 ease-out has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40 ${
+// on a <button aria-pressed>. `className` adds, never overrides: sizes come
+// from `size`.
+export function chipClass(selected: boolean, className = "", size: keyof typeof CHIP_SIZES = "md"): string {
+  return `inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full transition-[background-color,box-shadow,color] duration-150 ease-out has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40 ${CHIP_SIZES[size]} ${
     selected
       ? "bg-primary/15 font-medium text-primary shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--troupe-color-primary)_45%,transparent)]"
       : "text-muted shadow-[inset_0_0_0_1px_var(--troupe-color-line)] hover:bg-fg/[0.06] hover:text-fg"
@@ -75,8 +86,11 @@ export function chipClass(selected: boolean, className = ""): string {
 
 // Inputs, selects and text areas. A select carrying it also gets
 // data-field, so the global focus outline leaves it to this ring.
-export const fieldClass =
-  "w-full rounded-lg bg-surface px-3 py-2 text-sm text-fg shadow-[inset_0_0_0_1px_var(--troupe-color-line)] outline-none transition-[box-shadow,background-color] duration-150 ease-out placeholder:text-muted/80 hover:shadow-[inset_0_0_0_1px_var(--troupe-color-line-strong)] focus:shadow-[inset_0_0_0_2px_var(--troupe-color-focus)] disabled:opacity-50 aria-[invalid=true]:shadow-[inset_0_0_0_1px_var(--troupe-color-warning)]";
+// fieldSurface is the look without size or fill, for a field sized its own
+// way: classes are added, never overridden, so the two never fight.
+export const fieldSurface =
+  "rounded-lg text-fg shadow-[inset_0_0_0_1px_var(--troupe-color-line)] outline-none transition-[box-shadow,background-color] duration-150 ease-out placeholder:text-muted/80 hover:shadow-[inset_0_0_0_1px_var(--troupe-color-line-strong)] focus:shadow-[inset_0_0_0_2px_var(--troupe-color-focus)] disabled:opacity-50 aria-[invalid=true]:shadow-[inset_0_0_0_1px_var(--troupe-color-warning)]";
+export const fieldClass = `${fieldSurface} w-full bg-surface px-3 py-2 text-sm`;
 
 // A raised panel: one elevation (shadow in light, tint in dark), no border.
 export const panelClass = "rounded-2xl bg-raised shadow-card";

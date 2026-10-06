@@ -161,7 +161,7 @@ export function ProposalCard({
                     </Button>
                   )
                 ) : null}
-                <Button variant="quiet" disabled={busy} onClick={onApply} className="text-primary hover:text-primary">
+                <Button variant="quiet-primary" disabled={busy} onClick={onApply}>
                   Apply only
                 </Button>
                 <span className="basis-full px-2 font-mono text-[11px] text-muted">{relaunch.ok ? `Relaunches on ${relaunch.label}` : relaunch.reason}</span>

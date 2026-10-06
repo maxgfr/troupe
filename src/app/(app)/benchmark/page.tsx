@@ -143,11 +143,13 @@ function BenchmarkLab() {
               onShowOlder={() => void showOlder()}
             />
             {olderError ? <ErrorNote>{olderError}</ErrorNote> : null}
-            <OpenRunForm
-              runId={runId}
-              onChange={setRunId}
-              onOpen={() => runId.trim() && setActiveRunId(runId.trim())}
-            />
+            {allRuns.length ? (
+              <OpenRunForm
+                runId={runId}
+                onChange={setRunId}
+                onOpen={() => runId.trim() && setActiveRunId(runId.trim())}
+              />
+            ) : null}
           </Section>
 
           <Section>
@@ -157,7 +159,7 @@ function BenchmarkLab() {
                 body={
                   allRuns.length
                     ? "Pick one above to watch its renders side by side and rate them."
-                    : "On a project's Video tab, Compare models renders its script on every model that can, here, side by side. You need at least two available models."
+                    : "Compare models, on a project's Video tab, renders its script on each model that can and lines the renders up here. It needs at least two available models."
                 }
                 cta={allRuns.length ? undefined : { label: "Go to your projects", href: "/dashboard" }}
               />

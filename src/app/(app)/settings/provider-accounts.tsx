@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import { ErrorNote, buttonClass, fieldClass } from "~/app/_components/ui";
+import { ErrorNote, buttonClass, fieldSurface } from "~/app/_components/ui";
 import { ExternalIcon } from "~/app/_components/icons";
 import { ConnectionResult, type Report } from "./connection-result";
 
@@ -45,7 +45,7 @@ export function ProviderAccounts() {
             </div>
             <p className="text-xs text-muted">{account.models}</p>
             <div className="flex flex-wrap gap-2">
-              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className={`${fieldClass} min-w-0 flex-1 basis-full sm:basis-0`} />
+              <input id={`key-${account.id}`} type="password" autoComplete="off" spellCheck={false} value={keys[account.id]} onChange={(event) => setKeys((old) => ({ ...old, [account.id]: event.target.value }))} placeholder={s?.configured ? "Paste a replacement key" : "Paste your API key"} className={`${fieldSurface} min-w-0 flex-1 basis-full bg-surface px-3 py-2 text-sm sm:basis-0`} />
               <button type="submit" disabled={busy || !keys[account.id].trim()} className={buttonClass({ variant: "primary" })}>{save.isPending && save.variables?.provider === account.id ? "Saving…" : "Save key"}</button>
               {s?.configured ? <button type="button" disabled={busy || test.isPending} onClick={() => test.mutate({ provider: account.id })} className={buttonClass()}>{test.isPending && test.variables?.provider === account.id ? "Testing…" : "Test"}</button> : null}
               {s?.source === "saved" || s?.source === "undecryptable" ? <button type="button" disabled={busy} onClick={() => clear.mutate({ provider: account.id, mode: "remove" })} className={buttonClass({ variant: "quiet" })}>Remove</button> : null}

@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 
-import { Button, ErrorNote, ProviderWarning, fieldClass } from "~/app/_components/ui";
+import { Button, ErrorNote, ProviderWarning, fieldSurface } from "~/app/_components/ui";
 import { estimateSeconds } from "./estimate";
 
 export function ScriptComposer({
@@ -47,7 +47,7 @@ export function ScriptComposer({
         onChange={(e) => setDraft(e.target.value)}
         rows={6}
         placeholder={"Hook line…\nBody line…\nCall to action…"}
-        className={`${fieldClass} mt-2 px-4 py-3 text-base leading-relaxed`}
+        className={`${fieldSurface} mt-2 w-full bg-surface px-4 py-3 text-base leading-relaxed`}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-muted">

@@ -103,7 +103,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
           {it.fileName ? ` · ${it.fileName}` : ""}
         </p>
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <label className={chipClass(it.mine, "rounded-lg")}>
+          <label className={chipClass(it.mine)}>
             <input type="checkbox" checked={it.mine} disabled={update.isPending} onChange={(e) => update.mutate({ workspaceId, itemId, mine: e.target.checked })} className="size-4 accent-[var(--troupe-color-primary)]" />
             My own content
           </label>
@@ -125,7 +125,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
               </Button>
             </span>
           ) : (
-            <Button variant="quiet" size="sm" onClick={() => setConfirming(true)} className="text-danger hover:bg-danger/10 hover:text-danger">
+            <Button variant="quiet-danger" size="sm" onClick={() => setConfirming(true)}>
               Delete
             </Button>
           )}

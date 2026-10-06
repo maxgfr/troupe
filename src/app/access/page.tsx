@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "~/app/_components/wordmark";
-import { Button, ErrorNote, fieldClass } from "~/app/_components/ui";
+import { Button, ErrorNote, fieldSurface } from "~/app/_components/ui";
 
 export default function AccessPage() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function AccessPage() {
       finally { setPending(false); }
     }}>
       <label htmlFor="access-code" className="block text-sm font-medium">Access code</label>
-      <input id="access-code" type="password" autoComplete="current-password" required value={code} onChange={(event) => setCode(event.target.value)} className={`${fieldClass} px-4 py-3 text-base`} />
+      <input id="access-code" type="password" autoComplete="current-password" required value={code} onChange={(event) => setCode(event.target.value)} className={`${fieldSurface} w-full bg-surface px-4 py-3 text-base`} />
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       <Button type="submit" variant="primary" size="lg" disabled={pending || !code} className="w-full">{pending ? "Opening…" : "Open studio"}</Button>
     </form>

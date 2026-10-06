@@ -23,7 +23,7 @@ export function PlatformStep({
       <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Where will it play?</legend>
       <div className="flex flex-wrap gap-2">
         {PLATFORMS.map((p) => (
-          <label key={p} className={chipClass(platform === p, "min-h-11 px-5")}>
+          <label key={p} className={chipClass(platform === p, "", "lg")}>
             <input
               type="radio"
               name="platform"
@@ -136,7 +136,7 @@ export function LanguageStep({
       <legend className="mb-3 text-xl font-semibold tracking-[-0.01em]">Language</legend>
       <div className="flex flex-wrap gap-2">
         {LANGUAGES.map((l) => (
-          <label key={l} className={chipClass(language === l, "min-h-11 px-5 font-mono uppercase")}>
+          <label key={l} className={chipClass(language === l, "font-mono uppercase", "lg")}>
             <input
               type="radio"
               name="language"

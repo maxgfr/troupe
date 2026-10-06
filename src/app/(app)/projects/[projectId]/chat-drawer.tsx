@@ -27,7 +27,7 @@ export function ChatDrawer(props: Omit<ComponentProps<typeof ChatPanel>, "headin
               {...props}
               heading={(title) => <Drawer.Heading className="text-base font-semibold">{title}</Drawer.Heading>}
               closeButton={
-                <button type="button" slot="close" onClick={() => setOpen(false)} className={buttonClass({ variant: "quiet", className: "-mr-2 min-h-11" })}>
+                <button type="button" slot="close" onClick={() => setOpen(false)} className={buttonClass({ variant: "quiet", className: "-mr-2" })}>
                   Close
                 </button>
               }

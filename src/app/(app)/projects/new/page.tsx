@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { useWorkspace } from "~/app/_components/workspace-context";
 import { ArrowLeftIcon, ArrowRightIcon } from "~/app/_components/icons";
-import { Button, ErrorNote, PageHeader, SignedOutNotice, fieldClass } from "~/app/_components/ui";
+import { Button, ErrorNote, PageHeader, SignedOutNotice, fieldSurface } from "~/app/_components/ui";
 
 // The page is the coordinator — state in the wizard reducer, one
 // component per step, the launch sequence at the bottom.
@@ -95,7 +95,7 @@ export default function NewProjectPage() {
                 if (e.target.value.trim()) setTitleMissing(false);
               }}
               placeholder="Spring drop — short video"
-              className={`${fieldClass} px-4 py-2.5 text-base`}
+              className={`${fieldSurface} w-full bg-surface px-4 py-2.5 text-base`}
             />
           </label>
           {titleMissing ? (

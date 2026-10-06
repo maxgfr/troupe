@@ -33,7 +33,7 @@ vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({}),
     benchmark: {
-      list: { useQuery: () => ({ isPending: false, error: null, data: [] }) },
+      list: { useQuery: () => ({ isPending: false, error: null, data: [{ id: "11111111-1111-4111-8111-111111111111", brief: "Adopt brief", createdAt: "2026-07-12T10:00:00Z", entryCount: 2, winnerLabel: null }] }) },
       get: {
         useQuery: () => ({
           isPending: false,
@@ -88,10 +88,7 @@ vi.mock("~/trpc/react", () => ({
 import BenchmarkPage from "./(app)/benchmark/page";
 
 function openRun() {
-  fireEvent.change(screen.getByLabelText("Comparison id"), {
-    target: { value: "11111111-1111-4111-8111-111111111111" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Open" }));
+  fireEvent.click(screen.getByRole("button", { name: /Adopt brief/ }));
 }
 
 const warnings = () => screen.queryAllByRole("status").map((el) => el.textContent ?? "").join(" ");

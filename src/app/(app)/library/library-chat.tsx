@@ -230,7 +230,7 @@ export function LibraryChat({
         {history.data && messages.length === 0 && !send.isPending && !unavailable ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {(itemId ? ITEM_SUGGESTIONS : LIBRARY_SUGGESTIONS).map((s) => (
-              <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-left text-xs max-lg:min-h-11")}>
+              <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-left max-lg:min-h-11", "sm")}>
                 {s}
               </button>
             ))}

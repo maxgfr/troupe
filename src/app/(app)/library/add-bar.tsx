@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 
 import type { LibraryUploader } from "~/app/_components/edition";
-import { Button, ErrorNote, fieldClass } from "~/app/_components/ui";
+import { Button, ErrorNote, fieldSurface } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { looksLikeLink, sizeLabel } from "./format";
 
@@ -126,7 +126,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
             }
           }}
           placeholder={canFetchLinks ? "Paste a link or a text" : "Paste a text, or upload a file"}
-          className={`${fieldClass} field-sizing-content min-h-10 max-h-48 flex-1 resize-y bg-bg [overflow-wrap:anywhere]`}
+          className={`${fieldSurface} field-sizing-content min-h-10 max-h-48 w-full flex-1 resize-y bg-bg px-3 py-2 text-sm [overflow-wrap:anywhere]`}
         />
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={!draft.trim() || saving} className="flex-1 sm:flex-none">

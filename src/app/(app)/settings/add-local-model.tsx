@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import { ErrorNote, ProviderWarning, buttonClass, chipClass, fieldClass, panelClass } from "~/app/_components/ui";
+import { ErrorNote, ProviderWarning, buttonClass, chipClass, fieldClass, fieldSurface, panelClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 const ASPECTS = ["9:16", "16:9", "1:1"] as const;
@@ -166,7 +166,7 @@ export function AddLocalModelForm({ templates, comfyUrl, busy, report, error, on
         </label>
         <label className="text-sm">
           <span className="mb-1.5 block font-medium">Address</span>
-          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://192.168.1.20:8000" className={`${fieldClass} font-mono text-xs`} />
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://192.168.1.20:8000" className={`${fieldSurface} w-full bg-surface px-3 py-2 font-mono text-xs`} />
         </label>
         <label className="text-sm sm:col-span-2">
           <span className="mb-1.5 block font-medium">Token (optional)</span>

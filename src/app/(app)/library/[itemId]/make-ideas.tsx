@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { Button, ErrorNote, Skeleton, fieldClass } from "~/app/_components/ui";
+import { Button, ErrorNote, Skeleton, fieldSurface } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { shortfall } from "../format";
 
@@ -81,7 +81,7 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
       >
         <label htmlFor={actorField} className="block text-sm">
           <span className="mb-1 block text-xs text-muted">A script for one actor</span>
-          <select data-field id={actorField} value={actorId} onChange={(e) => setActorId(e.target.value)} className={`${fieldClass} min-h-10 w-auto`}>
+          <select data-field id={actorField} value={actorId} onChange={(e) => setActorId(e.target.value)} className={`${fieldSurface} min-h-10 bg-surface px-3 text-sm`}>
             <option value="">Choose an actor</option>
             {available.map((a) => (
               <option key={a.id} value={a.id}>

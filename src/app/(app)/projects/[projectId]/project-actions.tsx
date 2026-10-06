@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button, fieldClass } from "~/app/_components/ui";
+import { Button, fieldSurface } from "~/app/_components/ui";
 
 // Pure view — rename the project inline, or delete it after an explicit
 // confirmation that says what goes with it.
@@ -20,7 +20,7 @@ export function ProjectActions({ title, renderCount, busy, onRename, onDelete }:
       <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onRename(name.trim()); setMode("idle"); } }}>
         <label className="sr-only" htmlFor="project-title">Project title</label>
         {/* biome-ignore lint/a11y/noAutofocus: the field appears because the user just asked to rename */}
-        <input id="project-title" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} className={`${fieldClass} w-64 max-w-full`} />
+        <input id="project-title" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} className={`${fieldSurface} w-64 max-w-full bg-surface px-3 py-1.5 text-sm`} />
         <Button type="submit" variant="primary" size="sm" disabled={busy || !name.trim()}>Save</Button>
         <Button variant="quiet" size="sm" onClick={() => { setName(title); setMode("idle"); }}>Cancel</Button>
       </form>
@@ -40,7 +40,7 @@ export function ProjectActions({ title, renderCount, busy, onRename, onDelete }:
   return (
     <span className="flex items-center gap-1">
       <Button variant="quiet" size="sm" onClick={() => setMode("rename")}>Rename</Button>
-      <Button variant="quiet" size="sm" onClick={() => setMode("delete")} className="hover:text-danger">Delete</Button>
+      <Button variant="quiet" size="sm" onClick={() => setMode("delete")}>Delete</Button>
     </span>
   );
 }

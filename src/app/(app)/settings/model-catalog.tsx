@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
-import { ErrorNote, SkeletonRows, buttonClass, fieldClass, panelClass } from "~/app/_components/ui";
+import { ErrorNote, SkeletonRows, buttonClass, fieldClass, fieldSurface, panelClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
 export interface CatalogModelView {
@@ -144,7 +144,7 @@ function LocalConnectionForm({ connection, label, busy, onSave }: { connection: 
         </label>
         <label className="text-sm">
           <span className="mb-1.5 block font-medium">Address</span>
-          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={`${fieldClass} font-mono text-xs`} />
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={`${fieldSurface} w-full bg-surface px-3 py-2 font-mono text-xs`} />
         </label>
         <label className="text-sm sm:col-span-2">
           <span className="mb-1.5 block font-medium">Token</span>

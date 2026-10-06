@@ -33,7 +33,7 @@ export function ScriptLines({
                 onClick={() => onEmotion?.(line.index, emotion)}
                 disabled={!onEmotion}
                 aria-pressed={line.emotion === emotion}
-                className={chipClass(line.emotion === emotion, "min-h-8 px-3 text-xs disabled:cursor-default pointer-coarse:min-h-10")}
+                className={chipClass(line.emotion === emotion, "disabled:cursor-default pointer-coarse:min-h-10", "sm")}
               >
                 {emotion}
               </button>

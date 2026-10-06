@@ -226,7 +226,7 @@ export function ChatPanel({
           {messages.length === 0 && !send.isPending && !unavailable ? (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {(latest ? SUGGESTIONS : FIRST_SUGGESTIONS).map((s) => (
-                <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-xs max-lg:min-h-11")}>
+                <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "max-lg:min-h-11", "sm")}>
                   {s}
                 </button>
               ))}

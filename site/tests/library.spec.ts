@@ -73,7 +73,7 @@ test("upload a video → pictures, transcript and hook in the page → search by
   const ideas = page.getByRole("button", { name: "5 ideas in this style" });
   if (await ideas.isDisabled()) await expect(page.getByText(/Ideas are written by the chat model, which cannot run/)).toBeVisible();
 
-  await page.getByRole("link", { name: "← Library" }).click();
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Library" }).click();
   await page.getByLabel("Search your library").fill("how to make coffee in the fridge");
   await expect(page.getByText(/closest in meaning first/)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("link", { name: /library clip/i }).first()).toBeVisible();

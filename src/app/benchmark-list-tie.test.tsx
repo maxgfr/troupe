@@ -160,7 +160,7 @@ describe("workspace run list", () => {
   it("teaches when the workspace has no run yet", () => {
     render(<BenchmarkPage />);
     expect(screen.getByText("No comparison yet")).toBeDefined();
-    expect(screen.getByText(/Compare models renders its script on every model that can/)).toBeDefined();
+    expect(screen.getByText(/renders its script on each model that can/)).toBeDefined();
   });
 });
 

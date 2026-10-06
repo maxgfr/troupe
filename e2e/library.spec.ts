@@ -68,7 +68,7 @@ async function signIn(page: Page) {
   await page.goto("/access");
   await page.getByLabel("Access code").fill(CODE);
   await page.getByRole("button", { name: "Open studio" }).click();
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
 }
 
 const row = (page: Page, title: RegExp): Locator => page.locator("table").getByRole("row", { name: title }).first();
@@ -85,7 +85,7 @@ test("upload a video, save an article and a video from links, search, ask, make 
     await testInfo.attach(name, { path, contentType: "image/png" });
   };
   await signIn(page);
-  await page.getByRole("link", { name: "Library" }).click();
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Library" }).click();
   await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.getByText("Save your first piece")).toBeVisible();
 
@@ -113,12 +113,12 @@ test("upload a video, save an article and a video from links, search, ask, make 
   await shot("02-item");
 
   // The article, read.
-  await page.getByRole("link", { name: "← Library" }).click();
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Library" }).click();
   await row(page, /Three hooks that work/).getByRole("link").click();
   await expect(page.getByRole("heading", { level: 1, name: "Three hooks that work" })).toBeVisible();
   await expect(page.getByText("Ask a question the viewer cannot answer yet").first()).toBeVisible();
   await expect(page.getByText("Home · Archive · About")).toHaveCount(0);
-  await page.getByRole("link", { name: "← Library" }).click();
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Library" }).click();
 
   // Search by meaning.
   await page.getByLabel("Search your library").fill("making coffee in the fridge overnight");

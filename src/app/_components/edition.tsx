@@ -2,6 +2,8 @@
 
 import { createContext, useContext, type ComponentType } from "react";
 
+import { ExternalIcon } from "./icons";
+
 // Which Troupe the pages run in. The self-hosted studio (Docker or a server)
 // is the default. The browser edition (site/) runs the same pages with no
 // server behind them: everything stays in the visitor's browser, so it can
@@ -95,15 +97,16 @@ export function useEdition(): Edition {
 // control would be, with the way to get it.
 export function NeedsSelfHosted({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-2xl rounded-xl border border-muted/25 px-4 py-3 text-sm">
+    <div className="max-w-2xl rounded-2xl bg-surface/70 px-5 py-4 text-sm">
       <p className="text-pretty text-muted">{children}</p>
       <a
         href={SELF_HOSTING_URL}
         target="_blank"
         rel="noreferrer"
-        className="mt-1 inline-block py-1 text-primary underline-offset-4 hover:underline"
+        className="mt-2 inline-flex min-h-9 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
       >
-        Set up the self-hosted studio ↗
+        Set up the self-hosted studio
+        <ExternalIcon className="size-4" />
       </a>
     </div>
   );

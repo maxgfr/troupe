@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { ErrorNote, Skeleton } from "~/app/_components/ui";
+import { Button, ErrorNote, Skeleton, fieldClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { shortfall } from "../format";
 
@@ -62,15 +62,9 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
             {a.kind === "ideas" && ideaCount === null ? (
               <Skeleton className="h-10 w-44 rounded-lg" />
             ) : (
-              <button
-                type="button"
-                aria-describedby={`${hintId}-${a.kind}`}
-                disabled={!usable || generate.isPending}
-                onClick={() => run(a.kind)}
-                className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              <Button aria-describedby={`${hintId}-${a.kind}`} disabled={!usable || generate.isPending} onClick={() => run(a.kind)}>
                 {pending === a.kind ? a.busy(count(a.kind)) : a.label(count(a.kind))}
-              </button>
+              </Button>
             )}
             <span id={`${hintId}-${a.kind}`} className="text-pretty text-xs text-muted">
               {a.hint}
@@ -87,7 +81,7 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
       >
         <label htmlFor={actorField} className="block text-sm">
           <span className="mb-1 block text-xs text-muted">A script for one actor</span>
-          <select id={actorField} value={actorId} onChange={(e) => setActorId(e.target.value)} className="min-h-10 rounded-lg border border-muted/30 bg-bg px-3 text-sm">
+          <select data-field id={actorField} value={actorId} onChange={(e) => setActorId(e.target.value)} className={`${fieldClass} min-h-10 w-auto`}>
             <option value="">Choose an actor</option>
             {available.map((a) => (
               <option key={a.id} value={a.id}>
@@ -96,9 +90,9 @@ export function MakeIdeas({ workspaceId, itemId, ready, browser }: { workspaceId
             ))}
           </select>
         </label>
-        <button type="submit" disabled={!usable || !actorId || generate.isPending} className="min-h-10 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:cursor-not-allowed disabled:opacity-40">
+        <Button type="submit" disabled={!usable || !actorId || generate.isPending}>
           {pending === "script" ? "Writing the script…" : "Write the script"}
-        </button>
+        </Button>
       </form>
       {!ready ? <p className="text-xs text-muted">Available once the item is read.</p> : noWriter ? <p className="text-pretty text-xs text-muted">Ideas are written by the chat model, which cannot run: {noWriter}</p> : null}
       {generate.isPending ? (

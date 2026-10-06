@@ -21,10 +21,10 @@ export function SearchResults({ workspaceId, query }: { workspaceId: string; que
         {note ? ` ${note}` : null}
       </p>
       {hits.length > 0 ? (
-        <ul className="divide-y divide-muted/15 rounded-xl border border-muted/20">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl shadow-[inset_0_0_0_1px_var(--troupe-color-line)]">
           {hits.map((hit) => (
             <li key={hit.chunkId}>
-              <Link href={`/library/${hit.itemId}${hit.startS !== null ? `?t=${Math.floor(hit.startS)}` : ""}`} className="flex gap-3 px-3 py-3 transition-colors duration-150 hover:bg-surface/60 sm:px-4">
+              <Link href={`/library/${hit.itemId}${hit.startS !== null ? `?t=${Math.floor(hit.startS)}` : ""}`} className="flex gap-3 px-3 py-3 transition-colors duration-150 hover:bg-fg/[0.03] sm:px-4">
                 <Thumb row={{ thumbnailUrl: hit.thumbnailUrl, kind: hit.kind as ItemKind }} className="size-10" />
                 <div className="min-w-0 flex-1">
                   <p className="flex items-baseline justify-between gap-3">

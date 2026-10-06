@@ -28,7 +28,7 @@ export function ToolStatus({ tools }: { tools: Tool[] }) {
         <span className="text-primary">{open ? "Hide details" : missing.length ? `${missing.length} not ready · details` : "Details"}</span>
       </button>
       {open ? (
-        <dl className="mt-2 grid max-w-3xl gap-x-6 gap-y-2 border-t border-muted/15 pt-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+        <dl className="mt-2 grid max-w-3xl gap-x-6 gap-y-2 border-t border-line pt-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
           {tools.map((t) => (
             <div key={t.name} className="contents">
               <dt className="flex items-center gap-1.5 font-medium text-fg">

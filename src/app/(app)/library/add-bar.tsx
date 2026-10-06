@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 
 import type { LibraryUploader } from "~/app/_components/edition";
-import { ErrorNote } from "~/app/_components/ui";
+import { Button, ErrorNote, fieldClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { looksLikeLink, sizeLabel } from "./format";
 
@@ -101,7 +101,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
         setDragging(false);
         void upload(event.dataTransfer.files);
       }}
-      className={`rounded-xl border px-3 py-3 transition-colors duration-150 sm:px-4 ${dragging ? "border-dashed border-primary bg-primary/10" : "border-muted/25"}`}
+      className={`rounded-2xl px-3 py-3 transition-[background-color,box-shadow] duration-150 sm:px-4 ${dragging ? "bg-primary/10 shadow-[inset_0_0_0_1.5px_var(--troupe-color-primary)]" : "bg-surface/70 shadow-[inset_0_0_0_1px_var(--troupe-color-line)]"}`}
     >
       <form
         className="flex flex-col gap-2 sm:flex-row sm:items-start"
@@ -126,15 +126,15 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
             }
           }}
           placeholder={canFetchLinks ? "Paste a link or a text" : "Paste a text, or upload a file"}
-          className="field-sizing-content min-h-10 max-h-48 w-full flex-1 resize-y rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm [overflow-wrap:anywhere] placeholder:text-muted/80"
+          className={`${fieldClass} field-sizing-content min-h-10 max-h-48 flex-1 resize-y bg-bg [overflow-wrap:anywhere]`}
         />
         <div className="flex gap-2">
-          <button type="submit" disabled={!draft.trim() || saving} className="min-h-10 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40 sm:flex-none">
+          <Button type="submit" variant="primary" disabled={!draft.trim() || saving} className="flex-1 sm:flex-none">
             {saving ? (link ? "Fetching…" : "Saving…") : link ? "Save link" : "Save"}
-          </button>
-          <button type="button" onClick={() => fileInput.current?.click()} className="min-h-10 flex-1 rounded-lg border border-muted/30 px-4 text-sm transition-colors duration-150 hover:border-muted/60 sm:flex-none">
+          </Button>
+          <Button onClick={() => fileInput.current?.click()} className="flex-1 sm:flex-none">
             Upload a file
-          </button>
+          </Button>
           <input
             ref={fileInput}
             type="file"

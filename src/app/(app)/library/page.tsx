@@ -5,7 +5,8 @@ import { useEffect, useId, useState } from "react";
 import { useEdition } from "~/app/_components/edition";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
-import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows } from "~/app/_components/ui";
+import { SearchIcon } from "~/app/_components/icons";
+import { EmptyState, ErrorNote, PageHeader, Section, SignedOutNotice, Skeleton, SkeletonRows, chipClass, fieldClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { AddBar } from "./add-bar";
 import { KIND_LABELS, type ItemKind } from "./format";
@@ -24,13 +25,6 @@ function useDebounced<T>(value: T, ms: number): T {
   }, [value, ms]);
   return settled;
 }
-
-const SearchIcon = () => (
-  <svg aria-hidden viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted">
-    <circle cx="8.5" cy="8.5" r="5.5" />
-    <path d="m13 13 4 4" />
-  </svg>
-);
 
 // The inspiration library: save, search, ask, and turn what works into ideas.
 export default function LibraryPage() {
@@ -93,7 +87,7 @@ export default function LibraryPage() {
             )}
           </div>
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-8">
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-10">
             <div className="min-w-0 space-y-10">
               <section aria-label="Saved items" className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -101,17 +95,18 @@ export default function LibraryPage() {
                     <label htmlFor={searchId} className="sr-only">
                       Search your library
                     </label>
-                    <SearchIcon />
+                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
                     <input
                       id={searchId}
                       type="search"
+                      data-shortcut="search"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Escape") setQuery("");
                       }}
                       placeholder="Search by meaning…"
-                      className="min-h-10 w-full rounded-lg border border-muted/30 bg-bg py-2 pr-3 pl-9 text-sm placeholder:text-muted/80"
+                      className={`${fieldClass} min-h-10 pl-9`}
                     />
                   </div>
                   {searching ? null : (
@@ -119,7 +114,7 @@ export default function LibraryPage() {
                       <label htmlFor={kindId} className="sr-only">
                         Kind
                       </label>
-                      <select id={kindId} value={kind} onChange={(e) => setKind(e.target.value as ItemKind | "")} className="min-h-10 rounded-lg border border-muted/30 bg-bg px-3 text-sm">
+                      <select data-field id={kindId} value={kind} onChange={(e) => setKind(e.target.value as ItemKind | "")} className={`${fieldClass} min-h-10 w-auto`}>
                         <option value="">All kinds</option>
                         {(Object.keys(KIND_LABELS) as ItemKind[]).map((k) => (
                           <option key={k} value={k}>
@@ -127,7 +122,7 @@ export default function LibraryPage() {
                           </option>
                         ))}
                       </select>
-                      <label className="flex min-h-10 items-center gap-2 rounded-lg border border-muted/30 px-3 text-sm">
+                      <label className={chipClass(onlyMine, "min-h-10 rounded-lg")}>
                         <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="size-4 accent-[var(--troupe-color-primary)]" />
                         Mine
                       </label>
@@ -136,7 +131,7 @@ export default function LibraryPage() {
                 </div>
                 {tag && !searching ? (
                   <p className="text-xs text-muted">
-                    Tagged <span className="rounded-md bg-primary/15 px-1.5 py-0.5 text-primary">{tag}</span>{" "}
+                    Tagged <span className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{tag}</span>{" "}
                     <button type="button" onClick={() => setTag(null)} className="ml-1 min-h-8 rounded px-1 text-primary underline-offset-4 hover:underline">
                       Show all
                     </button>
@@ -151,7 +146,7 @@ export default function LibraryPage() {
                   <ErrorNote>The library failed to load: {items.error.message}</ErrorNote>
                 ) : items.data.length === 0 ? (
                   filtered ? (
-                    <p className="rounded-xl border border-muted/20 px-4 py-6 text-sm text-muted">Nothing here matches these filters.</p>
+                    <p className="rounded-2xl bg-surface/70 px-5 py-8 text-center text-sm text-muted">Nothing here matches these filters.</p>
                   ) : (
                     <EmptyState
                       title="Save your first piece"
@@ -171,10 +166,10 @@ export default function LibraryPage() {
                 <IdeaCards workspaceId={workspaceId} empty="Open a saved item and ask for ideas in its style, a remix of its hook or a script for one of your actors. Each idea becomes a project in one click." />
               </Section>
 
-              {!wide && chat ? <section className="border-t border-muted/20 pt-6">{chat}</section> : null}
+              {!wide && chat ? <section className="border-t border-line pt-6">{chat}</section> : null}
             </div>
             {wide && chat ? (
-              <aside aria-label="Ask your library" className="sticky top-24 h-[calc(100dvh-8rem)] min-h-[28rem] border-l border-muted/20 pl-6">
+              <aside aria-label="Ask your library" className="sticky top-24 h-[calc(100dvh-8rem)] max-h-[48rem] min-h-[28rem] border-l border-line pl-6">
                 {chat}
               </aside>
             ) : null}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { statusChipBase } from "~/app/_components/ui";
 import { clock, KIND_LABELS, STATUS_LABELS, type ItemKind, type ItemStatus } from "./format";
 
 export interface LibraryRow {
@@ -23,7 +24,7 @@ export interface LibraryRow {
 }
 
 const STATUS_TONES: Record<ItemStatus, string> = {
-  queued: "bg-surface text-muted",
+  queued: "bg-fg/[0.07] text-muted",
   analyzing: "bg-primary/15 text-primary",
   ready: "bg-success/15 text-success",
   failed: "bg-danger/15 text-danger",
@@ -31,7 +32,8 @@ const STATUS_TONES: Record<ItemStatus, string> = {
 
 export function ItemStatusChip({ status, stage }: { status: ItemStatus; stage?: string | null }) {
   return (
-    <span title={status === "analyzing" && stage ? stage : undefined} className={`inline-block shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${STATUS_TONES[status]}`}>
+    <span title={status === "analyzing" && stage ? stage : undefined} className={`${statusChipBase} ${STATUS_TONES[status]}`}>
+      {status === "analyzing" ? <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" /> : null}
       {STATUS_LABELS[status]}
       {status === "analyzing" && stage ? <span className="sr-only">: {stage}</span> : null}
     </span>
@@ -122,7 +124,7 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
   const onSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "title" }));
 
   return (
-    <div className="rounded-xl border border-muted/20">
+    <div className="overflow-hidden rounded-2xl shadow-[inset_0_0_0_1px_var(--troupe-color-line)]">
       <table className="w-full table-fixed border-collapse text-left text-sm max-md:hidden">
         <caption className="sr-only">Your saved items</caption>
         <colgroup>
@@ -132,7 +134,7 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
           <col className="w-[6.5rem]" />
           <col className="w-[5.5rem]" />
         </colgroup>
-        <thead className="border-b border-muted/20 text-xs text-muted">
+        <thead className="border-b border-line bg-surface/50 text-xs text-muted">
           <tr>
             <SortHeader label="Item" column="title" sort={sort} onSort={onSort} className="pl-4" />
             <SortHeader label="Length" column="durationS" sort={sort} onSort={onSort} className="text-right" />
@@ -141,9 +143,9 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
             <th scope="col" className="px-3 py-2 pr-4 text-right font-medium">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-muted/15">
+        <tbody className="divide-y divide-line">
           {sorted.map((row) => (
-            <tr key={row.id} className="group transition-colors duration-150 hover:bg-surface/60">
+            <tr key={row.id} className="group transition-colors duration-150 hover:bg-fg/[0.03]">
               <td className="py-2.5 pr-3 pl-4">
                 <div className="flex items-center gap-3">
                   <Thumb row={row} />
@@ -152,7 +154,7 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
                       {row.title}
                     </Link>
                     <p className="truncate text-xs text-muted">
-                      {row.mine ? <span className="mr-1.5 rounded bg-surface px-1.5 py-px text-[11px] text-fg">mine</span> : null}
+                      {row.mine ? <span className="mr-1.5 rounded-full bg-fg/[0.07] px-1.5 py-px text-[11px] text-fg">mine</span> : null}
                       {KIND_LABELS[row.kind]} · {row.hook ? `“${row.hook}”` : sourceOf(row)}
                     </p>
                   </div>
@@ -162,7 +164,7 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
               <td className="px-3 py-2.5">
                 <div className="flex flex-wrap gap-1">
                   {row.tags.slice(0, 2).map((t) => (
-                    <button key={t} type="button" onClick={() => onTag(tag === t ? null : t)} aria-pressed={tag === t} title={`Only items tagged ${t}`} className={`relative flex max-w-full rounded-md px-1.5 py-0.5 text-xs transition-colors duration-150 after:absolute after:-inset-y-2.5 after:inset-x-0 ${tag === t ? "bg-primary/15 text-primary" : "bg-surface text-muted hover:text-fg"}`}>
+                    <button key={t} type="button" onClick={() => onTag(tag === t ? null : t)} aria-pressed={tag === t} title={`Only items tagged ${t}`} className={`relative flex max-w-full rounded-full px-2 py-0.5 text-xs transition-colors duration-150 after:absolute after:-inset-y-2.5 after:inset-x-0 ${tag === t ? "bg-primary/15 text-primary" : "bg-fg/[0.07] text-muted hover:text-fg"}`}>
                       <span className="truncate whitespace-nowrap">{t}</span>
                     </button>
                   ))}
@@ -177,10 +179,10 @@ export function LibraryTable({ rows, tag, onTag }: { rows: LibraryRow[]; tag: st
         </tbody>
       </table>
 
-      <ul className="divide-y divide-muted/15 md:hidden">
+      <ul className="divide-y divide-line md:hidden">
         {sorted.map((row) => (
           <li key={row.id}>
-            <Link href={`/library/${row.id}`} className="flex items-center gap-3 px-3 py-3 transition-colors duration-150 hover:bg-surface/60">
+            <Link href={`/library/${row.id}`} className="flex items-center gap-3 px-3 py-3 transition-colors duration-150 hover:bg-fg/[0.03]">
               <Thumb row={row} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{row.title}</p>

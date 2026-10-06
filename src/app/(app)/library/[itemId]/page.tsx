@@ -7,7 +7,8 @@ import { use, useCallback, useRef, useState } from "react";
 import { useEdition } from "~/app/_components/edition";
 import { useMediaQuery } from "~/app/_components/use-media-query";
 import { useWorkspace } from "~/app/_components/workspace-context";
-import { EmptyState, ErrorNote, ProgressBar, ProviderWarning, Section, SignedOutNotice, SkeletonRows } from "~/app/_components/ui";
+import { ArrowLeftIcon, ExternalIcon } from "~/app/_components/icons";
+import { Button, EmptyState, ErrorNote, ProgressBar, ProviderWarning, Section, SignedOutNotice, SkeletonRows, buttonClass, chipClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { clock, KIND_LABELS } from "../format";
 import { IdeaCards } from "../idea-cards";
@@ -77,14 +78,15 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="mb-3 text-sm">
-        <Link href="/library" className="text-muted transition-colors duration-150 hover:text-fg">
-          ← Library
+      <nav aria-label="Breadcrumb" className="mb-4 text-sm">
+        <Link href="/library" className="-ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 font-medium text-muted transition-colors duration-150 hover:text-fg">
+          <ArrowLeftIcon className="size-4" />
+          Library
         </Link>
       </nav>
-      <header className="mb-6 space-y-2">
+      <header className="mb-8 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="min-w-0 text-2xl font-semibold text-balance break-words">{it.title}</h1>
+          <h1 className="min-w-0 font-display text-[1.75rem] leading-[1.1] font-semibold tracking-[-0.02em] text-balance break-words sm:text-[2rem]">{it.title}</h1>
           <ItemStatusChip status={it.status} stage={it.stage} />
         </div>
         <p className="font-mono text-xs tabular-nums text-muted">
@@ -93,45 +95,46 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
           {` · saved ${new Date(it.createdAt).toLocaleDateString()}`}
           {host ? " · " : ""}
           {host && it.sourceUrl ? (
-            <a href={it.sourceUrl} target="_blank" rel="noreferrer noopener" className="text-primary underline-offset-4 hover:underline">
-              {host} ↗
+            <a href={it.sourceUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-0.5 text-primary underline-offset-4 hover:underline">
+              {host}
+              <ExternalIcon className="size-3.5" />
             </a>
           ) : null}
           {it.fileName ? ` · ${it.fileName}` : ""}
         </p>
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <label className="flex min-h-9 items-center gap-2 rounded-lg border border-muted/30 px-3 text-sm">
+          <label className={chipClass(it.mine, "rounded-lg")}>
             <input type="checkbox" checked={it.mine} disabled={update.isPending} onChange={(e) => update.mutate({ workspaceId, itemId, mine: e.target.checked })} className="size-4 accent-[var(--troupe-color-primary)]" />
             My own content
           </label>
-          <button type="button" disabled={busy || reanalyze.isPending} onClick={() => reanalyze.mutate({ workspaceId, itemId })} className="min-h-9 rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60 disabled:opacity-40">
+          <Button size="sm" disabled={busy || reanalyze.isPending} onClick={() => reanalyze.mutate({ workspaceId, itemId })}>
             Read it again
-          </button>
+          </Button>
           {it.downloadUrl ? (
-            <a href={it.downloadUrl} className="flex min-h-9 items-center rounded-lg border border-muted/30 px-3 text-sm transition-colors duration-150 hover:border-muted/60">
+            <a href={it.downloadUrl} className={buttonClass({ size: "sm" })}>
               Download the original
             </a>
           ) : null}
           {confirming ? (
             <span className="flex items-center gap-1 text-sm">
-              <button type="button" onClick={() => remove.mutate({ workspaceId, itemId })} disabled={remove.isPending} className="min-h-9 rounded-lg bg-danger px-3 font-medium text-white hover:opacity-90">
+              <Button variant="danger-solid" size="sm" onClick={() => remove.mutate({ workspaceId, itemId })} disabled={remove.isPending}>
                 {remove.isPending ? "Deleting…" : "Delete it and its files"}
-              </button>
-              <button type="button" onClick={() => setConfirming(false)} className="min-h-9 rounded-lg px-3 text-muted hover:text-fg">
+              </Button>
+              <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
                 Keep
-              </button>
+              </Button>
             </span>
           ) : (
-            <button type="button" onClick={() => setConfirming(true)} className="min-h-9 rounded-lg px-3 text-sm text-danger transition-colors duration-150 hover:bg-danger/10">
+            <Button variant="quiet" size="sm" onClick={() => setConfirming(true)} className="text-danger hover:bg-danger/10 hover:text-danger">
               Delete
-            </button>
+            </Button>
           )}
         </div>
         {it.mine ? <p className="text-xs text-muted">Marked as yours: its hooks, tone and pace shape what the library and the script chat write “in your voice”.</p> : null}
       </header>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-8">
-        <div className="min-w-0 space-y-8">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-start lg:gap-10">
+        <div className="min-w-0 space-y-10">
           {busy ? (
             <div role="status" className="space-y-2">
               <ProgressBar label={it.status === "queued" ? "Waiting its turn" : (it.stage ?? "Reading")} fraction={null} />
@@ -153,7 +156,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
                 onLoadedMetadata={onLoaded}
                 onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)}
                 // 16:9 until the video says its own shape.
-                className={`max-h-[60vh] w-full rounded-xl bg-black object-contain ${loadedShape ? "" : "aspect-video"}`}
+                className={`max-h-[60vh] w-full rounded-2xl bg-black object-contain shadow-card ${loadedShape ? "" : "aspect-video"}`}
               />
             ) : null}
             {it.kind === "audio" && it.mediaUrl ? <audio ref={player} src={it.mediaUrl} aria-label={it.title} controls preload="metadata" onLoadedMetadata={onLoaded} onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)} className="w-full" /> : null}
@@ -175,7 +178,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
 
           {segments.length > 0 ? (
             <Section title="Transcript" className="mb-0">
-              <ol className="max-h-96 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-muted/20 p-2 text-sm">
+              <ol className="max-h-96 space-y-0.5 overflow-y-auto overscroll-contain rounded-2xl bg-surface/60 p-2 text-sm">
                 {segments.map((s, i) => (
                   <li key={`${s.startS}-${i}`} aria-current={i === current ? "true" : undefined} className={`grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2 rounded-lg px-2 py-1 transition-colors duration-150 ${i === current ? "bg-primary/10" : ""}`}>
                     <button type="button" onClick={() => seek(s.startS)} aria-label={`Play from ${clock(s.startS)}`} className="self-start rounded text-left font-mono text-xs leading-5 tabular-nums text-primary underline-offset-4 hover:underline">
@@ -190,7 +193,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
 
           {it.body && (it.kind === "text" || it.kind === "article" || it.kind === "pdf") ? (
             <Section title={it.kind === "article" ? "The article" : it.kind === "pdf" ? "The text" : "The note"} className="mb-0">
-              <div className="max-h-[28rem] overflow-y-auto overscroll-contain rounded-xl border border-muted/20 px-4 py-3">
+              <div className="max-h-[28rem] overflow-y-auto overscroll-contain rounded-2xl bg-surface/60 px-5 py-4">
                 <p className="max-w-[72ch] whitespace-pre-wrap text-pretty text-sm leading-relaxed">{it.body}</p>
               </div>
             </Section>
@@ -203,10 +206,10 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
             </div>
           </Section>
 
-          {!wide ? <section className="border-t border-muted/20 pt-6">{chat}</section> : null}
+          {!wide ? <section className="border-t border-line pt-6">{chat}</section> : null}
         </div>
         {wide ? (
-          <aside aria-label="Ask about this item" className="sticky top-24 h-[calc(100dvh-8rem)] min-h-[28rem] border-l border-muted/20 pl-6">
+          <aside aria-label="Ask about this item" className="sticky top-24 h-[calc(100dvh-8rem)] max-h-[48rem] min-h-[28rem] border-l border-line pl-6">
             {chat}
           </aside>
         ) : null}

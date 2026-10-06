@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { useEdition } from "~/app/_components/edition";
-import { ErrorNote, ProviderWarning, Skeleton } from "~/app/_components/ui";
+import { Button, ErrorNote, ProviderWarning, Skeleton, chipClass, fieldClass } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { clock } from "./format";
 
@@ -74,7 +74,7 @@ function Cited({ text, citations, href, follow }: { text: string; citations: Cit
 export function LibraryChat({
   workspaceId,
   itemId,
-  heading = (title) => <h2 className="text-base font-semibold">{title}</h2>,
+  heading = (title) => <h2 className="text-xl font-semibold tracking-[-0.01em]">{title}</h2>,
   onSeek,
 }: {
   workspaceId: string;
@@ -138,9 +138,9 @@ export function LibraryChat({
           </p>
         </div>
         {messages.length > 0 ? (
-          <button type="button" onClick={() => clear.mutate({ workspaceId, itemId: itemId ?? null })} disabled={clear.isPending || send.isPending} className="-mr-2 min-h-9 shrink-0 rounded-lg px-2 text-xs text-muted transition-colors duration-150 hover:text-fg disabled:opacity-40">
+          <Button variant="quiet" size="sm" onClick={() => clear.mutate({ workspaceId, itemId: itemId ?? null })} disabled={clear.isPending || send.isPending} className="-mr-2 shrink-0">
             Clear
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -166,7 +166,7 @@ export function LibraryChat({
         ) : (
           messages.map((m) =>
             m.role === "user" ? (
-              <p key={m.id} className="ml-8 whitespace-pre-wrap rounded-xl bg-surface px-3 py-2 text-sm">
+              <p key={m.id} className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">
                 {m.content}
               </p>
             ) : (
@@ -176,7 +176,7 @@ export function LibraryChat({
                   <ul aria-label="Sources" className="flex flex-wrap gap-1.5">
                     {m.citations.map((c) => (
                       <li key={c.n}>
-                        <CitationLink citation={c} href={href} follow={follow} className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-md border border-muted/25 px-2 text-xs transition-colors duration-150 hover:border-muted/50">
+                        <CitationLink citation={c} href={href} follow={follow} className="inline-flex min-h-8 max-w-[16rem] items-center gap-1.5 rounded-full px-2.5 text-xs shadow-[inset_0_0_0_1px_var(--troupe-color-line)] transition-colors duration-150 hover:bg-fg/[0.06]">
                           <span className="font-mono tabular-nums text-primary">{c.n}</span>
                           <span className="truncate">{c.title}</span>
                           {c.startS !== null ? <span className="font-mono tabular-nums text-muted">{clock(c.startS)}</span> : null}
@@ -192,7 +192,7 @@ export function LibraryChat({
         )}
         {send.isPending ? (
           <>
-            <p className="ml-8 whitespace-pre-wrap rounded-xl bg-surface px-3 py-2 text-sm">{send.variables?.message}</p>
+            <p className="ml-8 whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary/12 px-3.5 py-2 text-sm">{send.variables?.message}</p>
             <div className="space-y-2" role="status">
               <p className="text-xs text-muted">{writer?.label ?? "The model"} is reading your library…</p>
               {browserChat ? <browserChat.Progress /> : null}
@@ -204,7 +204,7 @@ export function LibraryChat({
       </div>
 
       <form
-        className="border-t border-muted/20 pt-3"
+        className="border-t border-line pt-3"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
@@ -230,7 +230,7 @@ export function LibraryChat({
         {history.data && messages.length === 0 && !send.isPending && !unavailable ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {(itemId ? ITEM_SUGGESTIONS : LIBRARY_SUGGESTIONS).map((s) => (
-              <button key={s} type="button" onClick={() => submit(s)} className="min-h-9 rounded-md border border-muted/25 px-2.5 text-left text-xs text-muted transition-colors duration-150 hover:border-muted/50 hover:text-fg max-lg:min-h-11">
+              <button key={s} type="button" onClick={() => submit(s)} className={chipClass(false, "text-left text-xs max-lg:min-h-11")}>
                 {s}
               </button>
             ))}
@@ -253,13 +253,13 @@ export function LibraryChat({
             }
           }}
           placeholder={itemId ? "What makes the first three seconds work?" : "Which saved videos open on a bold claim?"}
-          className="block max-h-40 w-full resize-none rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm placeholder:text-muted/80 disabled:opacity-50"
+          className={`${fieldClass} block max-h-40 resize-none`}
         />
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="text-xs text-muted max-sm:hidden">Enter sends · Shift+Enter for a new line</span>
-          <button type="submit" disabled={send.isPending || !draft.trim() || Boolean(unavailable)} className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40">
+          <Button type="submit" variant="primary" disabled={send.isPending || !draft.trim() || Boolean(unavailable)} className="ml-auto">
             {send.isPending ? "Reading…" : "Ask"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

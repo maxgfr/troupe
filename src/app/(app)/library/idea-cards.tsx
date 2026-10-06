@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ErrorNote, Skeleton } from "~/app/_components/ui";
+import { Button, ButtonLink, ErrorNote, Skeleton } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { IDEA_LABELS } from "./format";
 
@@ -56,21 +55,21 @@ function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspace
       </ol>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {idea.projectId ? (
-          <Link href={`/projects/${idea.projectId}`} className="rounded-lg border border-muted/30 px-3 py-1.5 text-sm transition-colors duration-150 hover:border-muted/60">
+          <ButtonLink href={`/projects/${idea.projectId}`} size="sm">
             Open project
-          </Link>
+          </ButtonLink>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             disabled={create.isPending}
             onClick={() => {
               setError(null);
               create.mutate({ workspaceId, ideaId: idea.id });
             }}
-            className="rounded-lg border border-primary/40 px-3 py-1.5 text-sm font-medium text-primary transition-colors duration-150 hover:bg-primary/10 disabled:opacity-40"
           >
             {create.isPending ? "Creating…" : "Create project"}
-          </button>
+          </Button>
         )}
         <p className="min-w-0 flex-1 truncate text-xs text-muted">
           {IDEA_LABELS[idea.kind]}
@@ -79,17 +78,17 @@ function IdeaCard({ idea, workspaceId, titles, actors }: { idea: Idea; workspace
         </p>
         {confirming ? (
           <span className="flex items-center gap-2 text-xs">
-            <button type="button" onClick={() => remove.mutate({ workspaceId, ideaId: idea.id })} disabled={remove.isPending} className="min-h-9 rounded-md px-2 font-medium text-danger hover:bg-danger/10">
+            <Button variant="danger" size="sm" onClick={() => remove.mutate({ workspaceId, ideaId: idea.id })} disabled={remove.isPending}>
               Delete idea
-            </button>
-            <button type="button" onClick={() => setConfirming(false)} className="min-h-9 rounded-md px-2 text-muted hover:text-fg">
+            </Button>
+            <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
               Keep
-            </button>
+            </Button>
           </span>
         ) : (
-          <button type="button" onClick={() => setConfirming(true)} className="min-h-9 rounded-md px-2 text-xs text-muted transition-colors duration-150 hover:text-fg">
+          <Button variant="quiet" size="sm" onClick={() => setConfirming(true)}>
             Delete
-          </button>
+          </Button>
         )}
       </div>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
@@ -108,7 +107,7 @@ export function IdeaCards({ workspaceId, itemId, empty }: { workspaceId: string;
   const titles = new Map((items.data ?? []).map((i) => [i.id, i.title]));
   const names = new Map((actors.data ?? []).map((a) => [a.id, a.name]));
   return (
-    <ul className="divide-y divide-muted/15">
+    <ul className="divide-y divide-line">
       {(ideas.data as Idea[]).map((idea) => (
         <IdeaCard key={idea.id} idea={idea} workspaceId={workspaceId} titles={itemId ? new Map() : titles} actors={names} />
       ))}

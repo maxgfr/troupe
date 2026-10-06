@@ -82,7 +82,7 @@ Docker Desktop gives its virtual machine a share of the computer's memory
 
 | What | Size | Where it is kept |
 |---|---|---|
-| The images: `troupe` 495 MB, `troupe-renderer` 1.3 GB, `troupe-ollama` 220 MB, `troupe-web` 190 MB, `postgres` 410 MB (`troupe-cli` 240 MB with the `cli` profile) | about 2.6 GB on disk; Troupe's five images compress to about 610 MB | Docker's image store |
+| The images: `troupe` 580 MB, `troupe-renderer` 1.9 GB, `troupe-ollama` 220 MB, `troupe-web` 195 MB, `postgres` 410 MB (`troupe-cli` 240 MB with the `cli` profile) | about 3.3 GB on disk. The inspiration library added 85 MB to `troupe` (yt-dlp, article and PDF reading) and 580 MB to `troupe-renderer` (Python and faster-whisper); before it, Troupe's five images compressed to about 610 MB | Docker's image store |
 | The chat model, `qwen3:4b` | 2.5 GB | the `ollama` volume |
 | Kokoro-82M, 8-bit (`onnx-community/Kokoro-82M-v1.0-ONNX`) | about 90 MB | the `renderer` volume |
 | After the chat model, in the background: the library's search and vision models, `qwen3-embedding:0.6b` and `qwen3-vl:2b-instruct` (skipped with `TROUPE_LIBRARY=0`) | 639 MB and 1.9 GB | the `ollama` volume |

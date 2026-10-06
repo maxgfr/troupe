@@ -78,8 +78,9 @@ The vocabulary, screens and navigation are mapped in
 - **Wordmark**: "troupe", Bricolage 700, line height 1; the "o" carries a
   gold ring that hugs the letter.
 - **App shell**: a translucent top bar: the wordmark, Projects · Library ·
-  Actors · Compare, then New project (primary) and Settings (sliders icon
-  and name). Below 640 px the four sections move to a bottom tab bar (icon
+  Actors · Compare, then New project (outlined cobalt, so each page keeps
+  its own single filled cobalt action) and Settings (sliders icon and
+  name). Below 640 px the four sections move to a bottom tab bar (icon
   and label, the current one's icon cobalt) and the top bar keeps the
   wordmark, a New project icon button and the Settings icon. Moving to
   another page fades it in over 150 ms (the first page paints at once). Shortcuts: `n`, `g` then a letter, `/`, `?` (listed in
@@ -161,8 +162,8 @@ The vocabulary, screens and navigation are mapped in
 - **Landing page** (`/troupe/`, browser edition): the headline left-aligned in
   Bricolage, then the two editions on either side of the presentation video
   (a triptych on wide screens; browser edition, video, server on phones). The
-  browser edition's "Open Troupe in your browser" is the one cobalt button;
-  "Self-host with Docker" is outlined. Below: the steps of a project on one
+  browser edition's "Open Troupe in your browser" is the one filled cobalt
+  button; "Self-host with Docker" is outlined, as is the bar's "Open Troupe". Below: the steps of a project on one
   hairline axis, each with a piece of the studio and a mono time that jumps
   the video there; the cast uncropped and named; the editions as a table where
   what one cannot do is unlit (dim italic) with its reason; each model as a

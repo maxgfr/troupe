@@ -73,7 +73,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <ButtonLink href="/projects/new" variant="primary" size="sm" className="max-sm:size-10 max-sm:px-0">
+              {/* Outlined: the page below keeps the one filled cobalt button. */}
+              <ButtonLink href="/projects/new" variant="outline" size="sm" className="max-sm:size-10 max-sm:px-0">
                 <PlusIcon className="size-4" />
                 <span className="max-sm:sr-only">New project</span>
               </ButtonLink>

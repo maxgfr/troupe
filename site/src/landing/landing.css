@@ -273,19 +273,21 @@ code {
 .button:active {
   transform: scale(0.96);
 }
-/* The bar's call to action: the studio's small primary button. */
+/* The bar's way in: the studio's small outlined cobalt button (the hero
+   keeps the one filled one, as each studio page keeps its own). */
 .bar__links .button--small {
   min-height: 40px;
   margin-left: 4px;
   padding: 8px 14px;
-  color: var(--on-primary);
+  color: var(--primary);
   font-size: 0.875rem;
-  font-weight: 600;
-  background: var(--primary);
+  font-weight: 500;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 .bar__links .button--small:hover {
-  color: var(--on-primary);
-  background: color-mix(in oklch, var(--primary) 88%, var(--fg));
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .button--quiet {

@@ -14,8 +14,8 @@
   --on-spot: var(--troupe-color-on-secondary);
   --success: var(--troupe-color-success);
   --warning: var(--troupe-color-warning);
-  --line: color-mix(in srgb, var(--fg) 12%, transparent);
-  --line-strong: color-mix(in srgb, var(--fg) 20%, transparent);
+  --line: var(--troupe-color-line);
+  --line-strong: var(--troupe-color-line-strong);
   --picture-edge: oklch(1 0 0 / 0.1);
   --tint-primary: color-mix(in srgb, var(--primary) 14%, transparent);
   --tint-success: color-mix(in srgb, var(--success) 14%, transparent);
@@ -61,6 +61,8 @@ html {
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   margin: 0;
   background: var(--bg);
   color: var(--fg);
@@ -68,6 +70,32 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* The stage light, as the studio draws it at the top of its pages
+   (src/styles/globals.css .stage-wash): cobalt, soft, behind everything. */
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 40rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 100% at 18% 0%, oklch(0.42 0.11 250 / 0.34), transparent 72%),
+    radial-gradient(50% 80% at 85% 0%, oklch(0.36 0.07 290 / 0.22), transparent 70%);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) body::before {
+    background:
+      radial-gradient(70% 100% at 18% 0%, oklch(0.9 0.06 250 / 0.7), transparent 72%),
+      radial-gradient(50% 80% at 85% 0%, oklch(0.93 0.04 290 / 0.6), transparent 70%);
+  }
+}
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(70% 100% at 18% 0%, oklch(0.9 0.06 250 / 0.7), transparent 72%),
+    radial-gradient(50% 80% at 85% 0%, oklch(0.93 0.04 290 / 0.6), transparent 70%);
 }
 
 ::selection {
@@ -242,6 +270,21 @@ code {
 .button:active {
   transform: scale(0.96);
 }
+/* The bar's call to action: the studio's small primary button. */
+.bar__links .button--small {
+  min-height: 40px;
+  margin-left: 4px;
+  padding: 8px 14px;
+  color: var(--on-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--primary);
+}
+.bar__links .button--small:hover {
+  color: var(--on-primary);
+  background: color-mix(in oklch, var(--primary) 88%, var(--fg));
+}
+
 .button--quiet {
   background: transparent;
   color: var(--fg);

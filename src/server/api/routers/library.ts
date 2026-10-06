@@ -32,6 +32,8 @@ import {
   type Writer,
 } from "~/modules/library";
 import { ActorUnavailableError } from "~/modules/actors";
+import type { ModelCatalog } from "~/modules/models";
+import { modelOptionsFor } from "~/modules/studio";
 import { MODEL_KEY } from "./generation";
 
 const NO_LIBRARY = "The inspiration library is not available in this studio.";
@@ -68,6 +70,16 @@ const detailWithUrls = (media: MediaLinks, item: LibraryItemDetail) => ({
 });
 
 // The writing model: the script chat's, as set in Settings.
+// Ideas last 20 s, or less when the studio's default render model (the one
+// a project made of an idea gets, in 9:16) makes only shorter clips: that
+// project then launches as it is.
+function ideaSeconds(catalog: ModelCatalog): number {
+  const usable = modelOptionsFor(catalog.models, { format: "9:16" }).filter((m) => m.available && m.compatible);
+  const model = usable.find((m) => m.key === catalog.defaultModelKey) ?? usable[0];
+  const longest = model ? Math.max(0, ...model.capabilities.durationsS) : 0;
+  return longest >= 4 ? Math.min(20, longest) : 20;
+}
+
 async function writerOf(chat: { load(): Promise<{ model: Writer["model"] | null; problem: string | null; provider: string; modelId: string; wordsPerSecond: number }> } | null) {
   if (!chat) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No chat model is set up, and the library writes with it." });
   const setup = await chat.load();
@@ -228,7 +240,7 @@ export const libraryRouter = createTRPCRouter({
         const { writer, wordsPerSecond } = await writerOf(ctx.chat);
         const defaults = { ideas: 10, remix: 5, script: 1, repurpose: 3 } as const;
         try {
-          return await generateIdeas(ctx.db, { ...input, count: input.count ?? defaults[input.kind], durationS: input.durationS ?? 20, wordsPerSecond, writer, signal });
+          return await generateIdeas(ctx.db, { ...input, count: input.count ?? defaults[input.kind], durationS: input.durationS ?? ideaSeconds(ctx.catalog), wordsPerSecond, writer, signal });
         } catch (error) {
           modelFailure(error, signal, writer.modelId);
         }

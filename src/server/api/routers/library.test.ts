@@ -4,6 +4,7 @@ import { createTestDb, type TestDb } from "~/test/db";
 import { seedFixture, type Fixture } from "~/test/fixture";
 import { testCaller } from "~/test/caller";
 import { fakeEmbedder, fakeWriter } from "~/test/library";
+import { fakeAdapter } from "~/test/adapters";
 import type { ChatBackend, ChatTurn } from "~/modules/chat";
 import type { AnalysisTools, LibraryBackend } from "~/modules/library";
 import { runLibraryQueue } from "~/modules/library";
@@ -128,5 +129,21 @@ describe("library router", () => {
     expect(seen[0]![0]!.content).toContain("House style: Warm. Write in the creator's own voice: From");
     expect(seen[0]![0]!.content).toContain('"Your desk is lying to you."');
     await caller().library.delete({ workspaceId: fx.workspaceId, itemId: mine.id });
+  });
+
+  it("writes ideas no longer than the default render model's longest clip, so their projects launch as they are", async () => {
+    const item = await caller().library.addText({ workspaceId: fx.workspaceId, text: "Cold brew: grind coarse, steep overnight, strain." });
+    await runLibraryQueue(db, async () => tools);
+    const lengths = async (durationsS: number[], durationS?: number) => {
+      const seen: ChatTurn[][] = [];
+      const recording: ChatBackend = { ...chat, async load() { return { ...(await chat.load()), model: fakeWriter(seen) }; } };
+      const adapter = fakeAdapter({ modelKey: "local", capabilities: { durationsS } });
+      await testCaller({ db, userId: MEMBER, chat: recording, library: library(), adapters: [adapter] }).library.ideas.generate({ workspaceId: fx.workspaceId, kind: "ideas", itemIds: [item.id], count: 1, durationS });
+      return /Each script lasts about (\d+) seconds/.exec(seen[0]!.map((turn) => turn.content).join("\n"))?.[1];
+    };
+    expect(await lengths([5, 10, 15])).toBe("15");
+    expect(await lengths([4, 8, 30])).toBe("20");
+    expect(await lengths([5, 10, 15], 30)).toBe("30");
+    await caller().library.delete({ workspaceId: fx.workspaceId, itemId: item.id });
   });
 });

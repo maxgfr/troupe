@@ -61,7 +61,9 @@ work the same way), **Cut into short scripts** (a long item into three) and
 **A script for one actor**. Each idea card is a whole script, lines with
 roles and emotions; **Create project** makes a project (TikTok 9:16 by
 default, the idea's language, its actor or the first available) with that
-script as version 1, ready to render. The browser edition's small model
+script as version 1, ready to render. Ideas last about 20 s, or the longest
+clip your default video model makes when that is shorter, so the project
+launches as it is (`--duration` sets another length from the terminal). The browser edition's small model
 writes five ideas at a time, and now and then an answer that is not a script
 (about one try in five in testing): try again.
 

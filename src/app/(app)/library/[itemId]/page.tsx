@@ -146,6 +146,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
               <video
                 ref={player}
                 src={it.mediaUrl}
+                aria-label={it.title}
                 controls
                 playsInline
                 preload="metadata"
@@ -155,7 +156,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
                 className={`max-h-[60vh] w-full rounded-xl bg-black object-contain ${loadedShape ? "" : "aspect-video"}`}
               />
             ) : null}
-            {it.kind === "audio" && it.mediaUrl ? <audio ref={player} src={it.mediaUrl} controls preload="metadata" onLoadedMetadata={onLoaded} onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)} className="w-full" /> : null}
+            {it.kind === "audio" && it.mediaUrl ? <audio ref={player} src={it.mediaUrl} aria-label={it.title} controls preload="metadata" onLoadedMetadata={onLoaded} onTimeUpdate={(e) => setCurrentS(e.currentTarget.currentTime)} className="w-full" /> : null}
             {it.kind === "image" && it.mediaUrl ? (
               // biome-ignore lint/performance/noImgElement: the browser edition has no next/image; these are pictures the studio already sized.
               <img src={it.mediaUrl} alt={analysis?.frames?.[0]?.description ?? it.title} className="max-h-[60vh] rounded-xl object-contain outline outline-1 -outline-offset-1 outline-[var(--picture-edge)]" />
@@ -177,7 +178,7 @@ export default function LibraryItemPage({ params }: { params: Promise<{ itemId: 
               <ol className="max-h-96 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-muted/20 p-2 text-sm">
                 {segments.map((s, i) => (
                   <li key={`${s.startS}-${i}`} aria-current={i === current ? "true" : undefined} className={`grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2 rounded-lg px-2 py-1 transition-colors duration-150 ${i === current ? "bg-primary/10" : ""}`}>
-                    <button type="button" onClick={() => seek(s.startS)} className="self-start rounded text-left font-mono text-xs leading-5 tabular-nums text-primary underline-offset-4 hover:underline">
+                    <button type="button" onClick={() => seek(s.startS)} aria-label={`Play from ${clock(s.startS)}`} className="self-start rounded text-left font-mono text-xs leading-5 tabular-nums text-primary underline-offset-4 hover:underline">
                       {clock(s.startS)}
                     </button>
                     <span className="text-pretty">{s.text}</span>

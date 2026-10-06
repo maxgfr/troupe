@@ -79,7 +79,7 @@ describe("Ollama not answering", () => {
   it("says how to start the Docker stack's own Ollama, or the one on this machine", async () => {
     const stack = createOllamaChat({ baseUrl: "http://ollama:11434", model: "qwen3:4b", timeoutMs: 5000, fetch: down });
     await expect(stack.propose([{ role: "user", content: "Hi" }], { schema })).rejects.toThrow(
-      "Ollama is not answering at http://ollama:11434. Start the stack's Ollama with `docker compose up -d ollama`.",
+      "Ollama is not answering at http://ollama:11434. Start the stack's Ollama with `docker compose up -d ollama`, adding `-p <name>` if you started the stack under a project name.",
     );
     const local = createOllamaChat({
       baseUrl: "http://127.0.0.1:11434",

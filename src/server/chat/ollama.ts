@@ -27,7 +27,7 @@ function startAdvice(baseUrl: string): string {
     // An address that does not parse is refused by checkLocalUrl first.
   }
   return host === "ollama"
-    ? "Start the stack's Ollama with `docker compose up -d ollama`"
+    ? "Start the stack's Ollama with `docker compose up -d ollama`, adding `-p <name>` if you started the stack under a project name"
     : "Start it with `ollama serve` (or open the Ollama app)";
 }
 

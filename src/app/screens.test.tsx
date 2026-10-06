@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-import { DashboardView } from "./(app)/dashboard/dashboard-view";
+import { DashboardView, PosterSkeletons } from "./(app)/dashboard/dashboard-view";
 import { ActorGrid } from "./(app)/actors/actor-grid";
 import { ScriptLines } from "./(app)/projects/[projectId]/script/script-lines";
 import { GenerationTimeline } from "./(app)/projects/[projectId]/generation-timeline";
@@ -64,6 +64,15 @@ describe("Dashboard", () => {
     expect(screen.getByText("Create your first project")).toBeDefined();
     rerender(<DashboardView projects={[{ id: "p1", title: "Spring drop", platform: "tiktok", format: "9:16", status: "scripting" }]} readiness={{ ready: false }} />);
     expect(screen.getByRole("status").textContent).toMatch(/No video model can render yet/);
+  });
+});
+
+describe("Projects loading", () => {
+  it("announces one loading status around a list of poster shapes", () => {
+    render(<PosterSkeletons />);
+    const status = screen.getByRole("status", { name: "Loading" });
+    expect(status.tagName).toBe("DIV");
+    expect(status.querySelector("ul")!.querySelectorAll("li")).toHaveLength(4);
   });
 });
 

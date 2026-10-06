@@ -1,6 +1,6 @@
 "use client";
 
-import { DashboardView, type DashboardActor, type DashboardProject, type ModelReadiness } from "./dashboard-view";
+import { DashboardView, PosterSkeletons, type DashboardActor, type DashboardProject, type ModelReadiness } from "./dashboard-view";
 import { api } from "~/trpc/react";
 import { useEdition } from "~/app/_components/edition";
 import { usePageTitle } from "~/app/_components/page-title";
@@ -10,23 +10,7 @@ import {
   ErrorNote,
   PageHeader,
   SignedOutNotice,
-  Skeleton,
 } from "~/app/_components/ui";
-
-// The posters, while they load.
-function PosterSkeletons() {
-  return (
-    <ul role="status" aria-label="Loading" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
-      {Array.from({ length: 4 }, (_, i) => (
-        <li key={i} className="space-y-3">
-          <Skeleton className="aspect-[3/4] w-full rounded-xl" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export default function DashboardPage() {
   usePageTitle("Projects");

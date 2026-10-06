@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { SELF_HOSTING_URL, useEdition } from "~/app/_components/edition";
 import { PlayIcon } from "~/app/_components/icons";
-import { EmptyState, ProviderWarning, statusChipBase } from "~/app/_components/ui";
+import { EmptyState, ProviderWarning, Skeleton, statusChipBase } from "~/app/_components/ui";
 import { VideoPoster } from "~/app/_components/video-poster";
 import { STAGE_LABELS, type ProjectStage } from "~/modules/studio/stage";
 import { platformName } from "~/modules/studio/platforms";
@@ -124,6 +124,24 @@ function ProjectCard({ project, actor, priority }: { project: DashboardProject; 
         </span>
       </Link>
     </li>
+  );
+}
+
+// The posters, while they load: one status for assistive technology around
+// a list of poster shapes (a list cannot be the status itself).
+export function PosterSkeletons() {
+  return (
+    <div role="status" aria-label="Loading">
+      <ul aria-hidden className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+        {Array.from({ length: 4 }, (_, i) => (
+          <li key={i} className="space-y-3">
+            <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

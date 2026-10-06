@@ -40,7 +40,12 @@ text's first line. A tool that is missing or fails skips its step and says
 why ("Skipped: what the pictures show. Ollama does not have
 qwen3-vl:2b-instruct yet…"); the item stays usable, and **Read it again**
 reruns the analysis once the tool is there. Passages saved while the
-embedding model was missing are indexed as soon as it arrives.
+embedding model was missing are indexed as soon as it arrives. An analysis
+cut short (a restart, a crash, a closed tab) is noticed when it stops
+reporting (every half minute, whichever process runs it) and retried after
+five minutes, three times at most; then the item fails with the step it
+kept stopping at. Deleting an item stops its analysis and removes what it
+had made.
 
 **Item page.** The player, then the item on one time axis: the hook, body
 and call to action as bands, the pictures at their seconds, and a scrubber;
@@ -108,11 +113,16 @@ studio.
 The same pages, with everything in the tab: files stay in this browser
 (IndexedDB, in the backups), Whisper base and multilingual-e5-small run in a
 worker on the CPU (about 195 MB, downloaded once from Hugging Face and kept
-in Cache Storage), and the analysis runs in one tab at a time. Without a
-server there is no link fetching (save the video or page to a file and
-upload it, or paste the text) and no vision model; the chat, the analysis's
-writing and the ideas need WebGPU, like the script chat. `VITE_LIBRARY_*`
-variables change the models (`site/.env.example`).
+in Cache Storage), and the analysis runs in one tab at a time. A tab reads
+videos and sound up to 15 minutes long (`VITE_LIBRARY_MAX_MINUTES`): their
+tracks are read from the file first, the sound is decoded straight to
+16 kHz mono, and a longer file fails at once with the reason. A file with
+sound this browser cannot decode keeps its pictures and text, and its
+transcript step names the codec. Without a server there is no link
+fetching (save the video or page to a file and upload it, or paste the
+text) and no vision model; the chat, the analysis's writing and the ideas
+need WebGPU, like the script chat. `VITE_LIBRARY_*` variables change the
+models and the limits (`site/.env.example`).
 
 ## Settings
 

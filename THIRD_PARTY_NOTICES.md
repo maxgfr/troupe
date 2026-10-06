@@ -227,14 +227,25 @@ programs under other licenses:
     Apache License 2.0).
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp) 2026.08.19, in the app image
     (`ghcr.io/maxgfr/troupe`) unless it is built with `TROUPE_YTDLP=0`:
-    The Unlicense (public domain). Its self-contained `musllinux` build, which
+    The Unlicense (public domain). Its self-contained `musllinux` build
+    (`yt-dlp_musllinux` on amd64, `yt-dlp_musllinux_aarch64` on arm64), which
     the image downloads and checks against the release's SHA-256 sum, bundles
-    CPython (PSF License 2.0) and the libraries listed with their licenses in
+    CPython 3.14 (PSF License 2.0) and libraries built on Alpine Linux 3.22,
+    listed with their licenses in yt-dlp's
     [`THIRD_PARTY_LICENSES.txt`](https://github.com/yt-dlp/yt-dlp/blob/2026.08.19/THIRD_PARTY_LICENSES.txt)
-    (among them GNU Readline under the GPL version 3 or later, libidn2 and
-    libunistring under the LGPL version 3 or later, OpenSSL under the Apache
-    License 2.0); their source is available from those projects. Troupe runs
-    it as a separate program.
+    (OpenSSL 3 under the Apache License 2.0, among others). Troupe runs it as a
+    separate program. The bundled libraries under the GNU licenses, read from
+    both binaries of this release, and their source at those exact versions:
+    - GNU Readline 8.2.13 (`libreadline.so.8`), GPL version 3 or later:
+      [readline-8.2.tar.gz](https://ftp.gnu.org/gnu/readline/readline-8.2.tar.gz)
+      with [patches 001 to 013](https://ftp.gnu.org/gnu/readline/readline-8.2-patches/),
+      as packaged in [Alpine's aports, 3.22-stable](https://gitlab.alpinelinux.org/alpine/aports/-/tree/3.22-stable/main/readline);
+    - GNU gettext's libintl 0.24.1 (`libintl.so.8`), LGPL version 2.1 or
+      later: [gettext-0.24.1.tar.gz](https://ftp.gnu.org/gnu/gettext/gettext-0.24.1.tar.gz),
+      as packaged in [aports](https://gitlab.alpinelinux.org/alpine/aports/-/tree/3.22-stable/main/gettext);
+    - the GCC 14.2.0 runtime (`libgcc_s.so.1`), GPL version 3 with the GCC
+      Runtime Library Exception: [gcc-14.2.0.tar.xz](https://ftp.gnu.org/gnu/gcc/gcc-14.2.0/gcc-14.2.0.tar.xz),
+      as packaged in [aports](https://gitlab.alpinelinux.org/alpine/aports/-/tree/3.22-stable/main/gcc).
   - Articles and PDFs: [Readability](https://github.com/mozilla/readability)
     (`@mozilla/readability`) 0.6: Apache License 2.0;
     [linkedom](https://github.com/WebReflection/linkedom) 0.18: ISC License,

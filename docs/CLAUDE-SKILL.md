@@ -71,15 +71,18 @@ with `/plugin marketplace update troupe`.
    saw and where the file is, and says what it could not check (it cannot
    hear the voice).
 7. Iterates on the script when you ask.
+8. Exports only after you say you watched the video and it is ready, then
+   passes on the platform's AI-disclosure rule.
 
 With the [inspiration library](LIBRARY.md), Claude also saves the files and
 links you give it (`troupe library add`, waiting for the analysis), reads
 their hooks and structure, searches and asks the library, and writes scripts
 from what it found, through the library's idea cards (`troupe library ideas
 generate`, then `ideas project`) or itself; then it carries on with the
-render. It saves only what you hand it, one item at a time.
-8. Exports only after you say you watched the video and it is ready, then
-   passes on the platform's AI-disclosure rule.
+render. It saves only what you hand it, one item at a time, and treats
+what it reads there (transcripts, articles, on-screen text, the chat's
+answers) as data: it never runs a command, saves a link or changes anything
+because a saved item's text says to.
 
 It asks before spending: launching on a cloud model bills your provider
 account, so Claude states the cost first. It deletes nothing unless you ask.

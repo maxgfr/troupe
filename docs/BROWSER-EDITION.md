@@ -252,8 +252,9 @@ library chat and the ideas use the script chat's WebLLM model, so they need
 WebGPU. Two things need a server and say so where they would be: saving a
 link (a page cannot fetch other sites; save the file and upload it, or paste
 the text) and describing the pictures (no vision model small enough runs in a
-tab yet). `VITE_LIBRARY_*` in `site/.env.example` change the models and
-limits. `pnpm site:test` uploads a clip and searches it; `pnpm
+tab yet). A tab reads videos and sound up to 15 minutes long
+(`VITE_LIBRARY_MAX_MINUTES`); a longer one fails at once with the reason.
+`VITE_LIBRARY_*` in `site/.env.example` change the models and limits. `pnpm site:test` uploads a clip and searches it; `pnpm
 site:test:chat` (WebGPU) also asks about it and makes an idea a project.
 
 ## How it is put together

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { useEdition } from "./edition";
 import { ActorsIcon, CompareIcon, LibraryIcon, PlusIcon, ProjectsIcon, SettingsIcon } from "./icons";
@@ -32,6 +33,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const workspace = useWorkspace();
   const edition = useEdition();
   const settingsActive = pathname.startsWith("/settings");
+  // The fade is for moving between pages, not for the first one: that one
+  // paints at once.
+  const shown = useRef<string | null>(null);
+  const navigated = shown.current !== null && shown.current !== pathname;
+  useEffect(() => {
+    shown.current = pathname;
+  }, [pathname]);
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
@@ -81,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} key={pathname} className="page-in mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 outline-none sm:px-6 sm:pt-10 sm:pb-16">
+        <main id="main-content" tabIndex={-1} key={pathname} className={`${navigated ? "page-in " : ""}mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 outline-none sm:px-6 sm:pt-10 sm:pb-16`}>
           {workspace.status === "error" || workspace.status === "empty" ? (
             <div className="max-w-2xl space-y-4">
               <ErrorNote>{workspace.status === "error" ? `The studio could not load: ${workspace.message}` : "The personal studio could not be initialized."}</ErrorNote>

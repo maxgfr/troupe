@@ -81,8 +81,8 @@ The vocabulary, screens and navigation are mapped in
   Actors · Compare, then New project (primary) and Settings (sliders icon
   and name). Below 640 px the four sections move to a bottom tab bar (icon
   and label, the current one's icon cobalt) and the top bar keeps the
-  wordmark, a New project icon button and the Settings icon. Pages arrive
-  with a 150 ms fade. Shortcuts: `n`, `g` then a letter, `/`, `?` (listed in
+  wordmark, a New project icon button and the Settings icon. Moving to
+  another page fades it in over 150 ms (the first page paints at once). Shortcuts: `n`, `g` then a letter, `/`, `?` (listed in
   a dialog). The browser edition adds no banner: it is Troupe, not a
   preview of it.
 - **Projects** (`/dashboard`): a grid of posters (3:4): the newest saved

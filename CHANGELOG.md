@@ -1,11 +1,35 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.2.0 — 2026-10-06
 
-First public release.
+First tagged release. The code went public on 2026-10-04 numbered 0.1.0,
+which was never tagged nor published as images; everything since is here.
 
 ### Added
 
+- The local renderer (`renderer/`, `pnpm renderer`, and the stack's
+  `renderer` service): a server that speaks the HTTP contract, voices each
+  line with Kokoro, draws the actor card with their pictures and word-by-word
+  captions, and encodes an MP4 with ffmpeg, on the CPU, as long as the
+  script. The stack adds it as the default model on first start
+  ([docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md#local-renderer)).
+- The renderer's AI video mode, opt-in (`pnpm renderer:ltx`, or the `ltx`
+  Compose profile on an NVIDIA GPU): LTX-Video 2B distilled generates a clip
+  of the actor, laid under the same voice and captions. Its weights are under
+  the LTXV Open Weights License, stated in
+  [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Every setting in one place, [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md),
+  which the test suite checks against the code, `.env.example` and
+  `docker-compose.yml`. New settings: one hue and another font for the
+  video's card and captions (`SCENE_HUE`, `SCENE_FONT_FILE`, and
+  `VITE_SCENE_HUE`, `VITE_SCENE_FONT_URL` for the browser edition), and
+  `ANTHROPIC_BASE_URL` for a gateway in front of Claude. The stack now passes
+  `GOOGLE_API_KEY`, `ANTHROPIC_BASE_URL`, `TROUPE_CHAT_ANTHROPIC_FALLBACK`,
+  `TROUPE_ACTOR_PORTRAITS_URL` and `TROUPE_TRANSCRIBE_TOKEN` on to the
+  studio.
+- The GNU GPL parts (eSpeak NG inside kokoro-js, the GNU libraries in
+  yt-dlp's build) are stated plainly in the README and
+  THIRD_PARTY_NOTICES.md, with PGlite's license added.
 - One look and one map for the whole product ([docs/PRODUCT-MAP.md](docs/PRODUCT-MAP.md)):
   Projects shows each project as a poster of its newest video (playing
   while hovered), every project page opens on its actor with Video, Script

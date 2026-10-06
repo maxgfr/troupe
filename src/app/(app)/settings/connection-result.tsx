@@ -1,3 +1,5 @@
+import { CheckIcon, CloseIcon } from "~/app/_components/icons";
+
 export interface Report {
   ok: boolean | null;
   message: string;
@@ -7,11 +9,7 @@ export interface Report {
 
 // Drawn at the text's size, in its color.
 function Mark({ ok }: { ok: boolean }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className="mt-px size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      {ok ? <path d="M3.5 8.5l3 3 6-7" /> : <path d="M4.5 4.5l7 7m0-7l-7 7" />}
-    </svg>
-  );
+  return ok ? <CheckIcon className="mt-px size-3.5" /> : <CloseIcon className="mt-px size-3.5" />;
 }
 
 // The outcome of a "Test" click: green, red, or "can't tell without spending".

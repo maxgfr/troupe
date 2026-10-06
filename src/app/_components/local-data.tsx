@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { BackupFile, LocalData, StorageReport } from "./edition";
-import { CloseIcon } from "./icons";
+import { CheckIcon, CloseIcon } from "./icons";
 import { ErrorNote, buttonClass } from "./ui";
 
 // The browser edition's data, in Settings: how much this browser holds and
@@ -107,9 +107,7 @@ function StorageRow({ storage }: { storage: LocalData["storage"] }) {
     <Row title="Storage" description={used}>
       {kept === true ? (
         <p className="flex items-center gap-2 text-sm">
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0 text-success">
-            <path d="M3.5 8.5l3 3 6-7" />
-          </svg>
+          <CheckIcon className="size-4 text-success" />
           Kept: this browser will not clear it to free up space.
         </p>
       ) : kept === false ? (

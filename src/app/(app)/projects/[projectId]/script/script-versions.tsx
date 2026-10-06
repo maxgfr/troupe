@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from "~/app/_components/icons";
 import { Button } from "~/app/_components/ui";
 
 export interface ScriptVersionView {
@@ -20,7 +21,7 @@ export function ScriptVersions({ versions, currentId, busy, onRestore }: {
   return (
     <details className="group rounded-2xl bg-surface/60 px-4 py-3 sm:px-5">
       <summary className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md text-sm font-medium marker:content-none">
-        <svg aria-hidden viewBox="0 0 20 20" className="size-4 text-muted transition-transform duration-150 group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="m8 5 5 5-5 5" /></svg>
+        <ChevronRightIcon className="size-4 text-muted transition-transform duration-150 group-open:rotate-90" />
         Earlier versions <span className="font-mono text-xs font-normal tabular-nums text-muted">{older.length}</span>
       </summary>
       <ul className="mt-2 divide-y divide-line">

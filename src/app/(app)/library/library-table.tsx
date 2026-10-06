@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { ChevronDownIcon } from "~/app/_components/icons";
 import { statusChipBase } from "~/app/_components/ui";
 import { clock, KIND_LABELS, STATUS_LABELS, type ItemKind, type ItemStatus } from "./format";
 
@@ -41,7 +42,7 @@ export function ItemStatusChip({ status, stage }: { status: ItemStatus; stage?: 
 }
 
 // One glyph per kind, for items without a picture (texts, articles, PDFs,
-// sound), drawn at the same 1.5 stroke as the shell's icons.
+// sound), drawn at the same 1.6 stroke as the studio's icons (icons.tsx).
 const KIND_GLYPHS: Record<ItemKind, React.ReactNode> = {
   video: <path d="M8 6.5v7l5.5-3.5z" fill="currentColor" stroke="none" />,
   audio: <path d="M5 9v2M7.5 7v6M10 5v10M12.5 7.5v5M15 9v2" />,
@@ -75,7 +76,7 @@ export function Thumb({ row, className = "size-12" }: { row: Pick<LibraryRow, "t
   }
   return (
     <span aria-hidden className={`${className} flex shrink-0 items-center justify-center rounded-lg bg-surface text-muted`}>
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="size-5">
         {KIND_GLYPHS[row.kind]}
       </svg>
     </span>
@@ -101,9 +102,7 @@ function SortHeader({ label, column, sort, onSort, className = "" }: { label: st
     <th scope="col" aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"} className={`px-3 py-2 font-medium ${className}`}>
       <button type="button" onClick={() => onSort(column)} className={`-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors duration-150 hover:text-fg ${active ? "text-fg" : ""}`}>
         {label}
-        <svg aria-hidden viewBox="0 0 10 10" className={`size-2.5 transition-transform duration-150 ${active ? "opacity-100" : "opacity-0"} ${active && !sort.desc ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 3.5 5 6.5 8 3.5" />
-        </svg>
+        <ChevronDownIcon className={`size-3 transition-transform duration-150 ${active ? "opacity-100" : "opacity-0"} ${active && !sort.desc ? "rotate-180" : ""}`} />
       </button>
     </th>
   );

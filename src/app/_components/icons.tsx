@@ -91,6 +91,26 @@ export const ArrowRightIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const CheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 10.5 8 14l7.5-8" />
+  </Icon>
+);
+
+// A sort's direction: points down, turned for ascending.
+export const ChevronDownIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m5 8 5 5 5-5" />
+  </Icon>
+);
+
+// A disclosure's mark: turns a quarter when it opens.
+export const ChevronRightIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m8 5 5 5-5 5" />
+  </Icon>
+);
+
 export const ArrowLeftIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M16 10H4M8.5 5.5 4 10l4.5 4.5" />
@@ -120,20 +140,6 @@ export const CloseIcon = (p: IconProps) => (
 export const ChatIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M6 13.5a2.5 2.5 0 0 1-2.5-2.5V5.5A2.5 2.5 0 0 1 6 3h8a2.5 2.5 0 0 1 2.5 2.5V11a2.5 2.5 0 0 1-2.5 2.5H9.5L6 16.5z" />
-  </Icon>
-);
-
-export const KeyboardIcon = (p: IconProps) => (
-  <Icon {...p}>
-    <rect x="2.5" y="5" width="15" height="10" rx="2" />
-    <path d="M6 8.5h.01M9 8.5h.01M12 8.5h.01M15 8.5h.01M6.5 11.75h7" />
-  </Icon>
-);
-
-export const ScriptIcon = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="M5 5h10M5 8.5h10M5 12h6.5" />
-    <path d="M13 15.5 15.5 13l1.5 1.5-2.5 2.5H13z" />
   </Icon>
 );
 

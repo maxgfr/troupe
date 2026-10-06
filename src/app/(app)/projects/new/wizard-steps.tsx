@@ -6,6 +6,7 @@
 import { ModelPicker } from "./model-picker";
 import type { ModelOptionView } from "../model-choice";
 import { ActorPortrait } from "~/app/_components/actor-portrait";
+import { CheckIcon } from "~/app/_components/icons";
 import { EmptyState, ErrorNote, ProviderWarning, Skeleton, chipClass } from "~/app/_components/ui";
 import { platformName } from "~/modules/studio/platforms";
 import { useEdition } from "~/app/_components/edition";
@@ -226,7 +227,7 @@ export function ActorStep({
               </span>
               {actorId === actor.id ? (
                 <span aria-hidden className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card">
-                  <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                  <CheckIcon className="size-3.5 [&_path]:stroke-[2.2]" />
                 </span>
               ) : null}
             </label>

@@ -19,6 +19,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ARG TROUPE_WEB_BASE=/troupe/
+# The scene's hue and font (docs/CUSTOMIZING.md#the-video-scene); empty keeps
+# the defaults.
+ARG VITE_SCENE_HUE=
+ARG VITE_SCENE_FONT_URL=
 RUN VITE_BASE="$TROUPE_WEB_BASE" pnpm site:build \
  && node site/docker/csp.mjs site/dist > site/csp.conf
 

@@ -60,7 +60,9 @@ and the text is set in Geist.
 
 - **One hue for everyone**, e.g. your brand's: `SCENE_HUE=210` (0 to 359) for
   the renderer, `TROUPE_RENDERER_SCENE_HUE` in the stack, `VITE_SCENE_HUE` for
-  the browser edition. The studio's own pages keep each actor's hue.
+  the browser edition (in the stack, a build argument of `web`:
+  `VITE_SCENE_HUE=210 docker compose up -d --build web`). The studio's own
+  pages keep each actor's hue.
 - **Another font**: `SCENE_FONT_FILE` is a `.woff2`, `.woff`, `.ttf` or
   `.otf` file the renderer reads; a variable font covers every weight drawn
   (500 to 700), a static file is used for all of them. In the stack the file
@@ -78,7 +80,8 @@ and the text is set in Geist.
 
   For the browser edition, put the file in `site/public/fonts/` and build with
   `VITE_SCENE_FONT_URL=fonts/Inter.woff2` (a path under the site's base), or
-  give an `https://` URL that allows cross-origin requests.
+  give an `https://` URL that allows cross-origin requests; the stack's `web`
+  service takes it as a build argument too.
 - **The actors' pictures**: see [ACTORS.md](ACTORS.md#replacing-the-cast)
   (`PORTRAITS_DIR`, `TROUPE_RENDERER_PORTRAITS_DIR`, `VITE_PORTRAITS_DIR`,
   `TROUPE_ACTOR_PORTRAITS_URL`).

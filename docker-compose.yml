@@ -268,8 +268,10 @@ services:
       context: .
       dockerfile: site/Dockerfile
       args:
-        # Written into the bundle: changing it needs `--build`.
+        # Written into the bundle: changing them needs `--build`.
         TROUPE_WEB_BASE: ${TROUPE_WEB_BASE:-/troupe/}
+        VITE_SCENE_HUE: ${VITE_SCENE_HUE:-}
+        VITE_SCENE_FONT_URL: ${VITE_SCENE_FONT_URL:-}
     ports:
       - "${TROUPE_BIND:-127.0.0.1}:${TROUPE_WEB_PORT:-3101}:8080"
     deploy:

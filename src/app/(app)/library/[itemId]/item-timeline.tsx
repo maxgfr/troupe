@@ -63,7 +63,7 @@ export function ItemTimeline({ durationS, structure, hookEndS, frames, currentS,
                   aria-label={`${PART_LABELS[b.part]}, ${clock(b.startS)} to ${clock(b.endS)}: ${b.summary}`}
                   className={`flex size-full items-center overflow-hidden rounded-md px-2 text-left text-[11px] font-medium whitespace-nowrap transition-[filter] duration-150 hover:brightness-110 ${PART_TONES[b.part]}`}
                 >
-                  {PART_LABELS[b.part]}
+                  <span className="truncate">{PART_LABELS[b.part]}</span>
                 </button>
               </li>
             ))}

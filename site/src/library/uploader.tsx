@@ -66,7 +66,13 @@ function LibraryNote() {
   return (
     <p className="max-w-[72ch] text-pretty text-xs text-muted">
       Everything stays in this browser. Transcription and search run in this tab; the first analysis downloads their models
-      {LIBRARY_CONFIG.downloadMb ? <span className="font-mono tabular-nums"> (about {LIBRARY_CONFIG.downloadMb} MB)</span> : null} and keeps them.
+      {LIBRARY_CONFIG.downloadMb ? (
+        <>
+          {" "}
+          (about <span className="font-mono tabular-nums">{LIBRARY_CONFIG.downloadMb} MB</span>)
+        </>
+      ) : null}{" "}
+      and keeps them.
     </p>
   );
 }

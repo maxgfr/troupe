@@ -83,7 +83,8 @@ export function ItemAnalysis({ analysis, tags, onSeek }: { analysis: Analysis; t
           <ol className="space-y-1.5 text-sm">
             {analysis.structure.map((p, i) => (
               <li key={i} className="grid grid-cols-[3rem_6.5rem_minmax(0,1fr)] items-baseline gap-2 max-sm:grid-cols-[3rem_minmax(0,1fr)]">
-                <span>{time(p.startS)}</span>
+                {/* The hook opens the item: its time is the start when the model left it out. */}
+                <span>{time(p.startS ?? (p.part === "hook" && i === 0 ? 0 : undefined))}</span>
                 <span className="text-xs font-medium text-muted max-sm:hidden">{PART_LABELS[p.part]}</span>
                 <span className="text-pretty">
                   <span className="mr-1.5 text-xs font-medium text-muted sm:hidden">{PART_LABELS[p.part]}</span>

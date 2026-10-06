@@ -126,7 +126,7 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
             }
           }}
           placeholder={canFetchLinks ? "Paste a link or a text" : "Paste a text, or upload a file"}
-          className="min-h-10 w-full flex-1 resize-y rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm placeholder:text-muted/80"
+          className="field-sizing-content min-h-10 max-h-48 w-full flex-1 resize-y rounded-lg border border-muted/30 bg-bg px-3 py-2 text-sm [overflow-wrap:anywhere] placeholder:text-muted/80"
         />
         <div className="flex gap-2">
           <button type="submit" disabled={!draft.trim() || saving} className="min-h-10 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:opacity-40 sm:flex-none">
@@ -157,7 +157,12 @@ export function AddBar({ workspaceId, uploader, canFetchLinks, maxUploadBytes, o
         </label>
         <p id={hintId} className="text-xs text-muted">
           {canFetchLinks ? "Links to videos and pages; videos, sound, pictures, PDFs and text files, dropped here or uploaded." : "Videos, sound, pictures, PDFs and text files, dropped here or uploaded. Links need the self-hosted studio."}
-          {maxUploadBytes ? <span className="font-mono tabular-nums"> · up to {sizeLabel(maxUploadBytes)}</span> : null}
+          {maxUploadBytes ? (
+            <>
+              {" "}
+              · up to <span className="font-mono tabular-nums">{sizeLabel(maxUploadBytes)}</span>
+            </>
+          ) : null}
         </p>
       </div>
       {uploads.length > 0 ? (

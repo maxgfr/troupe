@@ -81,4 +81,22 @@ describe("VideoStill", () => {
     });
     expect(getByTestId("fallback")).toBeDefined();
   });
+  it("shows a wide video whole and fills the frame with a vertical one", () => {
+    const shape = (width: number, height: number) => {
+      const { container } = render(<VideoStill src="/api/media/a1" fallback={fallback} />);
+      scrollIntoView();
+      const node = container.querySelector("video")!;
+      Object.defineProperty(node, "videoWidth", { value: width });
+      Object.defineProperty(node, "videoHeight", { value: height });
+      act(() => {
+        node.dispatchEvent(new Event("loadedmetadata"));
+      });
+      const fit = node.className;
+      cleanup();
+      return fit;
+    };
+    expect(shape(1920, 1080)).toContain("object-contain");
+    expect(shape(1080, 1080)).toContain("object-contain");
+    expect(shape(1080, 1920)).toContain("object-cover");
+  });
 });

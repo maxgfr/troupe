@@ -36,6 +36,7 @@ export function VideoStill({
   const video = useRef<HTMLVideoElement>(null);
   const [near, setNear] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [wide, setWide] = useState(false);
   const [skip] = useState(savesData);
 
   useEffect(() => {
@@ -82,9 +83,14 @@ export function VideoStill({
         preload="metadata"
         disablePictureInPicture
         onError={() => setFailed(true)}
-        // A vertical video keeps its top (the actor's name) and its middle
-        // (the captions) in a shorter frame.
-        className="size-full object-cover object-top"
+        onLoadedMetadata={(event) => setWide(event.currentTarget.videoWidth >= event.currentTarget.videoHeight)}
+        // A square or landscape video shows whole, on black: cropped to a
+        // portrait frame it would lose its actor card and its captions. A
+        // vertical one fills the frame, cut a little above and more below:
+        // in a 3:4 frame it shows from a tenth of its height down to 85%,
+        // its actor card (from 11%) to its captions (centred on 60%, at
+        // most to 78%), clear of the status drawn on the poster's corner.
+        className={`size-full ${wide ? "object-contain" : "object-cover object-[50%_40%]"}`}
       />
     </span>
   );

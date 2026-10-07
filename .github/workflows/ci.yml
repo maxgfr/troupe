@@ -135,7 +135,7 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - uses: docker/setup-buildx-action@v4
       - name: Build the images
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           source: .
           files: |

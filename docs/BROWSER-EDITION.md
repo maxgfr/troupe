@@ -5,7 +5,7 @@ Troupe comes in two editions with the same pages and the same tRPC router:
 - the **self-hosted studio**: Docker or a server, with your API keys and
   model servers ([SELF-HOSTING.md](SELF-HOSTING.md));
 - the **browser edition**: a static site for GitHub Pages
-  (`maxgfr.github.io/troupe` once published), where everything runs and
+  (published at <https://maxgfr.github.io/troupe/>), where everything runs and
   stays in the visitor's browser.
 
 `site/` builds the browser edition for GitHub Pages: the landing page at

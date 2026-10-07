@@ -174,16 +174,22 @@ export function pagesFallback({ base }: { base: string }): Plugin {
   };
 }
 
-const PICTURE_TYPES: Record<string, string> = {
+// The cast folder's files the site serves: the pictures and the voice
+// samples (scripts/actors/voices.ts).
+const CAST_TYPES: Record<string, string> = {
   ".webp": "image/webp",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".webm": "audio/webm",
+  ".m4a": "audio/mp4",
 };
-const pictureType = (file: string): string | undefined => PICTURE_TYPES[extname(file).toLowerCase()];
+const castType = (file: string): string | undefined => CAST_TYPES[extname(file).toLowerCase()];
 
-// `vite dev`: answers <base>actors/<file> with that picture from `dir`, and
-// passes everything else (other paths and files, escapes, malformed URLs) on.
+// `vite dev`: answers <base>actors/<file> with that picture or sample from
+// `dir`, in a byte range when asked (Safari plays audio only from servers
+// that answer ranges), and passes everything else (other paths and files,
+// escapes, malformed URLs) on.
 export function actorPicturesMiddleware(base: string, dir: string): Connect.NextHandleFunction {
   const prefix = `${base}actors/`;
   const root = resolve(dir);
@@ -196,17 +202,25 @@ export function actorPicturesMiddleware(base: string, dir: string): Connect.Next
     }
     if (!path.startsWith(prefix)) return next();
     const file = resolve(root, path.slice(prefix.length));
-    const type = pictureType(file);
+    const type = castType(file);
     if (!type || !file.startsWith(`${root}${sep}`) || !existsSync(file) || !statSync(file).isFile()) return next();
+    const body = readFileSync(file);
     res.setHeader("Content-Type", type);
-    res.end(readFileSync(file));
+    res.setHeader("Accept-Ranges", "bytes");
+    const range = /^bytes=(\d+)-(\d*)$/.exec(String(req.headers?.range ?? ""));
+    const start = range ? Number(range[1]) : 0;
+    const end = range?.[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+    if (!range || start > end) return res.end(body);
+    res.statusCode = 206;
+    res.setHeader("Content-Range", `bytes ${start}-${end}/${body.length}`);
+    res.end(body.subarray(start, end + 1));
   };
 }
 
-// The actors' pictures live once in the repository, in public/actors (the
-// self-hosted app serves them from there). The site serves the same folder,
-// or `dir` when set, at <base>actors/: `vite dev` reads it in place and the
-// build copies it into the output.
+// The actors' pictures and voice samples live once in the repository, in
+// public/actors (the self-hosted app serves them from there). The site serves
+// the same folder, or `dir` when set, at <base>actors/: `vite dev` reads it in
+// place and the build copies it into the output.
 export function actorPictures({ base, dir }: { base: string; dir: string }): Plugin {
   let outDir = "";
   return {
@@ -219,10 +233,10 @@ export function actorPictures({ base, dir }: { base: string; dir: string }): Plu
     },
     writeBundle() {
       if (!existsSync(dir)) this.error(`The actors' pictures folder ${dir} does not exist (VITE_PORTRAITS_DIR).`);
-      // Pictures only: no stray notes or .DS_Store files on the site.
+      // Pictures and samples only: no stray notes or .DS_Store files on the site.
       cpSync(dir, join(outDir, "actors"), {
         recursive: true,
-        filter: (from) => statSync(from).isDirectory() || pictureType(from) !== undefined,
+        filter: (from) => statSync(from).isDirectory() || castType(from) !== undefined,
       });
     },
   };

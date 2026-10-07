@@ -1,0 +1,195 @@
+{
+  "note": "Written by scripts/actors/voices.ts (pnpm actors:voices). Synthetic voices from Kokoro-82M (Apache-2.0).",
+  "model": "onnx-community/Kokoro-82M-v1.0-ONNX",
+  "dtype": "q8",
+  "kokoroJs": "1.2.1",
+  "voiceMap": "female=af_heart,af_bella,af_nicole,bf_emma,af_aoede,af_kore,af_sarah;male=am_michael,am_fenrir,am_puck,bm_george,bm_fable",
+  "emotion": "neutral",
+  "loudness": "loudnorm=I=-18:TP=-1.5:LRA=11",
+  "encodings": {
+    "voice.webm": "-c:a libopus -b:a 24k -application voip -f webm",
+    "voice.m4a": "-c:a aac -b:a 32k -movflags +faststart -f mp4"
+  },
+  "actors": {
+    "lea-01": {
+      "voice": "af_heart",
+      "speed": 1,
+      "text": "Hi, I'm Léa. Honestly, this one made my whole week!",
+      "durationS": 3.83
+    },
+    "marcus-02": {
+      "voice": "am_michael",
+      "speed": 0.95,
+      "text": "I'm Marcus. Let me walk you through it, step by step.",
+      "durationS": 4.3
+    },
+    "aiko-03": {
+      "voice": "af_bella",
+      "speed": 1.06,
+      "text": "Hey, Aiko here! Quick tip, and you'll thank me later.",
+      "durationS": 3.6
+    },
+    "diego-04": {
+      "voice": "am_fenrir",
+      "speed": 0.95,
+      "text": "I'm Diego. I only recommend what I actually use.",
+      "durationS": 3.63
+    },
+    "nora-05": {
+      "voice": "af_nicole",
+      "speed": 1,
+      "text": "Hello, I'm Nora. Guess what I found today?",
+      "durationS": 4.75
+    },
+    "ethan-06": {
+      "voice": "am_puck",
+      "speed": 0.95,
+      "text": "Hey, it's Ethan. Come closer, I want to show you something.",
+      "durationS": 3.95
+    },
+    "priya-07": {
+      "voice": "bf_emma",
+      "speed": 1,
+      "text": "Hi, I'm Priya, and I'm so glad you're here.",
+      "durationS": 3.18
+    },
+    "jonas-08": {
+      "voice": "bm_george",
+      "speed": 0.95,
+      "text": "Jonas here. This is what you need to know, plainly.",
+      "durationS": 4.15
+    },
+    "zoe-09": {
+      "voice": "af_aoede",
+      "speed": 1.06,
+      "text": "Hi, I'm Zoé! Ready? Let's get moving right now.",
+      "durationS": 3.1
+    },
+    "malik-10": {
+      "voice": "bm_fable",
+      "speed": 0.95,
+      "text": "I'm Malik. Take your time, and look at the details.",
+      "durationS": 3.7
+    },
+    "ines-11": {
+      "voice": "af_kore",
+      "speed": 1,
+      "text": "Hi, Ines here! Okay, you are going to love this.",
+      "durationS": 3.3
+    },
+    "viktor-12": {
+      "voice": "am_michael",
+      "speed": 0.95,
+      "text": "I'm Viktor. Let's keep this simple, just you and me.",
+      "durationS": 4.03
+    },
+    "sam-13": {
+      "voice": "af_sarah",
+      "speed": 1,
+      "text": "Hey, I'm Sam. Pull up a chair, this one's good.",
+      "durationS": 3.7
+    },
+    "chloe-14": {
+      "voice": "af_heart",
+      "speed": 0.95,
+      "text": "Good morning, I'm Chloé. Here is the short version.",
+      "durationS": 3.5
+    },
+    "andre-15": {
+      "voice": "am_fenrir",
+      "speed": 1.06,
+      "text": "Andre here! Lace up, because today we start strong.",
+      "durationS": 3.25
+    },
+    "yuki-16": {
+      "voice": "af_bella",
+      "speed": 0.95,
+      "text": "I'm Yuki. I tested it for a month. Here's the truth.",
+      "durationS": 4.25
+    },
+    "owen-17": {
+      "voice": "am_puck",
+      "speed": 1,
+      "text": "Hi, I'm Owen! Wait until you see what this does.",
+      "durationS": 3.08
+    },
+    "fatou-18": {
+      "voice": "af_nicole",
+      "speed": 0.95,
+      "text": "Hi, I'm Fatou. Breathe in, and slow down.",
+      "durationS": 4.45
+    },
+    "luca-19": {
+      "voice": "bm_george",
+      "speed": 1,
+      "text": "Hey there, I'm Luca. Trust me, you'll want a second one.",
+      "durationS": 4.15
+    },
+    "maya-20": {
+      "voice": "bf_emma",
+      "speed": 0.95,
+      "text": "I'm Maya. Let me tell you why this matters.",
+      "durationS": 3.28
+    },
+    "ravi-21": {
+      "voice": "bm_fable",
+      "speed": 1.06,
+      "text": "Ravi here! Three reasons, thirty seconds, let's go!",
+      "durationS": 4
+    },
+    "elsa-22": {
+      "voice": "af_aoede",
+      "speed": 0.95,
+      "text": "I'm Elsa. No hype, just what works for me.",
+      "durationS": 3.08
+    },
+    "tom-23": {
+      "voice": "am_michael",
+      "speed": 1,
+      "text": "Hey, I'm Tom! So, I tried something a little different.",
+      "durationS": 4.22
+    },
+    "nadia-24": {
+      "voice": "af_kore",
+      "speed": 0.95,
+      "text": "Hi, I'm Nadia. This is my quiet little ritual.",
+      "durationS": 3.7
+    },
+    "kai-25": {
+      "voice": "am_puck",
+      "speed": 1,
+      "text": "Hey, I'm Kai. Grab a coffee, I'll tell you everything.",
+      "durationS": 3.38
+    },
+    "sofia-26": {
+      "voice": "af_sarah",
+      "speed": 0.95,
+      "text": "Hello, I'm Sofia. Clear facts, and a clear choice.",
+      "durationS": 4.25
+    },
+    "hugo-27": {
+      "voice": "am_fenrir",
+      "speed": 1.06,
+      "text": "Hugo here! New week, new record. Are you in?",
+      "durationS": 2.8
+    },
+    "amara-28": {
+      "voice": "af_heart",
+      "speed": 0.95,
+      "text": "I'm Amara. I read the label so you don't have to.",
+      "durationS": 3.65
+    },
+    "louis-29": {
+      "voice": "bm_george",
+      "speed": 1,
+      "text": "Hi, I'm Louis! Picture this, then picture it better.",
+      "durationS": 4.22
+    },
+    "emma-30": {
+      "voice": "bf_emma",
+      "speed": 0.95,
+      "text": "Hello, dear, I'm Emma. Let me share a little secret.",
+      "durationS": 4.1
+    }
+  }
+}

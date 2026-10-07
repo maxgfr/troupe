@@ -74,12 +74,14 @@ describe("actor pictures", () => {
     dirs.push(dir);
     mkdirSync(join(dir, "cast", "lea-01", "v1"), { recursive: true });
     writeFileSync(join(dir, "cast", "lea-01", "v1", "front.webp"), "RIFF-front");
+    writeFileSync(join(dir, "cast", "lea-01", "v1", "voice.webm"), "webm-voice");
+    writeFileSync(join(dir, "cast", "lea-01", "v1", "voice.m4a"), "m4a-voice");
     writeFileSync(join(dir, "cast", "lea-01", "v1", "notes.txt"), "not for the site");
     writeFileSync(join(dir, "index.js"), "console.log(1);\n");
     return dir;
   }
 
-  it("copies the pictures, and only them, into the build at <base>actors/", async () => {
+  it("copies the pictures and voice samples, and only them, into the build at <base>actors/", async () => {
     const root = cast();
     const outDir = join(root, "dist");
     await build({
@@ -90,6 +92,8 @@ describe("actor pictures", () => {
       build: { outDir, rollupOptions: { input: join(root, "index.js") } },
     });
     expect(readFileSync(join(outDir, "actors", "lea-01", "v1", "front.webp"), "utf8")).toBe("RIFF-front");
+    expect(readFileSync(join(outDir, "actors", "lea-01", "v1", "voice.webm"), "utf8")).toBe("webm-voice");
+    expect(readFileSync(join(outDir, "actors", "lea-01", "v1", "voice.m4a"), "utf8")).toBe("m4a-voice");
     expect(existsSync(join(outDir, "actors", "lea-01", "v1", "notes.txt"))).toBe(false);
   });
 
@@ -157,18 +161,26 @@ describe("license files and the page's Content-Security-Policy", () => {
 });
 
 describe("actor pictures in vite dev", () => {
-  function serve(url: string) {
+  function serve(url: string, headers: Record<string, string> = {}) {
     const root = mkdtempSync(join(tmpdir(), "troupe-cast-dev-"));
     dirs.push(root);
     mkdirSync(join(root, "lea-01", "v1"), { recursive: true });
     writeFileSync(join(root, "lea-01", "v1", "front.webp"), "RIFF-front");
+    writeFileSync(join(root, "lea-01", "v1", "voice.webm"), "0123456789");
     writeFileSync(join(root, "secret.txt"), "no");
-    const sent: { type?: string; body?: string; next: boolean } = { next: false };
+    const sent: { type?: string; body?: string; status?: number; range?: string; next: boolean } = { next: false };
     const res = {
-      setHeader: (_: string, v: string) => (sent.type = v),
-      end: (b: Buffer) => (sent.body = b.toString()),
+      statusCode: 200,
+      setHeader: (name: string, v: string) => {
+        if (name === "Content-Type") sent.type = v;
+        if (name === "Content-Range") sent.range = v;
+      },
+      end(b: Buffer) {
+        sent.body = b.toString();
+        if (this.statusCode !== 200) sent.status = this.statusCode;
+      },
     };
-    actorPicturesMiddleware("/troupe/", root)({ url } as never, res as never, () => (sent.next = true));
+    actorPicturesMiddleware("/troupe/", root)({ url, headers } as never, res as never, () => (sent.next = true));
     return sent;
   }
 
@@ -177,6 +189,25 @@ describe("actor pictures in vite dev", () => {
       type: "image/webp",
       body: "RIFF-front",
       next: false,
+    });
+  });
+
+  it("serves a voice sample, in byte ranges when asked as Safari does", () => {
+    expect(serve("/troupe/actors/lea-01/v1/voice.webm")).toEqual({
+      type: "audio/webm",
+      body: "0123456789",
+      next: false,
+    });
+    expect(serve("/troupe/actors/lea-01/v1/voice.webm", { range: "bytes=0-1" })).toEqual({
+      type: "audio/webm",
+      body: "01",
+      status: 206,
+      range: "bytes 0-1/10",
+      next: false,
+    });
+    expect(serve("/troupe/actors/lea-01/v1/voice.webm", { range: "bytes=4-" })).toMatchObject({
+      body: "456789",
+      range: "bytes 4-9/10",
     });
   });
 

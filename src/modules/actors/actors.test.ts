@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
@@ -10,9 +10,12 @@ import { createTestDb, type TestDb } from "~/test/db";
 import { createWorkspace } from "~/modules/identity";
 import { projects } from "~/modules/studio/server/schema";
 import { actorAssets, actors } from "~/modules/actors/server/schema";
+import { KOKORO_VOICES, voiceFor } from "~/modules/scene";
 import {
   ACTOR_CATALOG,
   ASSET_SET,
+  libraryVoice,
+  VOICE_SAMPLE_FILES,
   attachActorToProject,
   getActorSeedAssets,
   listActors,
@@ -157,5 +160,59 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
       ASSET_SET.map((a) => storagePathFor(actor.slug, 1, a.file)),
     ).filter((path) => !existsSync(join("public", path)));
     expect(missing).toEqual([]);
+  });
+
+  it("casts each library actor with a voice of their gender, spread over every voice", () => {
+    const used = new Map<string, number>();
+    for (const actor of ACTOR_CATALOG) {
+      const pool =
+        actor.gender === "female"
+          ? KOKORO_VOICES.female
+          : actor.gender === "male"
+            ? KOKORO_VOICES.male
+            : [...KOKORO_VOICES.female, ...KOKORO_VOICES.male];
+      expect(pool, actor.slug).toContain(actor.voice);
+      used.set(actor.voice, (used.get(actor.voice) ?? 0) + 1);
+    }
+    expect([...used.keys()].sort()).toEqual([...KOKORO_VOICES.female, ...KOKORO_VOICES.male].sort());
+    expect(Math.max(...used.values())).toBeLessThanOrEqual(3);
+  });
+
+  it("finds a library actor's voice by the name and age range the seed keys them on", () => {
+    const aiko = ACTOR_CATALOG.find((a) => a.slug === "aiko-03")!;
+    expect(libraryVoice({ name: aiko.name, ageRange: aiko.ageRange })).toBe(aiko.voice);
+    expect(libraryVoice({ name: aiko.name, ageRange: "55+" })).toBeUndefined();
+    expect(libraryVoice({ name: "Ghost", ageRange: "35-44" })).toBeUndefined();
+  });
+
+  it("ships a short voice sample per actor, read with the voice the renderers cast", () => {
+    const manifest = JSON.parse(readFileSync("scripts/actors/voices.json", "utf8")) as {
+      voiceMap: string;
+      actors: Record<string, { voice: string; speed: number; text: string }>;
+    };
+    expect(manifest.voiceMap).toBe(`female=${KOKORO_VOICES.female.join(",")};male=${KOKORO_VOICES.male.join(",")}`);
+    expect(Object.keys(manifest.actors).sort()).toEqual(ACTOR_CATALOG.map((a) => a.slug).sort());
+    const cast = JSON.parse(readFileSync("scripts/actors/cast.json", "utf8")) as Record<string, { line: string }>;
+    let total = 0;
+    for (const actor of ACTOR_CATALOG) {
+      const sample = manifest.actors[actor.slug]!;
+      // Regenerate with `pnpm actors:voices` after changing the casting (docs/ACTORS.md).
+      expect({ voice: sample.voice, speed: sample.speed }, actor.slug).toEqual(
+        voiceFor(
+          { id: actor.slug, gender: actor.gender, voiceProfile: actor.voiceProfile, voice: actor.voice },
+          "neutral",
+        ),
+      );
+      expect(sample.text, actor.slug).toBe(cast[actor.slug]!.line);
+      expect(sample.text, actor.slug).toContain(actor.name);
+      for (const file of VOICE_SAMPLE_FILES) {
+        const path = join("public", storagePathFor(actor.slug, 1, file));
+        expect(existsSync(path), path).toBe(true);
+        const size = statSync(path).size;
+        expect(size, path).toBeLessThanOrEqual(30_000);
+        total += size;
+      }
+    }
+    expect(total).toBeLessThanOrEqual(1_500_000);
   });
 });

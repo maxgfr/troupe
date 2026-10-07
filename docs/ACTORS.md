@@ -15,6 +15,11 @@ Beside them, `front-160.webp` and `front-320.webp` are smaller copies of the
 front picture for the browser edition's landing page, made by
 [`scripts/actors/thumbnails.sh`](../scripts/actors/thumbnails.sh) (cwebp).
 
+Each folder also holds the actor's **voice sample**: `voice.webm` (Opus) and
+`voice.m4a` (AAC, for browsers that cannot play Opus in WebM), a line of
+three to five seconds in which they introduce themselves (see
+[Voice samples](#voice-samples)).
+
 The people in them are synthetic: they were generated, nobody was
 photographed or named, and any resemblance to a real person is coincidental.
 They are released under Troupe's MIT license (see
@@ -25,7 +30,10 @@ They are released under Troupe's MIT license (see
 - **The app**, both the self-hosted studio and the browser edition: the actor
   library, the wizard's actor step, the project page and the script chat's
   recast proposals show the front picture, with the actor's initials on their
-  colour while it loads or when it is missing.
+  colour while it loads or when it is missing. On the Actors page and the
+  wizard's "Who plays it?" step, a button on each picture plays the actor's
+  voice sample (nothing downloads until it is pressed, and one plays at a
+  time).
 - **The local renderers** (`renderer/` and the browser's): the actor card of
   each video shows the front picture, and switches (with a quarter-second
   cross-fade) to the happy, calm or excited one on lines tagged with that
@@ -36,8 +44,9 @@ They are released under Troupe's MIT license (see
 
 The database lists each actor's set (`troupe_actor_asset`); an actor whose set
 has fewer than six pictures is shown as unavailable. A test
-(`src/modules/actors/actors.test.ts`) fails when a file the catalog declares is
-missing from `public/actors`.
+(`src/modules/actors/actors.test.ts`) fails when a picture or voice sample the
+catalog declares is missing from `public/actors`, or when a sample no longer
+matches the voice the renderers would cast.
 
 ## Replacing the cast
 
@@ -57,11 +66,16 @@ browser edition; restart the renderer (or rebuild its Docker image).
 | Browser edition build | `VITE_PORTRAITS_DIR` | `public/actors`, copied to `/troupe/actors/` |
 
 Each place expects the same layout: `<actor>/v1/front.webp` and so on, where
-`<actor>` is the slug from the catalog (`lea-01`, `marcus-02`, …).
+`<actor>` is the slug from the catalog (`lea-01`, `marcus-02`, …). The voice
+samples go beside the pictures (`<actor>/v1/voice.webm`, `voice.m4a`), so the
+app finds them wherever the pictures are. A folder without them still works:
+an actor's play button goes away the first time their sample fails to load.
 
 **Regenerate them** with the script that made them (below), after changing
 the appearances or seeds in
-[`scripts/actors/cast.json`](../scripts/actors/cast.json).
+[`scripts/actors/cast.json`](../scripts/actors/cast.json), and the voice
+samples with `pnpm actors:voices` after changing an actor's voice or line
+([Voice samples](#voice-samples)).
 
 ## How they were made
 
@@ -123,3 +137,42 @@ where it stopped: it keeps the front portraits already in
 `scripts/actors/raw/` and the shots already edited from them. To redraw a
 front, run without `--resume` for that actor (`--only <actor>`); its five
 other shots are then redone from the new one on the next `--resume` run.
+
+## Voice samples
+
+Each library actor has a Kokoro voice of their own, `voice` in the catalog
+([`catalog.ts`](../src/modules/actors/server/catalog.ts)): the twelve voices
+of the default casting (`KOKORO_VOICES` in
+[`src/modules/scene/voice.ts`](../src/modules/scene/voice.ts)), two or three
+actors each. Troupe sends it with each job (`script.actor.voice`), and both
+renderers read the actor's lines with it, at the speed their voice profile
+sets, so an actor sounds the same on every install and like their sample.
+Custom actors, and actors whose voice a custom `KOKORO_VOICES` map leaves
+out, get one picked from the pools instead (per install, so no sample can
+match them).
+
+[`scripts/actors/voices.ts`](../scripts/actors/voices.ts) records the samples
+with that same pipeline: `voiceFor` from the scene module picks the voice and
+speed (plain delivery), and the renderer's Kokoro setup
+(`renderer/src/kokoro.ts`, `onnx-community/Kokoro-82M-v1.0-ONNX` at `q8`)
+reads the actor's `line` from `cast.json`. ffmpeg evens out the loudness
+(-18 LUFS) and encodes Opus at 24 kb/s in WebM and AAC at 32 kb/s in MP4,
+mono: about 11 and 16 KB a sample, 0.8 MB for the cast. A rerun gives the
+same bytes. What was used (model, weights, kokoro-js version, voice map,
+each actor's voice, speed, line and length) is written to
+[`scripts/actors/voices.json`](../scripts/actors/voices.json).
+
+```bash
+# Every actor (needs ffmpeg with libopus; the weights, ~90 MB, download once
+# into ~/.cache/troupe-renderer, shared with the renderer). Under a minute.
+pnpm actors:voices
+# Some actors again, after changing their line in cast.json
+pnpm actors:voices --only aiko-03,tom-23
+# Another cast folder (its settings go to <folder>/voices.json)
+pnpm actors:voices --dir /path/to/cast
+```
+
+`KOKORO_DTYPE`, `KOKORO_VOICES` and `KOKORO_CACHE` work as for the renderer.
+The voices are synthetic: Kokoro-82M and kokoro-js are under the Apache
+License 2.0 ([THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)); the
+samples are released under Troupe's MIT license.

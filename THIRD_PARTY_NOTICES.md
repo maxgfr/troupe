@@ -234,6 +234,15 @@ at `<base>licenses/` (linked from the landing page's footer).
     [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU License) for
     the WebP files. Their other dependencies, pinned in
     `scripts/actors/uv.lock`, keep their own licenses.
+- **The actors' voice samples** (`public/actors/<actor>/v1/voice.webm` and
+  `voice.m4a`, 60 files of a few seconds). They are synthetic voices: each
+  is one line of text read by the Kokoro-82M model above
+  ([`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX),
+  Apache License 2.0) through kokoro-js 1.2.1 (Apache License 2.0, its
+  phonemes from eSpeak NG), with one of Kokoro's own voices; no real person
+  was recorded. They were made with `scripts/actors/voices.ts` and encoded
+  with ffmpeg (libopus, and its own AAC encoder), and are released under
+  this repository's MIT license.
 - **The inspiration library** (`docs/LIBRARY.md`). Troupe distributes no
   model weights; each is downloaded at run time from where it is published.
   - Transcription in the self-hosted studio: the renderer image installs, with

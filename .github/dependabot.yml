@@ -14,6 +14,15 @@ updates:
       prefix: fix
       prefix-development: chore
       include: scope
+    # Majors that need a migration, done by hand: Next.js 16, TypeScript 7,
+    # and Node's types, which follow the Node the images run (24).
+    ignore:
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -28,3 +37,8 @@ updates:
     commit-message:
       prefix: fix
       include: scope
+    # Node 26 no longer ships corepack, which the images enable pnpm with:
+    # the images stay on Node 24 LTS.
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]

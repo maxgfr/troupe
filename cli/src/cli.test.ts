@@ -213,6 +213,55 @@ describe("command line", () => {
       "Use an http:// or https:// address",
     );
   });
+
+  it("refuses an edit with nothing to change, or with choices that exclude each other, before calling the studio", async () => {
+    expect(await run(["projects", "edit"])).toMatchObject({
+      code: 2,
+      stderr:
+        "troupe: Nothing to change. Pass --title, --platform, --format, --language, --model, --model-auto, --actor.\n",
+    });
+    expect((await run(["projects", "edit", "--model", "x", "--model-auto"])).stderr).toBe(
+      "troupe: Pass --model or --model-auto, not both.\n",
+    );
+    expect((await run(["projects", "edit", "--platform", "myspace"])).stderr).toBe(
+      'troupe: --platform takes one of tiktok, instagram, youtube, linkedin, not "myspace".\n',
+    );
+    expect((await run(["projects", "edit", "--format", "4:3"])).code).toBe(2);
+    expect((await run(["library", "edit", "3f2a"])).stderr).toBe(
+      "troupe: Nothing to change. Pass --title, --mine or --not-mine.\n",
+    );
+    expect((await run(["library", "edit", "3f2a", "--mine", "--not-mine"])).code).toBe(2);
+    expect((await run(["library", "delete"])).stderr).toBe(
+      "troupe: Usage: troupe library delete <item>. See --help.\n",
+    );
+    expect((await run(["models", "edit", "box"])).stderr).toBe(
+      "troupe: Nothing to change. Pass --name, --base-url, --token-stdin or --clear-token.\n",
+    );
+    expect((await run(["models", "edit", "box", "--token-stdin", "--clear-token"])).code).toBe(2);
+  });
+
+  it("compares two or three models with a score from 1 to 5, checked before calling the studio", async () => {
+    const project = { TROUPE_PROJECT: "11111111-1111-4111-8111-111111111111" };
+    expect(await run(["compare", "launch", "--model", "a"], project)).toMatchObject({
+      code: 2,
+      stderr: "troupe: Compare two or three models: pass --model two or three times, or none to let the studio pick.\n",
+    });
+    const four = ["a", "b", "c", "d"].flatMap((m) => ["--model", m]);
+    expect((await run(["compare", "launch", ...four], project)).code).toBe(2);
+    expect((await run(["compare", "launch", "--watch", "--interval", "0"], project)).code).toBe(2);
+    expect((await run(["compare", "watch", "--timeout", "soon"])).code).toBe(2);
+    expect(await run(["compare", "vote", "latest", "box", "6"])).toMatchObject({
+      code: 2,
+      stderr: 'troupe: The score is a whole number from 1 to 5, not "6".\n',
+    });
+    expect((await run(["compare", "vote", "latest", "box", "4.5"])).code).toBe(2);
+    expect((await run(["compare", "vote", "latest", "box"])).code).toBe(2);
+    expect((await run(["compare", "list", "--before", "soon"])).stderr).toContain("--before takes a date");
+    // Past the checks, on to the (closed) studio.
+    expect((await run(["compare", "vote", "latest", "box", "5"])).code).toBe(4);
+    const group = await run(["compare", "--help"]);
+    expect(group.stdout).toContain("compare vote <comparison> <model> <score>");
+  });
 });
 
 describe("studio address", () => {

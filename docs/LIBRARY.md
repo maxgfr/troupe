@@ -168,6 +168,10 @@ troupe library add https://youtu.be/… --wait
 pbpaste | troupe library add - --title "Notes"
 troupe library list --kind video
 troupe library show "Cold open" --transcript
+troupe library edit 3f2a --title "Cold open" --mine
+troupe library reanalyze 3f2a --wait                         # once a missing model is pulled
+troupe library voice                                         # what your own items taught it
+troupe library delete 3f2a --yes
 troupe library search hooks that ask a question
 troupe library chat which of these opens on a dare?
 troupe library chat --item 3f2a why does this hook work?

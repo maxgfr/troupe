@@ -60,17 +60,28 @@ const modelsList: Command = {
   summary: "List the video models, with what they render and whether they can launch.",
   options: { all: { type: "boolean", description: "Include archived models." } },
   async run(ctx, { options }) {
-    const result = await ctx.api.settings.models.list.query();
+    const [result, connections] = await Promise.all([
+      ctx.api.settings.models.list.query(),
+      ctx.api.settings.models.connections.query(),
+    ]);
     const shown = result.models.filter((m) => flag(options, "all") || !m.archived);
     return {
-      // `state` and `launchable` spare scripts from combining status, enabled and archived.
+      // `state` and `launchable` spare scripts from combining status, enabled
+      // and archived; `connection` is where a local model added with
+      // `models add` lives (never its token).
       data: {
         ...result,
-        models: shown.map((m) => ({
-          ...m,
-          state: modelState(m),
-          launchable: m.status === "ready" && m.enabled && !m.archived,
-        })),
+        models: shown.map((m) => {
+          const found = connections.find((c) => c.modelKey === m.key);
+          return {
+            ...m,
+            state: modelState(m),
+            launchable: m.status === "ready" && m.enabled && !m.archived,
+            connection: found
+              ? { baseUrl: found.baseUrl, templateId: found.templateId, hasToken: found.hasToken }
+              : null,
+          };
+        }),
       },
       text: table(
         ["MODEL", "NAME", "WHERE", "STATE", "FORMATS", "LENGTHS (S)", "AUDIO", "DEFAULT"],
@@ -202,6 +213,77 @@ const modelsAdd: Command = {
         `Added ${label} as ${modelKey}${flag(options, "default") ? " (now the default model)" : ""}.`,
         `Test: ${report.message}`,
         ...(report.details ?? []),
+      ].join("\n"),
+    };
+  },
+};
+
+const modelsEdit: Command = {
+  path: ["models", "edit"],
+  args: "<model>",
+  positionals: { min: 1, max: 1 },
+  summary:
+    "Rename a local model, move it to another address or change its token, as Settings' edit form does. Cloud models have none of these.",
+  options: {
+    name: { type: "string", value: "<name>", description: "New name shown in pickers (unique)." },
+    "base-url": {
+      type: "string",
+      value: "<url>",
+      description:
+        "Where the model server now listens, as the studio reaches it. A token stays only on the same origin.",
+    },
+    "token-stdin": {
+      type: "boolean",
+      description: "Read a new bearer token from stdin (asked without echo on a terminal).",
+    },
+    "clear-token": { type: "boolean", description: "Forget the saved token." },
+  },
+  examples: [
+    'troupe models edit local-renderer-1a2b --name "Renderer on the GPU box" --base-url http://10.0.0.5:8078',
+    "troupe models edit 'GPU box' --token-stdin < token.txt",
+  ],
+  validate({ options }) {
+    if (
+      !str(options, "name") &&
+      !str(options, "base-url") &&
+      !flag(options, "token-stdin") &&
+      !flag(options, "clear-token")
+    )
+      throw usageError("Nothing to change. Pass --name, --base-url, --token-stdin or --clear-token.");
+    if (flag(options, "token-stdin") && flag(options, "clear-token"))
+      throw usageError("Pass --token-stdin or --clear-token, not both.");
+  },
+  async run(ctx, { positionals, options }) {
+    const model = await findModel(ctx, positionals[0]!);
+    // Only HTTP and ComfyUI models have an address and a token to change.
+    const before = (await ctx.api.settings.models.connections.query()).find((c) => c.modelKey === model.key);
+    if (!before)
+      throw new CliError(
+        `${model.label} is ${model.kind === "cloud" ? "a cloud model" : "built in"}: only the local models added with troupe models add (HTTP, ComfyUI) can be edited. Turn others on or off in Settings.`,
+        { code: "NOT_EDITABLE" },
+      );
+    const token = flag(options, "token-stdin")
+      ? await readSecret(ctx, { fromStdin: true, what: "Token", option: "token-stdin" })
+      : undefined;
+    await ctx.api.settings.models.updateLocal.mutate({
+      modelKey: model.key,
+      ...(str(options, "name") ? { label: str(options, "name") } : {}),
+      ...(str(options, "base-url") ? { baseUrl: str(options, "base-url") } : {}),
+      ...(token ? { token } : {}),
+      ...(flag(options, "clear-token") ? { clearToken: true } : {}),
+    });
+    const after = (await ctx.api.settings.models.connections.query()).find((c) => c.modelKey === model.key) ?? before;
+    const label = str(options, "name") ?? model.label;
+    const moved = str(options, "base-url") !== undefined && after.baseUrl !== before.baseUrl;
+    return {
+      data: { ...after, label },
+      text: [
+        fields([
+          ["Model", `${label} (${model.key})`],
+          ["Address", after.baseUrl],
+          ["Token", after.hasToken ? "saved" : "none"],
+        ]),
+        ...(moved || token ? [`Check it with troupe models test ${model.key}.`] : []),
       ].join("\n"),
     };
   },
@@ -354,6 +436,7 @@ const keysTest: Command = {
 export const modelCommands: Command[] = [
   modelsList,
   modelsAdd,
+  modelsEdit,
   modelsTest,
   modelsRemove,
   modelsDefault,

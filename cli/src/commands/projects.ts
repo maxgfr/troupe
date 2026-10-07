@@ -1,15 +1,16 @@
 import type { Outputs } from "../client.ts";
-import { type Command, type Context, flag, oneOf, str } from "../command.ts";
+import { type Command, type Context, flag, oneOf, type Project, type Result, str } from "../command.ts";
 import { usageError } from "../errors.ts";
 import { fields, shortId, table, when } from "../output.ts";
 import { pick } from "../resolve.ts";
+import { findModel } from "./models.ts";
 
 type Actor = Outputs["actors"]["list"][number];
 
 const PLATFORMS = ["tiktok", "instagram", "youtube", "linkedin"] as const;
 const FORMATS = ["9:16", "1:1", "16:9"] as const;
 
-const absolute = (ctx: Context, path: string | null) => (path ? new URL(path, `${ctx.url}/`).href : null);
+export const absolute = (ctx: Context, path: string | null) => (path ? new URL(path, `${ctx.url}/`).href : null);
 
 export async function findActor(ctx: Context, ref: string): Promise<Actor> {
   const actors = await ctx.api.actors.list.query();
@@ -164,48 +165,115 @@ const projectsCreate: Command = {
   },
 };
 
+// What `projects show` prints, and `projects edit` after its changes.
+async function projectDetails(ctx: Context, project: Project): Promise<Result> {
+  const [actors, history, renders, projects] = await Promise.all([
+    ctx.api.actors.list.query(),
+    ctx.api.script.history.query({ projectId: project.id }),
+    ctx.api.generation.forProject.query({ projectId: project.id }),
+    ctx.api.identity.projects.query({ workspaceId: project.workspaceId }),
+  ]);
+  // The stage as the project list works it out from renders and exports.
+  const stage = projects.find((p) => p.id === project.id)?.status ?? project.status;
+  const actor = actors.find((a) => a.id === project.actorId);
+  const script = history.at(-1) ?? null;
+  const latest = renders[0] ?? null;
+  return {
+    data: {
+      project: { ...project, status: stage },
+      actor: actor ?? null,
+      script,
+      renders: renders.length,
+      latestRender: latest,
+    },
+    text: fields([
+      ["Title", project.title],
+      ["Id", project.id],
+      ["Stage", stage],
+      ["Platform", `${project.platform} ${project.format}, language ${project.language}`],
+      ["Actor", actor ? `${actor.name} (${actor.gender}, ${actor.ageRange}, ${actor.voiceProfile})` : "none"],
+      ["Model", project.modelKey ?? "studio default"],
+      [
+        "Script",
+        script
+          ? `version ${script.version}, ${script.lines.length} lines, about ${script.estimatedDurationS} s`
+          : "none yet",
+      ],
+      ["Renders", latest ? `${renders.length}; newest ${shortId(latest.id)} ${latest.status}` : "none yet"],
+    ]),
+  };
+}
+
 const projectsShow: Command = {
   path: ["projects", "show"],
   args: "[project]",
   positionals: { min: 0, max: 1 },
   summary: "Show a project: actor, model, newest script version and renders.",
   async run(ctx, { positionals }) {
-    const project = await ctx.project(positionals[0]);
-    const [actors, history, renders, projects] = await Promise.all([
-      ctx.api.actors.list.query(),
-      ctx.api.script.history.query({ projectId: project.id }),
-      ctx.api.generation.forProject.query({ projectId: project.id }),
-      ctx.api.identity.projects.query({ workspaceId: project.workspaceId }),
-    ]);
-    // The stage as the project list works it out from renders and exports.
-    const stage = projects.find((p) => p.id === project.id)?.status ?? project.status;
-    const actor = actors.find((a) => a.id === project.actorId);
-    const script = history.at(-1) ?? null;
-    const latest = renders[0] ?? null;
-    return {
-      data: {
-        project: { ...project, status: stage },
-        actor: actor ?? null,
-        script,
-        renders: renders.length,
-        latestRender: latest,
-      },
-      text: fields([
-        ["Title", project.title],
-        ["Id", project.id],
-        ["Stage", stage],
-        ["Platform", `${project.platform} ${project.format}, language ${project.language}`],
-        ["Actor", actor ? `${actor.name} (${actor.gender}, ${actor.ageRange}, ${actor.voiceProfile})` : "none"],
-        ["Model", project.modelKey ?? "studio default"],
-        [
-          "Script",
-          script
-            ? `version ${script.version}, ${script.lines.length} lines, about ${script.estimatedDurationS} s`
-            : "none yet",
-        ],
-        ["Renders", latest ? `${renders.length}; newest ${shortId(latest.id)} ${latest.status}` : "none yet"],
-      ]),
+    return projectDetails(ctx, await ctx.project(positionals[0]));
+  },
+};
+
+const EDITS = ["title", "platform", "format", "language", "model", "model-auto", "actor"] as const;
+
+const projectsEdit: Command = {
+  path: ["projects", "edit"],
+  args: "[project]",
+  positionals: { min: 0, max: 1 },
+  summary:
+    "Change a project's title, platform, format, language, video model or actor (default: the current project), then show it.",
+  options: {
+    title: { type: "string", value: "<title>", description: "New title." },
+    platform: { type: "string", value: "<platform>", description: "tiktok, instagram, youtube or linkedin." },
+    format: { type: "string", value: "<ratio>", description: "9:16, 1:1 or 16:9." },
+    language: { type: "string", value: "<code>", description: "Dialogue language code, e.g. fr." },
+    model: { type: "string", value: "<model>", description: "Video model for this project (see troupe models list)." },
+    "model-auto": { type: "boolean", description: "Forget the project's model: renders use the studio's default." },
+    actor: {
+      type: "string",
+      value: "<actor>",
+      description: "Recast the project; renders already made keep their actor.",
+    },
+  },
+  examples: [
+    'troupe projects edit --title "Spring drop, take 2"',
+    "troupe projects edit Teaser --platform youtube --format 16:9 --language fr",
+    "troupe projects edit --model local-renderer-1a2b --actor Maya",
+  ],
+  validate({ options }) {
+    if (!EDITS.some((name) => options[name] !== undefined))
+      throw usageError(`Nothing to change. Pass ${EDITS.map((name) => `--${name}`).join(", ")}.`);
+    if (str(options, "model") && flag(options, "model-auto"))
+      throw usageError("Pass --model or --model-auto, not both.");
+    if (str(options, "platform")) oneOf(str(options, "platform")!, PLATFORMS, "platform");
+    if (str(options, "format")) oneOf(str(options, "format")!, FORMATS, "format");
+  },
+  async run(ctx, { positionals, options }) {
+    let project = await ctx.project(positionals[0]);
+    const platform = str(options, "platform") as (typeof PLATFORMS)[number] | undefined;
+    const format = str(options, "format") as (typeof FORMATS)[number] | undefined;
+    const modelRef = str(options, "model");
+    // null: no model of its own, so renders take the studio's default.
+    const modelKey = modelRef ? (await findModel(ctx, modelRef)).key : flag(options, "model-auto") ? null : undefined;
+    const actor = str(options, "actor") ? await findActor(ctx, str(options, "actor")!) : undefined;
+    const choices = {
+      title: str(options, "title"),
+      platform,
+      format,
+      language: str(options, "language"),
+      modelKey,
     };
+    if (Object.values(choices).some((value) => value !== undefined))
+      await ctx.api.studio.updateChoices.mutate({ projectId: project.id, ...choices });
+    if (actor) await ctx.api.studio.changeActor.mutate({ projectId: project.id, actorId: actor.id });
+    project = (await ctx.api.studio.getProject.query({ projectId: project.id })) as Project;
+    // A format the platform does not prefer, as the wizard warns.
+    if (platform || format) {
+      const formats = await ctx.api.studio.formatOptions.query({ platform: project.platform });
+      const warning = formats.find((f) => f.format === project.format)?.warning;
+      if (warning) ctx.note(`Note: ${warning}.`);
+    }
+    return projectDetails(ctx, project);
   },
 };
 
@@ -255,6 +323,7 @@ export const projectCommands: Command[] = [
   projectsList,
   projectsCreate,
   projectsShow,
+  projectsEdit,
   projectsUse,
   projectsDelete,
 ];

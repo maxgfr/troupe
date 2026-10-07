@@ -127,6 +127,5 @@ All in `src/app/_components` and shared by both editions:
 ## CLI
 
 The CLI (`troupe`, [CLI.md](CLI.md)) uses the same nouns: `projects`,
-`script`, `chat`, `render`, `export`, `download`, `actors`, `models`,
-`keys` (provider accounts), `library`. Comparing models is a studio page
-only.
+`script`, `chat`, `render`, `compare`, `export`, `download`, `actors`,
+`models`, `keys` (provider accounts), `library`.

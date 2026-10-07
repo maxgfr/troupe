@@ -70,7 +70,10 @@ with `/plugin marketplace update troupe`.
    frames it looks at for the actor and the captions. It tells you what it
    saw and where the file is, and says what it could not check (it cannot
    hear the voice).
-7. Iterates on the script when you ask.
+7. Iterates on the script, or the project's choices (`troupe projects
+   edit`), when you ask. To choose between models it compares two or three
+   on the same script (`troupe compare launch`), reviews each render, and
+   records only the scores you give before adopting the winner.
 8. Exports only after you say you watched the video and it is ready, then
    passes on the platform's AI-disclosure rule.
 

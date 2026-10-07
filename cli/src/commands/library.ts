@@ -286,6 +286,100 @@ const chat: Command = {
   },
 };
 
+const edit: Command = {
+  path: ["library", "edit"],
+  args: "<item>",
+  positionals: { min: 1, max: 1 },
+  summary: "Rename an item, or mark it as your own content (or not).",
+  options: {
+    title: { type: "string", value: "<title>", description: "New title." },
+    mine: {
+      type: "boolean",
+      description: "It is your own content: its hooks, tone and pace shape what Troupe writes in your voice.",
+    },
+    "not-mine": { type: "boolean", description: "It is someone else's content after all." },
+  },
+  examples: ['troupe library edit 3f2a --title "Cold open"', 'troupe library edit "Cold open" --mine'],
+  validate({ options }) {
+    if (!str(options, "title") && !flag(options, "mine") && !flag(options, "not-mine"))
+      throw usageError("Nothing to change. Pass --title, --mine or --not-mine.");
+    if (flag(options, "mine") && flag(options, "not-mine")) throw usageError("Pass --mine or --not-mine, not both.");
+  },
+  async run(ctx, { positionals, options }) {
+    const found = await findItem(ctx, positionals[0]!);
+    const item = await ctx.api.library.update.mutate({
+      workspaceId: await ctx.workspaceId(),
+      itemId: found.id,
+      ...(str(options, "title") ? { title: str(options, "title") } : {}),
+      ...(flag(options, "mine") ? { mine: true } : flag(options, "not-mine") ? { mine: false } : {}),
+    });
+    return {
+      data: item,
+      text: `Saved "${item.title}" (${shortId(item.id)})${item.mine ? ", your own content" : ""}.`,
+    };
+  },
+};
+
+const reanalyze: Command = {
+  path: ["library", "reanalyze"],
+  args: "<item>",
+  positionals: { min: 1, max: 1 },
+  summary:
+    "Read an item again from the start, e.g. once a missing model is pulled (an item still being read is left alone).",
+  options: {
+    wait: { type: "boolean", description: "Wait for the analysis to finish, then show it." },
+    timeout: { type: "string", value: "<seconds>", description: "With --wait: how long to wait (default 900)." },
+  },
+  async run(ctx, { positionals, options }) {
+    const workspaceId = await ctx.workspaceId();
+    const found = await findItem(ctx, positionals[0]!);
+    const queued = await ctx.api.library.reanalyze.mutate({ workspaceId, itemId: found.id });
+    if (!flag(options, "wait"))
+      return {
+        data: queued,
+        text: `"${queued.title}" is queued to be read again.\nFollow it: troupe library show ${shortId(queued.id)}`,
+      };
+    const item = await waitForItem(ctx, queued.id, int(options, "timeout", { min: 1 }) ?? 900);
+    const full = await ctx.api.library.get.query({ workspaceId, itemId: item.id });
+    const exitCode = full.status === "failed" ? EXIT.failed : full.status === "ready" ? EXIT.ok : EXIT.timeout;
+    return { data: full, text: itemSummary(full), exitCode };
+  },
+};
+
+const remove: Command = {
+  path: ["library", "delete"],
+  args: "<item>",
+  positionals: { min: 1, max: 1 },
+  summary: "Delete an item with its stored file, passages and chat about it. Needs --yes.",
+  options: { yes: { type: "boolean", description: "Confirm the deletion; it cannot be undone." } },
+  async run(ctx, { positionals, options }) {
+    const item = await findItem(ctx, positionals[0]!);
+    if (!flag(options, "yes"))
+      throw usageError(
+        `Deleting "${item.title}" removes it from the library with its stored file, passages and chat for good. Run again with --yes to confirm.`,
+      );
+    await ctx.api.library.delete.mutate({ workspaceId: await ctx.workspaceId(), itemId: item.id });
+    return {
+      data: { deleted: true, item: { id: item.id, title: item.title } },
+      text: `Deleted "${item.title}".`,
+    };
+  },
+};
+
+const voice: Command = {
+  path: ["library", "voice"],
+  summary: "Show what Troupe learned of your voice from your own items (--mine): hooks, tone, pace, sentence length.",
+  async run(ctx) {
+    const voice = await ctx.api.library.voice.query({ workspaceId: await ctx.workspaceId() });
+    return {
+      data: voice,
+      text:
+        voice.profile ??
+        "No voice yet: none of your own items is read. Save some with troupe library add <file|link|-> --mine.",
+    };
+  },
+};
+
 function ideaText(ideas: Idea[]): string {
   if (ideas.length === 0) return "No ideas yet. Write some with troupe library ideas generate --item <item>.";
   return ideas
@@ -401,4 +495,17 @@ const project: Command = {
   },
 };
 
-export const libraryCommands: Command[] = [add, list, show, search, chat, ideas, generate, project];
+export const libraryCommands: Command[] = [
+  add,
+  list,
+  show,
+  edit,
+  reanalyze,
+  remove,
+  search,
+  chat,
+  voice,
+  ideas,
+  generate,
+  project,
+];

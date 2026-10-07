@@ -167,8 +167,8 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 
 | Code | Meaning |
 |---|---|
-| 0 | Done (`render watch`: the render completed) |
-| 1 | Refused (by the studio, or by the CLI: a file that exists, a script too long for its clip), or the render failed |
+| 0 | Done (`render watch`: the render completed; `compare watch`: every render did) |
+| 1 | Refused (by the studio, or by the CLI: a file that exists, a script too long for its clip), or the render (one of a comparison's renders) failed |
 | 2 | Wrong command, option or value |
 | 3 | Not signed in, or a wrong access code |
 | 4 | The studio cannot be reached |
@@ -188,6 +188,7 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `doctor --live [--model <model>]… [--yes] [-o <folder>]` | Renders one clip per model that can launch, at its cheapest settings (shortest, lowest resolution, silent where allowed), in a new project; downloads each video, runs `ffprobe` on it and asks the script chat once. Without `--yes` it prints the plan and its cost and exits 2. See [LIVE-CHECKS.md](LIVE-CHECKS.md). |
 | `models list [--all]` | Every model with where it runs, its state, formats, lengths, audio, and the default. `--all` includes archived ones. |
 | `models add http\|comfyui …` | Add a local model, after testing it. See below. |
+| `models edit <model> [--name] [--base-url] [--token-stdin \| --clear-token]` | Rename a local model added with `models add`, move it to another address, or change or forget its token (read from stdin or a hidden prompt). A token stays only while the model keeps its origin. Cloud and built-in models are refused (`NOT_EDITABLE`). |
 | `models test <model>` | Contact a model or check its provider key. Exit 1 when it cannot render. |
 | `models remove <model> [--restore]` | Archive a local model (its renders stay). |
 | `models default [<model>] [--clear]` | Show or set the default model. |
@@ -222,6 +223,7 @@ differs from your terminal's view when the studio runs in Docker
 | `projects list` | Projects, newest first, with their stage (`*` marks the current one). |
 | `projects create --title --actor [--platform] [--format] [--language] [--model] [--no-use]` | What the wizard does; makes it the current project. Platform `tiktok` by default, format the platform's preferred one, language `en`. |
 | `projects show [<project>]` | Actor, model, newest script version, renders. |
+| `projects edit [<project>] [--title] [--platform] [--format] [--language] [--model \| --model-auto] [--actor]` | Change any of these, then show the project as `projects show` does. `--model-auto` forgets the project's model (renders take the studio's default); `--actor` recasts it, and renders already made keep their actor. Nothing to change is a usage error. |
 | `projects use <project>` | Make it the current project. |
 | `projects delete <project> --yes` | Delete it with its scripts, renders and files. |
 | `script show [--version N] [--text]` | A version as a table, or with `--text` in the file format below. |
@@ -286,6 +288,27 @@ result carries the platform's AI-disclosure rule (`disclosure`).
 `<name>.<random>.part` file and renames it when complete, and never
 overwrites a file without `--force` (exit 1, `FILE_EXISTS`).
 
+### Comparing models
+
+The studio's Compare page (its API is `benchmark`): the same script version
+rendered by two or three models side by side, each render rated from 1 to 5.
+The highest total wins; a shared top score is a tie, which a deciding vote
+breaks.
+
+| Command | Does |
+|---|---|
+| `compare launch [--model <model>…] [--version N] [--duration S] [--resolution R] [--watch]` | Render the newest version (or N) on each model. Without `--model`, the models the project's **Compare models** button picks: the first two or three that can render the project's format and share a clip length fitting the script and a resolution. The length is the first model's default when they all offer it, else the shortest shared one; the resolution 720p when they all offer it. `--model` takes two or three models; a length or resolution one of them does not offer is refused. |
+| `compare list [--before <date>]` | Comparisons, newest first (50 a page; `--before` the oldest one's date for the next), with their winner so far. |
+| `compare show [<comparison>]` | One comparison (default: the newest): each model's status, clip, cost, latency, score and video address, the winner, and what to do next. |
+| `compare watch [<comparison>] [--interval S] [--timeout S]` | Follow it until every render finishes: exit 0, 1 when one failed, 5 when `--timeout` passed. |
+| `compare vote <comparison> <model> <1-5>` | Rate a model's completed render, as the page's quality score does; voting again replaces your score. |
+
+Adopting the winner, as the page's **Adopt for project** does, is
+`projects edit --model <model>`: `compare show` prints the command. Its
+models are the ones `studio.modelOptions` offers for the project's format
+and language, as in the studio's pickers. Polling a comparison moves its
+renders along, as `render watch` does.
+
 ### Library
 
 The [inspiration library](LIBRARY.md). Items, ideas and actors take an id,
@@ -296,6 +319,10 @@ an id prefix or a title.
 | `library add <file\|link\|-> [--title] [--mine] [--wait [--timeout S]]` | Save a file (uploaded to the studio), a link (a video platform through yt-dlp, any other page as an article) or text from stdin (`-`). `--wait` follows the analysis and prints it: exit 0 ready, 1 failed, 5 still reading. |
 | `library list [--kind K] [--mine] [--tag T]` | The library, newest first. |
 | `library show <item> [--transcript]` | Hook, why it works, summary, structure, pace, tone, tags, pictures, passages indexed, and what was skipped. |
+| `library edit <item> [--title] [--mine \| --not-mine]` | Rename an item, or mark it as your own content (or not). |
+| `library reanalyze <item> [--wait [--timeout S]]` | Read it again from the start, e.g. once a missing model is pulled; an item still being read is left alone. `--wait` as for `add`. |
+| `library delete <item> --yes` | Delete it with its stored file, passages and chat about it. Without `--yes` it says what would go and exits 2. |
+| `library voice` | What Troupe learned of your voice from your own ready items (`--mine`): hooks, tone, pace, sentence length. The library's writing uses it. |
 | `library search <query…> [--item] [--limit N]` | Passages ranked by meaning (by keywords where no embedding model has read them), each with its item and moment. |
 | `library chat <message…> [--item]` | Ask the library, or one item; the answer lists the sources it cites. |
 | `library ideas [--item]` | The idea cards, each a whole script. |
@@ -337,15 +364,19 @@ troupe download <export-id>
   durationS, audio }, pricePerSecondUsd, status, enabled, archived,
   lastTest` (a local model's last connection test, `{ ok, message, at }`, or
   null) plus `state` (`ready`, `disabled`, `archived`, `unreachable` for a
-  local model whose last test failed, or the status) and `launchable` (an
-  unreachable model can still launch: its server may be up by then).
+  local model whose last test failed, or the status), `launchable` (an
+  unreachable model can still launch: its server may be up by then) and
+  `connection` (`{ baseUrl, templateId, hasToken }` for a model added with
+  `models add`, never the token; null for the others).
 - `models add`: `{ modelKey, test: { ok, message, details?, pollEveryS? }, default }`.
+- `models edit`: `{ modelKey, label, baseUrl, templateId, hasToken }`, as
+  saved.
 - `actors list` / `actors show`: `{ id, name, gender, ageRange, style,
   voiceProfile, status, portraitUrl }` (absolute URL).
 - `projects create` / `projects list`: project rows `{ id, title, platform,
   format, language, actorId, modelKey, status, createdAt }` (`list` has the
-  computed stage in `status`). `projects show`: `{ project, actor, script,
-  renders, latestRender }`.
+  computed stage in `status`). `projects show` and `projects edit`:
+  `{ project, actor, script, renders, latestRender }`.
 - Scripts (`script show`, `set`, `restore`, `chat apply`'s `script`):
   `{ id, version, origin, estimatedDurationS, lines: [{ index, role, text, emotion }] }`.
 - `chat send`: the assistant message `{ id, content, proposal: { summary,
@@ -361,6 +392,21 @@ troupe download <export-id>
   downloadUrl, disclosure: { requirement, headline, detail } }`. `export
   list`: the records with `downloadUrl`.
 - `download`: `{ path, bytes, contentType, renderId, exportId }`.
+- `compare launch` without `--watch`: `{ id, brief, entries: [{ id,
+  generationId, modelKey }] }`. `compare show`, `watch`, `vote` and
+  `launch --watch`: `{ id, projectId, brief, briefLines, meanByModel,
+  entries: [{ id, generationId, modelKey, label, status, durationS,
+  mediaDurationS, costUsd, costSource, latencyMs, outputAssetUrl (absolute
+  URL), burnedCaptions, votes, meanScore }], winnerModelKey, tie }`
+  (`winnerModelKey` is null while nobody voted and on a tie). `compare
+  list`: `[{ id, brief, createdAt, entryCount, winnerModelKey, winnerLabel }]`.
+- Library items (`library list`, `edit`, `reanalyze`): `{ id, kind, title,
+  status, stage, mine, tags, hook, summary, durationS, fileName, sourceUrl,
+  problem, mediaUrl, downloadUrl, thumbnailUrl, createdAt, analyzedAt, … }`; `library show`,
+  `add --wait` and `reanalyze --wait` add `body, passages, embedded,
+  analysis`. `library delete`: `{ deleted: true, item: { id, title } }`.
+  `library voice`: `{ profile, items }` (`profile` is null until one of your
+  own items is read).
 
 ## Not yet
 

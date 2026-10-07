@@ -1,6 +1,7 @@
 import type { Command } from "../command.ts";
 import { authCommands } from "./auth.ts";
 import { chatCommands } from "./chat.ts";
+import { compareCommands } from "./compare.ts";
 import { exportCommands } from "./export.ts";
 import { libraryCommands } from "./library.ts";
 import { modelCommands } from "./models.ts";
@@ -18,6 +19,7 @@ export const COMMANDS: Command[] = [
   ...scriptCommands,
   ...chatCommands,
   ...renderCommands,
+  ...compareCommands,
   ...exportCommands,
   ...libraryCommands,
 ];

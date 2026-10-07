@@ -508,5 +508,157 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect((await troupe(["library", "ideas"], signed)).stdout).toContain(
       `(project ${made.data().projectId.slice(0, 8)})`,
     );
+
+    // Renamed and marked as the user's own: the voice is read from both.
+    const edited = await troupe(
+      ["library", "edit", "pocket clip", "--title", "Pocket clip v2", "--mine", "--json"],
+      signed,
+    );
+    expect(edited.data()).toMatchObject({ id: video.data().id, title: "Pocket clip v2", mine: true });
+    const voice = (await troupe(["library", "voice", "--json"], signed)).data();
+    expect(voice).toMatchObject({ items: 2, profile: expect.stringContaining("From 2 of your own pieces.") });
+    const reread = await troupe(["library", "reanalyze", "pocket clip v2", "--wait", "--json"], signed);
+    expect(reread.code).toBe(0);
+    expect(reread.data()).toMatchObject({ id: video.data().id, status: "ready" });
+
+    // Deleting needs --yes: without it, what would go, and nothing gone.
+    const unconfirmed = await troupe(["library", "delete", "pocket clip v2"], signed);
+    expect(unconfirmed.code).toBe(2);
+    expect(unconfirmed.stderr).toContain('Deleting "Pocket clip v2" removes it');
+    const deleted = await troupe(["library", "delete", video.data().id.slice(0, 8), "--yes", "--json"], signed);
+    expect(deleted.data()).toEqual({ deleted: true, item: { id: video.data().id, title: "Pocket clip v2" } });
+    expect((await troupe(["library", "list", "--json"], signed)).data().map((i: { id: string }) => i.id)).toEqual([
+      text.data().id,
+    ]);
+  });
+
+  it("edits a project and a local model, and compares two models side by side with votes", async () => {
+    const signed = { env: { TROUPE_ACCESS_CODE: CODE } };
+    const { models } = (await troupe(["models", "list", "--json"], signed)).data();
+    const first = models.find((m: { label: string }) => m.label === "Test renderer");
+    expect(first.connection).toEqual({ baseUrl: model.url, templateId: null, hasToken: false });
+
+    // A second model on the same server, renamed, given a token, then without.
+    const added = await troupe(
+      ["models", "add", "http", "--name", "Second", "--base-url", model.url, "--json"],
+      signed,
+    );
+    const second = added.data().modelKey;
+    const renamed = await troupe(["models", "edit", "second", "--name", "Other renderer", "--json"], signed);
+    expect(renamed.data()).toEqual({
+      modelKey: second,
+      label: "Other renderer",
+      baseUrl: model.url,
+      templateId: null,
+      hasToken: false,
+    });
+    const tokened = await troupe(["models", "edit", second, "--token-stdin", "--json"], {
+      ...signed,
+      stdin: "t0ken\n",
+    });
+    expect(tokened.data()).toMatchObject({ hasToken: true });
+    expect(
+      (await troupe(["models", "edit", "other renderer", "--clear-token", "--json"], signed)).data(),
+    ).toMatchObject({ hasToken: false });
+    const cloud = models.find((m: { kind: string }) => m.kind === "cloud");
+    const notLocal = await troupe(["models", "edit", cloud.key, "--name", "Mine", "--json"], signed);
+    expect(notLocal.code).toBe(1);
+    expect(JSON.parse(notLocal.stderr).error).toMatchObject({ code: "NOT_EDITABLE" });
+
+    // Every choice at once, then back to the studio's default model.
+    const actors = (await troupe(["actors", "list", "--json"], signed)).data();
+    const [maya, other] = actors.filter((a: { status: string }) => a.status === "active");
+    const created = await troupe(["projects", "create", "--title", "Edit me", "--actor", maya.id, "--json"], signed);
+    const projectId = created.data().id;
+    const changed = await troupe(
+      [
+        "projects",
+        "edit",
+        "edit me",
+        "--title",
+        "Side by side",
+        "--platform",
+        "youtube",
+        "--format",
+        "16:9",
+        "--language",
+        "fr",
+        "--model",
+        "Other renderer",
+        "--actor",
+        other.name,
+        "--json",
+      ],
+      signed,
+    );
+    expect(changed.code).toBe(0);
+    expect(changed.data()).toMatchObject({
+      project: { id: projectId, title: "Side by side", platform: "youtube", format: "16:9", language: "fr" },
+      actor: { id: other.id },
+    });
+    expect(changed.data().project).toMatchObject({ modelKey: second, actorId: other.id });
+    const auto = await troupe(["projects", "edit", projectId.slice(0, 8), "--model-auto", "--json"], signed);
+    expect(auto.data().project.modelKey).toBeNull();
+    expect((await troupe(["projects", "show", projectId], signed)).stdout).toMatch(/Model:\s+studio default/);
+
+    // The same script on both models, picked as the studio's Compare button does.
+    const project = { env: { ...signed.env, TROUPE_PROJECT: projectId } };
+    await troupe(["script", "set", "-"], { ...project, stdin: "[excited] Stop scrolling.\n[calm] Follow for more.\n" });
+    const tooShort = await troupe(["compare", "launch", "--duration", "1", "--json"], project);
+    expect(JSON.parse(tooShort.stderr).error.code).toBe("SCRIPT_TOO_LONG");
+    const odd = await troupe(["compare", "launch", "--resolution", "1080p", "--json"], project);
+    expect(odd.code).toBe(2);
+    const launched = await troupe(["compare", "launch", "--json"], project);
+    expect(launched.code).toBe(0);
+    const runId = launched.data().id;
+    expect(
+      launched
+        .data()
+        .entries.map((e: { modelKey: string }) => e.modelKey)
+        .sort(),
+    ).toEqual([first.key, second].sort());
+    const watched = await troupe(["compare", "watch", "--interval", "0.05", "--timeout", "30", "--json"], signed);
+    expect(watched.code).toBe(0);
+    expect(watched.data()).toMatchObject({ id: runId, projectId, winnerModelKey: null, tie: false });
+    for (const entry of watched.data().entries) {
+      // Both offer 8 s, the first model's default length.
+      expect(entry).toMatchObject({ status: "completed", durationS: 8, outputAssetUrl: expect.any(String) });
+      expect(entry.outputAssetUrl.startsWith(`${studio.url}/api/media/`)).toBe(true);
+    }
+
+    // Models and length chosen.
+    const chosen = await troupe(
+      ["compare", "launch", "--model", "Test renderer", "--model", second, "--duration", "4", "--json"],
+      project,
+    );
+    expect(chosen.code).toBe(0);
+    // A render still rendering cannot be rated (its server is first asked a second after the launch).
+    const early = await troupe(["compare", "vote", "latest", "test renderer", "4", "--json"], signed);
+    expect(early.code).toBe(1);
+    expect(JSON.parse(early.stderr).error.code).toBe("NOT_COMPLETED");
+    const latest = (await troupe(["compare", "show", "--json"], signed)).data();
+    expect(latest.entries.map((e: { durationS: number }) => e.durationS)).toEqual([4, 4]);
+    expect((await troupe(["compare", "list", "--json"], signed)).data()).toEqual([
+      expect.objectContaining({ id: chosen.data().id, entryCount: 2, winnerModelKey: null }),
+      expect.objectContaining({ id: runId, entryCount: 2 }),
+    ]);
+    expect((await troupe(["compare", "watch", "--interval", "0.05", "--timeout", "30"], signed)).code).toBe(0);
+
+    // A finished one can, from 1 to 5; the highest total wins.
+    expect((await troupe(["compare", "vote", runId.slice(0, 8), "test renderer", "4"], signed)).code).toBe(0);
+    const voted = await troupe(["compare", "vote", runId, "Other renderer", "2", "--json"], signed);
+    expect(voted.data()).toMatchObject({ winnerModelKey: first.key, tie: false });
+    expect(voted.data().entries.find((e: { modelKey: string }) => e.modelKey === first.key)).toMatchObject({
+      label: "Test renderer",
+      meanScore: 4,
+    });
+    const shown = await troupe(["compare", "show", runId.slice(0, 8)], signed);
+    expect(shown.stdout).toMatch(/Winner:\s+Test renderer \(4 points\)/);
+    expect(shown.stdout).toContain(`troupe projects edit ${projectId.slice(0, 8)} --model ${first.key}`);
+    expect((await troupe(["compare", "list", "--json"], signed)).data()[1]).toMatchObject({
+      id: runId,
+      winnerModelKey: first.key,
+      winnerLabel: "Test renderer",
+    });
   });
 });

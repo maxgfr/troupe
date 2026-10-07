@@ -46,7 +46,7 @@ the browser edition.
 | `/projects/:id/export` | Export tab | Pick a render, platform preset, caption, AI label | Create export, then Download MP4 | Render a video first |
 | `/library` | Library | Saved inspiration, search by meaning, ask, ideas | Save | Save your first piece |
 | `/library/:id` | *item title* | The item on one time axis, its analysis and transcript | Make something from it (ideas, a remix, scripts) | Reading… (progress) |
-| `/actors` | Actors | The 30 actors: picture, voice, style | — | — |
+| `/actors` | Actors | The 30 actors: picture, voice (a sample to play), style | — | — |
 | `/benchmark` | Compare | One script across several models; vote; adopt the winner | Adopt for project (gold) | Start a comparison from a project |
 | `/settings` | Settings | Appearance, your data, models, script chat, provider accounts | Each section's Save / Test | — |
 | `/access` | Your private studio | Self-hosted only: the access code | Open studio | — |
@@ -106,7 +106,8 @@ All in `src/app/_components` and shared by both editions:
   like what loads, `ErrorNote` (danger), `ProviderWarning` (warning),
   `NeedsSelfHosted` (`edition.tsx`).
 - `StatusChip` (and `StageChip` on posters), `ProgressBar` (the one glowing
-  motion), `ActorPortrait`, `VideoStill` and `VideoPoster`.
+  motion), `ActorPortrait`, `VoiceSampleButton` (plays an actor's voice
+  sample, `voice-sample.tsx`), `VideoStill` and `VideoPoster`.
 - `Shortcuts` / `ShortcutList`, `usePageTitle`, the stage light
   (`stage.tsx`).
 - Icons from `icons.tsx`: one 20 px grid, 1.6 stroke, round caps; no

@@ -1,5 +1,6 @@
 import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { EmptyState } from "~/app/_components/ui";
+import { VoiceSampleButton } from "~/app/_components/voice-sample";
 import { POSTER_SIZES } from "../dashboard/dashboard-view";
 
 export interface LibraryActor {
@@ -16,7 +17,7 @@ export interface LibraryActor {
 }
 
 // Pure view — the 30-actor grid: each actor as a portrait card, the name on
-// the picture, the voice and style below.
+// the picture and a button that plays their voice, the voice and style below.
 export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]; filtered?: boolean }) {
   if (actors.length === 0) {
     return filtered ? (
@@ -52,6 +53,7 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
             >
               {actor.name}
             </span>
+            <VoiceSampleButton name={actor.name} portraitUrl={actor.portraitUrl} className="absolute top-3 left-3" />
           </div>
           <p className="mt-2.5 text-pretty text-xs text-muted">
             <span className="sr-only">{actor.name}: </span>

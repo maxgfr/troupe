@@ -83,6 +83,20 @@ export const PlayIcon = (p: IconProps) => (
   </Icon>
 );
 
+// A voice: a speaker and two waves, for hearing an actor before choosing them.
+export const VoiceIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 8.2v3.6c0 .6.4 1 1 1h2.2l3.5 2.9c.4.3 1 0 1-.5V4.8c0-.5-.6-.8-1-.5L6.7 7.2H4.5c-.6 0-1 .4-1 1z" />
+    <path d="M14 7.6a3.4 3.4 0 0 1 0 4.8M16.3 5.4a6.6 6.6 0 0 1 0 9.2" />
+  </Icon>
+);
+
+export const StopIcon = (p: IconProps) => (
+  <Icon {...p} filled>
+    <rect x="5.5" y="5.5" width="9" height="9" rx="2" stroke="none" />
+  </Icon>
+);
+
 export const DownloadIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M10 3.5v9M6 9l4 4 4-4M4 16.5h12" />

@@ -73,6 +73,51 @@ test("landing → dashboard → new project → script, kept across reloads and 
   expect(errors).toEqual([]);
 });
 
+test("an actor's voice plays before they are chosen, one at a time, in the wizard and on the Actors page", async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  const voice = (name: string) => page.getByRole("button", { name: `Play ${name}'s voice` });
+  // The <audio> beside the button: how far it has played.
+  const played = (name: string) =>
+    voice(name).evaluate((button) => (button.nextElementSibling as HTMLAudioElement).currentTime);
+
+  await page.goto(`${APP}/projects/new`);
+  await page.getByLabel("Project title").fill("Voices");
+  for (let step = 0; step < 3; step++) await page.getByRole("button", { name: "Continue" }).click();
+  await expect(voice("Aiko")).toBeVisible(MIGRATING);
+  // Nothing downloads until a voice is asked for.
+  const samples: string[] = [];
+  page.on("request", (request) => {
+    if (/\/voice\.(webm|m4a)$/.test(request.url())) samples.push(request.url());
+  });
+  await page.waitForTimeout(500);
+  expect(samples).toEqual([]);
+
+  await voice("Aiko").click();
+  await expect(voice("Aiko")).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => played("Aiko")).toBeGreaterThan(0.3);
+  expect(samples).toEqual([expect.stringMatching(/\/troupe\/actors\/aiko-03\/v1\/voice\.webm$/)]);
+  // Playing a voice does not choose the actor.
+  await expect(page.locator('input[name="actor"]:checked')).toHaveCount(0);
+
+  // Starting another stops the first.
+  await voice("Tom").click();
+  await expect(voice("Tom")).toHaveAttribute("aria-pressed", "true");
+  await expect(voice("Aiko")).toHaveAttribute("aria-pressed", "false");
+  // A sample ends by itself, and the button says so.
+  await expect(voice("Tom")).toHaveAttribute("aria-pressed", "false", { timeout: 10_000 });
+
+  await page.goto(`${APP}/actors`);
+  await voice("Léa").click();
+  await expect.poll(() => played("Léa")).toBeGreaterThan(0.3);
+  // Pressing it again stops it.
+  await voice("Léa").click();
+  await expect(voice("Léa")).toHaveAttribute("aria-pressed", "false");
+
+  expect(errors).toEqual([]);
+});
+
 test("the media worker serves stored renders with byte ranges", async ({ page }) => {
   await page.goto(`${APP}/dashboard`);
   await page.evaluate(() => navigator.serviceWorker.ready);

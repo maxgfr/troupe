@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Hear an actor before choosing them: a button on each picture, on the
+  Actors page and in the wizard's "Who plays it?" step, plays a short
+  sample of their voice (`public/actors/<actor>/v1/voice.webm` and
+  `voice.m4a`, 0.8 MB for the cast, made by `pnpm actors:voices` with the
+  renderers' own Kokoro pipeline; [docs/ACTORS.md](docs/ACTORS.md#voice-samples)).
+
+### Changed
+
+- Each library actor now has a Kokoro voice of their own in the catalog,
+  sent with each job (`script.actor.voice`), so they sound the same on every
+  install and like their sample. Until now the voice was picked from the
+  actor's database id, which differs between installs: re-rendering an
+  existing project may give its actor another voice than before.
+
 ## 0.2.0 — 2026-10-06
 
 First tagged release. The code went public on 2026-10-04 numbered 0.1.0,

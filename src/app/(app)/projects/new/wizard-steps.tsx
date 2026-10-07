@@ -7,6 +7,7 @@ import { ModelPicker } from "./model-picker";
 import type { ModelOptionView } from "../model-choice";
 import { ActorPortrait } from "~/app/_components/actor-portrait";
 import { CheckIcon } from "~/app/_components/icons";
+import { VoiceSampleButton } from "~/app/_components/voice-sample";
 import { EmptyState, ErrorNote, ProviderWarning, Skeleton, chipClass } from "~/app/_components/ui";
 import { platformName } from "~/modules/studio/platforms";
 import { useEdition } from "~/app/_components/edition";
@@ -206,47 +207,51 @@ export function ActorStep({
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-3 sm:gap-4">
           {actors.map((actor) => (
-            <label
-              key={actor.id}
-              className={`group relative cursor-pointer overflow-hidden rounded-xl transition-shadow duration-150 ${
-                actorId === actor.id
-                  ? "shadow-[0_0_0_2px_var(--troupe-color-background),0_0_0_4px_var(--troupe-color-primary)]"
-                  : ""
-              } ${actor.status === "unavailable" ? "cursor-not-allowed opacity-40" : ""}`}
-            >
-              <input
-                type="radio"
-                name="actor"
-                className="sr-only"
-                disabled={actor.status === "unavailable"}
-                checked={actorId === actor.id}
-                onChange={() => onActor(actor.id)}
-              />
-              <ActorPortrait
-                id={actor.id}
-                name={actor.name}
-                src={actor.portraitUrl}
-                label={`${actor.name} — ${actor.style}, ${actor.ageRange}`}
-                sizes="(min-width: 640px) 170px, 45vw"
-                className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-              />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]"
-              />
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-2.5 pt-8 pb-2 text-xs text-white">
-                <strong className="font-semibold">{actor.name}</strong>{" "}
-                <span className="text-white/75">· {actor.style}</span>
-              </span>
-              {actorId === actor.id ? (
+            // The voice button sits beside the card's label, not in it, so
+            // pressing it plays the voice without choosing the actor.
+            <div key={actor.id} className="relative">
+              <label
+                className={`group relative block cursor-pointer overflow-hidden rounded-xl transition-shadow duration-150 ${
+                  actorId === actor.id
+                    ? "shadow-[0_0_0_2px_var(--troupe-color-background),0_0_0_4px_var(--troupe-color-primary)]"
+                    : ""
+                } ${actor.status === "unavailable" ? "cursor-not-allowed opacity-40" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="actor"
+                  className="sr-only"
+                  disabled={actor.status === "unavailable"}
+                  checked={actorId === actor.id}
+                  onChange={() => onActor(actor.id)}
+                />
+                <ActorPortrait
+                  id={actor.id}
+                  name={actor.name}
+                  src={actor.portraitUrl}
+                  label={`${actor.name} — ${actor.style}, ${actor.ageRange}`}
+                  sizes="(min-width: 640px) 170px, 45vw"
+                  className="aspect-[4/5] w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                />
                 <span
                   aria-hidden
-                  className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card"
-                >
-                  <CheckIcon className="size-3.5 [&_path]:stroke-[2.2]" />
+                  className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_0_1px_var(--picture-edge)]"
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-2.5 pt-8 pb-2 text-xs text-white">
+                  <strong className="font-semibold">{actor.name}</strong>{" "}
+                  <span className="text-white/75">· {actor.style}</span>
                 </span>
-              ) : null}
-            </label>
+                {actorId === actor.id ? (
+                  <span
+                    aria-hidden
+                    className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-card"
+                  >
+                    <CheckIcon className="size-3.5 [&_path]:stroke-[2.2]" />
+                  </span>
+                ) : null}
+              </label>
+              <VoiceSampleButton name={actor.name} portraitUrl={actor.portraitUrl} className="absolute top-2 left-2" />
+            </div>
           ))}
         </div>
       )}

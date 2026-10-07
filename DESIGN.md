@@ -103,7 +103,7 @@ The vocabulary, screens and navigation are mapped in
 - **Wizard**: a stepper of four filling segments; each step asks its
   question as a section title. Platform → format (drawn to its shape) and
   model → language → actor (tall portraits, the name on the picture, a
-  check when chosen). Back and Continue stay above the tab bar on phones.
+  check when chosen, the voice button in the other top corner). Back and Continue stay above the tab bar on phones.
   Model limits and language warnings appear inline.
 - **Project header and tabs**: every project page opens on the actor's
   portrait (rounded square), the title in Bricolage and platform · format
@@ -135,6 +135,13 @@ The vocabulary, screens and navigation are mapped in
 - **Actors**: portrait cards (4:5) in 2 / 3 / 4 columns, the name in
   Bricolage on a dark scrim at the foot of the picture, gender · age ·
   style and the voice below; gender filters as chips.
+- **Voice sample** (`VoiceSampleButton`, the Actors cards and the wizard's
+  actor step): a 32 px round button in the picture's top-left corner (44 px
+  to the touch), a speaker in dark glass; playing, it turns cobalt with a
+  stop square and a thin ring that fills with the sample. Icons cross-fade
+  in 150 ms, the ring fades in over 250 ms; with reduced motion only the
+  colour and the icon change. One sample plays at a time; it never chooses
+  the actor.
 - **Inspiration library**: a ledger, not a mood board. The add bar (one
   field for a link or a text, Upload beside it, the whole bar a drop zone,
   "It is my own content" below) and one quiet line of status dots for the

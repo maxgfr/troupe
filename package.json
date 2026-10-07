@@ -53,7 +53,7 @@
     "@trpc/server": "^11.0.0",
     "drizzle-orm": "^0.45.2",
     "linkedom": "0.18.13",
-    "next": "^15.5.25",
+    "next": "^16.3.8",
     "postgres": "^3.4.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

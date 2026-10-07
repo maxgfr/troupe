@@ -3,8 +3,9 @@ name: release
 # Every push to main: semantic-release reads the commits since the last v*
 # tag (Conventional Commits, CONTRIBUTING.md#releases). When they call for a
 # release it tags the commit vX.Y.Z, publishes the GitHub Release with
-# generated notes and its files attached (scripts/release-assets.sh), and the
-# images job publishes the five images for that version (images.yml). Nothing
+# generated notes and its files attached (scripts/release-assets.sh), the
+# binaries job attaches the CLI's standalone binaries (scripts/cli-binaries.sh)
+# and the images job publishes the five images for that version (images.yml). Nothing
 # is committed back: the package.json versions stay as they are.
 on:
   push:
@@ -70,3 +71,68 @@ jobs:
     uses: ./.github/workflows/images.yml
     with:
       version: ${{ needs.release.outputs.version }}
+
+  # The CLI as standalone binaries (no Node.js), what Homebrew installs
+  # (maxgfr/tap/troupe), attached to the release a few minutes after it.
+  # The macOS ones are built on macOS: they are re-signed there.
+  binaries:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    strategy:
+      matrix:
+        include:
+          - runner: macos-latest
+            targets: macos-arm64 macos-x64
+          - runner: ubuntu-24.04
+            targets: linux-x64 linux-arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: pnpm install --frozen-lockfile
+      - run: bash scripts/cli-binaries.sh "$VERSION" ${{ matrix.targets }}
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "v$VERSION" cli-binaries/troupe-* --clobber
+      - run: (cd cli-binaries && shasum -a 256 -- troupe-*) > "sums-${{ matrix.runner }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sums-${{ matrix.runner }}
+          path: sums-${{ matrix.runner }}.txt
+
+  # The release's SHA256SUMS, with the binaries' sums added.
+  checksums:
+    needs: [release, binaries]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: v${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sums-*
+          merge-multiple: true
+      - run: |
+          gh release download "$TAG" --pattern SHA256SUMS
+          cat sums-*.txt >> SHA256SUMS
+          sort -k2 -o SHA256SUMS SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$TAG" SHA256SUMS --clobber

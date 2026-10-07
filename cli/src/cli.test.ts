@@ -10,7 +10,7 @@ import { mainHelp, runCli, VERSION } from "./cli.ts";
 import cliPackage from "../package.json" with { type: "json" };
 import { buildCli } from "../build.mjs";
 import type { Io } from "./command.ts";
-import { fetchMedia, USER_AGENT } from "./client.ts";
+import { explainError, fetchMedia, USER_AGENT } from "./client.ts";
 import { assertSecureTransport, LOCK_TIMING, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
 import { startServer } from "~/test/local-server";
 import { numberRanges, sentence, table } from "./output.ts";
@@ -153,6 +153,13 @@ describe("command line", () => {
         message: expect.stringContaining(`Cannot reach the studio at http://127.0.0.1:${closedPort} (ECONNREFUSED)`),
       },
     });
+  });
+
+  it("reads the standalone binary's network errors (Bun's) as unreachable too", () => {
+    const refused = Object.assign(new TypeError("Unable to connect. Is the computer able to access the url?"), {
+      code: "ConnectionRefused",
+    });
+    expect(explainError(refused, "http://127.0.0.1:9")).toMatchObject({ exitCode: 4, code: "UNREACHABLE" });
   });
 
   // docker-compose.yml passes TROUPE_PROJECT through, empty when unset: that

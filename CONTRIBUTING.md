@@ -124,7 +124,13 @@ on the commits since the last `v*` tag. When one of them calls for a release
    `scripts/release-assets.sh`: the CLI in one file
    (`troupe-cli-X.Y.Z.mjs`), the browser edition (`troupe-web-X.Y.Z.zip`,
    `site/dist` built for `/troupe/`) and their `SHA256SUMS`;
-2. publishes the five images to GHCR for amd64 and arm64
+2. attaches the CLI as standalone binaries, with no Node.js needed
+   (`scripts/cli-binaries.sh`: `troupe-macos-arm64`, `troupe-macos-x64`,
+   `troupe-linux-arm64`, `troupe-linux-x64`, the macOS ones built and signed
+   on macOS), and adds their sums to `SHA256SUMS`. The
+   [maxgfr/tap](https://github.com/maxgfr/homebrew-tap) Homebrew formula
+   installs them; its update workflow follows the releases daily;
+3. publishes the five images to GHCR for amd64 and arm64
    (`.github/workflows/images.yml`): `troupe`, `troupe-renderer`,
    `troupe-ollama`, `troupe-web` and `troupe-cli`, each tagged `X.Y.Z`,
    `X.Y`, `X` and `latest`.

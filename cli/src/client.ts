@@ -134,9 +134,15 @@ const NETWORK_CODES = new Set([
   "ENETUNREACH",
   "UND_ERR_CONNECT_TIMEOUT",
   "UND_ERR_SOCKET",
+  // The standalone binary's runtime (Bun) names them on the error itself.
+  "ConnectionRefused",
+  "ConnectionClosed",
+  "ConnectionReset",
+  "FailedToOpenSocket",
 ]);
 
-// fetch() fails with TypeError("fetch failed") and the reason in `cause`.
+// Node's fetch() fails with TypeError("fetch failed") and the reason in
+// `cause`; Bun's with the code on the TypeError.
 function networkReason(error: unknown): string | null {
   let failedFetch = false;
   let detail = "";

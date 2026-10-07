@@ -25,6 +25,15 @@ jobs:
       - run: pnpm typecheck
       - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - run: pnpm test
+      # The standalone CLI binary a release ships (Bun's runtime, not Node's)
+      # runs the CLI's integration flows too.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bash scripts/cli-binaries.sh 0.0.0-ci linux-x64
+      - run: pnpm vitest run cli/src/cli.integration.test.ts
+        env:
+          TROUPE_CLI_BIN: ${{ github.workspace }}/cli-binaries/troupe-linux-x64
       - run: pnpm build
 
   # Commit messages follow Conventional Commits (CONTRIBUTING.md#commit-messages):

@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -87,7 +88,8 @@ let clip: Buffer;
 beforeAll(async () => {
   // The studio's per-procedure timing lines (development mode).
   vi.spyOn(console, "log").mockImplementation(() => undefined);
-  folder = await mkdtemp(join(tmpdir(), "troupe-cli-"));
+  // Its real path: a built CLI reports what the system resolves (/private/var on macOS).
+  folder = await realpath(await mkdtemp(join(tmpdir(), "troupe-cli-")));
   clip = await readFile("src/test/fixtures/clip.mp4");
   vi.stubEnv("TROUPE_ACCESS_CODE", CODE);
   vi.stubEnv("TROUPE_DATA_DIR", join(folder, "data"));
@@ -179,8 +181,37 @@ afterAll(async () => {
   await rm(folder, { recursive: true, force: true });
 });
 
-// One CLI invocation, in process, with its own environment.
+// TROUPE_CLI_BIN: a built CLI (the standalone binary a release ships) runs
+// these flows instead of the source, one process per invocation.
+const BIN = process.env.TROUPE_CLI_BIN;
+
+function runBinary(bin: string, args: string[], env: Record<string, string>, stdin: string) {
+  return new Promise<{ code: number; stdout: string; stderr: string }>((resolve, reject) => {
+    const child = spawn(bin, args, {
+      cwd: folder,
+      // Only what the CLI needs, not this process's environment (the studio's).
+      env: { PATH: process.env.PATH ?? "", HOME: folder, ...env } as unknown as NodeJS.ProcessEnv,
+      stdio: "pipe",
+    });
+    const out: Buffer[] = [];
+    const err: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
+    child.once("error", reject);
+    child.once("close", (code) =>
+      resolve({ code: code ?? 1, stdout: Buffer.concat(out).toString(), stderr: Buffer.concat(err).toString() }),
+    );
+    child.stdin.end(stdin);
+  });
+}
+
+// One CLI invocation, in process (or the built CLI), with its own environment.
 async function troupe(args: string[], opts: { stdin?: string; env?: Record<string, string>; typed?: string } = {}) {
+  if (BIN) {
+    const env = { TROUPE_CONFIG_DIR: join(folder, "config"), ...opts.env };
+    const { code, stdout, stderr } = await runBinary(BIN, args, env, opts.stdin ?? "");
+    return { code, stdout, stderr, data: () => JSON.parse(stdout) };
+  }
   const out: string[] = [];
   const err: string[] = [];
   const io: Io = {
@@ -225,7 +256,8 @@ describe("troupe CLI against the studio's HTTP API", () => {
     expect(login.code).toBe(0);
     expect(login.data()).toEqual({ profile: "default", url: studio.url, access: "code" });
     // On a terminal, --code-stdin asks without echo instead of reading stdin.
-    expect((await troupe(["login", "--url", studio.url, "--code-stdin"], { typed: CODE })).code).toBe(0);
+    // (A child process has no terminal to type at.)
+    if (!BIN) expect((await troupe(["login", "--url", studio.url, "--code-stdin"], { typed: CODE })).code).toBe(0);
     // The cookie is saved for its owner only, and the code never is.
     const configFile = join(folder, "config", "config.json");
     expect((await stat(configFile)).mode & 0o777).toBe(0o600);

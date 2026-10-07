@@ -15,7 +15,7 @@ which has no server.
 
 With Homebrew (macOS and Linux), from the
 [maxgfr/tap](https://github.com/maxgfr/homebrew-tap) tap, which follows the
-releases:
+releases. It installs a standalone binary: no Node.js needed.
 
 ```bash
 brew install maxgfr/tap/troupe
@@ -23,7 +23,16 @@ troupe --version
 ```
 
 From a release: each [GitHub Release](https://github.com/maxgfr/troupe/releases)
-has the CLI in one file, `troupe-cli-<version>.mjs`, which needs Node.js 22
+has the same binaries, `troupe-<macos|linux>-<arm64|x64>` (Bun's runtime with
+the CLI inside, built by `scripts/cli-binaries.sh`; CI runs the CLI's
+integration flows on the Linux one):
+
+```bash
+curl -fLo troupe https://github.com/maxgfr/troupe/releases/latest/download/troupe-linux-x64
+chmod +x troupe && ./troupe --version
+```
+
+and the CLI in one file, `troupe-cli-<version>.mjs`, which needs Node.js 22
 or later and nothing else:
 
 ```bash

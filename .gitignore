@@ -60,3 +60,6 @@ yarn-error.log*
 .venv/
 __pycache__/
 /scripts/actors/raw/
+
+# the CLI binaries (scripts/cli-binaries.sh)
+/cli-binaries

@@ -27,6 +27,46 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # Commit messages follow Conventional Commits (CONTRIBUTING.md#commit-messages):
+  # release.yml reads them to choose each version. Only the commits a push or
+  # a pull request adds are checked, never those before v0.2.0, which are
+  # prose; a pull request's title too, which a squash merge makes the commit.
+  commits:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check the commit messages
+        env:
+          FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          TO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          from="$FROM"
+          # A new branch or a rewritten history: nothing to compare with.
+          if ! git cat-file -e "$from^{commit}" 2>/dev/null; then from=""; fi
+          if [ -n "$from" ] && git rev-parse -q --verify refs/tags/v0.2.0 >/dev/null \
+            && git merge-base --is-ancestor "$from" v0.2.0; then
+            from=v0.2.0
+          fi
+          if [ -n "$from" ]; then
+            pnpm exec commitlint --from "$from" --to "$TO" --verbose
+          else
+            pnpm exec commitlint --last --verbose
+          fi
+      - name: Check the pull request's title
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | pnpm exec commitlint --verbose
+
   # The browser edition (site/): build it (the build fails on server code in the
   # bundle), then the Playwright smoke test against the built site.
   site-smoke:

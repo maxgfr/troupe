@@ -19,6 +19,7 @@
     "dev": "next dev --turbo --hostname 127.0.0.1",
     "e2e:docker": "node scripts/e2e-docker.ts",
     "lint": "biome check . && pnpm check:wording",
+    "lint:commits": "commitlint --from origin/main --to HEAD --verbose",
     "preview": "next build && next start",
     "renderer": "pnpm --filter @troupe/renderer start",
     "renderer:ltx": "pnpm --filter @troupe/renderer start:ltx",
@@ -67,6 +68,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "@electric-sql/pglite": "^0.5.4",
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/geist": "^5.3.0",

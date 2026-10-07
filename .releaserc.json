@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/semantic-release.json",
+  "branches": ["main"],
+  "tagFormat": "v${version}",
+  "plugins": [
+    ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
+    ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
+    ["@semantic-release/exec", { "prepareCmd": "bash scripts/release-assets.sh ${nextRelease.version}" }],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "release-assets/troupe-cli-*.mjs",
+            "label": "troupe CLI, one file for Node.js 22+ (node troupe-cli-${nextRelease.version}.mjs --help)"
+          },
+          {
+            "path": "release-assets/troupe-web-*.zip",
+            "label": "Browser edition (site/dist), to serve at /troupe/"
+          },
+          { "path": "release-assets/SHA256SUMS", "label": "SHA-256 checksums" }
+        ],
+        "releaseBodyTemplate": "<%= nextRelease.notes %>\n\n### Images\n\nFor amd64 and arm64, published by the release workflow a few minutes after this release: `ghcr.io/maxgfr/troupe`, `troupe-renderer`, `troupe-ollama`, `troupe-web` and `troupe-cli`, each tagged `<%= nextRelease.version %>`. To run this version, set `TROUPE_VERSION=<%= nextRelease.version %>` in `.env` ([SELF-HOSTING.md](https://github.com/maxgfr/troupe/blob/<%= nextRelease.gitTag %>/docs/SELF-HOSTING.md)).",
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
+      }
+    ]
+  ]
+}

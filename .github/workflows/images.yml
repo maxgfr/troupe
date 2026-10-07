@@ -1,9 +1,36 @@
-name: release
+name: images
 
-# Publishes the stack's images for every version tag (v1.2.3), for amd64 and
-# arm64: ghcr.io/<owner>/troupe (the studio) and troupe-renderer,
-# troupe-ollama, troupe-web and troupe-cli, the images docker-compose.yml runs.
+# Publishes the stack's images for one Troupe version, for amd64 and arm64:
+# ghcr.io/<owner>/troupe (the studio) and troupe-renderer, troupe-ollama,
+# troupe-web and troupe-cli, the images docker-compose.yml runs. Each is
+# built from the version's tag, tagged X.Y.Z, X.Y, X and latest, and given
+# the version as TROUPE_VERSION (scripts/release-version.mjs).
+#
+# - release.yml calls it once semantic-release has published a version: the
+#   tag it pushes with GITHUB_TOKEN starts no workflow of its own;
+# - a v* tag pushed by hand publishes that tag;
+# - "Run workflow" publishes a version whose tag exists, e.g. to rebuild it.
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version to publish, e.g. 1.2.3; its tag v1.2.3 must exist.
+        required: true
+        type: string
+      latest:
+        description: Move the latest tag to it too.
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to publish, e.g. 1.2.3; its tag v1.2.3 must exist.
+        required: true
+        type: string
+      latest:
+        description: Move the latest tag to it too (leave it off when rebuilding an older version).
+        type: boolean
+        default: true
   push:
     tags: ["v*"]
 
@@ -12,7 +39,31 @@ permissions:
   packages: write
 
 jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      latest: ${{ steps.version.outputs.latest }}
+    steps:
+      # A tag push has no inputs: its name is the version.
+      - id: version
+        env:
+          VERSION: ${{ inputs.version || github.ref_name }}
+          LATEST: ${{ inputs.latest }}
+        run: |
+          version="${VERSION#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::\"$VERSION\" is not a version such as 1.2.3."
+            exit 1
+          fi
+          # A pre-release never becomes latest.
+          latest=true
+          if [[ "$version" == *-* || "$LATEST" == "false" ]]; then latest=false; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
   image:
+    needs: version
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -44,33 +95,41 @@ jobs:
             context: .
             target: ""
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/v${{ needs.version.outputs.version }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
+          # The revision label is the tag's commit, not the workflow's.
+          context: git
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.version.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
           # The image's own license (the Dockerfiles' LABEL), not the
           # repository's: the renderer and the site carry the GPL as a whole.
           labels: org.opencontainers.image.licenses=${{ matrix.license }}
       # The site and the CLI bundle build once, natively ($BUILDPLATFORM in
       # their Dockerfiles); only the runtime stages run under QEMU.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
+          build-args: TROUPE_VERSION=${{ needs.version.outputs.version }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

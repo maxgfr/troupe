@@ -1,0 +1,70 @@
+name: release
+
+# Every push to main: semantic-release reads the commits since the last v*
+# tag (Conventional Commits, CONTRIBUTING.md#releases). When they call for a
+# release it tags the commit vX.Y.Z, publishes the GitHub Release with
+# generated notes and its files attached (scripts/release-assets.sh), and the
+# images job publishes the five images for that version (images.yml). Nothing
+# is committed back: the package.json versions stay as they are.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One release at a time, in push order.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      # The tag and the GitHub Release.
+      contents: write
+    outputs:
+      published: ${{ steps.release.outputs.new_release_published }}
+      version: ${{ steps.release.outputs.new_release_version }}
+    steps:
+      # All history and tags: the commits since the last release. The tag is
+      # pushed with GITHUB_TOKEN from the environment, not a stored credential.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Without a v* tag behind this commit semantic-release would start over
+      # at 1.0.0. Releases continue from v0.2.0.
+      - name: Check that the last release is tagged
+        run: |
+          if ! last="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null)"; then
+            echo "::error::No v* tag behind this commit: push v0.2.0 first (CONTRIBUTING.md#releases)."
+            exit 1
+          fi
+          echo "Last release: $last"
+      - uses: pnpm/action-setup@v6
+      # No dependency cache in the job that can write tags and releases.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm install --frozen-lockfile
+      - id: release
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          semantic_version: 25.0.9
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@9.1.0
+            @semantic-release/exec@7.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  images:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
+    with:
+      version: ${{ needs.release.outputs.version }}

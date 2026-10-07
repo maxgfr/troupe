@@ -1,4 +1,7 @@
 version: 2
+# Commit messages are Conventional Commits (CONTRIBUTING.md#commit-messages):
+# a runtime dependency or base image update is a fix, so it makes a patch
+# release with rebuilt images; a development or CI update makes none.
 updates:
   - package-ecosystem: npm
     directory: /
@@ -7,11 +10,21 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    commit-message:
+      prefix: ci
+      include: scope
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: monthly
+    commit-message:
+      prefix: fix
+      include: scope

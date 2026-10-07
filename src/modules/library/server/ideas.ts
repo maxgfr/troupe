@@ -11,6 +11,7 @@ import {
   completeItems,
   ideasSchema,
   readIdeas,
+  shortenIdea,
   type IdeaKind,
   type IdeaSource,
   type WrittenIdea,
@@ -214,6 +215,10 @@ export async function generateIdeas(
       if (!input.signal?.aborted) throw error;
     }
   }
+  // Still none at the clip's length (a small model often cannot count its
+  // words): each idea keeps its hook and call to action and loses body lines
+  // until it fits.
+  if (ideas.length > 0 && !ideas.some(fits)) ideas = ideas.map((idea) => shortenIdea(idea, budget) ?? idea);
   ideas = [...ideas.filter(fits), ...ideas.filter((idea) => !fits(idea))];
   if (ideas.length === 0) {
     // The answer stays in the log (the server's, or the browser's console).

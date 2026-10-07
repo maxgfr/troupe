@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cleanTags, completeItems, readChatAnswer, readIdeas, readInsights } from "./prompts";
+import { cleanTags, completeItems, readChatAnswer, readIdeas, readInsights, shortenIdea } from "./prompts";
 
 describe("readInsights", () => {
   const answer = (starts: (number | null)[]) => ({
@@ -105,5 +105,24 @@ describe("completeItems", () => {
   it("finds nothing without the list or a complete item", () => {
     expect(completeItems('{"other": []}', "ideas")).toBeNull();
     expect(completeItems('{"ideas": [{"title": "A"', "ideas")).toBeNull();
+  });
+});
+
+describe("shortenIdea", () => {
+  const line = (role: "hook" | "body" | "cta", words: number) => ({
+    role,
+    text: Array.from({ length: words }, (_, i) => `w${i}`).join(" "),
+    emotion: "neutral" as const,
+  });
+  const idea = { title: "T", hook: "H", lines: [line("hook", 5), line("body", 10), line("body", 10), line("cta", 5)] };
+
+  it("drops body lines from the last until the idea fits, keeping hook and call to action", () => {
+    expect(shortenIdea(idea, 30)!.lines).toEqual(idea.lines);
+    expect(shortenIdea(idea, 20)!.lines).toEqual([idea.lines[0], idea.lines[1], idea.lines[3]]);
+    expect(shortenIdea(idea, 10)!.lines).toEqual([idea.lines[0], idea.lines[3]]);
+  });
+
+  it("gives up when the hook and the call to action alone are too long", () => {
+    expect(shortenIdea(idea, 9)).toBeNull();
   });
 });

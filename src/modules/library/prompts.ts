@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { LINE_ROLES, spoken, type ChatTurn } from "~/modules/chat";
+import { LINE_ROLES, countWords, spoken, type ChatTurn } from "~/modules/chat";
 import { SUPPORTED_EMOTIONS, type DraftLine, type Emotion } from "~/modules/script";
 import type { ItemKind, StructurePart } from "./model";
 import { formatTimestamp } from "./text";
@@ -436,4 +436,17 @@ export function readIdeas(raw: unknown, max: number): WrittenIdea[] {
     if (out.length >= max) break;
   }
   return out;
+}
+
+// An idea cut to a clip's word budget: its body lines go, from the last,
+// while the hook and the call to action stay. Null when even those two run
+// over the budget.
+export function shortenIdea(idea: WrittenIdea, words: number): WrittenIdea | null {
+  const lines = [...idea.lines];
+  while (countWords(lines) > words) {
+    const body = lines.map((line) => line.role).lastIndexOf("body");
+    if (body < 0) return null;
+    lines.splice(body, 1);
+  }
+  return { ...idea, lines };
 }

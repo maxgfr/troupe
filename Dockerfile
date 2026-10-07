@@ -2,7 +2,7 @@
 # Troupe — one image: the web app, its database migrations and the background
 # job worker. See docs/SELF-HOSTING.md.
 
-FROM node:24-alpine AS base
+FROM node:26-alpine AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
@@ -17,7 +17,7 @@ ENV SKIP_ENV_VALIDATION=1 \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 LABEL org.opencontainers.image.licenses="MIT"
 # Troupe's license, the third-party notices and the GNU GPL's text
 # (THIRD_PARTY_NOTICES.md says which parts carry it).

@@ -5,7 +5,7 @@ import { createTestDb, type TestDb } from "~/test/db";
 import { fakeAdapter, finishGeneration } from "~/test/adapters";
 import { createWorkspace } from "~/modules/identity";
 import { projects } from "~/modules/studio/server/schema";
-import { seedActorLibrary, listActors, attachActorToProject } from "~/modules/actors";
+import { ACTOR_CATALOG, seedActorLibrary, listActors, attachActorToProject } from "~/modules/actors";
 import { pasteScript } from "~/modules/script";
 import { generations } from "~/modules/generation/server/schema";
 import { AdapterError, launchGeneration } from "~/modules/generation";
@@ -78,6 +78,8 @@ describe("text-to-video generation", () => {
         gender: actor.gender,
         ageRange: actor.ageRange,
         voiceProfile: actor.voiceProfile,
+        // The library actor's own voice, the one their sample plays.
+        voice: ACTOR_CATALOG.find((c) => c.name === actor.name && c.ageRange === actor.ageRange)!.voice,
         portraits: expect.any(Object),
       },
       language: "fr",

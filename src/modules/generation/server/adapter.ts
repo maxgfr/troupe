@@ -46,6 +46,9 @@ export interface JobActor {
   ageRange: string;
   // Free-text delivery, e.g. "warm and enthusiastic, mid-tempo".
   voiceProfile: string;
+  // A library actor's Kokoro voice (the catalog's, the one their sample
+  // plays); custom actors have none.
+  voice?: string;
   // The actor's current pictures by shot (front, profile-left,
   // profile-right, happy, calm, excited), as storage paths:
   // actors/<slug>/v<version>/<shot>.webp.

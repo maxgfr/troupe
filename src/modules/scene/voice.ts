@@ -43,6 +43,10 @@ export interface VoiceActor {
   gender?: "female" | "male" | "nonbinary";
   // Free-text delivery, e.g. "bright and fast, upbeat".
   voiceProfile?: string;
+  // The Kokoro voice the actor was cast with (a library actor's, from the
+  // catalog), so they sound like their sample on every install. Kept when the
+  // pools have it; otherwise the id picks one.
+  voice?: string;
 }
 
 export interface VoiceChoice {
@@ -79,5 +83,6 @@ export function voiceFor(actor: VoiceActor, emotion: Emotion, voices: VoicePools
         ? voices.male
         : [...voices.female, ...voices.male];
   const speed = Math.round(EMOTION_SPEED[emotion] * tempo(actor.voiceProfile) * 100) / 100;
-  return { voice: pool[stableIndex(actor.id, pool.length)]!, speed };
+  const own = actor.voice && pool.includes(actor.voice) ? actor.voice : undefined;
+  return { voice: own ?? pool[stableIndex(actor.id, pool.length)]!, speed };
 }

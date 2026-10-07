@@ -49,7 +49,10 @@ The actors are cast from two pools of Kokoro voices, one per gender:
 `KOKORO_VOICES` for the local renderer (`TROUPE_RENDERER_KOKORO_VOICES` in the
 stack) and `VITE_KOKORO_VOICES` for the browser edition. Set both to the same
 value to keep the two editions alike, for instance
-`female=af_heart,bf_emma;male=am_michael,bm_george`. `KOKORO_DTYPE` and
+`female=af_heart,bf_emma;male=am_michael,bm_george`. A library actor keeps the
+voice the catalog gives them while the pools hold it; one whose voice the pools
+leave out gets another, and no longer sounds like their sample
+([ACTORS.md](ACTORS.md#voice-samples)). `KOKORO_DTYPE` and
 `VITE_KOKORO_DTYPE_*` trade download size against quality.
 
 ### The video scene

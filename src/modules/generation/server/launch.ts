@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
+import { libraryVoice } from "~/modules/actors/server/catalog";
 import { actorAssets, actors } from "~/modules/actors/server/schema";
 import { assertScriptFitsClip, getScript, lockScript } from "~/modules/script";
 import { AdapterError, compilePrompt, validateRequest, type JobScript, type VideoProviderAdapter } from "./adapter";
@@ -62,6 +63,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
   const portraits = Object.fromEntries(
     pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]),
   );
+  const voice = actor.workspaceId === null && actor.kind === "library" ? libraryVoice(actor) : undefined;
   const jobScript: JobScript = {
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
     actor: {
@@ -70,6 +72,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
       gender: actor.gender,
       ageRange: actor.ageRange,
       voiceProfile: actor.voiceProfile,
+      ...(voice ? { voice } : {}),
       ...(pictures.length > 0 ? { portraits } : {}),
     },
     language,

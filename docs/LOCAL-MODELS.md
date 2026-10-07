@@ -158,6 +158,7 @@ minutes; leave it out for jobs that take an hour.
       "gender": "female",
       "age_range": "18-24",
       "voice_profile": "warm and enthusiastic, mid-tempo",
+      "voice": "af_heart",
       "portraits": {
         "front": "actors/lea-01/v1/front.webp",
         "happy": "actors/lea-01/v1/happy.webp",
@@ -186,7 +187,10 @@ server that only reads `prompt` can ignore it.
 - `actor`: who speaks. `id` is stable for a given actor, so it can key a
   voice or a portrait. `gender` is `female`, `male` or `nonbinary`;
   `age_range` is a range such as `25-34` or `55+`; `voice_profile` describes
-  the delivery in a few words. `portraits`, when the actor has pictures, maps
+  the delivery in a few words. `voice`, for an actor from Troupe's library, is
+  the Kokoro voice they are cast with (such as `af_heart`), the one their
+  voice sample plays ([ACTORS.md](ACTORS.md#voice-samples)); a server with
+  other voices can ignore it. `portraits`, when the actor has pictures, maps
   each shot (`front`, `profile-left`, `profile-right`, `happy`, `calm`,
   `excited`) to its path in Troupe's cast, such as
   `actors/lea-01/v1/front.webp`. Troupe sends paths, never the pictures. A
@@ -331,7 +335,9 @@ supported picks the pace up when you press **Test** on it in Settings.
   job's `language` is not English); Troupe warns about the
   language when you launch only if the model declares its languages, which
   the add-model form does not ask for yet.
-- The voice follows the actor's gender, and each actor keeps the same voice;
+- The voice follows the actor's gender, and each actor keeps the same voice:
+  a library actor's own (`script.actor.voice`, the one their sample on the
+  Actors page plays), otherwise one picked from their id;
   emotions and the actor's voice profile ("fast", "measured", …) set the pace.
 - Without `script` in the job (another client than Troupe), the renderer reads
   the dialogue back from the compiled prompt and draws a "Narrator" card with

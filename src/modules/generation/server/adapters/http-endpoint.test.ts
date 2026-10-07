@@ -89,6 +89,7 @@ describe("generic HTTP endpoint adapter", () => {
         gender: "female" as const,
         ageRange: "25-34",
         voiceProfile: "warm and enthusiastic, mid-tempo",
+        voice: "af_heart",
         portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
       },
       language: "fr",
@@ -111,6 +112,7 @@ describe("generic HTTP endpoint adapter", () => {
           gender: "female",
           age_range: "25-34",
           voice_profile: "warm and enthusiastic, mid-tempo",
+          voice: "af_heart",
           portraits: { front: "actors/lea-01/v1/front.webp", happy: "actors/lea-01/v1/happy.webp" },
         },
         lines: [

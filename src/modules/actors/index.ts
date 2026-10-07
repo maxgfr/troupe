@@ -6,7 +6,8 @@ export {
   attachActorToProject,
   ActorUnavailableError,
 } from "./server/service";
-export { ACTOR_CATALOG, ASSET_SET, storagePathFor } from "./server/catalog";
-export { actorPictureUrl, DEFAULT_PICTURES_BASE } from "./pictures";
+export { ACTOR_CATALOG, ASSET_SET, libraryVoice, storagePathFor, VOICE_SAMPLE_FILES } from "./server/catalog";
+export { actorPictureUrl, actorVoiceSamples, DEFAULT_PICTURES_BASE } from "./pictures";
+export type { VoiceSampleSource } from "./pictures";
 export type { CatalogActor, CatalogAsset } from "./server/catalog";
 export { actors, actorAssets } from "./server/schema";

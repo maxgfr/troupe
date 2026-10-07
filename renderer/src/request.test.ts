@@ -46,6 +46,16 @@ describe("parseJobBody", () => {
     });
   });
 
+  it("reads the Kokoro voice the actor was cast with, and drops one that is not a voice id", () => {
+    const actor = (voice: unknown) =>
+      parseJobBody({ ...base, script: { ...script, actor: { ...script.actor, voice } } }).actor;
+    expect(actor("af_nicole").voice).toBe("af_nicole");
+    expect(actor(" bm_fable ").voice).toBe("bm_fable");
+    expect(actor("Nicole").voice).toBeUndefined();
+    expect(actor(42).voice).toBeUndefined();
+    expect(parseJobBody({ ...base, script }).actor.voice).toBeUndefined();
+  });
+
   it("reads the actor's portraits, keyed by shot", () => {
     const portraits = {
       front: "actors/lea-01/v1/front.webp",

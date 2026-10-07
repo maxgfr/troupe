@@ -67,6 +67,10 @@ function scriptLines(value: unknown): SceneLine[] {
   });
 }
 
+// A Kokoro voice id such as af_heart; anything else is ignored and the
+// actor's id picks the voice.
+const VOICE_ID = /^[a-z]{2}_[a-z0-9]+$/;
+
 // Anything that could step out of the portraits folder refuses the job.
 const ESCAPES = /(^|[\\/])\.\.([\\/]|$)|^[\\/]|\\/;
 
@@ -107,6 +111,7 @@ function fromScript(value: unknown, log: (message: string) => void): Spoken {
       ...(gender ? { gender } : {}),
       ...(text(actor.age_range) ? { ageRange: text(actor.age_range) } : {}),
       ...(text(actor.voice_profile) ? { voiceProfile: text(actor.voice_profile) } : {}),
+      ...(VOICE_ID.test(text(actor.voice)) ? { voice: text(actor.voice) } : {}),
       ...(pictures ? { portraits: pictures } : {}),
     },
     lines: scriptLines(script.lines),

@@ -44,6 +44,22 @@ describe("voiceFor", () => {
     }
   });
 
+  it("keeps the voice an actor was cast with when the pools have it", () => {
+    expect(voiceFor({ id: "a", gender: "female", voice: "af_nicole" }, "neutral").voice).toBe("af_nicole");
+    expect(voiceFor({ id: "b", gender: "male", voice: "bm_fable" }, "excited").voice).toBe("bm_fable");
+    expect(voiceFor({ id: "c", gender: "nonbinary", voice: "am_puck" }, "neutral").voice).toBe("am_puck");
+  });
+
+  it("casts from the pools when the actor's own voice is not in them", () => {
+    // A man's voice for a woman, or a voice the configured map leaves out.
+    expect(KOKORO_VOICES.female).toContain(
+      voiceFor({ id: "a", gender: "female", voice: "am_michael" }, "neutral").voice,
+    );
+    const pools = parseVoicePools("female=af_bella;male=bm_lewis");
+    expect(voiceFor({ id: "a", gender: "female", voice: "af_nicole" }, "neutral", pools).voice).toBe("af_bella");
+    expect(voiceFor({ id: "a", gender: "female", voice: "af_nicole" }, "neutral").voice).toBe("af_nicole");
+  });
+
   it("follows the tempo in the voice profile", () => {
     const base = voiceFor({ id: "a", gender: "female" }, "neutral").speed;
     expect(

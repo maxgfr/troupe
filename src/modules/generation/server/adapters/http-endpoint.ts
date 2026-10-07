@@ -58,6 +58,7 @@ function scriptBody(script: JobScript) {
       gender: actor.gender,
       age_range: actor.ageRange,
       voice_profile: actor.voiceProfile,
+      ...(actor.voice ? { voice: actor.voice } : {}),
       ...(actor.portraits ? { portraits: actor.portraits } : {}),
     },
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),

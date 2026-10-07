@@ -14,6 +14,8 @@ export interface Io {
   stderrIsTTY: boolean;
   // Asks on the terminal without echoing (the access code, API keys).
   promptSecret(question: string): Promise<string>;
+  // Hands an address to the system's browser; false when none could start.
+  openUrl(url: string): Promise<boolean>;
   sleep(ms: number): Promise<void>;
 }
 

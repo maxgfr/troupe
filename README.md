@@ -209,9 +209,10 @@ it into ideas, with `--json` on every command. It made every project in the
 screenshots above.
 
 ```bash
-pnpm --filter troupe-cli build && npm install -g ./cli
+brew install maxgfr/tap/troupe     # or, from a checkout: pnpm --filter troupe-cli build && npm install -g ./cli
 troupe login --url http://localhost:3100
 troupe doctor
+troupe open
 ```
 
 See [docs/CLI.md](docs/CLI.md). On top of it, a Claude Code skill runs the

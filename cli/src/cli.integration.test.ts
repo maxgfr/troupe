@@ -199,6 +199,9 @@ async function troupe(args: string[], opts: { stdin?: string; env?: Record<strin
       if (opts.typed === undefined) throw new Error("no terminal in tests");
       return opts.typed;
     },
+    openUrl: async () => {
+      throw new Error("no browser in tests");
+    },
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 100))),
   };
   const code = await runCli(args, io);
@@ -269,6 +272,11 @@ describe("troupe CLI against the studio's HTTP API", () => {
     const created = await troupe(["projects", "create", "--title", "CLI walk", "--actor", actor.name, "--json"]);
     expect(created.code).toBe(0);
     expect(created.data()).toMatchObject({ title: "CLI walk", actorId: actor.id, platform: "tiktok", format: "9:16" });
+    // Its page, found by title, without a browser.
+    expect((await troupe(["open", "CLI walk", "--print", "--json"])).data()).toEqual({
+      url: `${studio.url}/projects/${created.data().id}`,
+      opened: false,
+    });
 
     // Emotions from the file; untagged lines stay neutral. One version.
     await writeFile(

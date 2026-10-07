@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { emitKeypressEvents } from "node:readline";
 
 import { runCli } from "./cli.ts";
@@ -38,6 +39,25 @@ function promptSecret(question: string): Promise<string> {
   });
 }
 
+// The system's own opener, left running on its own: `open` on macOS, `start`
+// on Windows, `xdg-open` elsewhere.
+function openUrl(url: string): Promise<boolean> {
+  const [command, args] =
+    process.platform === "darwin"
+      ? ["open", [url]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", '""', url]]
+        : ["xdg-open", [url]];
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { stdio: "ignore", detached: true });
+    child.once("error", () => resolve(false));
+    child.once("spawn", () => {
+      child.unref();
+      resolve(true);
+    });
+  });
+}
+
 const io: Io = {
   env: process.env,
   // `pnpm troupe …` runs from the repository root; INIT_CWD is where it was
@@ -49,6 +69,7 @@ const io: Io = {
   stdinIsTTY: Boolean(process.stdin.isTTY),
   stderrIsTTY: Boolean(process.stderr.isTTY),
   promptSecret,
+  openUrl,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 

@@ -13,6 +13,15 @@ which has no server.
 
 ## Install
 
+With Homebrew (macOS and Linux), from the
+[maxgfr/tap](https://github.com/maxgfr/homebrew-tap) tap, which follows the
+releases:
+
+```bash
+brew install maxgfr/tap/troupe
+troupe --version
+```
+
 From a release: each [GitHub Release](https://github.com/maxgfr/troupe/releases)
 has the CLI in one file, `troupe-cli-<version>.mjs`, which needs Node.js 22
 or later and nothing else:
@@ -165,6 +174,7 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `login [--code-stdin]` | Sign in and save the profile. |
 | `logout` | Forget the profile's cookie. |
 | `whoami` | Profile, studio, sign-in state, current project, config file. |
+| `open [<project>] [--print]` | Open the studio's Projects page, or a project's page, in the browser; `--print` only prints the address (over SSH, in scripts). |
 | `doctor [--skip-tests] [--providers]` | Checks the studio and its database, the sign-in, which models can launch (local ones are contacted), the background worker and the script chat (contacted). `--providers` also checks each provider account's key and each cloud model with a free request (rows `account google`, `account fal`, `account anthropic`; `skip` when no key is set). Exit 1 when a check fails. |
 | `doctor --live [--model <model>]… [--yes] [-o <folder>]` | Renders one clip per model that can launch, at its cheapest settings (shortest, lowest resolution, silent where allowed), in a new project; downloads each video, runs `ffprobe` on it and asks the script chat once. Without `--yes` it prints the plan and its cost and exits 2. See [LIVE-CHECKS.md](LIVE-CHECKS.md). |
 | `models list [--all]` | Every model with where it runs, its state, formats, lengths, audio, and the default. `--all` includes archived ones. |
@@ -308,6 +318,7 @@ troupe download <export-id>
 
 - `login`: `{ profile, url, access: "code" | "open" }`.
 - `whoami`: `{ profile, url, reachable, signedIn, credential, project, configFile }`.
+- `open`: `{ url, opened }`; `opened` is false with `--print` or when no browser started.
 - `doctor`: `{ ok, url, checks: [{ name, status: "ok" | "warn" | "fail" | "skip", detail }] }`;
   with `--live`, also `live`: `{ confirmed: false, plans: [{ modelKey, label, kind, durationS, resolution, audio, estimateUsd }] }`
   before `--yes`, then `{ confirmed: true, projectId, folder, results: [{ …plan, renderId, status, detail, file, probe }], chat: { ok, detail } }`.

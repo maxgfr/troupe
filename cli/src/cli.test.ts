@@ -31,6 +31,10 @@ afterEach(async () => {
   await Promise.all(folders.splice(0).map((f) => rm(f, { recursive: true, force: true })));
 });
 
+// The addresses `troupe open` handed to the browser; TEST_NO_BROWSER=1 makes
+// none start.
+const opened: string[] = [];
+
 async function run(args: string[], env: Record<string, string> = {}) {
   const out: string[] = [];
   const err: string[] = [];
@@ -44,11 +48,34 @@ async function run(args: string[], env: Record<string, string> = {}) {
     stdinIsTTY: false,
     stderrIsTTY: false,
     promptSecret: async () => "",
+    openUrl: async (url) => {
+      if (env.TEST_NO_BROWSER === "1") return false;
+      opened.push(url);
+      return true;
+    },
     sleep: async () => undefined,
   };
   const code = await runCli(args, io);
   return { code, stdout: out.join(""), stderr: err.join("") };
 }
+
+describe("troupe open", () => {
+  it("opens the studio's Projects page, or only prints it with --print", async () => {
+    opened.length = 0;
+    const url = `http://127.0.0.1:${closedPort}/dashboard`;
+    expect(await run(["open"])).toMatchObject({ code: 0, stdout: `${url}\n`, stderr: "" });
+    expect(opened).toEqual([url]);
+    expect(JSON.parse((await run(["open", "--print", "--json"])).stdout)).toEqual({ url, opened: false });
+    expect(opened).toEqual([url]);
+  });
+
+  it("says so when no browser starts, and still prints the address", async () => {
+    const result = await run(["open"], { TEST_NO_BROWSER: "1" });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("/dashboard");
+    expect(result.stderr).toContain("No browser could be opened here");
+  });
+});
 
 describe("command line", () => {
   it("prints help for the CLI, a group and a command, on stdout with status 0", async () => {

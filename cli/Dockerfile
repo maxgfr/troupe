@@ -21,11 +21,14 @@ COPY cli/package.json cli/
 RUN node -e 'const fs = require("fs"); const p = JSON.parse(fs.readFileSync("package.json")); fs.writeFileSync("package.json", JSON.stringify({ name: p.name, private: true, type: p.type, packageManager: p.packageManager, pnpm: p.pnpm }))' \
  && pnpm install --filter troupe-cli
 COPY cli/src cli/src
-# The studio modules the CLI shares (export file names, AI labels and the
-# providers' list prices for doctor --live).
+# The studio modules the CLI shares (export file names, AI labels, the
+# providers' list prices for doctor --live, and how the Compare page picks
+# models and its winner). cli/src/image-context.test.ts checks this list.
 COPY src/app/_components/download-name.ts src/app/_components/
 COPY src/modules/export/disclosure.ts src/modules/export/
 COPY src/modules/models/list-price.ts src/modules/models/http-defaults.ts src/modules/models/
+COPY ["src/app/(app)/projects/model-choice.ts", "src/app/(app)/projects/"]
+COPY src/modules/benchmark/winner.ts src/modules/benchmark/
 COPY cli/build.mjs cli/
 COPY scripts/release-version.mjs scripts/
 # The version the bundle reports (cli/build.mjs); empty: cli/package.json's.

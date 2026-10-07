@@ -16,4 +16,6 @@
 !src/modules/export/disclosure.ts
 !src/modules/models/list-price.ts
 !src/modules/models/http-defaults.ts
+!src/app/(app)/projects/model-choice.ts
+!src/modules/benchmark/winner.ts
 **/*.test.ts

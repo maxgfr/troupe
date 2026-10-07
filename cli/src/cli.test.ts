@@ -2,10 +2,13 @@ import { chmod, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { mainHelp, runCli, VERSION } from "./cli.ts";
 import cliPackage from "../package.json" with { type: "json" };
+import { buildCli } from "../build.mjs";
 import type { Io } from "./command.ts";
 import { fetchMedia, USER_AGENT } from "./client.ts";
 import { assertSecureTransport, LOCK_TIMING, normalizeUrl, readConfig, updateConfig, writeConfig } from "./config.ts";
@@ -14,6 +17,7 @@ import { numberRanges, sentence, table } from "./output.ts";
 import { pick } from "./resolve.ts";
 import { modelState } from "./commands/models.ts";
 
+const execFileAsync = promisify(execFile);
 const folders: string[] = [];
 // A port nothing listens on: taken from the OS, then released.
 let closedPort = 0;
@@ -59,23 +63,43 @@ describe("command line", () => {
     expect((await run(["--version"])).stdout).toBe(`${cliPackage.version}\n`);
   });
 
-  it("reports the version every package of the release carries", async () => {
+  // The package.json files keep the last version set by hand (0.2.0, the
+  // first tag); later releases are tags only, and their builds get the
+  // version as TROUPE_VERSION (scripts/release-version.mjs).
+  it("carries one baseline version in every package, which a source run reports", async () => {
     const root = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8")) as {
       version: string;
     };
     const renderer = JSON.parse(await readFile(new URL("../../renderer/package.json", import.meta.url), "utf8")) as {
       version: string;
     };
-    const plugin = JSON.parse(
-      await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8"),
-    ) as { version: string };
-    expect([VERSION, USER_AGENT, renderer.version, plugin.version]).toEqual([
+    expect([VERSION, USER_AGENT, renderer.version, cliPackage.version]).toEqual([
       root.version,
       `troupe-cli/${root.version}`,
       root.version,
       root.version,
     ]);
-    expect(cliPackage.version).toBe(root.version);
+  });
+
+  // A version in plugin.json would pin every user to it until a commit
+  // changed it, and releases commit nothing: without one, Claude Code
+  // versions the plugin by commit and updates it as main moves.
+  it("leaves the Claude plugin unversioned, so it follows main", async () => {
+    const plugin = JSON.parse(
+      await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8"),
+    ) as { version?: string };
+    expect(plugin.version).toBeUndefined();
+  });
+
+  it("reports the release version its bundle was built with", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "troupe-cli-build-"));
+    folders.push(dir);
+    const built = await buildCli({ version: "v9.8.7", outfile: join(dir, "troupe.mjs") });
+    expect(built.version).toBe("9.8.7");
+    const { stdout } = await execFileAsync(process.execPath, [built.outfile, "--version"]);
+    expect(stdout).toBe("9.8.7\n");
+    // Compose's image tag is no version: package.json's.
+    expect((await buildCli({ version: "latest", outfile: join(dir, "other.mjs") })).version).toBe(cliPackage.version);
   });
 
   it("finds the command after global options", async () => {

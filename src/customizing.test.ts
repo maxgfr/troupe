@@ -158,6 +158,8 @@ describe("docker-compose.yml", () => {
     "TROUPE_AUTO_MIGRATE",
     "FFPROBE_PATH",
     "FFMPEG_PATH",
+    // The image's own version; Compose's TROUPE_VERSION picks the image.
+    "TROUPE_VERSION",
   ]);
 
   it("passes every studio setting on to the app service", () => {

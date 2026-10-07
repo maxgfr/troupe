@@ -6,6 +6,7 @@ import superjson from "superjson";
 // server's code ends up in the CLI bundle.
 import type { AppRouter } from "../../src/server/api/root.ts";
 import { CliError, EXIT } from "./errors.ts";
+import { USER_AGENT } from "./version.ts";
 
 export type Api = ReturnType<typeof createApi>;
 export type Outputs = inferRouterOutputs<AppRouter>;
@@ -14,7 +15,7 @@ export type Inputs = inferRouterInputs<AppRouter>;
 // The cookie the studio sets once the access code is right
 // (ACCESS_COOKIE in src/server/api/access.ts).
 export const ACCESS_COOKIE = "troupe-access";
-export const USER_AGENT = "troupe-cli/0.2.0";
+export { USER_AGENT };
 
 export interface Connection {
   url: string;

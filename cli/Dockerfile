@@ -26,6 +26,10 @@ COPY cli/src cli/src
 COPY src/app/_components/download-name.ts src/app/_components/
 COPY src/modules/export/disclosure.ts src/modules/export/
 COPY src/modules/models/list-price.ts src/modules/models/http-defaults.ts src/modules/models/
+COPY cli/build.mjs cli/
+COPY scripts/release-version.mjs scripts/
+# The version the bundle reports (cli/build.mjs); empty: cli/package.json's.
+ARG TROUPE_VERSION=
 RUN pnpm --filter troupe-cli build
 
 FROM node:24-alpine
@@ -40,5 +44,7 @@ RUN mkdir -p /home/node/.config/troupe /work && chown -R node:node /home/node/.c
 USER node
 WORKDIR /work
 ENV NODE_ENV=production
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}
 ENTRYPOINT ["troupe-cli-entrypoint"]
 CMD ["--help"]

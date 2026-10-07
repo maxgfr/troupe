@@ -15,8 +15,9 @@ import {
 import { CliError, EXIT, usageError } from "./errors.ts";
 import { json } from "./output.ts";
 import { pick } from "./resolve.ts";
+import { VERSION } from "./version.ts";
 
-export const VERSION = "0.2.0";
+export { VERSION };
 
 const GLOBAL_OPTIONS: Record<string, OptionSpec> = {
   json: { type: "boolean", description: "Print the result as JSON on stdout; errors become JSON on stderr." },

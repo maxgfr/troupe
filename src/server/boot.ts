@@ -3,7 +3,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
+import packageJson from "../../package.json";
 import { databaseTls, isTransactionPooler } from "../../scripts/database-tls.mjs";
+import { releaseVersion } from "../../scripts/release-version.mjs";
 import { accessCodeFile, ensureAccessCode, shareAccessCode } from "./access-code";
 import { prepareDatabase } from "./db/prepare";
 
@@ -27,6 +29,13 @@ async function migrateDatabase(url: string) {
 
 // Runs once when the server process starts (src/instrumentation.ts).
 export async function boot() {
+  // The released version, which the image carries in TROUPE_VERSION.
+  console.info(
+    JSON.stringify({
+      event: "troupe.started",
+      version: releaseVersion(process.env.TROUPE_VERSION, packageJson.version),
+    }),
+  );
   const access = ensureAccessCode();
   try {
     shareAccessCode(access);

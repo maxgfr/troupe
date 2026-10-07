@@ -64,6 +64,10 @@ VOLUME /app/data
 # here, so a plain `docker run` does not leave an anonymous volume behind.
 # Builds DATABASE_URL for the Compose stack when it is not set.
 COPY --chmod=755 scripts/docker/app-entrypoint.sh /usr/local/bin/troupe-entrypoint
+# The released version (scripts/release-version.mjs), from the release
+# workflow; empty in a local build, which then reports package.json's.
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=4 \

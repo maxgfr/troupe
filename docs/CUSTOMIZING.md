@@ -206,7 +206,7 @@ has the details.
 | `TROUPE_PORT` | `3100` | The studio's port on the host. |
 | `TROUPE_WEB_PORT` | `3101` | The browser edition's port on the host. |
 | `TROUPE_WEB_BASE` | `/troupe/` | The path the browser edition is served under; written into its files, so rebuild `web` after changing it. |
-| `TROUPE_VERSION` | `latest` | The image tag every service runs, e.g. `0.2.0`. |
+| `TROUPE_VERSION` | `latest` | The image tag every service runs, e.g. `0.2.0` ([releases](https://github.com/maxgfr/troupe/releases)). Inside an image it holds the version the image was released as, which the studio and the renderer log on start; anything but a version there means `package.json`'s. |
 | `TROUPE_APP_MEMORY` | `2g` | Memory limit of the studio. |
 | `TROUPE_DB_MEMORY` | `1g` | Memory limit of PostgreSQL. |
 | `TROUPE_RENDERER_MEMORY` | `2g` | Memory limit of the renderer. |

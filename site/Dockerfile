@@ -43,6 +43,10 @@ COPY site/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 # The Content-Security-Policy, with the built pages' inline script hashes.
 COPY --from=build /app/site/csp.conf /etc/nginx/troupe-csp.conf
 COPY --from=build --chown=nginx:nginx /app/site/dist /usr/share/nginx/html${TROUPE_WEB_BASE}
+# The released version (scripts/release-version.mjs), from the release
+# workflow; empty in a local build, which then reports package.json's.
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}
 USER nginx
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=4 \

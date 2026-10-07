@@ -13,7 +13,9 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { releaseVersion } from "../../scripts/release-version.mjs";
 import { parseSceneHue, parseVoicePools, type VoicePools } from "../../src/modules/scene";
+import rendererPackage from "../package.json" with { type: "json" };
 import { registerSceneFonts } from "./fonts";
 import { type KokoroDtype, kokoroVoice, parseKokoroDtype } from "./kokoro";
 import { type LtxSettings, ltxReadiness, ltxSettingsFromEnv, stopGenerators } from "./ltx";
@@ -25,6 +27,8 @@ import { transcribeFile, whisperReadiness, type WhisperSettings, whisperSettings
 const PORT = Number(process.env.PORT ?? 8078);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const log = (message: string) => console.log(`[renderer] ${message}`);
+// The released version, which the image carries in TROUPE_VERSION.
+const VERSION = releaseVersion(process.env.TROUPE_VERSION, rendererPackage.version);
 
 function refuse(message: string): never {
   console.error(`[renderer] ${message}`);
@@ -152,7 +156,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
 server.listen(PORT, HOST, () => {
   const address = server.address();
   const origin = `http://${HOST}:${typeof address === "object" && address ? address.port : PORT}`;
-  log(`Troupe renderer on ${origin} (contract v1)`);
+  log(`Troupe renderer ${VERSION} on ${origin} (contract v1)`);
   if (whisper) log(`Transcription (faster-whisper ${whisper.model}, ${whisper.computeType}) on ${origin}/transcribe`);
   if (ltx) {
     const { width, height } = ltx.resolution;

@@ -8,6 +8,7 @@ vi.mock("./access-code", () => ({
   accessCodeFile: () => "/dev/null",
 }));
 
+import packageJson from "../../package.json";
 import { boot } from "./boot";
 
 afterEach(() => {
@@ -39,5 +40,17 @@ describe("boot", () => {
     vi.stubEnv("DATABASE_URL", "postgresql://postgres:pw@db:5432/troupe");
     await boot();
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("logs the version the image was released as, else package.json's", async () => {
+    quietStart("postgresql://postgres:pw@db:5432/troupe");
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.stubEnv("TROUPE_VERSION", "1.4.0");
+    await boot();
+    expect(info).toHaveBeenCalledWith(JSON.stringify({ event: "troupe.started", version: "1.4.0" }));
+    // Compose's image tag, read from .env by `pnpm dev`, is no version.
+    vi.stubEnv("TROUPE_VERSION", "latest");
+    await boot();
+    expect(info).toHaveBeenLastCalledWith(JSON.stringify({ event: "troupe.started", version: packageJson.version }));
   });
 });

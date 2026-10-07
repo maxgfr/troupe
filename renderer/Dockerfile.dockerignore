@@ -16,5 +16,6 @@
 !renderer/whisper/uv.lock
 !renderer/whisper/transcribe.py
 !src/modules/scene
+!scripts/release-version.mjs
 !public/actors
 **/*.test.ts

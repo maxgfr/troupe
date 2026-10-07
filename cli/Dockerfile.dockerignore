@@ -10,6 +10,8 @@
 !cli/package.json
 !cli/src
 !cli/docker-entrypoint.sh
+!cli/build.mjs
+!scripts/release-version.mjs
 !src/app/_components/download-name.ts
 !src/modules/export/disclosure.ts
 !src/modules/models/list-price.ts

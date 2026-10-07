@@ -45,6 +45,10 @@ ENV OLLAMA_HOST=0.0.0.0:11434 \
     OLLAMA_MODELS=/ollama/models
 # The models live here.
 VOLUME /ollama/models
+# The Troupe release this image belongs to, from the release workflow; empty
+# in a local build.
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}
 USER ollama
 EXPOSE 11434
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=4 \

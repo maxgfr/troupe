@@ -49,8 +49,10 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=deps /deploy/node_modules renderer/node_modules
 COPY renderer/package.json renderer/
-# The scene module is shared with the app; the renderer imports it from src/.
+# The scene module is shared with the app; the renderer imports it from src/,
+# and how it reads its version from scripts/.
 COPY src/modules/scene src/modules/scene
+COPY scripts/release-version.mjs scripts/
 COPY renderer/src renderer/src
 # The actors' pictures drawn in the card (renderer/src/portraits.ts).
 COPY public/actors public/actors
@@ -101,6 +103,14 @@ ENV LTX_ENABLED=1 \
     LTX_COMMAND="/app/renderer/ltx/.venv/bin/python /app/renderer/ltx/generate.py" \
     LTX_PROMPT_CACHE=/data/ltx-prompts
 USER node
+# The released version (scripts/release-version.mjs), from the release
+# workflow; empty in a local build, which then reports package.json's.
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}
 
 # The default target: the fast renderer, with transcription.
 FROM python AS renderer
+# The released version (scripts/release-version.mjs), from the release
+# workflow; empty in a local build, which then reports package.json's.
+ARG TROUPE_VERSION=
+ENV TROUPE_VERSION=${TROUPE_VERSION}

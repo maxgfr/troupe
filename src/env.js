@@ -52,6 +52,9 @@ export const env = createEnv({
     FFPROBE_PATH: z.string().optional(),
     TROUPE_INPROCESS_WORKER: z.enum(["0", "1", "true", "false"]).optional(),
     TROUPE_AUTO_MIGRATE: z.enum(["0", "1", "true", "false"]).optional(),
+    // The released version, set by the image (boot.ts logs it); anything but a
+    // version, such as Compose's image tag `latest`, means package.json's.
+    TROUPE_VERSION: z.string().optional(),
     // Where a copy of the generated access code goes for the Docker CLI (access-code.ts).
     TROUPE_ACCESS_CODE_SHARE_DIR: z.string().optional(),
     // Proxies of your own behind the one facing the internet, for the
@@ -143,6 +146,7 @@ export const env = createEnv({
     TROUPE_DATA_DIR: process.env.TROUPE_DATA_DIR,
     FFPROBE_PATH: process.env.FFPROBE_PATH,
     TROUPE_INPROCESS_WORKER: process.env.TROUPE_INPROCESS_WORKER,
+    TROUPE_VERSION: process.env.TROUPE_VERSION,
     TROUPE_AUTO_MIGRATE: process.env.TROUPE_AUTO_MIGRATE,
     TROUPE_ACCESS_CODE_SHARE_DIR: process.env.TROUPE_ACCESS_CODE_SHARE_DIR,
     TROUPE_TRUSTED_PROXIES: process.env.TROUPE_TRUSTED_PROXIES,

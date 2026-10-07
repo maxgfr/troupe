@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/troupe.mjs --banner:js=\"#!/usr/bin/env node\" --log-level=warning && node -e \"require('node:fs').chmodSync('dist/troupe.mjs', 0o755)\"",
+    "build": "node build.mjs",
     "start": "node --experimental-strip-types --no-warnings=ExperimentalWarning src/main.ts"
   },
   "devDependencies": {

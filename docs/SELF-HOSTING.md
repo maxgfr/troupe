@@ -271,7 +271,8 @@ docker compose up -d --wait
 ```
 
 Migrations run on start; several app containers starting at once wait for one
-another. To pin a version, set `TROUPE_VERSION=0.2.0` in `.env`. The model
+another. To pin a version, set `TROUPE_VERSION=0.2.0` in `.env`; each
+[release](https://github.com/maxgfr/troupe/releases) says what changed. The model
 volumes are kept, so nothing downloads again unless `OLLAMA_MODEL` changed.
 
 ### From a stack without the renderer, Ollama and web services

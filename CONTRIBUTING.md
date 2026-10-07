@@ -76,18 +76,80 @@ SKIP_ENV_VALIDATION=1 pnpm build
   `uv run --project renderer/ltx python -m unittest discover renderer/ltx`
   ([LOCAL-MODELS.md](docs/LOCAL-MODELS.md#set-it-up)).
 - Interface changes follow [DESIGN.md](DESIGN.md).
+- Write each commit message, and the pull request's title, as a
+  [Conventional Commit](#commit-messages): the type decides the next release.
 - Describe what changed and how you checked it. Mention live-provider testing
   only if you actually ran it.
 
 Do not commit `.env`, API keys, generated videos, database dumps or the `data/`
 folder.
 
+## Commit messages
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/),
+because releases are made from them: `type(scope): subject`, the scope
+optional, the subject in the imperative and in lower case.
+
+```text
+feat: let actors play a voice sample
+fix(renderer): keep long captions inside the frame
+docs: explain the access code for the CLI container
+```
+
+| Type | For | Release |
+|---|---|---|
+| `feat` | something new people can use | minor (0.2.0 → 0.3.0) |
+| `fix` | a bug fixed; also a runtime dependency or base image updated | patch (0.2.0 → 0.2.1) |
+| `perf` | the same behavior, faster or lighter | patch |
+| `revert` | a commit undone (`git revert` writes the message) | patch |
+| any type with `!` (`feat!: …`), or a `BREAKING CHANGE:` footer | a change that breaks a setting, the HTTP contract, a CLI command or data people already have; the footer says what to do | major (the first one makes 1.0.0) |
+| `docs`, `test`, `ci`, `chore`, `build`, `refactor`, `style` | everything else | none |
+
+CI's `commits` job checks every commit a push or a pull request adds, and a
+pull request's title, which a squash merge turns into the commit. Check a
+branch before pushing it with `pnpm lint:commits`. Commits before v0.2.0 are
+prose and are never checked or read.
+
 ## Releases
 
-The version is the same in `package.json`, `cli/package.json`,
-`renderer/package.json` and the Claude plugin (a test checks it). A release
-moves the CHANGELOG's entries under the version and date, then a `v<version>`
-tag makes `.github/workflows/release.yml` publish the images to GHCR.
+Releases are automatic: there is nothing to run, bump or tag by hand. On every
+push to `main`, `.github/workflows/release.yml` runs
+[semantic-release](https://semantic-release.gitbook.io/) (`.releaserc.json`)
+on the commits since the last `v*` tag. When one of them calls for a release
+(table above), it:
+
+1. tags the commit `vX.Y.Z` and publishes a
+   [GitHub Release](https://github.com/maxgfr/troupe/releases) whose notes
+   are generated from the commits, with files attached by
+   `scripts/release-assets.sh`: the CLI in one file
+   (`troupe-cli-X.Y.Z.mjs`), the browser edition (`troupe-web-X.Y.Z.zip`,
+   `site/dist` built for `/troupe/`) and their `SHA256SUMS`;
+2. publishes the five images to GHCR for amd64 and arm64
+   (`.github/workflows/images.yml`): `troupe`, `troupe-renderer`,
+   `troupe-ollama`, `troupe-web` and `troupe-cli`, each tagged `X.Y.Z`,
+   `X.Y`, `X` and `latest`.
+
+Nothing is committed back to `main`: the commits there are signed, and CI's
+would not be. So the version in `package.json`, `cli/package.json` and
+`renderer/package.json` stays at 0.2.0, the last one set by hand, and a test
+keeps the three in agreement. Builds get the released version as
+`TROUPE_VERSION` instead, read through `scripts/release-version.mjs`: a build
+argument (and environment variable) of every image, logged by the studio
+(`troupe.started`) and the renderer on start, and the CLI bundle's
+(`cli/build.mjs`), which `troupe --version` and its User-Agent report. A
+build without it reports the package.json version. The Claude plugin has no
+version: Claude Code then follows `main` commit by commit, where a version
+would pin users until a commit changed it.
+
+Releases continue from the `v0.2.0` tag; `release.yml` stops rather than
+start over at 1.0.0 when no `v*` tag is behind the commit. CHANGELOG.md holds
+the history up to 0.2.0; every release since is described in its GitHub
+Release.
+
+To publish the images again for a version that has its tag, run the images
+workflow by hand ("Run workflow" with the version; untick `latest` for an
+older one). Pushing a `v*` tag by hand publishes that tag's images too, but
+makes no GitHub Release.
 
 By contributing you agree that your work is released under the MIT license and
 to follow the [code of conduct](CODE_OF_CONDUCT.md).

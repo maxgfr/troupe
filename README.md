@@ -307,6 +307,13 @@ Reports are welcome.
 | [AUDIT.md](docs/AUDIT.md) | The baseline audit of 2026-10-04 |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 
+## Releases
+
+Every release is a tag, a [GitHub Release](https://github.com/maxgfr/troupe/releases)
+with generated notes, the CLI in one file and the browser edition attached,
+and the five images on GHCR, all made from the commit messages when `main`
+moves ([CONTRIBUTING.md](CONTRIBUTING.md#releases)).
+
 ## Contributing
 
 Changes that make the script to video to download path more reliable, add

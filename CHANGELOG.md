@@ -1,8 +1,13 @@
 # Changelog
 
-## Unreleased
+Releases after 0.2.0 are made by semantic-release from the commit messages,
+and each one is described in its [GitHub Release](https://github.com/maxgfr/troupe/releases),
+with notes generated from those commits. This file keeps the history up to
+0.2.0 and is no longer updated ([CONTRIBUTING.md](CONTRIBUTING.md#releases)).
 
-### Added
+## 0.2.0 — 2026-10-07
+
+### Added — actor voice samples
 
 - Hear an actor before choosing them: a button on each picture, on the
   Actors page and in the wizard's "Who plays it?" step, plays a short
@@ -10,7 +15,7 @@
   `voice.m4a`, 0.8 MB for the cast, made by `pnpm actors:voices` with the
   renderers' own Kokoro pipeline; [docs/ACTORS.md](docs/ACTORS.md#voice-samples)).
 
-### Changed
+### Changed — actor voices
 
 - Each library actor now has a Kokoro voice of their own in the catalog,
   sent with each job (`script.actor.voice`), so they sound the same on every
@@ -18,7 +23,8 @@
   actor's database id, which differs between installs: re-rendering an
   existing project may give its actor another voice than before.
 
-## 0.2.0 — 2026-10-06
+||||||| parent of 79e0a44 (docs: describe Conventional Commits and the automatic releases)
+
 
 First tagged release. The code went public on 2026-10-04 numbered 0.1.0,
 which was never tagged nor published as images; everything since is here.

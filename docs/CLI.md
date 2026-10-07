@@ -13,6 +13,17 @@ which has no server.
 
 ## Install
 
+From a release: each [GitHub Release](https://github.com/maxgfr/troupe/releases)
+has the CLI in one file, `troupe-cli-<version>.mjs`, which needs Node.js 22
+or later and nothing else:
+
+```bash
+node troupe-cli-<version>.mjs --version    # prints <version>
+```
+
+A build from a checkout reports the version in `cli/package.json`, the last
+one set by hand ([releases](../CONTRIBUTING.md#releases)).
+
 From a checkout:
 
 ```bash

@@ -19,8 +19,8 @@
     "start": "node --experimental-strip-types --no-warnings=ExperimentalWarning src/main.ts"
   },
   "devDependencies": {
-    "@trpc/client": "^11.0.0",
-    "@trpc/server": "^11.0.0",
+    "@trpc/client": "^11.19.0",
+    "@trpc/server": "^11.19.0",
     "esbuild": "^0.28.2",
     "superjson": "^2.2.1"
   }

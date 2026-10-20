@@ -18,7 +18,7 @@ body:
         - The script chat
         - The inspiration library
         - The browser edition
-        - The CLI or the Claude Code skill
+        - The CLI or the agent skill
         - Self-hosting and settings
         - Something else
   - type: textarea

@@ -6,11 +6,8 @@ script (or ask the studio's script chat), render, review the video, iterate
 and export. Ask in plain words ("make a 10-second TikTok announcing our
 Sunday opening hours with Troupe") and Claude takes it from there.
 
-The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md). That
-folder is also the plugin (`skills/troupe/.claude-plugin/plugin.json`), and
-this repository is a Claude Code plugin marketplace that lists it
-(`.claude-plugin/marketplace.json`), so installing it copies the skill
-folder alone, a few kilobytes.
+The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md).
+Installing it copies that folder alone, a few kilobytes.
 
 ## Before you start
 
@@ -27,29 +24,23 @@ folder alone, a few kilobytes.
 
 ## Install the skill
 
-As a plugin, from GitHub:
+From GitHub, with the [skills](https://github.com/vercel-labs/skills) CLI:
 
-```text
-/plugin marketplace add maxgfr/troupe
-/plugin install troupe@troupe
+```bash
+npx skills add maxgfr/troupe
 ```
 
-or from your shell: `claude plugin marketplace add maxgfr/troupe`, then
-`claude plugin install troupe@troupe`. Adding the marketplace clones this
-repository; `claude plugin marketplace add maxgfr/troupe --sparse
-.claude-plugin skills` checks out only the two folders it needs. From a
-local checkout, pass its path instead of `maxgfr/troupe`. The skill then
-answers to `/troupe:troupe` and loads on its own when you ask for a Troupe
-video.
+From a local checkout, pass its path instead of `maxgfr/troupe`. The skill
+then answers to `/troupe` and loads on its own when you ask for a Troupe
+video; `npx skills update` brings it up to date.
 
-Without the plugin system, copy the folder into your personal skills:
+Without the installer, copy the folder into your personal skills:
 
 ```bash
 mkdir -p ~/.claude/skills && cp -R skills/troupe ~/.claude/skills/troupe
 ```
 
-(it is then `/troupe`). A copy does not update itself; the plugin updates
-with `/plugin marketplace update troupe`.
+A copy does not update itself.
 
 ## What Claude does
 

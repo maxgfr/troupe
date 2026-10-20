@@ -217,7 +217,7 @@ troupe open
 
 See [docs/CLI.md](docs/CLI.md). On top of it, a Claude Code skill runs the
 whole process for you, from the brief to the reviewed MP4:
-`/plugin marketplace add maxgfr/troupe`, then `/plugin install troupe@troupe`
+`npx skills add maxgfr/troupe`
 ([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
 
 ## Make it yours

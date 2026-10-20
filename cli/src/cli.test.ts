@@ -108,16 +108,6 @@ describe("command line", () => {
     ]);
   });
 
-  // A version in plugin.json would pin every user to it until a commit
-  // changed it, and releases commit nothing: without one, Claude Code
-  // versions the plugin by commit and updates it as main moves.
-  it("leaves the Claude plugin unversioned, so it follows main", async () => {
-    const plugin = JSON.parse(
-      await readFile(new URL("../../skills/troupe/.claude-plugin/plugin.json", import.meta.url), "utf8"),
-    ) as { version?: string };
-    expect(plugin.version).toBeUndefined();
-  });
-
   it("reports the release version its bundle was built with", async () => {
     const dir = await mkdtemp(join(tmpdir(), "troupe-cli-build-"));
     folders.push(dir);

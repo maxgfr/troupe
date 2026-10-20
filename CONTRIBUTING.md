@@ -23,7 +23,7 @@ Then `pnpm install`.
 | The script chat | `src/server/chat`, `src/modules/chat`, `site/src/chat` | Ollama with `qwen3:4b`, or `ANTHROPIC_API_KEY`; WebGPU in the browser | [SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md) |
 | The inspiration library | `src/modules/library`, `src/server/library`, `site/src/library` | with the studio | [LIBRARY.md](docs/LIBRARY.md) |
 | The CLI | `cli/` | `pnpm --silent troupe <command>` | [CLI.md](docs/CLI.md) |
-| The Claude Code skill | `skills/troupe`, `.claude-plugin/` | `/plugin marketplace add maxgfr/troupe` in Claude Code | [CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md) |
+| The Claude Code skill | `skills/troupe` | `npx skills add maxgfr/troupe` | [CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md) |
 | The Docker stack | `docker-compose*.yml`, `Dockerfile`, `*/Dockerfile`, `ollama/`, `scripts/docker` | `docker compose up -d --wait --build` | [SELF-HOSTING.md](docs/SELF-HOSTING.md) |
 | Settings | `src/env.js`, `site/src/*/config.ts`, `renderer/src/main.ts` | | [CUSTOMIZING.md](docs/CUSTOMIZING.md) |
 
@@ -143,9 +143,7 @@ keeps the three in agreement. Builds get the released version as
 argument (and environment variable) of every image, logged by the studio
 (`troupe.started`) and the renderer on start, and the CLI bundle's
 (`cli/build.mjs`), which `troupe --version` and its User-Agent report. A
-build without it reports the package.json version. The Claude plugin has no
-version: Claude Code then follows `main` commit by commit, where a version
-would pin users until a commit changed it.
+build without it reports the package.json version.
 
 Releases continue from the `v0.2.0` tag; `release.yml` stops rather than
 start over at 1.0.0 when no `v*` tag is behind the commit. CHANGELOG.md holds

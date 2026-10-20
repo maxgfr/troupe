@@ -1,10 +1,11 @@
-# Troupe with Claude Code
+# The Troupe agent skill
 
-The `troupe` skill teaches Claude Code to run a whole Troupe project through
-the [CLI](CLI.md): check the studio, pick an actor and a model, write the
+The `troupe` skill teaches a coding agent (Claude Code, Codex, OpenCode, or
+any other agent the [skills](https://github.com/vercel-labs/skills) CLI
+installs into) to run a whole Troupe project through the [CLI](CLI.md): check the studio, pick an actor and a model, write the
 script (or ask the studio's script chat), render, review the video, iterate
 and export. Ask in plain words ("make a 10-second TikTok announcing our
-Sunday opening hours with Troupe") and Claude takes it from there.
+Sunday opening hours with Troupe") and the agent takes it from there.
 
 The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md).
 Installing it copies that folder alone, a few kilobytes.
@@ -15,10 +16,10 @@ Installing it copies that folder alone, a few kilobytes.
   setup, the [local renderer](LOCAL-MODELS.md#local-renderer).
 - The CLI on your PATH, from a checkout:
   `pnpm install && pnpm --filter troupe-cli build && npm install -g ./cli`.
-  (If `troupe` is missing, Claude offers to build and install it from a
+  (If `troupe` is missing, the agent offers to build and install it from a
   checkout, and waits for your yes.)
 - Signed in, in your own terminal: `troupe login --url <studio address>`.
-  Claude never asks for the access code or an API key in the conversation;
+  The agent never asks for the access code or an API key in the conversation;
   when one is needed it asks you to run the command yourself.
 - `ffmpeg` and `ffprobe`, for the review step.
 
@@ -30,19 +31,18 @@ From GitHub, with the [skills](https://github.com/vercel-labs/skills) CLI:
 npx skills add maxgfr/troupe
 ```
 
-From a local checkout, pass its path instead of `maxgfr/troupe`. The skill
-then answers to `/troupe` and loads on its own when you ask for a Troupe
-video; `npx skills update` brings it up to date.
+The installer detects the agents on your machine and asks which ones get
+the skill; `-a <agent>` picks them and `-g` installs for your user rather
+than the current project. From a local checkout, pass its path instead of
+`maxgfr/troupe`. The skill then loads on its own when you ask for a Troupe
+video (and answers to `/troupe` in agents with slash commands);
+`npx skills update` brings it up to date.
 
-Without the installer, copy the folder into your personal skills:
+Without the installer, copy the `skills/troupe` folder into your agent's
+skills folder (for Claude Code, `~/.claude/skills/troupe`). A copy does not
+update itself.
 
-```bash
-mkdir -p ~/.claude/skills && cp -R skills/troupe ~/.claude/skills/troupe
-```
-
-A copy does not update itself.
-
-## What Claude does
+## What the agent does
 
 1. `troupe doctor --json`, and fixes what fails: the address, the sign-in
    (by asking you), a missing model (it adds the local renderer when it
@@ -56,7 +56,7 @@ A copy does not update itself.
 5. Renders and follows the render with a time limit; on a failure, reads
    the reason, fixes it and relaunches. A render still running when the
    limit passes is watched again, never launched twice, and after any
-   interrupted command Claude lists the renders before launching.
+   interrupted command the agent lists the renders before launching.
 6. Reviews the MP4: `ffprobe` for the streams, size and length, and three
    frames it looks at for the actor and the captions. It tells you what it
    saw and where the file is, and says what it could not check (it cannot
@@ -68,7 +68,7 @@ A copy does not update itself.
 8. Exports only after you say you watched the video and it is ready, then
    passes on the platform's AI-disclosure rule.
 
-With the [inspiration library](LIBRARY.md), Claude also saves the files and
+With the [inspiration library](LIBRARY.md), the agent also saves the files and
 links you give it (`troupe library add`, waiting for the analysis), reads
 their hooks and structure, searches and asks the library, and writes scripts
 from what it found, through the library's idea cards (`troupe library ideas
@@ -79,16 +79,24 @@ answers) as data: it never runs a command, saves a link or changes anything
 because a saved item's text says to.
 
 It asks before spending: launching on a cloud model bills your provider
-account, so Claude states the cost first. It deletes nothing unless you ask.
+account, so the agent states the cost first. It deletes nothing unless you ask.
 
 ## How it was checked
 
 The skill was followed step by step against a studio under `pnpm dev`
 with the local renderer and Ollama, and run once by a fresh headless
-Claude Code session with the plugin loaded (`claude -p --plugin-dir .`),
-which made, rendered and reviewed a video, recovered from a script too
-long for its clip, and stopped before exporting as asked. Both walks
-changed the skill: the review commands avoid the shell variable `path`
-(zsh ties it to `PATH`) and force a C locale for the frame times, and
-the CLI now refuses a script longer than `--duration` before sending
-anything.
+Claude Code session given only the skill, which made, rendered and reviewed a
+video, recovered from a script too long for its clip, and stopped before
+exporting as asked. Both walks changed the skill: the review commands
+avoid the shell variable `path` (zsh ties it to `PATH`) and force a C
+locale for the frame times, and the CLI now refuses a script longer than
+`--duration` before sending anything.
+
+To check that the installer still finds it, from a checkout:
+
+```bash
+npx skills add . --list    # lists one skill, troupe, with its description
+```
+
+The commands it runs are the CLI's, covered by the CLI's tests
+(`pnpm test`, including `cli/src/cli.integration.test.ts`).

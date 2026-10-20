@@ -5,7 +5,7 @@ project pages do, from the sign-in to the downloaded MP4. It calls the same
 tRPC API as the browser (`/api/trpc`), signs in with the same access code,
 and is type-checked against the server's router, so the two cannot drift.
 Every command prints a table for people or JSON with `--json`, for scripts
-and agents. A Claude Code skill builds on it: [CLAUDE-SKILL.md](CLAUDE-SKILL.md).
+and agents. An agent skill builds on it: [AGENT-SKILL.md](AGENT-SKILL.md).
 
 The built CLI needs Node.js 22 or later and a studio to talk to (`pnpm dev`, Docker,
 or any deployment you can reach). It does not work with the browser edition,

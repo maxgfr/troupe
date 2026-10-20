@@ -181,8 +181,8 @@ troupe library ideas                                          # the cards
 troupe library ideas project 9c1e --platform instagram        # → a project
 ```
 
-Every command takes `--json` (docs/CLI.md). The Claude skill uses them
-(docs/CLAUDE-SKILL.md).
+Every command takes `--json` (docs/CLI.md). The agent skill uses them
+(docs/AGENT-SKILL.md).
 
 ## How search works
 

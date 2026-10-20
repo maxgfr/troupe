@@ -177,7 +177,7 @@ covers the tests and each part.
 | Where your data lives | that browser, with a backup file to export | your database and your disk |
 | Video models | Kokoro voice + captions, rendered in the tab | every model in the table below |
 | Script chat | WebLLM on the GPU | Ollama or Claude |
-| CLI and Claude Code skill | no | yes |
+| CLI and agent skill | no | yes |
 
 | Model | Where it runs | Audio | Formats | Lengths |
 |---|---|---|---|---|
@@ -200,7 +200,7 @@ accepts, and warn when a model has only been tried in another language or makes
 silent video. See [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md) for ComfyUI and
 the local renderer, including its AI video mode.
 
-## Command line and Claude Code
+## Command line and agent skill
 
 `troupe`, the CLI in [`cli/`](cli), drives a running studio from a terminal:
 sign in, check the setup, add models, create projects, set scripts, chat,
@@ -215,10 +215,10 @@ troupe doctor
 troupe open
 ```
 
-See [docs/CLI.md](docs/CLI.md). On top of it, a Claude Code skill runs the
-whole process for you, from the brief to the reviewed MP4:
-`npx skills add maxgfr/troupe`
-([docs/CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md)).
+See [docs/CLI.md](docs/CLI.md). On top of it, an agent skill runs the whole
+process for you, from the brief to the reviewed MP4, in Claude Code, Codex,
+OpenCode or another coding agent: `npx skills add maxgfr/troupe`
+([docs/AGENT-SKILL.md](docs/AGENT-SKILL.md)).
 
 ## Make it yours
 
@@ -238,7 +238,7 @@ suite checks that page against the code, so it stays complete.
 | The local renderer | `renderer/` | A Node server that speaks the [HTTP contract](docs/LOCAL-MODELS.md#http-endpoint): Kokoro voices, the scene on a canvas, ffmpeg; LTX-Video (`renderer/ltx`) and faster-whisper (`renderer/whisper`) in Python, opt-in. |
 | The browser edition | `site/` | The same studio's pages built with Vite, its server code running in the browser on PGlite; renders in a worker (kokoro-js, Mediabunny), chat with WebLLM, plus the landing page. |
 | The script chat | `src/server/chat`, `src/modules/chat`, `site/src/chat` | Ollama or Claude on the server, WebLLM in the browser, all answering the same JSON schema. |
-| The CLI and skill | `cli/`, `skills/troupe` | `troupe`, a client for a running studio, and the Claude Code skill built on it. |
+| The CLI and skill | `cli/`, `skills/troupe` | `troupe`, a client for a running studio, and the agent skill built on it. |
 | The stack | `docker-compose.yml`, `ollama/`, `scripts/docker` | One command for all of it; images published on GHCR by `.github/workflows/release.yml`. |
 
 ## Honest status
@@ -301,7 +301,7 @@ Reports are welcome.
 | [SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md) | The script chat and its models |
 | [LIBRARY.md](docs/LIBRARY.md) | The inspiration library |
 | [ACTORS.md](docs/ACTORS.md) | The 30 actors: how they were made, how to replace them |
-| [CLI.md](docs/CLI.md) · [CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md) | The `troupe` CLI and the Claude Code skill |
+| [CLI.md](docs/CLI.md) · [AGENT-SKILL.md](docs/AGENT-SKILL.md) | The `troupe` CLI and the agent skill |
 | [CUSTOMIZING.md](docs/CUSTOMIZING.md) | Every setting, with its default |
 | [LIVE-CHECKS.md](docs/LIVE-CHECKS.md) | Checking real providers with your keys |
 | [PRODUCT-MAP.md](docs/PRODUCT-MAP.md) · [DESIGN.md](DESIGN.md) · [PRODUCT.md](PRODUCT.md) | Screens and words, the visual system, the principles |

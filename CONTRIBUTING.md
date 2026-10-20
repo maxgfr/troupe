@@ -23,7 +23,7 @@ Then `pnpm install`.
 | The script chat | `src/server/chat`, `src/modules/chat`, `site/src/chat` | Ollama with `qwen3:4b`, or `ANTHROPIC_API_KEY`; WebGPU in the browser | [SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md) |
 | The inspiration library | `src/modules/library`, `src/server/library`, `site/src/library` | with the studio | [LIBRARY.md](docs/LIBRARY.md) |
 | The CLI | `cli/` | `pnpm --silent troupe <command>` | [CLI.md](docs/CLI.md) |
-| The Claude Code skill | `skills/troupe` | `npx skills add maxgfr/troupe` | [CLAUDE-SKILL.md](docs/CLAUDE-SKILL.md) |
+| The agent skill | `skills/troupe` | `npx skills add maxgfr/troupe` | [AGENT-SKILL.md](docs/AGENT-SKILL.md) |
 | The Docker stack | `docker-compose*.yml`, `Dockerfile`, `*/Dockerfile`, `ollama/`, `scripts/docker` | `docker compose up -d --wait --build` | [SELF-HOSTING.md](docs/SELF-HOSTING.md) |
 | Settings | `src/env.js`, `site/src/*/config.ts`, `renderer/src/main.ts` | | [CUSTOMIZING.md](docs/CUSTOMIZING.md) |
 

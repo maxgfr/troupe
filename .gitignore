@@ -63,3 +63,8 @@ __pycache__/
 
 # the CLI binaries (scripts/cli-binaries.sh)
 /cli-binaries
+
+# skills installed by `npx skills add`
+.agents/skills/
+.claude/skills/
+skills-lock.json

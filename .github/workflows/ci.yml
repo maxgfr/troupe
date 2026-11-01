@@ -112,7 +112,7 @@ jobs:
           RENDER_CHANNEL: chromium
           RENDER_PROFILE: ${{ runner.temp }}/troupe-render-profile
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-smoke-report
           path: |
@@ -186,7 +186,7 @@ jobs:
       - if: always()
         run: sudo chown -R "$(id -u):$(id -g)" "$E2E_CACHE_DIR"
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docker-e2e-report
           path: |

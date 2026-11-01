@@ -126,7 +126,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       TAG: v${{ needs.release.outputs.version }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: sums-*
           merge-multiple: true

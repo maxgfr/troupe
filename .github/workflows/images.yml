@@ -62,13 +62,23 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
 
+  # Each platform builds on its own runner, natively. Under QEMU, arm64's
+  # Node.js could crash mid-install and leave the job hanging for hours, and
+  # one runner building both platforms ran out of disk on the Ollama image.
+  # Each build is pushed by digest; the merge job tags the multi-platform image.
   image:
     needs: version
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        include:
+        platform:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+        image:
           - name: troupe
             license: MIT
             file: Dockerfile
@@ -99,7 +109,13 @@ jobs:
         with:
           ref: refs/tags/v${{ needs.version.outputs.version }}
           persist-credentials: false
-      - uses: docker/setup-qemu-action@v4
+      # The official Ollama image, CUDA included, barely fits next to the
+      # runner's preinstalled toolchains.
+      - name: Free disk space
+        if: matrix.image.name == 'troupe-ollama'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -111,6 +127,60 @@ jobs:
         with:
           # The revision label is the tag's commit, not the workflow's.
           context: git
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          # The image's own license (the Dockerfiles' LABEL), not the
+          # repository's: the renderer and the site carry the GPL as a whole.
+          labels: org.opencontainers.image.licenses=${{ matrix.image.license }}
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
+          target: ${{ matrix.image.target }}
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: TROUPE_VERSION=${{ needs.version.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=release-${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,scope=release-${{ matrix.image.name }}-${{ matrix.platform.arch }},mode=max
+      - name: Keep the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # One multi-platform image per name from its two digests, tagged X.Y.Z,
+  # X.Y, X and latest.
+  merge:
+    needs: [version, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [troupe, troupe-renderer, troupe-ollama, troupe-web, troupe-cli]
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.name }}-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           flavor: latest=false
           tags: |
@@ -118,20 +188,14 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }}
             type=semver,pattern={{major}},value=${{ needs.version.outputs.version }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
-          # The image's own license (the Dockerfiles' LABEL), not the
-          # repository's: the renderer and the site carry the GPL as a whole.
-          labels: org.opencontainers.image.licenses=${{ matrix.license }}
-      # The site and the CLI bundle build once, natively ($BUILDPLATFORM in
-      # their Dockerfiles); only the runtime stages run under QEMU.
-      - uses: docker/build-push-action@v7
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target }}
-          platforms: linux/amd64,linux/arm64
-          build-args: TROUPE_VERSION=${{ needs.version.outputs.version }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=release-${{ matrix.name }}
-          cache-to: type=gha,scope=release-${{ matrix.name }},mode=max
+      - name: Tag the multi-platform image
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "$IMAGE@sha256:%s " *)
+          docker buildx imagetools inspect "$IMAGE:$VERSION"

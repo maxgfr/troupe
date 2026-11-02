@@ -50,7 +50,7 @@ const FileRef = z.object({
   type: z.string().optional().default("output"),
 });
 const HistoryEntry = z.object({
-  outputs: z.record(z.record(z.unknown())).optional().default({}),
+  outputs: z.record(z.string(), z.record(z.string(), z.unknown())).optional().default({}),
   status: z
     .object({
       status_str: z.string().optional(),
@@ -153,7 +153,7 @@ export function createComfyAdapter(deps: { model: ComfyModel; fetch?: typeof fet
   async function history(promptId: string) {
     const res = await call(`/history/${encodeURIComponent(promptId)}`, { headers: headers() });
     if (!res.ok) throw new Error(`ComfyUI history returned HTTP ${res.status}.`);
-    const body = z.record(z.unknown()).parse(await res.json());
+    const body = z.record(z.string(), z.unknown()).parse(await res.json());
     return body[promptId] === undefined ? null : HistoryEntry.parse(body[promptId]);
   }
 
@@ -311,10 +311,14 @@ export function createComfyAdapter(deps: { model: ComfyModel; fetch?: typeof fet
       if (!info?.ok) return { ok: false, message: "ComfyUI is reachable but /object_info failed.", details };
       const nodes = z
         .record(
+          z.string(),
           z
             .object({
               input: z
-                .object({ required: z.record(z.unknown()).optional(), optional: z.record(z.unknown()).optional() })
+                .object({
+                  required: z.record(z.string(), z.unknown()).optional(),
+                  optional: z.record(z.string(), z.unknown()).optional(),
+                })
                 .passthrough()
                 .optional(),
             })

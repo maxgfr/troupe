@@ -37,7 +37,7 @@ export const NodeBindingSchema = z.object({
 const ApiNode = z
   .object({
     class_type: z.string().min(1),
-    inputs: z.record(z.unknown()),
+    inputs: z.record(z.string(), z.unknown()),
     _meta: z.object({ title: z.string().optional() }).passthrough().optional(),
   })
   .passthrough();
@@ -48,7 +48,7 @@ export function parseWorkflow(json: unknown): ApiWorkflow {
   if ("nodes" in json && "links" in json) {
     throw new Error("This is a UI workflow. In ComfyUI, use Workflow → Export (API) and import that file instead.");
   }
-  const parsed = z.record(ApiNode).safeParse(json);
+  const parsed = z.record(z.string(), ApiNode).safeParse(json);
   if (!parsed.success || Object.keys(parsed.data).length === 0)
     throw new Error("This file is not a ComfyUI API workflow (expected node ids mapped to { class_type, inputs }).");
   return parsed.data as ApiWorkflow;

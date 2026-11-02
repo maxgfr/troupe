@@ -16,7 +16,11 @@ const mb = (bytes: number) => Math.round(bytes / 1_000_000);
 
 // What the row says, the figure beside it and how full the bar is. The bar
 // follows the download first, then the render itself from voicing to saving.
-function describe(stage: RenderStage | undefined): { label: string; figure: string | null; fraction: number | null } {
+function describeStage(stage: RenderStage | undefined): {
+  label: string;
+  figure: string | null;
+  fraction: number | null;
+} {
   switch (stage?.stage) {
     case undefined:
       return { label: "Rendering in this browser", figure: null, fraction: null };
@@ -59,7 +63,7 @@ function RenderProgress({ providerJobId }: { providerJobId: string }) {
       }),
     [providerJobId, utils],
   );
-  const { label, figure, fraction } = describe(stage);
+  const { label, figure, fraction } = describeStage(stage);
   return <ProgressBar label={label} figure={figure} fraction={fraction} />;
 }
 

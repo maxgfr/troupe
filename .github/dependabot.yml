@@ -16,7 +16,12 @@ updates:
       include: scope
     # Majors that need a migration, done by hand: Next.js 16, TypeScript 7,
     # and Node's types, which follow the Node the images run (24).
+    # Transformers.js stays on 3 while kokoro-js (1.2.1, the latest) requires
+    # ^3.5.1: the renderer sets `env.cacheDir` on the copy kokoro-js loads,
+    # so both must resolve to the same one.
     ignore:
+      - dependency-name: "@huggingface/transformers"
+        update-types: [version-update:semver-major]
       - dependency-name: next
         update-types: [version-update:semver-major]
       - dependency-name: typescript

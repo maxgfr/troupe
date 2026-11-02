@@ -55,7 +55,7 @@
     "drizzle-orm": "^0.45.4",
     "linkedom": "0.18.14",
     "next": "^15.5.28",
-    "postgres": "^3.4.4",
+    "postgres": "^4.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1",

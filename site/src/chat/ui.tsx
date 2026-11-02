@@ -7,7 +7,9 @@ import { chatModelCached, chatModelStage, chatSupport, subscribeToChatModel, typ
 // The chat panel's view of the in-browser model: what it downloads before
 // the first answer, and how far along it is.
 
-function describe(stage: ChatModelStage): { label: string; figure: string | null; fraction: number | null } | null {
+function describeStage(
+  stage: ChatModelStage,
+): { label: string; figure: string | null; fraction: number | null } | null {
   switch (stage.stage) {
     case "download":
       return stage.loadedMb > 0
@@ -30,7 +32,7 @@ function describe(stage: ChatModelStage): { label: string; figure: string | null
 
 function ChatModelProgress() {
   const stage = useSyncExternalStore(subscribeToChatModel, chatModelStage);
-  const shown = describe(stage);
+  const shown = describeStage(stage);
   if (!shown) return null;
   const percent = shown.fraction === null ? null : Math.round(Math.min(1, Math.max(0, shown.fraction)) * 100);
   return (

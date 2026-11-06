@@ -36,6 +36,10 @@ describe("private provider settings", () => {
     try {
       vi.stubEnv("GOOGLE_GENAI_API_KEY", "environment-fixture");
       vi.stubEnv("ANTHROPIC_API_KEY", "");
+      vi.stubEnv("OPENROUTER_API_KEY", "");
+      vi.stubEnv("AI_GATEWAY_API_KEY", "");
+      vi.stubEnv("XAI_API_KEY", "xai-environment");
+      vi.stubEnv("REPLICATE_API_TOKEN", "");
       await saveProviderKey({ provider: "fal", key: "fal-fixture" }, t.db);
       const raw = (
         await t.pg.query<{ apiKey: string | null; apiKeyCiphertext: string }>("select * from troupe_provider_settings")
@@ -46,11 +50,21 @@ describe("private provider settings", () => {
         google: { configured: true, source: "environment" },
         fal: { configured: true, source: "saved" },
         anthropic: { configured: false, source: "none" },
+        openrouter: { configured: false, source: "none" },
+        gateway: { configured: false, source: "none" },
+        xai: { configured: true, source: "environment" },
+        replicate: { configured: false, source: "none" },
       });
+      await clearProviderKey({ provider: "xai", mode: "disable" }, t.db);
       await clearProviderKey({ provider: "google", mode: "disable" }, t.db);
       expect(await effectiveProviderKeys(t.db)).toEqual({ fal: "fal-fixture" });
       await clearProviderKey({ provider: "google", mode: "remove" }, t.db);
-      expect(await effectiveProviderKeys(t.db)).toEqual({ google: "environment-fixture", fal: "fal-fixture" });
+      await clearProviderKey({ provider: "xai", mode: "remove" }, t.db);
+      expect(await effectiveProviderKeys(t.db)).toEqual({
+        google: "environment-fixture",
+        fal: "fal-fixture",
+        xai: "xai-environment",
+      });
       await setAuthUser(t, "00000000-0000-4000-8000-000000000001");
       expect((await t.pg.query("select * from troupe_provider_settings")).rows).toEqual([]);
     } finally {

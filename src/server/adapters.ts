@@ -12,6 +12,7 @@ import {
   effectiveDefaultModel,
   getDefaultModelKey,
   listModelConfigs,
+  parseCatalogConnection,
   resolveCatalog,
   type BuiltinModel,
   type ModelCatalog,
@@ -21,6 +22,7 @@ import { db as runtimeDb } from "~/server/db";
 import type { Db } from "~/server/db/types";
 import { readCredentials } from "~/server/settings/providers";
 import { localAdapterFromRow } from "~/server/local-models";
+import { createCatalogAdapter } from "~/server/catalog-adapter";
 
 export const httpFetch: HttpLike = async (url, init) => {
   const res = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
@@ -87,6 +89,29 @@ export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog
         );
       continue;
     }
+    if (row.family === "catalog") {
+      // Added from a provider's catalog: it renders on that provider's key.
+      const connection = parseCatalogConnection(row.connection);
+      if (!connection || !row.capabilities) {
+        vetoes.set(row.id, { status: "invalid", detail: "This model was saved incompletely. Add it again." });
+        continue;
+      }
+      const credential = credentials[connection.provider];
+      if (credential.source === "saved" || credential.source === "environment")
+        adapters.set(
+          row.id,
+          createCatalogAdapter({
+            model: {
+              modelKey: row.id,
+              provider: connection.provider,
+              modelId: connection.model,
+              capabilities: row.capabilities,
+            },
+            apiKey: credential.key,
+          }),
+        );
+      continue;
+    }
     const built = localAdapterFromRow(row);
     if (!built) vetoes.set(row.id, { status: "invalid", detail: `No adapter for ${row.family} models.` });
     else if ("createJob" in built) adapters.set(row.id, built);
@@ -94,7 +119,14 @@ export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog
   }
   const models = resolveCatalog({
     rows,
-    credentials: { google: credentials.google.source, fal: credentials.fal.source },
+    credentials: {
+      google: credentials.google.source,
+      fal: credentials.fal.source,
+      openrouter: credentials.openrouter.source,
+      gateway: credentials.gateway.source,
+      xai: credentials.xai.source,
+      replicate: credentials.replicate.source,
+    },
     checkLocal: (row) => vetoes.get(row.id) ?? null,
     builtins,
   });

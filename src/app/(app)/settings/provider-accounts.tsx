@@ -12,7 +12,7 @@ const ACCOUNTS = [
     id: "google",
     name: "Google AI",
     article: "a",
-    models: "Veo 3.1 Fast · Veo 3.1 Lite",
+    models: "Veo 3.1 Fast · Veo 3.1 Lite, and the Google models added from the catalog",
     href: "https://aistudio.google.com/apikey",
   },
   {
@@ -21,6 +21,34 @@ const ACCOUNTS = [
     article: "a",
     models: "Kling 3.0 · Seedance 1.5 Pro, and every model added from fal.ai's catalog",
     href: "https://fal.ai/dashboard/keys",
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    article: "an",
+    models: "One key for Kling, Veo, Seedance, Hailuo, Wan, Runway, Grok Imagine… added from the catalog",
+    href: "https://openrouter.ai/settings/keys",
+  },
+  {
+    id: "gateway",
+    name: "Vercel AI Gateway",
+    article: "a",
+    models: "One key for the Gateway's video models, added from the catalog",
+    href: "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys",
+  },
+  {
+    id: "xai",
+    name: "xAI",
+    article: "an",
+    models: "Grok Imagine, added from the catalog",
+    href: "https://console.x.ai",
+  },
+  {
+    id: "replicate",
+    name: "Replicate",
+    article: "a",
+    models: "Replicate's text-to-video collection, added from the catalog",
+    href: "https://replicate.com/account/api-tokens",
   },
   {
     id: "anthropic",
@@ -53,7 +81,9 @@ export function ProviderAccounts({
 } = {}) {
   const utils = api.useUtils();
   const status = api.settings.credentials.status.useQuery();
-  const [keys, setKeys] = useState({ google: "", fal: "", anthropic: "" });
+  const [keys, setKeys] = useState<Record<ProviderAccountId, string>>(
+    () => Object.fromEntries(ACCOUNTS.map((a) => [a.id, ""])) as Record<ProviderAccountId, string>,
+  );
   const [reports, setReports] = useState<Record<string, Report | undefined>>({});
   const refresh = () =>
     Promise.all([

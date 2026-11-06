@@ -171,7 +171,7 @@ export function ModelPicker({
               className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-primary shadow-[0_-1px_0_var(--troupe-color-line)] transition-colors duration-150 hover:bg-primary/10"
             >
               <SearchIcon className="size-4" />
-              Browse fal.ai models
+              Browse more models
             </button>
           ) : null}
         </div>

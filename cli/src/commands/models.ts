@@ -19,7 +19,10 @@ const RESOLUTIONS = [
   "1080p",
 ] as const satisfies readonly Capabilities["resolutions"][number][];
 const AUDIO = ["always", "optional", "none"] as const satisfies readonly Capabilities["audio"][];
-const PROVIDERS = ["google", "fal", "anthropic"] as const;
+const PROVIDERS = ["google", "fal", "anthropic", "openrouter", "gateway", "xai", "replicate"] as const;
+const KEY_ARGS = `<${PROVIDERS.join("|")}>`;
+// The providers whose video models the catalog lists (fal.ai's: models fal).
+const CATALOG_PROVIDERS = ["openrouter", "gateway", "google", "xai", "replicate"] as const;
 
 export function modelState(m: Model): string {
   if (m.archived) return "archived";
@@ -387,7 +390,7 @@ const keysList: Command = {
 
 const keysSet: Command = {
   path: ["keys", "set"],
-  args: "<google|fal|anthropic>",
+  args: KEY_ARGS,
   positionals: { min: 1, max: 1 },
   summary:
     "Save a provider API key, encrypted on the server. Read from stdin or a hidden prompt, never from the command line.",
@@ -403,7 +406,7 @@ const keysSet: Command = {
 
 const keysClear: Command = {
   path: ["keys", "clear"],
-  args: "<google|fal|anthropic>",
+  args: KEY_ARGS,
   positionals: { min: 1, max: 1 },
   summary: "Remove a saved key, or with --disable also ignore the one in the server's environment.",
   options: { disable: { type: "boolean", description: "Ignore the environment's key too." } },
@@ -419,9 +422,9 @@ const keysClear: Command = {
 
 const keysTest: Command = {
   path: ["keys", "test"],
-  args: "<google|fal|anthropic>",
+  args: KEY_ARGS,
   positionals: { min: 1, max: 1 },
-  summary: "Check a provider key without rendering anything (fal.ai cannot be checked for free).",
+  summary: "Check a provider key without rendering anything.",
   async run(ctx, { positionals }) {
     const provider = oneOf(positionals[0]!, PROVIDERS, "provider");
     const report = await ctx.api.settings.credentials.test.mutate({ provider });
@@ -471,11 +474,73 @@ const modelsFalAdd: Command = {
   },
 };
 
+const modelsCatalog: Command = {
+  path: ["models", "catalog"],
+  args: "[search...]",
+  positionals: { min: 0, max: 20 },
+  summary:
+    "List the video models of OpenRouter, the Vercel AI Gateway, xAI, Google and Replicate, live, with their lengths, formats and price; add one with models catalog-add.",
+  options: {
+    provider: { type: "string", description: `One provider only: ${CATALOG_PROVIDERS.join(", ")}.` },
+  },
+  examples: ["troupe models catalog kling", "troupe models catalog --provider openrouter seedance"],
+  async run(ctx, { positionals, options }) {
+    const provider =
+      typeof options.provider === "string" ? oneOf(options.provider, CATALOG_PROVIDERS, "provider") : null;
+    const words = positionals.join(" ").toLowerCase().split(/\s+/).filter(Boolean);
+    const all = await ctx.api.settings.models.videoCatalog.query();
+    const shown = all.filter(
+      (m) =>
+        (!provider || m.provider === provider) &&
+        words.every((w) => `${m.name} ${m.id} ${m.owner}`.toLowerCase().includes(w)),
+    );
+    const span = (d: number[]) => (d.length ? (d.length === 1 ? `${d[0]}` : `${d[0]}-${d.at(-1)}`) : "-");
+    return {
+      data: shown,
+      text: shown.length
+        ? table(
+            ["PROVIDER", "ID", "NAME", "SECONDS", "FORMATS", "$/S", "IN STUDIO"],
+            shown.map((m) => [
+              m.provider,
+              m.id,
+              m.name,
+              span(m.durations),
+              m.aspectRatios.join(" ") || "-",
+              m.pricePerSecondUsd == null ? "-" : m.pricePerSecondUsd.toFixed(3),
+              m.modelKey ?? (m.unavailable ? "cannot add" : ""),
+            ]),
+          )
+        : "No video model matches.",
+    };
+  },
+};
+
+const modelsCatalogAdd: Command = {
+  path: ["models", "catalog-add"],
+  args: `<${CATALOG_PROVIDERS.join("|")}> <model-id>`,
+  positionals: { min: 2, max: 2 },
+  summary: "Add a video model from a provider's list; its lengths, formats, resolutions and sound come from the list.",
+  examples: [
+    "troupe models catalog-add openrouter kwaivgi/kling-v3.0-pro",
+    "troupe models catalog-add xai grok-imagine-video-1.5",
+  ],
+  async run(ctx, { positionals }) {
+    const provider = oneOf(positionals[0]!, CATALOG_PROVIDERS, "provider");
+    const added = await ctx.api.settings.models.addVideo.mutate({ provider, id: positionals[1]! });
+    return {
+      data: added,
+      text: `Added ${added.label} as ${added.modelKey}. Render on it: troupe shots launch --model ${added.modelKey} <text>`,
+    };
+  },
+};
+
 export const modelCommands: Command[] = [
   modelsList,
   modelsAdd,
   modelsFal,
   modelsFalAdd,
+  modelsCatalog,
+  modelsCatalogAdd,
   modelsEdit,
   modelsTest,
   modelsRemove,

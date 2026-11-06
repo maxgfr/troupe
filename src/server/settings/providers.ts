@@ -4,8 +4,9 @@ import type { Db } from "~/server/db/types";
 import { providerSettings } from "./schema";
 import { SecretUnavailableError, loadSecretBox, type SecretBox } from "./secrets";
 
-// "anthropic" is the script chat's key (src/server/chat/anthropic.ts).
-export const CREDENTIAL_IDS = ["google", "fal", "anthropic"] as const;
+// "anthropic" is the script chat's key (src/server/chat/anthropic.ts). The
+// last four render the video models added from their catalog (llm-connect).
+export const CREDENTIAL_IDS = ["google", "fal", "anthropic", "openrouter", "gateway", "xai", "replicate"] as const;
 export type CredentialId = (typeof CREDENTIAL_IDS)[number];
 
 // The first one set wins. GEMINI_API_KEY and GOOGLE_API_KEY are the names
@@ -14,6 +15,10 @@ export const ENV_KEYS: Record<CredentialId, readonly string[]> = {
   google: ["GOOGLE_GENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"],
   fal: ["FAL_KEY"],
   anthropic: ["ANTHROPIC_API_KEY"],
+  openrouter: ["OPENROUTER_API_KEY"],
+  gateway: ["AI_GATEWAY_API_KEY"],
+  xai: ["XAI_API_KEY"],
+  replicate: ["REPLICATE_API_TOKEN"],
 };
 
 export function environmentKey(id: CredentialId, env: Record<string, string | undefined>): string | undefined {

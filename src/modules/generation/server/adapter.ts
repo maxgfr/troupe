@@ -96,7 +96,9 @@ export function validateRequest(caps: ModelCapabilities, req: Omit<CreateJobRequ
   }
 }
 
-export type ModelFamily = "veo" | "fal" | "comfyui" | "http" | "browser";
+// "catalog": a cloud model added from a provider's catalog, rendered through
+// llm-connect (OpenRouter, the AI Gateway, xAI, Google, Replicate).
+export type ModelFamily = "veo" | "fal" | "comfyui" | "http" | "browser" | "catalog";
 
 // The provider job's current state, polled by the reconciler.
 export type ProviderJobStatus = { kind: "pending"; progress?: number } | JobOutcome;

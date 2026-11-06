@@ -106,12 +106,76 @@ function credentialStatus(source: CredentialSource): ModelStatus {
 
 const price = (value: string | null) => (value === null ? null : Number(value));
 
+// The providers whose catalog models render through llm-connect, by the id
+// llm-connect calls them with; the key each one renders on.
+export const CATALOG_PROVIDERS = ["openrouter", "gateway", "google", "xai", "replicate"] as const;
+export type CatalogProviderId = (typeof CATALOG_PROVIDERS)[number];
+
+export const CREDENTIAL_NAME: Record<CredentialId, string> = {
+  google: "Google AI",
+  fal: "fal.ai",
+  openrouter: "OpenRouter",
+  gateway: "Vercel AI Gateway",
+  xai: "xAI",
+  replicate: "Replicate",
+};
+const CREDENTIAL_ARTICLE: Record<CredentialId, "a" | "an"> = {
+  google: "a",
+  fal: "a",
+  openrouter: "an",
+  gateway: "a",
+  xai: "an",
+  replicate: "a",
+};
+
+// What a catalog model's row holds besides its settings: which provider
+// renders it, and the id that provider's API takes.
+export interface CatalogConnection {
+  provider: CatalogProviderId;
+  model: string;
+  // Who makes it ("kwaivgi"), as the catalog names them.
+  owner?: string;
+}
+
+export function parseCatalogConnection(connection: unknown): CatalogConnection | null {
+  const c = connection as Partial<CatalogConnection> | null;
+  if (!c || typeof c.model !== "string" || !c.model) return null;
+  if (!CATALOG_PROVIDERS.includes(c.provider as CatalogProviderId)) return null;
+  return { provider: c.provider as CatalogProviderId, model: c.model, ...(c.owner ? { owner: c.owner } : {}) };
+}
+
+// A saved row of a cloud model: which key it renders on, its upstream id and
+// who it comes from. null for local models.
+function cloudRow(r: ModelConfigRow): { credential: CredentialId; modelId: string; vendor: string } | null {
+  if (r.family === "fal") {
+    const endpoint = (r.connection as { endpoint?: unknown } | null)?.endpoint;
+    return {
+      credential: "fal",
+      modelId: typeof endpoint === "string" ? endpoint : r.id,
+      vendor: `${typeof endpoint === "string" ? endpoint.split("/")[0] : "fal"} via fal.ai`,
+    };
+  }
+  if (r.family === "catalog") {
+    const c = parseCatalogConnection(r.connection);
+    const provider = c?.provider ?? "openrouter";
+    const owner = c?.owner ?? c?.model.split("/")[0];
+    const name = CREDENTIAL_NAME[provider];
+    return {
+      credential: provider,
+      modelId: c?.model ?? r.id,
+      vendor: owner && owner.toLowerCase() !== provider ? `${owner} via ${name}` : name,
+    };
+  }
+  return null;
+}
+
 // Pure merge of the code catalog with saved rows. `checkLocal` lets the
 // server veto a local model (bad URL, unreadable token) without this module
 // knowing about networks or secrets.
 export function resolveCatalog(input: {
   rows: ModelConfigRow[];
-  credentials: Record<CredentialId, CredentialSource>;
+  // A provider left out has no key.
+  credentials: Partial<Record<CredentialId, CredentialSource>>;
   checkLocal?: (row: ModelConfigRow) => { status: ModelStatus; detail: string } | null;
   // The built-ins with this installation's upstream ids (builtinModels()).
   builtins?: readonly BuiltinModel[];
@@ -119,7 +183,7 @@ export function resolveCatalog(input: {
   const byId = new Map(input.rows.map((r) => [r.id, r]));
   const builtins = (input.builtins ?? BUILTIN_MODELS).map((b): ResolvedModel => {
     const r = byId.get(b.key);
-    const status = credentialStatus(input.credentials[b.credential]);
+    const status = credentialStatus(input.credentials[b.credential] ?? "none");
     return {
       key: b.key,
       family: b.family,
@@ -160,19 +224,20 @@ export function resolveCatalog(input: {
         audio: "none",
         dialogueLanguages: null,
       };
-      // A model added from fal.ai's catalog: a cloud model on the fal key.
-      if (r.family === "fal") {
-        const endpoint = (r.connection as { endpoint?: unknown } | null)?.endpoint;
-        const keyStatus = credentialStatus(input.credentials.fal);
+      // A model added from a provider's catalog (fal.ai's, or one llm-connect
+      // renders with): a cloud model on that provider's key.
+      const cloud = cloudRow(r);
+      if (cloud) {
+        const keyStatus = credentialStatus(input.credentials[cloud.credential] ?? "none");
         const status = veto?.status ?? keyStatus;
         return {
           key: r.id,
-          family: "fal",
+          family: r.family as ModelFamily,
           label: r.label ?? r.id,
-          vendor: `${typeof endpoint === "string" ? endpoint.split("/")[0] : "fal"} via fal.ai`,
+          vendor: cloud.vendor,
           kind: "cloud",
-          credential: "fal",
-          modelId: typeof endpoint === "string" ? endpoint : r.id,
+          credential: cloud.credential,
+          modelId: cloud.modelId,
           capabilities: caps ?? fallbackCaps,
           defaults: caps ? sanitizeDefaults(caps, r.defaults) : { resolution: "", durationS: 0, audio: false },
           pricePerSecondUsd: price(r.pricePerSecondUsd),
@@ -183,7 +248,7 @@ export function resolveCatalog(input: {
           statusDetail:
             veto?.detail ??
             (keyStatus === "missing-credentials"
-              ? "Add a fal.ai key in Settings."
+              ? `Add ${CREDENTIAL_ARTICLE[cloud.credential]} ${CREDENTIAL_NAME[cloud.credential]} key in Settings.`
               : keyStatus === "undecryptable"
                 ? "The saved key can no longer be read. Enter it again."
                 : null),

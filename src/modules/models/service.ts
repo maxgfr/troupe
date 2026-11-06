@@ -126,14 +126,14 @@ export async function updateLocalModel(db: Db, modelKey: string, input: Partial<
 
 // Archived models leave every picker but keep their history and finish
 // their in-flight jobs. Built-ins can only be disabled; a model added from
-// fal.ai's catalog can be archived like a local one.
+// a provider's catalog (fal.ai, OpenRouter…) can be archived like a local one.
 export async function archiveLocalModel(db: Db, modelKey: string, archived = true) {
   // A built-in's override row may be a "fal" row too: never archive it.
   if (BUILTIN_MODELS.some((b) => b.key === modelKey)) throw new Error(`local model ${modelKey} not found`);
   const updated = await db
     .update(modelConfigs)
     .set({ archived, updatedAt: new Date() })
-    .where(sql`${modelConfigs.id} = ${modelKey} and ${modelConfigs.family} in ('comfyui', 'http', 'fal')`)
+    .where(sql`${modelConfigs.id} = ${modelKey} and ${modelConfigs.family} in ('comfyui', 'http', 'fal', 'catalog')`)
     .returning({ id: modelConfigs.id });
   if (updated.length === 0) throw new Error(`local model ${modelKey} not found`);
 }

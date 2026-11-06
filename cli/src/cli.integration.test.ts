@@ -98,6 +98,10 @@ beforeAll(async () => {
   vi.stubEnv("GOOGLE_GENAI_API_KEY", "");
   vi.stubEnv("FAL_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("AI_GATEWAY_API_KEY", "");
+  vi.stubEnv("XAI_API_KEY", "");
+  vi.stubEnv("REPLICATE_API_TOKEN", "");
   // A video model speaking the HTTP contract, finished as soon as it is asked.
   let jobs = 0;
   model = await startServer((r, res) => {
@@ -399,6 +403,10 @@ describe("troupe CLI against the studio's HTTP API", () => {
       { name: "account google", status: "skip", detail: "Google AI: no key (optional)." },
       { name: "account fal", status: "skip", detail: "fal.ai: no key (optional)." },
       { name: "account anthropic", status: "skip", detail: "Anthropic: no key (optional)." },
+      { name: "account openrouter", status: "skip", detail: "OpenRouter: no key (optional)." },
+      { name: "account gateway", status: "skip", detail: "Vercel AI Gateway: no key (optional)." },
+      { name: "account xai", status: "skip", detail: "xAI: no key (optional)." },
+      { name: "account replicate", status: "skip", detail: "Replicate: no key (optional)." },
     ]);
 
     // The plan and its cost, and nothing launched: exit 2.

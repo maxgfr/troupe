@@ -10,7 +10,7 @@ import { useWorkspace } from "~/app/_components/workspace-context";
 import { api } from "~/trpc/react";
 import type { ProviderAccountId } from "../settings/provider-accounts";
 import { Composer } from "./composer";
-import { FalCatalogDialog, KeyDialog, KeysDialog, ShotViewer } from "./dialogs";
+import { CATALOG_TABS, KeyDialog, KeysDialog, ModelCatalogDialog, ShotViewer, type CatalogTab } from "./dialogs";
 import { Gallery, ScopeTabs, type GalleryScope } from "./gallery";
 import {
   EMPTY_MEMORY,
@@ -37,8 +37,8 @@ const STARTERS = [
   "A drone shot rising over a quiet beach at golden hour, gentle waves, no people.",
 ];
 
-const credentialOf = (model: ShotModel | null): ProviderAccountId | null =>
-  model?.credential === "google" || model?.credential === "fal" ? model.credential : null;
+// The account whose key a cloud model renders on.
+const credentialOf = (model: ShotModel | null): ProviderAccountId | null => model?.credential ?? null;
 
 function useComposerMemory(): [ComposerMemory, (patch: Partial<ComposerMemory>) => void] {
   const [memory, setMemory] = useState<ComposerMemory>(EMPTY_MEMORY);
@@ -95,6 +95,8 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   const [askKey, setAskKey] = useState<ShotModel | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
   const [falOpen, setFalOpen] = useState(false);
+  // A catalog tab's provider, whose key the catalog asked for.
+  const [askProvider, setAskProvider] = useState<CatalogTab | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   // Shots hidden now and deleted when the undo bar runs out.
@@ -364,12 +366,11 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
       ) : null}
       {keysOpen ? <KeysDialog onClose={() => setKeysOpen(false)} /> : null}
       {falOpen ? (
-        <FalCatalogDialog
+        <ModelCatalogDialog
           onClose={() => setFalOpen(false)}
-          hasKey={all.some((m) => m.credential === "fal" && m.status === "ready")}
-          onAskKey={() => {
+          onAskKey={(provider) => {
             setFalOpen(false);
-            setKeysOpen(true);
+            setAskProvider(provider);
           }}
           onAdded={(modelKey) => {
             const keys = chosen.map((m) => m.key);
@@ -381,6 +382,16 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
       ) : null}
       {askKey && credentialOf(askKey) ? (
         <KeyDialog provider={credentialOf(askKey)!} modelLabel={askKey.label} onClose={() => setAskKey(null)} />
+      ) : null}
+      {askProvider ? (
+        <KeyDialog
+          provider={askProvider}
+          modelLabel={`${CATALOG_TABS.find((t) => t.id === askProvider)?.name ?? askProvider}'s models`}
+          onClose={() => {
+            setAskProvider(null);
+            setFalOpen(true);
+          }}
+        />
       ) : null}
     </div>
   );

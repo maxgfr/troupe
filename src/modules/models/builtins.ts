@@ -1,6 +1,8 @@
 import type { ModelCapabilities } from "~/modules/generation";
 
-export type CredentialId = "google" | "fal";
+// The accounts that pay for video renders: the built-ins' two, and the ones
+// the models added from a provider's catalog render on.
+export type CredentialId = "google" | "fal" | "openrouter" | "gateway" | "xai" | "replicate";
 
 export interface BuiltinModel {
   key: string;
@@ -8,7 +10,7 @@ export interface BuiltinModel {
   label: string;
   vendor: string;
   // Which provider account pays for it.
-  credential: CredentialId;
+  credential: "google" | "fal";
   // Upstream identifier: Gemini model id or fal endpoint path.
   modelId: string;
   capabilities: ModelCapabilities;

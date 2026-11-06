@@ -8,7 +8,12 @@ export {
   canLaunch,
   sanitizeDefaults,
   LOCAL_TIMEOUT_S,
+  FAL_CATALOG_TIMEOUT_S,
+  CATALOG_PROVIDERS,
+  CREDENTIAL_NAME,
+  parseCatalogConnection,
 } from "./resolve";
+export type { CatalogConnection, CatalogProviderId } from "./resolve";
 export type {
   ResolvedModel,
   ModelStatus,

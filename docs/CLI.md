@@ -184,21 +184,23 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `logout` | Forget the profile's cookie. |
 | `whoami` | Profile, studio, sign-in state, current project, config file. |
 | `open [<project>] [--print]` | Open the studio's Projects page, or a project's page, in the browser; `--print` only prints the address (over SSH, in scripts). |
-| `doctor [--skip-tests] [--providers]` | Checks the studio and its database, the sign-in, which models can launch (local ones are contacted), the background worker and the script chat (contacted). `--providers` also checks each provider account's key and each cloud model with a free request (rows `account google`, `account fal`, `account anthropic`; `skip` when no key is set). Exit 1 when a check fails. |
+| `doctor [--skip-tests] [--providers]` | Checks the studio and its database, the sign-in, which models can launch (local ones are contacted), the background worker and the script chat (contacted). `--providers` also checks each provider account's key and each cloud model with a free request (rows `account google`, `account fal`, `account anthropic`, `account openrouter`, `account gateway`, `account xai`, `account replicate`; `skip` when no key is set). Exit 1 when a check fails. |
 | `doctor --live [--model <model>]… [--yes] [-o <folder>]` | Renders one clip per model that can launch, at its cheapest settings (shortest, lowest resolution, silent where allowed), in a new project; downloads each video, runs `ffprobe` on it and asks the script chat once. Without `--yes` it prints the plan and its cost and exits 2. See [LIVE-CHECKS.md](LIVE-CHECKS.md). |
 | `models list [--all]` | Every model with where it runs, its state, formats, lengths, audio, and the default. `--all` includes archived ones. |
 | `models add http\|comfyui …` | Add a local model, after testing it. See below. |
 | `models fal [<search…>]` | fal.ai's text-to-video models, read live from its public catalog, with the ones already in the studio marked. |
 | `models fal-add <endpoint>` | Add a fal.ai model (from `models fal`, or any endpoint id fal.ai serves). Its formats, lengths, resolutions and sound come from the endpoint's schema, its price per second from fal.ai when your key can read it. It renders on the fal.ai key. Adding it again reads it again. |
+| `models catalog [<search…>] [--provider <id>]` | The video models of OpenRouter, the Vercel AI Gateway, xAI, Google and Replicate, read live through [llm-models](https://github.com/maxgfr/llm-models), with their lengths, formats and price per second, and the ones already in the studio marked. A saved Google key adds its Veo models; a saved Replicate token, its text-to-video collection. |
+| `models catalog-add <provider> <model-id>` | Add one of them (`openrouter`, `gateway`, `google`, `xai` or `replicate`). Its formats, lengths, resolutions and sound come from the provider's list; it renders on that provider's key through [llm-connect](https://github.com/maxgfr/llm-models/tree/main/packages/llm-connect), as a job the studio follows across restarts. A model whose list says nothing of its formats and lengths is refused. |
 | `models edit <model> [--name] [--base-url] [--token-stdin \| --clear-token]` | Rename a local model added with `models add`, move it to another address, or change or forget its token (read from stdin or a hidden prompt). A token stays only while the model keeps its origin. Cloud and built-in models are refused (`NOT_EDITABLE`). |
 | `models test <model>` | Contact a model or check its provider key. Exit 1 when it cannot render. |
-| `models remove <model> [--restore]` | Archive a local model or one added from fal.ai (its renders stay). |
+| `models remove <model> [--restore]` | Archive a local model or one added from a provider's catalog (its renders stay). |
 | `models default [<model>] [--clear]` | Show or set the default model. |
 | `models templates` | The bundled ComfyUI workflows. |
-| `keys list` | Which provider keys (google, fal, anthropic) are configured, and from where. |
+| `keys list` | Which provider keys (google, fal, anthropic, openrouter, gateway, xai, replicate) are configured, and from where (the environment: `GEMINI_API_KEY`, `FAL_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `AI_GATEWAY_API_KEY`, `XAI_API_KEY`, `REPLICATE_API_TOKEN`). |
 | `keys set <provider> [--key-stdin]` | Save a key, encrypted on the server; read from stdin or a hidden prompt. |
 | `keys clear <provider> [--disable]` | Remove the saved key; `--disable` also ignores the server's environment. |
-| `keys test <provider>` | Check a key with a free request (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model), and say why it is refused. |
+| `keys test <provider>` | Check a key with a free request (Google: the model's metadata; fal.ai: the endpoint's price; Anthropic: the model; OpenRouter, the AI Gateway, xAI and Replicate: the account), and say why it is refused. |
 
 Adding the [local renderer](LOCAL-MODELS.md#local-renderer) (`pnpm renderer`):
 

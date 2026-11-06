@@ -5,7 +5,9 @@ import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import type { ConnectionReport } from "~/modules/generation";
 import {
   BUILTIN_MODELS,
+  CATALOG_PROVIDERS,
   archiveLocalModel,
+  type CatalogProviderId,
   canLaunch,
   getDefaultModelKey,
   sanitizeDefaults,
@@ -13,8 +15,18 @@ import {
   updateModelPreferences,
   type ModelCatalog,
 } from "~/modules/models";
+import { testVideoKey } from "llm-connect/video";
+
+import type { Db } from "~/server/db/types";
+import {
+  addCatalogVideoModel,
+  listCatalogVideoModels,
+  toCatalogEntry,
+  VideoCatalogError,
+} from "~/server/video-catalog";
 import {
   ApiKey,
+  CREDENTIAL_IDS,
   clearProviderKey,
   credentialStatus,
   saveProviderKey,
@@ -27,7 +39,8 @@ import { ChatSettingsPatch, saveChatSettings, type ChatBackend } from "~/modules
 import { MODEL_KEY } from "./generation";
 import { localModelProcedures, recordTest } from "./local-models";
 
-const CREDENTIAL = z.enum(["google", "fal", "anthropic"]);
+const CREDENTIAL = z.enum(CREDENTIAL_IDS);
+const CATALOG_PROVIDER = z.enum(CATALOG_PROVIDERS);
 
 function modelOf(catalog: ModelCatalog, modelKey: string) {
   const model = catalog.models.find((m) => m.key === modelKey);
@@ -38,6 +51,7 @@ function modelOf(catalog: ModelCatalog, modelKey: string) {
 // A provider account's free check: the key reaches the given model (default:
 // the account's first built-in), without generating anything.
 async function testCredential(
+  db: Db,
   catalog: ModelCatalog,
   credential: CredentialId,
   chat: ChatBackend | null,
@@ -46,7 +60,15 @@ async function testCredential(
   // The chat's key: no video model uses it.
   if (credential === "anthropic")
     return chat ? chat.test("anthropic") : { ok: false, message: "The script chat is not available in this studio." };
-  const key = modelKey ?? BUILTIN_MODELS.find((m) => m.credential === credential)!.key;
+  const builtin = BUILTIN_MODELS.find((m) => m.credential === credential);
+  // An account without a built-in (OpenRouter, xAI…): ask its API about the key.
+  if (!modelKey && !builtin) {
+    const state = (await readCredentials(db))[credential];
+    if (state.source !== "saved" && state.source !== "environment")
+      return { ok: false, message: "No key is configured for this account." };
+    return testVideoKey({ provider: credential as CatalogProviderId, apiKey: state.key });
+  }
+  const key = modelKey ?? builtin!.key;
   const adapter = catalog.adapters.get(key);
   if (!adapter) return { ok: false, message: "No key is configured for this account." };
   if (!adapter.testConnection)
@@ -56,6 +78,17 @@ async function testCredential(
   } catch {
     return { ok: false, message: "The provider could not be reached. Check this server's network and try again." };
   }
+}
+
+// The saved keys that widen the video catalog: Google's Veo models and
+// Replicate's collection need one to be listed.
+async function catalogKeys(db: Db): Promise<{ google?: string; replicate?: string }> {
+  const credentials = await readCredentials(db);
+  const keyOf = (id: "google" | "replicate") => {
+    const c = credentials[id];
+    return c.source === "saved" || c.source === "environment" ? c.key : undefined;
+  };
+  return { google: keyOf("google"), replicate: keyOf("replicate") };
 }
 
 function chatBackend(chat: ChatBackend | null): ChatBackend {
@@ -107,7 +140,7 @@ export const settingsRouter = createTRPCRouter({
 
     test: protectedProcedure
       .input(z.object({ provider: CREDENTIAL }))
-      .mutation(({ ctx, input }) => testCredential(ctx.catalog, input.provider, ctx.chat)),
+      .mutation(({ ctx, input }) => testCredential(ctx.db, ctx.catalog, input.provider, ctx.chat)),
   }),
 
   models: createTRPCRouter({
@@ -191,6 +224,45 @@ export const settingsRouter = createTRPCRouter({
         }
       }),
 
+    // The video models of OpenRouter, the AI Gateway, xAI, Google and
+    // Replicate (llm-models), live (cached a quarter of an hour), each marked
+    // when it is already in the studio. Saved Google and Replicate keys
+    // widen the list.
+    videoCatalog: protectedProcedure.query(async ({ ctx }) => {
+      const keys = await catalogKeys(ctx.db);
+      let models: Awaited<ReturnType<typeof listCatalogVideoModels>>;
+      try {
+        models = await listCatalogVideoModels(keys);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_GATEWAY",
+          message: error instanceof VideoCatalogError ? error.message : "The video model lists could not be reached.",
+        });
+      }
+      const added = new Map(
+        ctx.catalog.models
+          .filter((m) => m.family === "catalog" && !m.archived)
+          .map((m) => [`${m.credential}:${m.modelId}`, m.key]),
+      );
+      return models.map((m) => ({
+        ...toCatalogEntry(m),
+        modelKey: added.get(`${m.provider}:${m.id}`) ?? null,
+      }));
+    }),
+
+    // Add a model from a provider's list: its settings come from the list.
+    addVideo: protectedProcedure
+      .input(z.object({ provider: CATALOG_PROVIDER, id: z.string().min(1).max(200) }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const models = await listCatalogVideoModels(await catalogKeys(ctx.db));
+          return await addCatalogVideoModel(ctx.db, { ...input, models });
+        } catch (error) {
+          if (error instanceof VideoCatalogError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          throw error;
+        }
+      }),
+
     // Local models and the ones added from fal.ai's catalog; built-ins are
     // turned off instead.
     archive: protectedProcedure
@@ -211,7 +283,7 @@ export const settingsRouter = createTRPCRouter({
         // Nothing to reach from here (the browser edition, a refused address).
         if (model.status === "unsupported-host")
           return { ok: false, message: model.statusDetail ?? "This model cannot run here." };
-        if (model.credential) return testCredential(ctx.catalog, model.credential, ctx.chat, model.key);
+        if (model.credential) return testCredential(ctx.db, ctx.catalog, model.credential, ctx.chat, model.key);
         const adapter = ctx.catalog.adapters.get(model.key);
         if (!adapter) return { ok: false, message: model.statusDetail ?? "This model is not configured." };
         if (!adapter.testConnection) return { ok: null, message: "This model has no connection check." };

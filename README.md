@@ -81,10 +81,14 @@ The full list:
 - Shots: describe a shot in one field and render it on any cloud or local
   model, or on up to four side by side, with only the settings they offer
   (format, length, resolution, sound, an actor, up to four renders each).
-  No project or script. Keys are set on the spot, and any of fal.ai's
-  100-plus text-to-video models (Kling, Seedance, Wan, Veo, MiniMax…) can be
-  added from its live catalog, its settings read from its schema
-  ([docs/CLI.md](docs/CLI.md#shots)).
+  No project or script. Keys are set on the spot, and any video model of
+  OpenRouter, the Vercel AI Gateway, fal.ai, xAI, Google or Replicate (Kling,
+  Veo, Seedance, Hailuo, Wan, Runway, Grok Imagine…) can be added from their
+  live lists, with the settings and price each one lists
+  ([docs/CLI.md](docs/CLI.md#shots)). The lists come from
+  [llm-models](https://github.com/maxgfr/llm-models) and the renders go
+  through [llm-connect](https://github.com/maxgfr/llm-models/tree/main/packages/llm-connect),
+  as jobs the studio follows across restarts.
 - Videos are checked with ffprobe before they are kept. Downloads stream with
   range requests.
 - Export presets per platform, each with the AI-disclosure rule that
@@ -199,6 +203,7 @@ covers the tests and each part.
 | Local renderer, AI video mode (opt-in) | your Mac's GPU, natively (NVIDIA GPUs should work, not tried) ([`renderer/ltx`](docs/LOCAL-MODELS.md#ai-video-mode-ltx-video)): an LTX-Video 2B clip under the same voice and captions | always | 9:16, 16:9, 1:1 | as long as the script (a 5 s clip, repeated) |
 | Kokoro voice + captions | the visitor's browser, browser edition only ([`site/`](docs/BROWSER-EDITION.md#rendering-in-the-browser)): the same voice and picture | always | 9:16, 16:9, 1:1 | as long as the script (6–30 s clips) |
 | Your own | any server that speaks [the HTTP contract](docs/LOCAL-MODELS.md#http-endpoint) | you say | you say | you say |
+| Any video model of OpenRouter, the Vercel AI Gateway, xAI, Google or Replicate | that provider (API key), added from its list | as listed | as listed | as listed |
 
 Cloud providers bill your own account; local models cost nothing per clip.
 Each model can be turned off, given default settings, a price per second (for

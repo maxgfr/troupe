@@ -180,6 +180,10 @@ const ACCOUNTS = [
   { id: "google", name: "Google AI" },
   { id: "fal", name: "fal.ai" },
   { id: "anthropic", name: "Anthropic" },
+  { id: "openrouter", name: "OpenRouter" },
+  { id: "gateway", name: "Vercel AI Gateway" },
+  { id: "xai", name: "xAI" },
+  { id: "replicate", name: "Replicate" },
 ] as const;
 
 const doctor: Command = {

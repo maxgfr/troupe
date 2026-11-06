@@ -13,6 +13,7 @@ import { Kbd } from "./ui";
 
 export const GO_TO = [
   { key: "p", href: "/dashboard", label: "Projects" },
+  { key: "h", href: "/shots", label: "Shots" },
   { key: "l", href: "/library", label: "Library" },
   { key: "a", href: "/actors", label: "Actors" },
   { key: "c", href: "/benchmark", label: "Compare" },

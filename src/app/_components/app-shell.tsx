@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { useEdition } from "./edition";
-import { ActorsIcon, CompareIcon, LibraryIcon, PlusIcon, ProjectsIcon, SettingsIcon } from "./icons";
+import { ActorsIcon, CompareIcon, LibraryIcon, PlusIcon, ProjectsIcon, SettingsIcon, ShotsIcon } from "./icons";
 import { DeleteLocalData } from "./local-data";
 import { Shortcuts } from "./shortcuts";
 import { StageProvider } from "./stage";
@@ -13,12 +13,13 @@ import { Button, ButtonLink, ErrorNote } from "./ui";
 import { Wordmark } from "./wordmark";
 import { useWorkspace } from "./workspace-context";
 
-// The studio's navigation (docs/PRODUCT-MAP.md): the four sections in the
+// The studio's navigation (docs/PRODUCT-MAP.md): the five sections in the
 // top bar, New project and Settings on its right. On phones the sections
 // move to a tab bar at the bottom, within reach of a thumb, and the top bar
 // keeps the wordmark, New project and Settings.
 const NAV = [
   { href: "/dashboard", label: "Projects", Icon: ProjectsIcon, also: ["/projects"] },
+  { href: "/shots", label: "Shots", Icon: ShotsIcon, also: [] },
   { href: "/library", label: "Library", Icon: LibraryIcon, also: [] },
   { href: "/actors", label: "Actors", Icon: ActorsIcon, also: [] },
   { href: "/benchmark", label: "Compare", Icon: CompareIcon, also: [] },
@@ -135,7 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Sections"
           className="fixed inset-x-0 bottom-0 z-30 bg-bg/85 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-[0_-1px_0_var(--troupe-color-line)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
         >
-          <ul className="mx-auto grid max-w-md grid-cols-4">
+          <ul className="mx-auto grid max-w-md grid-cols-5">
             {NAV.map((item) => {
               const active = isActive(pathname, item);
               return (

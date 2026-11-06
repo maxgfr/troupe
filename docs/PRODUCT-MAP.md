@@ -19,19 +19,20 @@ the browser edition.
 ## Navigation
 
 - **Top bar** on every page: the wordmark (to Projects), then **Projects ·
-  Library · Actors · Compare**, then **New project** (outlined) and
+  Shots · Library · Actors · Compare**, then **New project** (outlined) and
   **Settings** on the right.
 - **Phones** (below 640 px): the top bar keeps the wordmark, New project and
-  Settings; the four sections move to a **bottom tab bar** with an icon and a
+  Settings; the five sections move to a **bottom tab bar** with an icon and a
   label each.
 - **Project tabs**: every project page carries the project header (actor,
   title, platform · format · language) and the tabs **Video · Script ·
   Export**. Phones add **Chat** beside the tabs (the chat opens as a bottom
   sheet); wider screens keep the chat beside the timeline.
-- **Keyboard**: `n` new project; `g` then `p` / `l` / `a` / `c` / `s` goes to
-  Projects, Library, Actors, Compare, Settings; `/` searches the library; `?`
+- **Keyboard**: `n` new project; `g` then `p` / `h` / `l` / `a` / `c` / `s`
+  goes to Projects, Shots, Library, Actors, Compare, Settings; `/` searches the library; `?`
   lists the shortcuts (Settings lists them too). Shortcuts never fire while
-  typing or while a dialog is open.
+  typing or while a dialog is open. On Shots, `⌘/Ctrl + Enter` launches the
+  shot being described.
 - **Titles**: every screen's title names it, then what it belongs to, then
   Troupe ("Script · Cold brew mornings · Troupe").
 
@@ -44,6 +45,7 @@ the browser edition.
 | `/projects/:id` | *project title* (Video tab) | The newest video, the timeline of renders, launching, the script chat | Launch draft | Launch a draft below |
 | `/projects/:id/script` | Script tab | Lines with their emotion, the editor, earlier versions | Save as new version | Write or paste the script |
 | `/projects/:id/export` | Export tab | Pick a render, platform preset, caption, AI label | Create export, then Download MP4 | Render a video first |
+| `/shots` | Shots | Describe a shot and render it on one model or up to four side by side (the settings they all offer), without a project or a script; a gallery of every shot (all, favorites), reuse, download, delete with undo | Launch | Three shots to start from, one click each |
 | `/library` | Library | Saved inspiration, search by meaning, ask, ideas | Save | Save your first piece |
 | `/library/:id` | *item title* | The item on one time axis, its analysis and transcript | Make something from it (ideas, a remix, scripts) | Reading… (progress) |
 | `/actors` | Actors | The 30 actors: picture, voice (a sample to play), style | — | — |
@@ -69,6 +71,7 @@ path.
 | clip, only for the length a model renders ("Clip length", "an 8 s clip", "Cut it to fit the clip") | clip for the video itself |
 | launch a render / Launch draft; a model renders audio ("With audio") | generate, submit |
 | script, script version, line, emotion | prompt (in the UI) |
+| shot: a render made on the Shots page from a description, with no script ("Describe the shot") | prompt, generation, run |
 | script chat (on a project), library chat (in the library) | assistant, AI |
 | proposal, Apply & relaunch | suggestion |
 | actor (in the docs, "actor preset" where it matters that a model only approximates the look) | avatar, character |
@@ -127,5 +130,5 @@ All in `src/app/_components` and shared by both editions:
 ## CLI
 
 The CLI (`troupe`, [CLI.md](CLI.md)) uses the same nouns: `projects`,
-`script`, `chat`, `render`, `compare`, `export`, `download`, `actors`,
-`models`, `keys` (provider accounts), `library`.
+`script`, `chat`, `render`, `compare`, `shots`, `export`, `download`,
+`actors`, `models`, `keys` (provider accounts), `library`.

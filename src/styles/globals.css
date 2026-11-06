@@ -142,6 +142,21 @@ dd {
   }
 }
 
+/* The Shots page's undo bar: a hairline that drains while the deleted shot
+   can still be brought back (its duration is set inline). */
+@keyframes undo-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.undo-drain {
+  animation: undo-drain linear forwards;
+}
+
 /* A page arriving: a short fade, no travel, so moving between pages feels
    continuous without making anyone wait. */
 @keyframes page-in {

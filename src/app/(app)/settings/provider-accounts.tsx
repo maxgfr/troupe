@@ -39,8 +39,18 @@ const SOURCE_LABEL: Record<string, string> = {
   undecryptable: "Saved key unreadable — enter it again",
 };
 
+export type ProviderAccountId = (typeof ACCOUNTS)[number]["id"];
+
 // Cloud provider accounts. Keys are encrypted at rest and never sent back.
-export function ProviderAccounts() {
+// `only` shows one account (the Shots page's key dialog); `onSaved` runs
+// once its key is saved.
+export function ProviderAccounts({
+  only,
+  onSaved,
+}: {
+  only?: ProviderAccountId;
+  onSaved?: (provider: ProviderAccountId) => void;
+} = {}) {
   const utils = api.useUtils();
   const status = api.settings.credentials.status.useQuery();
   const [keys, setKeys] = useState({ google: "", fal: "", anthropic: "" });
@@ -51,6 +61,7 @@ export function ProviderAccounts() {
       utils.settings.models.list.invalidate(),
       utils.studio.modelOptions.invalidate(),
       utils.settings.chat.get.invalidate(),
+      utils.shots.models.invalidate(),
     ]);
   // A test's verdict is about the key it tested: a new or removed key drops it.
   const forget = (provider: string) => setReports((r) => ({ ...r, [provider]: undefined }));
@@ -59,6 +70,7 @@ export function ProviderAccounts() {
       setKeys((k) => ({ ...k, [input.provider]: "" }));
       forget(input.provider);
       await refresh();
+      onSaved?.(input.provider);
     },
   });
   const clear = api.settings.credentials.clear.useMutation({
@@ -78,7 +90,7 @@ export function ProviderAccounts() {
         Keys are encrypted in your database and never shown again. Your provider bills each render; Troupe takes no
         payment. Test checks a key with a free request.
       </p>
-      {ACCOUNTS.map((account) => {
+      {ACCOUNTS.filter((account) => !only || account.id === only).map((account) => {
         const s = status.data?.[account.id];
         return (
           <form

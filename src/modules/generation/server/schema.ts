@@ -52,6 +52,8 @@ export const generations = createTable(
     burnedCaptions: d.boolean().notNull().default(false),
     // The failed render this one relaunched.
     parentGenerationId: d.uuid(),
+    // Kept on purpose from the Shots page; null when not a favorite.
+    favoritedAt: d.timestamp({ withTimezone: true }),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
     completedAt: d.timestamp({ withTimezone: true }),
   }),

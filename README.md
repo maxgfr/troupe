@@ -78,6 +78,12 @@ The full list:
   ([docs/LIBRARY.md](docs/LIBRARY.md)).
 - Launch on any configured model, follow progress, relaunch failures, and
   compare two or three models on the same script, then vote.
+- Shots: describe a shot in one field and render it on any cloud or local
+  model, or on up to four side by side, with only the settings they offer
+  (format, length, resolution, sound, an actor, up to four renders each).
+  No project or script.
+  A missing key is asked for on the spot; every shot lands in a gallery to
+  reuse, favorite, download or delete ([docs/CLI.md](docs/CLI.md#shots)).
 - Videos are checked with ffprobe before they are kept. Downloads stream with
   range requests.
 - Export presets per platform, each with the AI-disclosure rule that

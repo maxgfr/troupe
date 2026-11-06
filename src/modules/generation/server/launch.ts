@@ -5,7 +5,14 @@ import { projects } from "~/modules/studio/server/schema";
 import { libraryVoice } from "~/modules/actors/server/catalog";
 import { actorAssets, actors } from "~/modules/actors/server/schema";
 import { assertScriptFitsClip, getScript, lockScript } from "~/modules/script";
-import { AdapterError, compilePrompt, validateRequest, type JobScript, type VideoProviderAdapter } from "./adapter";
+import {
+  AdapterError,
+  compilePrompt,
+  validateRequest,
+  type CreateJobRequest,
+  type JobScript,
+  type VideoProviderAdapter,
+} from "./adapter";
 import { generations } from "./schema";
 import { watchGeneration } from "./orchestrator";
 
@@ -25,6 +32,11 @@ export interface LaunchInput {
   language?: string;
   // The failed render this launch tries again.
   parentGenerationId?: string;
+}
+
+// How a video model is told what the actor looks like.
+function actorLook(actor: { gender: string; ageRange: string; style: string }): string {
+  return `adult, ${actor.gender}, ${actor.ageRange}, ${actor.style} style`;
 }
 
 // Validate everything and compile the prompt; nothing is written or sent yet.
@@ -52,7 +64,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
   const language = input.language ?? project.language;
   const prompt = compilePrompt({
     lines: script.lines,
-    voiceProfile: `${actor.voiceProfile}. Appearance: adult, ${actor.gender}, ${actor.ageRange}, ${actor.style} style`,
+    voiceProfile: `${actor.voiceProfile}. Appearance: ${actorLook(actor)}`,
     language,
   });
   // The pictures of the actor's current set, keyed by shot (the file's name).
@@ -116,7 +128,7 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
 export async function submitGeneration(
   db: Db,
   gen: typeof generations.$inferSelect,
-  prepared: Awaited<ReturnType<typeof prepareGeneration>>,
+  prepared: { adapter: VideoProviderAdapter; timeoutS?: number; request: CreateJobRequest },
 ) {
   let providerJobId: string;
   try {
@@ -172,5 +184,89 @@ export async function launchGeneration(db: Db, input: LaunchInput) {
     if (!gen) throw new Error("generation insert returned no row");
     return { prepared, gen };
   });
+  return submitGeneration(db, gen, prepared);
+}
+
+export interface ShotInput {
+  // The workspace's hidden Shots project (ensureShotsProject).
+  projectId: string;
+  // The shot as the user described it; sent to the model as is.
+  text: string;
+  adapter: VideoProviderAdapter;
+  aspectRatio: string;
+  durationS: number;
+  resolution: string;
+  audio?: boolean;
+  // Optional: described in the prompt, the way a project's actor is.
+  actorId?: string | null;
+  timeoutS?: number;
+  estimatedCostUsd?: number | null;
+  parentGenerationId?: string;
+}
+
+// A free-form render from the Shots page: no script, the format chosen per
+// launch. Validated like a project launch; nothing is written or sent yet.
+export async function prepareShot(db: Db, input: ShotInput) {
+  const [project] = await db.select().from(projects).where(eq(projects.id, input.projectId)).limit(1);
+  if (!project) throw new Error("This project no longer exists.");
+  const text = input.text.trim();
+  if (!text) throw new AdapterError("EMPTY_SHOT", "Describe the shot before launching it.");
+
+  const caps = input.adapter.capabilities();
+  const audio = input.audio ?? caps.audio !== "none";
+  validateRequest(caps, {
+    aspectRatio: input.aspectRatio,
+    resolution: input.resolution,
+    durationS: input.durationS,
+    audio,
+  });
+
+  let actor: typeof actors.$inferSelect | undefined;
+  if (input.actorId) {
+    [actor] = await db.select().from(actors).where(eq(actors.id, input.actorId)).limit(1);
+    const visible = actor && (actor.workspaceId === null || actor.workspaceId === project.workspaceId);
+    if (!visible || actor!.status !== "active")
+      throw new AdapterError("ACTOR_UNAVAILABLE", "This actor is no longer available. Choose another one.");
+  }
+  const prompt = actor
+    ? `${text}\n\nOn screen: ${actor.name}, ${actorLook(actor)}. Voice: ${actor.voiceProfile}.`
+    : text;
+
+  return {
+    adapter: input.adapter,
+    timeoutS: input.timeoutS,
+    record: {
+      projectId: input.projectId,
+      modelKey: input.adapter.modelKey,
+      provider: input.adapter.family,
+      modelId: input.adapter.modelId,
+      inputMode: "text" as const,
+      tier: "draft" as const,
+      actorId: actor?.id ?? null,
+      actorAssetVersion: actor?.assetVersion ?? null,
+      prompt,
+      aspectRatio: input.aspectRatio,
+      durationS: input.durationS,
+      resolution: input.resolution,
+      ...(input.parentGenerationId ? { parentGenerationId: input.parentGenerationId } : {}),
+      ...(input.estimatedCostUsd != null
+        ? { costUsd: String(input.estimatedCostUsd), costSource: "estimate" as const }
+        : {}),
+    },
+    request: {
+      prompt,
+      aspectRatio: input.aspectRatio,
+      durationS: input.durationS,
+      resolution: input.resolution,
+      audio,
+    },
+  };
+}
+
+// Insert the render, then submit it: the same path as a project launch.
+export async function launchShot(db: Db, input: ShotInput) {
+  const prepared = await prepareShot(db, input);
+  const [gen] = await db.insert(generations).values(prepared.record).returning();
+  if (!gen) throw new Error("generation insert returned no row");
   return submitGeneration(db, gen, prepared);
 }

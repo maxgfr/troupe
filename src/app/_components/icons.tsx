@@ -167,3 +167,31 @@ export const FilmIcon = (p: IconProps) => (
     <path d="M3 7h14M3 13h14M7 3.5V7M13 3.5V7M7 13v3.5M13 13v3.5" />
   </Icon>
 );
+
+// Shots: a spark, for a free-form render from one line of text.
+export const ShotsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3" />
+    <path d="M10 6.5 11.2 8.8 13.5 10l-2.3 1.2L10 13.5l-1.2-2.3L6.5 10l2.3-1.2z" />
+  </Icon>
+);
+
+export const StarIcon = ({ filled = false, ...p }: IconProps & { filled?: boolean }) => (
+  <Icon {...p} filled={filled}>
+    <path d="m10 2.8 2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" />
+  </Icon>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 5.5h13M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M5.5 5.5l.7 10.1a1.5 1.5 0 0 0 1.5 1.4h4.6a1.5 1.5 0 0 0 1.5-1.4l.7-10.1" />
+  </Icon>
+);
+
+// Reuse: put a shot's text and settings back in the composer.
+export const ReuseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8.5A6 6 0 0 1 15.3 6M16 11.5A6 6 0 0 1 4.7 14" />
+    <path d="M15.5 2.5V6H12M4.5 17.5V14H8" />
+  </Icon>
+);

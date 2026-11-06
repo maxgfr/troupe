@@ -14,7 +14,8 @@ export async function listProjects(db: Db, workspaceId: string) {
   const rows = await db
     .select()
     .from(projects)
-    .where(eq(projects.workspaceId, workspaceId))
+    // The hidden Shots project is the Shots page's, never a project of its own.
+    .where(and(eq(projects.workspaceId, workspaceId), eq(projects.kind, "project")))
     .orderBy(desc(projects.createdAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);

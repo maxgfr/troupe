@@ -21,6 +21,7 @@ Then `pnpm install`.
 | Its transcription | `renderer/whisper` (Python, uv) | `pnpm renderer:whisper:setup`, then `pnpm renderer:whisper` | [LIBRARY.md](docs/LIBRARY.md) |
 | The browser edition and landing page | `site/` (Vite; the studio's pages with their server code on PGlite in the browser) | `pnpm site:dev`, or `pnpm site:build && pnpm site:preview` | [BROWSER-EDITION.md](docs/BROWSER-EDITION.md) |
 | The script chat | `src/server/chat`, `src/modules/chat`, `site/src/chat` | Ollama with `qwen3:4b`, or `ANTHROPIC_API_KEY`; WebGPU in the browser | [SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md) |
+| Shots | `src/app/(app)/shots`, `src/server/shots.ts`, `src/server/api/routers/shots.ts` (renders in each workspace's hidden `kind = 'shots'` project) | with the studio | [PRODUCT-MAP.md](docs/PRODUCT-MAP.md#screens) |
 | The inspiration library | `src/modules/library`, `src/server/library`, `site/src/library` | with the studio | [LIBRARY.md](docs/LIBRARY.md) |
 | The CLI | `cli/` | `pnpm --silent troupe <command>` | [CLI.md](docs/CLI.md) |
 | The agent skill | `skills/troupe` | `npx skills add maxgfr/troupe` | [AGENT-SKILL.md](docs/AGENT-SKILL.md) |

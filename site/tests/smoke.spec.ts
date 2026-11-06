@@ -274,6 +274,18 @@ test("exports all local data, deletes it, and imports it back", async ({ page })
   expect(errors).toEqual([]);
 });
 
+test("Shots opens from the bar and a deep link, and says it needs the self-hosted studio", async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto(`${APP}/dashboard`);
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Shots" }).click();
+  await expect(page).toHaveURL(/\/troupe\/app\/shots$/);
+  await expect(page.getByRole("heading", { name: "Shots" })).toBeVisible(MIGRATING);
+  await expect(page.getByText(/only the self-hosted studio can keep/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("link", { name: "Set up the self-hosted studio" })).toBeVisible(MIGRATING);
+  expect(errors).toEqual([]);
+});
+
 test("an unknown app path shows the studio's not-found page", async ({ page }) => {
   await page.goto(`${APP}/no-such-page`);
   await expect(page.getByText("Nothing at this address")).toBeVisible();

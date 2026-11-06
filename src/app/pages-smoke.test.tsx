@@ -18,6 +18,7 @@ vi.mock("~/trpc/react", () => ({
       identity: { myWorkspaces: { invalidate: vi.fn() } },
       generation: { forProject: { invalidate: vi.fn() } },
       script: { history: { invalidate: vi.fn() } },
+      shots: { list: { invalidate: vi.fn() } },
     }),
     identity: {
       myWorkspaces: { useQuery: () => ({ isPending: true }) },
@@ -38,6 +39,13 @@ vi.mock("~/trpc/react", () => ({
       relaunch: { useMutation: () => ({}) },
     },
     benchmark: { start: { useMutation: () => ({}) } },
+    shots: {
+      models: { useQuery: () => ({ isPending: true }) },
+      list: { useQuery: () => ({ isPending: true }) },
+      launch: { useMutation: () => ({}) },
+      relaunch: { useMutation: () => ({}) },
+      favorite: { useMutation: () => ({}) },
+    },
     settings: {
       chat: {
         get: { useQuery: () => ({ isPending: true }) },
@@ -72,6 +80,7 @@ vi.mock("~/trpc/react", () => ({
 
 import SettingsPage from "./(app)/settings/page";
 import MonitorPage from "./(app)/projects/[projectId]/page";
+import ShotsPage from "./(app)/shots/page";
 
 function fulfilledParams(projectId: string) {
   return Object.assign(Promise.resolve({ projectId }), {
@@ -91,6 +100,11 @@ describe("screen smoke renders", () => {
     );
     // While the project loads the header shows the neutral "Project" title.
     expect(screen.getByText("Project")).toBeDefined();
+  });
+
+  it("Shots mounts and shows its header while its models load", () => {
+    render(<ShotsPage />);
+    expect(screen.getByRole("heading", { name: "Shots" })).toBeDefined();
   });
 
   it("Settings mounts and shows its header while the workspace loads", () => {

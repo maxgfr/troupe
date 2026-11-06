@@ -15,6 +15,7 @@ const ProjectMonitorPage = lazy(() => import("~/app/(app)/projects/[projectId]/p
 const ProjectScriptPage = lazy(() => import("~/app/(app)/projects/[projectId]/script/page"));
 const NewProjectPage = lazy(() => import("~/app/(app)/projects/new/page"));
 const SettingsPage = lazy(() => import("~/app/(app)/settings/page"));
+const ShotsPage = lazy(() => import("~/app/(app)/shots/page"));
 
 // The same pages as src/app/(app), at the same paths, under /troupe/app.
 
@@ -56,6 +57,7 @@ export const router = createBrowserRouter(
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: "dashboard", element: <DashboardPage /> },
+        { path: "shots", element: <ShotsPage /> },
         { path: "library", element: <LibraryPage /> },
         { path: "library/:itemId", element: <LibraryItemRoute /> },
         { path: "actors", element: <ActorsPage /> },

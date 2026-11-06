@@ -309,6 +309,19 @@ models are the ones `studio.modelOptions` offers for the project's format
 and language, as in the studio's pickers. Polling a comparison moves its
 renders along, as `render watch` does.
 
+### Shots
+
+The studio's Shots page: a shot is a render made from a description, with no
+project or script. Shots take an id or its first characters (`shots list`
+prints them).
+
+| Command | Does |
+|---|---|
+| `shots launch <text…> [--model <model>…] [--format R] [--duration S] [--resolution R] [--silent] [--actor <actor>] [--count N]` | Render the text on a model (default: the studio default, else the first that can launch), or on each of up to 4 models given with `--model`, side by side, 1 to 4 times each (8 renders at most). The format, length and resolution default to ones every model offers; one a model does not offer is refused, naming it, before any model is called. `--silent` reaches the models that offer the choice; the others keep their own rule. `--actor` describes that actor in the shot. The in-browser renderer voices a script and is not offered. |
+| `shots list [--favorites]` | Shots, newest first (40), with their status (★ for a favorite) and, once done, the video's address. Listing moves rendering shots along, as `render watch` does. |
+| `shots favorite <shot> [--off]` | Mark a shot as a favorite, or not. |
+| `shots delete <shot…>` | Delete shots and their videos. A shot still rendering is refused: its model bills it either way. |
+
 ### Library
 
 The [inspiration library](LIBRARY.md). Items, ideas and actors take an id,

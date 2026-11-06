@@ -52,7 +52,7 @@ describe("AppShell", () => {
         within(nav)
           .getAllByRole("link")
           .map((l) => l.textContent),
-      ).toEqual(["Projects", "Library", "Actors", "Compare"]);
+      ).toEqual(["Projects", "Shots", "Library", "Actors", "Compare"]);
     }
     expect(screen.getByRole("link", { name: "New project" }).getAttribute("href")).toBe("/projects/new");
     expect(screen.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe("/settings");

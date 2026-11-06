@@ -169,6 +169,13 @@
       "when": 1791251109356,
       "tag": "0023_library-attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793954770879,
+      "tag": "0024_shots",
+      "breakpoints": true
     }
   ]
 }

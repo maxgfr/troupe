@@ -37,4 +37,5 @@ export {
   BROWSER_MODEL_LABEL,
 } from "./server/adapters/browser";
 export type { BrowserJobState, BrowserRenderJob, BrowserRenderer } from "./server/adapters/browser";
-export { prepareGeneration, submitGeneration } from "./server/launch";
+export { prepareGeneration, submitGeneration, prepareShot, launchShot } from "./server/launch";
+export type { ShotInput } from "./server/launch";

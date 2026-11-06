@@ -15,7 +15,7 @@ const ALREADY_RELAUNCHED = "This render was already relaunched. Follow the newer
 
 // A unique violation (SQLSTATE 23505) on the named index, from Postgres or
 // PGlite, possibly wrapped by Drizzle.
-function violates(error: unknown, index: string): boolean {
+export function violates(error: unknown, index: string): boolean {
   for (let e: unknown = error; e && typeof e === "object"; e = (e as { cause?: unknown }).cause) {
     const { code, constraint, constraint_name, message } = e as {
       code?: unknown;

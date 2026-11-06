@@ -23,6 +23,7 @@ afterEach(async () => {
 });
 
 const USER = "11111111-1111-4111-8111-111111111111";
+const WORKSPACE = "21111111-1111-4111-8111-111111111111";
 
 // A studio with one project and its script, at the given migrations.
 async function studioWithProject(migrations = readMigrations()) {
@@ -187,7 +188,17 @@ describe("PGlite snapshots (backups of the browser edition)", () => {
 
   it("brings a snapshot from an earlier build up to date with the migrations it predates", async () => {
     const all = readMigrations();
-    const { pg: old } = await studioWithProject(all.slice(0, -1));
+    // Written in SQL, not through today's schema: the earlier build's tables
+    // lack the columns the newest migration adds.
+    const old = new PGlite();
+    await migratePglite(old, all.slice(0, -1));
+    await old.exec(`
+      insert into troupe_user (id, email) values ('${USER}', 'a@example.com');
+      insert into troupe_workspace (id, name, "ownerId") values ('${WORKSPACE}', 'Kept', '${USER}');
+      insert into troupe_workspace_member ("workspaceId", "userId", role) values ('${WORKSPACE}', '${USER}', 'owner');
+      insert into troupe_project ("workspaceId", title, format, platform, language)
+        values ('${WORKSPACE}', 'Kept project', '9:16', 'tiktok', 'en');
+    `);
     const snapshot = throughJson(await snapshotPglite(old));
     await old.close();
 

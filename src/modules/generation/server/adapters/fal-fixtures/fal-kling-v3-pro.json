@@ -1,0 +1,125 @@
+{
+ "components": {
+  "schemas": {
+   "KlingVideoV3ProTextToVideoInput": {
+    "properties": {
+     "enable_safety_checker": {
+      "title": "Enable Safety Checker",
+      "description": "Disabling safety checks requires account authorization; unauthorized requests are always checked.",
+      "default": true,
+      "type": "boolean"
+     },
+     "negative_prompt": {
+      "maxLength": 2500,
+      "title": "Negative Prompt",
+      "default": "blur, distort, and low quality",
+      "type": "string"
+     },
+     "prompt": {
+      "examples": [
+       "Close-up of glowing fireflies dancing in a dark forest at twilight. Soft bioluminescent particles float through the air. Shallow depth of field, bokeh lights in background. Magical atmosphere, gentle movement."
+      ],
+      "title": "Prompt",
+      "anyOf": [
+       {
+        "maxLength": 2500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both."
+     },
+     "generate_audio": {
+      "title": "Generate Audio",
+      "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
+      "default": true,
+      "type": "boolean"
+     },
+     "aspect_ratio": {
+      "enum": [
+       "16:9",
+       "9:16",
+       "1:1"
+      ],
+      "title": "Aspect Ratio",
+      "description": "The aspect ratio of the generated video frame",
+      "default": "16:9",
+      "type": "string"
+     },
+     "multi_prompt": {
+      "examples": [
+       null
+      ],
+      "title": "Multi Prompt",
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/KlingV3MultiPromptElement"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "List of prompts for multi-shot video generation. If provided, overrides the single prompt and divides the video into multiple shots with specified prompts and durations."
+     },
+     "shot_type": {
+      "enum": [
+       "customize",
+       "intelligent"
+      ],
+      "title": "Shot Type",
+      "description": "The type of multi-shot video generation. 'intelligent' lets the model automatically determine shot structure.",
+      "default": "customize",
+      "type": "string"
+     },
+     "cfg_scale": {
+      "maximum": 1,
+      "title": "Cfg Scale",
+      "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
+      "default": 0.5,
+      "type": "number",
+      "minimum": 0
+     },
+     "duration": {
+      "enum": [
+       "3",
+       "4",
+       "5",
+       "6",
+       "7",
+       "8",
+       "9",
+       "10",
+       "11",
+       "12",
+       "13",
+       "14",
+       "15"
+      ],
+      "title": "Duration",
+      "description": "The duration of the generated video in seconds",
+      "default": "5",
+      "type": "string"
+     }
+    },
+    "title": "TextToVideoV3ProRequest",
+    "x-fal-order-properties": [
+     "enable_safety_checker",
+     "prompt",
+     "duration",
+     "multi_prompt",
+     "generate_audio",
+     "shot_type",
+     "aspect_ratio",
+     "negative_prompt",
+     "cfg_scale"
+    ],
+    "type": "object"
+   }
+  }
+ }
+}

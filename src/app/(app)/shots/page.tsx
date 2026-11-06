@@ -10,7 +10,7 @@ import { useWorkspace } from "~/app/_components/workspace-context";
 import { api } from "~/trpc/react";
 import type { ProviderAccountId } from "../settings/provider-accounts";
 import { Composer } from "./composer";
-import { KeyDialog, ShotViewer } from "./dialogs";
+import { FalCatalogDialog, KeyDialog, KeysDialog, ShotViewer } from "./dialogs";
 import { Gallery, ScopeTabs, type GalleryScope } from "./gallery";
 import {
   EMPTY_MEMORY,
@@ -93,6 +93,8 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   const [scope, setScope] = useState<GalleryScope>("all");
   const [viewing, setViewing] = useState<Shot | null>(null);
   const [askKey, setAskKey] = useState<ShotModel | null>(null);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [falOpen, setFalOpen] = useState(false);
   const [focusNonce, setFocusNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   // Shots hidden now and deleted when the undo bar runs out.
@@ -251,6 +253,9 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ScopeTabs scope={scope} onScope={setScope} />
+        <Button size="sm" variant="secondary" onClick={() => setKeysOpen(true)} className="ml-auto">
+          API keys
+        </Button>
         {pending ? (
           <div
             role="status"
@@ -330,6 +335,7 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
             models={all}
             chosen={chosen}
             onToggleModel={toggleModel}
+            onBrowseModels={() => setFalOpen(true)}
             capabilities={shared?.capabilities ?? null}
             missing={shared?.missing ?? null}
             soundPerModel={shared?.soundPerModel ?? false}
@@ -354,6 +360,23 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
           onClose={() => setViewing(null)}
           onReuse={() => reuse(viewing)}
           onFavorite={() => favorite.mutate({ workspaceId, generationId: viewing.id, on: !viewing.favorite })}
+        />
+      ) : null}
+      {keysOpen ? <KeysDialog onClose={() => setKeysOpen(false)} /> : null}
+      {falOpen ? (
+        <FalCatalogDialog
+          onClose={() => setFalOpen(false)}
+          hasKey={all.some((m) => m.credential === "fal" && m.status === "ready")}
+          onAskKey={() => {
+            setFalOpen(false);
+            setKeysOpen(true);
+          }}
+          onAdded={(modelKey) => {
+            const keys = chosen.map((m) => m.key);
+            if (!keys.includes(modelKey))
+              remember({ modelKeys: keys.length >= MAX_MODELS ? [...keys.slice(1), modelKey] : [...keys, modelKey] });
+            setFalOpen(false);
+          }}
         />
       ) : null}
       {askKey && credentialOf(askKey) ? (

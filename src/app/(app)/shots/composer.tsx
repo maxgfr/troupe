@@ -21,6 +21,7 @@ export function Composer({
   models,
   chosen,
   onToggleModel,
+  onBrowseModels,
   capabilities,
   missing,
   soundPerModel,
@@ -41,6 +42,8 @@ export function Composer({
   models: ShotModel[];
   chosen: ShotModel[];
   onToggleModel: (model: ShotModel) => void;
+  // Opens fal.ai's catalog from the model list.
+  onBrowseModels?: () => void;
   // What every chosen model renders (sharedCapabilities).
   capabilities: ShotCapabilities | null;
   // Why the chosen models cannot launch together, in a sentence.
@@ -71,13 +74,17 @@ export function Composer({
 
   const caps = missing ? null : capabilities;
   const renders = chosen.length * count;
-  const cost = settings
-    ? estimateUsd(
-        chosen.map((m) => m.pricePerSecondUsd),
-        settings.durationS,
-        count,
-      )
-    : null;
+  // A cloud model with no known price makes the total unknown: never call
+  // a paid launch free.
+  const unpriced = chosen.some((m) => m.kind === "cloud" && m.pricePerSecondUsd == null);
+  const cost =
+    settings && !unpriced
+      ? estimateUsd(
+          chosen.map((m) => m.pricePerSecondUsd),
+          settings.durationS,
+          count,
+        )
+      : null;
   const canLaunch = Boolean(chosen.length && caps && settings && text.trim()) && !launching;
   const unavailable = chosen.filter((m) => !m.available && m.status !== "missing-credentials");
   // As many renders per model as keep the launch within MAX_RENDERS.
@@ -112,7 +119,7 @@ export function Composer({
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <ModelPicker models={models} value={chosen} onToggle={onToggleModel} />
+        <ModelPicker models={models} value={chosen} onToggle={onToggleModel} onBrowse={onBrowseModels} />
 
         {caps && settings ? (
           <>
@@ -187,7 +194,14 @@ export function Composer({
         />
 
         <div className="ml-auto flex items-center gap-3">
-          {cost != null ? (
+          {unpriced ? (
+            <span
+              className="text-xs text-muted"
+              title="fal.ai lists no per-second price for a chosen model. Check it on fal.ai before launching."
+            >
+              price unknown
+            </span>
+          ) : cost != null ? (
             <span className="font-mono text-xs tabular-nums text-muted">
               {cost === 0 ? "free (local)" : `$${cost.toFixed(2)} est.`}
             </span>

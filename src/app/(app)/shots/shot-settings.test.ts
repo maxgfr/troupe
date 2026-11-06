@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   cssRatio,
   estimateUsd,
+  listNames,
   matchModels,
   parseMemory,
   selectionKey,
@@ -102,6 +103,12 @@ describe("the composer's helpers", () => {
 
   it("keeps a selection's settings under one key, whatever the order", () => {
     expect(selectionKey(["veo", "kling"])).toBe(selectionKey(["kling", "veo"]));
+  });
+
+  it("lists names the way a sentence does", () => {
+    expect(listNames(["A"])).toBe("A");
+    expect(listNames(["A", "B"])).toBe("A and B");
+    expect(listNames(["A", "B", "C"])).toBe("A, B and C");
   });
 
   it("finds models by every word of the search", () => {

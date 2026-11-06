@@ -21,6 +21,8 @@ import {
   type CredentialId,
 } from "~/server/settings/providers";
 import { SecretUnavailableError } from "~/server/settings/secrets";
+import { readCredentials } from "~/server/settings/providers";
+import { addFalModel, FalCatalogError, falHttp as httpFetch, listFalVideoModels } from "~/server/fal-catalog";
 import { ChatSettingsPatch, saveChatSettings, type ChatBackend } from "~/modules/chat";
 import { MODEL_KEY } from "./generation";
 import { localModelProcedures, recordTest } from "./local-models";
@@ -152,12 +154,50 @@ export const settingsRouter = createTRPCRouter({
         await setDefaultModelKey(ctx.db, input.modelKey);
       }),
 
-    // Local models only; built-ins are turned off instead.
+    // fal.ai's text-to-video catalog, live (cached a quarter of an hour), each
+    // model marked when it is already in the studio.
+    falCatalog: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const entries = await listFalVideoModels(httpFetch);
+        const added = new Map(
+          ctx.catalog.models.filter((m) => m.family === "fal" && !m.archived).map((m) => [m.modelId, m.key]),
+        );
+        return entries.map((e) => ({ ...e, modelKey: added.get(e.endpoint) ?? null }));
+      } catch (error) {
+        if (error instanceof FalCatalogError) throw new TRPCError({ code: "BAD_GATEWAY", message: error.message });
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "fal.ai's model list could not be reached." });
+      }
+    }),
+
+    // Add a model from fal.ai's catalog: its settings come from its schema.
+    addFal: protectedProcedure
+      .input(z.object({ endpoint: z.string().min(3).max(200) }))
+      .mutation(async ({ ctx, input }) => {
+        // A built-in on that endpoint is already there; an added one is read again.
+        const builtin = ctx.catalog.models.find(
+          (m) => m.modelId === input.endpoint && BUILTIN_MODELS.some((b) => b.key === m.key),
+        );
+        if (builtin) return { modelKey: builtin.key, label: builtin.label };
+        const fal = (await readCredentials(ctx.db)).fal;
+        try {
+          return await addFalModel(ctx.db, {
+            endpoint: input.endpoint,
+            http: httpFetch,
+            apiKey: fal.source === "saved" || fal.source === "environment" ? fal.key : null,
+          });
+        } catch (error) {
+          if (error instanceof FalCatalogError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          throw error;
+        }
+      }),
+
+    // Local models and the ones added from fal.ai's catalog; built-ins are
+    // turned off instead.
     archive: protectedProcedure
       .input(z.object({ modelKey: MODEL_KEY, archived: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
         const model = modelOf(ctx.catalog, input.modelKey);
-        if (model.kind !== "local")
+        if (BUILTIN_MODELS.some((b) => b.key === model.key))
           throw new TRPCError({ code: "BAD_REQUEST", message: "Built-in models can be turned off, not archived." });
         await archiveLocalModel(ctx.db, input.modelKey, input.archived);
         if (input.archived && (await getDefaultModelKey(ctx.db)) === input.modelKey)

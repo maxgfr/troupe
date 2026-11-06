@@ -81,9 +81,10 @@ The full list:
 - Shots: describe a shot in one field and render it on any cloud or local
   model, or on up to four side by side, with only the settings they offer
   (format, length, resolution, sound, an actor, up to four renders each).
-  No project or script.
-  A missing key is asked for on the spot; every shot lands in a gallery to
-  reuse, favorite, download or delete ([docs/CLI.md](docs/CLI.md#shots)).
+  No project or script. Keys are set on the spot, and any of fal.ai's
+  100-plus text-to-video models (Kling, Seedance, Wan, Veo, MiniMax…) can be
+  added from its live catalog, its settings read from its schema
+  ([docs/CLI.md](docs/CLI.md#shots)).
 - Videos are checked with ffprobe before they are kept. Downloads stream with
   range requests.
 - Export presets per platform, each with the AI-disclosure rule that

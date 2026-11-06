@@ -31,6 +31,14 @@ export type { MediaProbe } from "./server/media";
 export { createVeoTextAdapter, type VeoModel } from "./server/adapters/veo-text";
 export { createFalAdapter, type FalModel } from "./server/adapters/fal";
 export {
+  describeFalModel,
+  falRequestBody,
+  isFalEndpoint,
+  parseFalInput,
+  type FalInputShape,
+  type FalModelDescription,
+} from "./server/adapters/fal-schema";
+export {
   createBrowserAdapter,
   BROWSER_CAPABILITIES,
   BROWSER_MODEL_KEY,

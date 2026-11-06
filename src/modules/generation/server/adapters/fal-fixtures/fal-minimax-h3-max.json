@@ -1,0 +1,120 @@
+{
+ "components": {
+  "schemas": {
+   "MinimaxH3TurboTextToVideoInput": {
+    "required": [
+     "prompt",
+     "prompt_expansion_mode"
+    ],
+    "description": "Public H3 Max input; Max Turbo keeps the shared Turbo input contract.",
+    "x-fal-order-properties": [
+     "prompt",
+     "duration",
+     "resolution",
+     "seed",
+     "enable_safety_checker",
+     "sync_mode",
+     "prompt_expansion_mode",
+     "target_audio_url",
+     "aspect_ratio"
+    ],
+    "title": "MaxTextToVideoHailuo03Input",
+    "type": "object",
+    "properties": {
+     "sync_mode": {
+      "description": "Return the generated video as base64 instead of a CDN URL.",
+      "default": false,
+      "title": "Sync Mode",
+      "type": "boolean"
+     },
+     "resolution": {
+      "description": "The native generation resolution, or 1080P latent refinement from a native 768P source.",
+      "default": "768P",
+      "title": "Resolution",
+      "type": "string",
+      "enum": [
+       "480P",
+       "768P",
+       "1080P"
+      ]
+     },
+     "seed": {
+      "description": "Random seed. A random seed is selected when omitted.",
+      "title": "Seed",
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "target_audio_url": {
+      "description": "Optional URL of an audio clip at least 2 seconds long (maximum 15 MB) to pin to the generated soundtrack. Longer clips are trimmed to the generated video's length, keeping the beginning. The original audio replaces the output soundtrack, padded with silence if shorter than the video, without changing playback speed. Exceptionally high sample rates may be resampled to 96 kHz. Accepts an HTTP(S) URL or a base64 data URI.",
+      "title": "Target Audio Url",
+      "anyOf": [
+       {
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "duration": {
+      "maximum": 15,
+      "default": 5,
+      "description": "Video length in seconds. The output can run up to about 0.7 s longer than requested. Use at least 2 s with target_audio_url.",
+      "minimum": 0.92,
+      "title": "Duration",
+      "type": "number"
+     },
+     "prompt_expansion_mode": {
+      "examples": [
+       "disabled",
+       "balanced",
+       "quality"
+      ],
+      "default": "balanced",
+      "description": "How much effort to spend rewriting the prompt before generation. 'disabled' skips prompt expansion. 'balanced' returns in about a second. 'quality' spends up to ~30s on a richer prompt.",
+      "title": "Prompt Expansion Mode",
+      "type": "string"
+     },
+     "prompt": {
+      "minLength": 1,
+      "examples": [
+       "A white kitten chases a butterfly across a sunlit garden. Gentle camera tracking, natural movement, soft afternoon light filtering through the leaves."
+      ],
+      "description": "Text prompt for video generation",
+      "title": "Prompt",
+      "type": "string",
+      "maxLength": 50000
+     },
+     "aspect_ratio": {
+      "description": "The aspect ratio of the generated video.",
+      "default": "16:9",
+      "title": "Aspect Ratio",
+      "type": "string",
+      "enum": [
+       "21:9",
+       "16:9",
+       "4:3",
+       "1:1",
+       "3:4",
+       "9:16"
+      ]
+     },
+     "enable_safety_checker": {
+      "description": "If set to true, the safety checker will be enabled.",
+      "default": true,
+      "title": "Enable Safety Checker",
+      "type": "boolean"
+     }
+    }
+   }
+  }
+ }
+}

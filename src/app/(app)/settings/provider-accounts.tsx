@@ -19,7 +19,7 @@ const ACCOUNTS = [
     id: "fal",
     name: "fal.ai",
     article: "a",
-    models: "Kling 3.0 · Seedance 1.5 Pro",
+    models: "Kling 3.0 · Seedance 1.5 Pro, and every model added from fal.ai's catalog",
     href: "https://fal.ai/dashboard/keys",
   },
   {

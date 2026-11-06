@@ -16,10 +16,13 @@ export function ModelPicker({
   models,
   value,
   onToggle,
+  onBrowse,
 }: {
   models: ShotModel[];
   value: ShotModel[];
   onToggle: (model: ShotModel) => void;
+  // Opens fal.ai's catalog, to add a model the studio does not have yet.
+  onBrowse?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -158,6 +161,19 @@ export function ModelPicker({
               );
             })}
           </ul>
+          {onBrowse ? (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                onBrowse();
+              }}
+              className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-primary shadow-[0_-1px_0_var(--troupe-color-line)] transition-colors duration-150 hover:bg-primary/10"
+            >
+              <SearchIcon className="size-4" />
+              Browse fal.ai models
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

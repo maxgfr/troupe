@@ -58,6 +58,10 @@ export interface ShotChoice {
   capabilities: ShotCapabilities;
 }
 
+// "A", "A and B", "A, B and C".
+export const listNames = (names: string[]): string =>
+  names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+
 const common = <T>(lists: T[][]): T[] => lists.reduce((shared, list) => shared.filter((v) => list.includes(v)));
 
 // What several models side by side can all render: the formats, lengths and
@@ -78,7 +82,7 @@ export function sharedCapabilities(
     resolutions: common(caps.map((c) => c.resolutions)),
     audio: caps.some((c) => c.audio === "optional") ? "optional" : caps[0]!.audio,
   };
-  const names = models.map((m) => m.label).join(" and ");
+  const names = listNames(models.map((m) => m.label));
   const missing =
     capabilities.aspectRatios.length === 0
       ? `${names} share no format. Choose other models.`

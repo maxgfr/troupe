@@ -73,6 +73,9 @@ export interface ModelCatalog {
 // Local models wait on one GPU queue: hours, not minutes.
 export const LOCAL_TIMEOUT_S = 7200;
 
+// A cloud model added from fal.ai's catalog: as long as the slowest built-in.
+export const FAL_CATALOG_TIMEOUT_S = 1800;
+
 const LOCAL_VENDOR: Record<string, string> = { comfyui: "ComfyUI", http: "HTTP endpoint", browser: "This browser" };
 
 export function sanitizeDefaults(
@@ -157,6 +160,36 @@ export function resolveCatalog(input: {
         audio: "none",
         dialogueLanguages: null,
       };
+      // A model added from fal.ai's catalog: a cloud model on the fal key.
+      if (r.family === "fal") {
+        const endpoint = (r.connection as { endpoint?: unknown } | null)?.endpoint;
+        const keyStatus = credentialStatus(input.credentials.fal);
+        const status = veto?.status ?? keyStatus;
+        return {
+          key: r.id,
+          family: "fal",
+          label: r.label ?? r.id,
+          vendor: `${typeof endpoint === "string" ? endpoint.split("/")[0] : "fal"} via fal.ai`,
+          kind: "cloud",
+          credential: "fal",
+          modelId: typeof endpoint === "string" ? endpoint : r.id,
+          capabilities: caps ?? fallbackCaps,
+          defaults: caps ? sanitizeDefaults(caps, r.defaults) : { resolution: "", durationS: 0, audio: false },
+          pricePerSecondUsd: price(r.pricePerSecondUsd),
+          timeoutS: r.timeoutS ?? FAL_CATALOG_TIMEOUT_S,
+          enabled: r.enabled,
+          archived: r.archived,
+          status,
+          statusDetail:
+            veto?.detail ??
+            (keyStatus === "missing-credentials"
+              ? "Add a fal.ai key in Settings."
+              : keyStatus === "undecryptable"
+                ? "The saved key can no longer be read. Enter it again."
+                : null),
+          lastTest: null,
+        };
+      }
       return {
         key: r.id,
         family: r.family as ModelFamily,

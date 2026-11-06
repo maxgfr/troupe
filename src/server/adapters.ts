@@ -1,6 +1,12 @@
 import "server-only";
 
-import { createFalAdapter, createVeoTextAdapter, type HttpLike, type VideoProviderAdapter } from "~/modules/generation";
+import {
+  createFalAdapter,
+  createVeoTextAdapter,
+  parseFalInput,
+  type HttpLike,
+  type VideoProviderAdapter,
+} from "~/modules/generation";
 import {
   builtinModels,
   effectiveDefaultModel,
@@ -59,6 +65,28 @@ export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog
   const vetoes = new Map<string, { status: ModelStatus; detail: string }>();
   for (const row of rows) {
     if (builtinKeys.has(row.id)) continue;
+    if (row.family === "fal") {
+      // Added from fal.ai's catalog: it renders on the fal key.
+      const input = parseFalInput(row.connection);
+      if (!input || !row.capabilities)
+        vetoes.set(row.id, { status: "invalid", detail: "This fal.ai model was saved incompletely. Add it again." });
+      else if (credentials.fal.source === "saved" || credentials.fal.source === "environment")
+        adapters.set(
+          row.id,
+          createFalAdapter({
+            model: {
+              modelKey: row.id,
+              endpoint: input.endpoint,
+              capabilities: row.capabilities,
+              sendsResolution: input.resolution,
+              input,
+            },
+            http: httpFetch,
+            apiKey: credentials.fal.key,
+          }),
+        );
+      continue;
+    }
     const built = localAdapterFromRow(row);
     if (!built) vetoes.set(row.id, { status: "invalid", detail: `No adapter for ${row.family} models.` });
     else if ("createJob" in built) adapters.set(row.id, built);

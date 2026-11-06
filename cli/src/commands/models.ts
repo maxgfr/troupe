@@ -433,9 +433,49 @@ const keysTest: Command = {
   },
 };
 
+const modelsFal: Command = {
+  path: ["models", "fal"],
+  args: "[search...]",
+  positionals: { min: 0, max: 20 },
+  summary:
+    "List fal.ai's text-to-video models, live, the ones already in the studio marked; add one with models fal-add.",
+  examples: ["troupe models fal", "troupe models fal kling"],
+  async run(ctx, { positionals }) {
+    const words = positionals.join(" ").toLowerCase().split(/\s+/).filter(Boolean);
+    const all = await ctx.api.settings.models.falCatalog.query();
+    const shown = all.filter((m) => words.every((w) => `${m.label} ${m.endpoint}`.toLowerCase().includes(w)));
+    return {
+      data: shown,
+      text: shown.length
+        ? table(
+            ["ENDPOINT", "NAME", "IN STUDIO"],
+            shown.map((m) => [m.endpoint, m.label, m.modelKey ?? ""]),
+          )
+        : "No fal.ai model matches.",
+    };
+  },
+};
+
+const modelsFalAdd: Command = {
+  path: ["models", "fal-add"],
+  args: "<endpoint>",
+  positionals: { min: 1, max: 1 },
+  summary: "Add a model from fal.ai's catalog; its formats, lengths, resolutions and sound come from its schema.",
+  examples: ["troupe models fal-add kling/v4/text-to-video"],
+  async run(ctx, { positionals }) {
+    const added = await ctx.api.settings.models.addFal.mutate({ endpoint: positionals[0]! });
+    return {
+      data: added,
+      text: `Added ${added.label} as ${added.modelKey}. Render on it: troupe shots launch --model ${added.modelKey} <text>`,
+    };
+  },
+};
+
 export const modelCommands: Command[] = [
   modelsList,
   modelsAdd,
+  modelsFal,
+  modelsFalAdd,
   modelsEdit,
   modelsTest,
   modelsRemove,

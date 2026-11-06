@@ -102,7 +102,8 @@ const launch: Command = {
     const formats = shared((m) => m.capabilities.aspectRatios);
     const lengths = shared((m) => m.capabilities.durationsS);
     const resolutions = shared((m) => m.capabilities.resolutions);
-    const names = chosen.map((m) => m.label).join(" and ");
+    const labels = chosen.map((m) => m.label);
+    const names = labels.length < 3 ? labels.join(" and ") : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
     const format = str(options, "format") ?? (formats.includes("9:16") ? "9:16" : formats[0]);
     if (!format || !formats.includes(format))
       throw usageError(

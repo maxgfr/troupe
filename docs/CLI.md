@@ -188,9 +188,11 @@ sent to the address it was issued by: `--url` pointing elsewhere sends none.
 | `doctor --live [--model <model>]… [--yes] [-o <folder>]` | Renders one clip per model that can launch, at its cheapest settings (shortest, lowest resolution, silent where allowed), in a new project; downloads each video, runs `ffprobe` on it and asks the script chat once. Without `--yes` it prints the plan and its cost and exits 2. See [LIVE-CHECKS.md](LIVE-CHECKS.md). |
 | `models list [--all]` | Every model with where it runs, its state, formats, lengths, audio, and the default. `--all` includes archived ones. |
 | `models add http\|comfyui …` | Add a local model, after testing it. See below. |
+| `models fal [<search…>]` | fal.ai's text-to-video models, read live from its public catalog, with the ones already in the studio marked. |
+| `models fal-add <endpoint>` | Add a fal.ai model (from `models fal`, or any endpoint id fal.ai serves). Its formats, lengths, resolutions and sound come from the endpoint's schema, its price per second from fal.ai when your key can read it. It renders on the fal.ai key. Adding it again reads it again. |
 | `models edit <model> [--name] [--base-url] [--token-stdin \| --clear-token]` | Rename a local model added with `models add`, move it to another address, or change or forget its token (read from stdin or a hidden prompt). A token stays only while the model keeps its origin. Cloud and built-in models are refused (`NOT_EDITABLE`). |
 | `models test <model>` | Contact a model or check its provider key. Exit 1 when it cannot render. |
-| `models remove <model> [--restore]` | Archive a local model (its renders stay). |
+| `models remove <model> [--restore]` | Archive a local model or one added from fal.ai (its renders stay). |
 | `models default [<model>] [--clear]` | Show or set the default model. |
 | `models templates` | The bundled ComfyUI workflows. |
 | `keys list` | Which provider keys (google, fal, anthropic) are configured, and from where. |

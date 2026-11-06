@@ -7,6 +7,7 @@ import {
   type VideoProviderAdapter,
 } from "../adapter";
 import { downloadFalVideo } from "./download";
+import { falRequestBody, type FalInputShape } from "./fal-schema";
 import { falError, PROBLEM_CODE } from "./provider-errors";
 
 const Request = z.object({ request_id: z.string(), status_url: z.string().url(), response_url: z.string().url() });
@@ -29,6 +30,9 @@ export interface FalModel {
   sendsResolution: boolean;
   // The longest prompt the endpoint takes, in characters.
   promptMaxChars?: number;
+  // A model added from fal's catalog: its settings in the endpoint's own
+  // shape, read from its schema (fal-schema.ts). Built-ins leave it out.
+  input?: FalInputShape;
 }
 
 // fal's platform API: pricing needs a valid key and costs nothing.
@@ -58,13 +62,17 @@ export function createFalAdapter(deps: { model: FalModel; apiKey: string; http: 
       const response = await deps.http(`https://queue.fal.run/${model.endpoint}`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          prompt: req.prompt,
-          aspect_ratio: req.aspectRatio,
-          duration: String(req.durationS),
-          generate_audio: req.audio,
-          ...(model.sendsResolution ? { resolution: req.resolution } : {}),
-        }),
+        body: JSON.stringify(
+          model.input
+            ? falRequestBody(model.input, req)
+            : {
+                prompt: req.prompt,
+                aspect_ratio: req.aspectRatio,
+                duration: String(req.durationS),
+                generate_audio: req.audio,
+                ...(model.sendsResolution ? { resolution: req.resolution } : {}),
+              },
+        ),
       });
       if (!response.ok) {
         const error = falError(response.status, await response.json().catch(() => null));

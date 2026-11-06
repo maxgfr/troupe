@@ -6,8 +6,9 @@ import type { ConnectionReport } from "~/modules/generation";
 import {
   BUILTIN_MODELS,
   CATALOG_PROVIDERS,
+  IMAGE_MODEL_PROVIDERS,
+  SPEECH_MODEL_PROVIDERS,
   archiveLocalModel,
-  type CatalogProviderId,
   canLaunch,
   getDefaultModelKey,
   sanitizeDefaults,
@@ -15,9 +16,17 @@ import {
   updateModelPreferences,
   type ModelCatalog,
 } from "~/modules/models";
-import { testVideoKey } from "llm-connect/video";
+import { testMediaKey } from "llm-connect/image";
 
 import type { Db } from "~/server/db/types";
+import {
+  addMediaModel,
+  listMediaModels,
+  loadMediaModels,
+  MediaCatalogError,
+  mediaCatalogKeys,
+  toMediaEntry,
+} from "~/server/media-catalog";
 import {
   addCatalogVideoModel,
   listCatalogVideoModels,
@@ -66,7 +75,7 @@ async function testCredential(
     const state = (await readCredentials(db))[credential];
     if (state.source !== "saved" && state.source !== "environment")
       return { ok: false, message: "No key is configured for this account." };
-    return testVideoKey({ provider: credential as CatalogProviderId, apiKey: state.key });
+    return testMediaKey({ provider: credential, apiKey: state.key });
   }
   const key = modelKey ?? builtin!.key;
   const adapter = catalog.adapters.get(key);
@@ -259,6 +268,52 @@ export const settingsRouter = createTRPCRouter({
           return await addCatalogVideoModel(ctx.db, { ...input, models });
         } catch (error) {
           if (error instanceof VideoCatalogError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          throw error;
+        }
+      }),
+
+    // The photo or voice models every provider offers (llm-models), live
+    // (cached a quarter of an hour), each marked when it is in the studio.
+    mediaCatalog: protectedProcedure
+      .input(z.object({ medium: z.enum(["image", "speech"]) }))
+      .query(async ({ ctx, input }) => {
+        let models: Awaited<ReturnType<typeof listMediaModels>>;
+        try {
+          models = await listMediaModels(input.medium, await mediaCatalogKeys(ctx.db));
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: error instanceof MediaCatalogError ? error.message : "The model lists could not be reached.",
+          });
+        }
+        const added = new Map(
+          (await loadMediaModels(ctx.db))
+            .filter((m) => m.medium === input.medium && !m.archived)
+            .map((m) => [`${m.provider}:${m.modelId}`, m.key]),
+        );
+        return models.map((m) => ({
+          ...toMediaEntry(input.medium, m),
+          modelKey: added.get(`${m.provider}:${m.id}`) ?? null,
+        }));
+      }),
+
+    addMedia: protectedProcedure
+      .input(
+        z.object({
+          medium: z.enum(["image", "speech"]),
+          provider: z.enum([...new Set([...IMAGE_MODEL_PROVIDERS, ...SPEECH_MODEL_PROVIDERS])] as [
+            string,
+            ...string[],
+          ]),
+          id: z.string().min(1).max(200),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const models = await listMediaModels(input.medium, await mediaCatalogKeys(ctx.db));
+          return await addMediaModel(ctx.db, { ...input, models });
+        } catch (error) {
+          if (error instanceof MediaCatalogError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
           throw error;
         }
       }),

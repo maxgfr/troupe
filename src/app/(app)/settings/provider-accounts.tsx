@@ -12,43 +12,58 @@ const ACCOUNTS = [
     id: "google",
     name: "Google AI",
     article: "a",
-    models: "Veo 3.1 Fast · Veo 3.1 Lite, and the Google models added from the catalog",
+    models: "Veo 3.1 Fast · Veo 3.1 Lite, and the Google video, photo and voice models added from the catalogs",
     href: "https://aistudio.google.com/apikey",
   },
   {
     id: "fal",
     name: "fal.ai",
     article: "a",
-    models: "Kling 3.0 · Seedance 1.5 Pro, and every model added from fal.ai's catalog",
+    models: "Kling 3.0 · Seedance 1.5 Pro, and every video, photo or voice model added from fal.ai's catalog",
     href: "https://fal.ai/dashboard/keys",
   },
   {
     id: "openrouter",
     name: "OpenRouter",
     article: "an",
-    models: "One key for Kling, Veo, Seedance, Hailuo, Wan, Runway, Grok Imagine… added from the catalog",
+    models:
+      "One key for its video models (Kling, Veo, Seedance, Hailuo, Wan, Runway…) and photo models, added from the catalogs",
     href: "https://openrouter.ai/settings/keys",
   },
   {
     id: "gateway",
     name: "Vercel AI Gateway",
     article: "a",
-    models: "One key for the Gateway's video models, added from the catalog",
+    models: "One key for the Gateway's video, photo and voice models, added from the catalogs",
     href: "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys",
   },
   {
     id: "xai",
     name: "xAI",
     article: "an",
-    models: "Grok Imagine, added from the catalog",
+    models: "Grok Imagine video and photos, added from the catalogs",
     href: "https://console.x.ai",
   },
   {
     id: "replicate",
     name: "Replicate",
     article: "a",
-    models: "Replicate's text-to-video collection, added from the catalog",
+    models: "Replicate's video and photo models, added from the catalog",
     href: "https://replicate.com/account/api-tokens",
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    article: "an",
+    models: "GPT Image photos and OpenAI voices, added from the catalog in Shots",
+    href: "https://platform.openai.com/api-keys",
+  },
+  {
+    id: "elevenlabs",
+    name: "ElevenLabs",
+    article: "an",
+    models: "ElevenLabs voices, and the voices of your own account, added from the catalog in Shots",
+    href: "https://elevenlabs.io/app/settings/api-keys",
   },
   {
     id: "anthropic",
@@ -92,6 +107,7 @@ export function ProviderAccounts({
       utils.studio.modelOptions.invalidate(),
       utils.settings.chat.get.invalidate(),
       utils.shots.models.invalidate(),
+      utils.shots.mediaModels.invalidate(),
     ]);
   // A test's verdict is about the key it tested: a new or removed key drops it.
   const forget = (provider: string) => setReports((r) => ({ ...r, [provider]: undefined }));

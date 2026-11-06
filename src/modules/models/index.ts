@@ -14,6 +14,22 @@ export {
   parseCatalogConnection,
 } from "./resolve";
 export type { CatalogConnection, CatalogProviderId } from "./resolve";
+export {
+  DEFAULT_IMAGE_RATIOS,
+  IMAGE_MODEL_PROVIDERS,
+  SPEECH_MODEL_PROVIDERS,
+  estimateMediaUsd,
+  parseMediaConnection,
+  resolveMediaModels,
+} from "./media";
+export type {
+  ImageModelProvider,
+  MediaConnection,
+  MediaModel,
+  Medium,
+  SpeechModelProvider,
+  VoiceOption,
+} from "./media";
 export type {
   ResolvedModel,
   ModelStatus,

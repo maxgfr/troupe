@@ -102,6 +102,8 @@ beforeAll(async () => {
   vi.stubEnv("AI_GATEWAY_API_KEY", "");
   vi.stubEnv("XAI_API_KEY", "");
   vi.stubEnv("REPLICATE_API_TOKEN", "");
+  vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("ELEVENLABS_API_KEY", "");
   // A video model speaking the HTTP contract, finished as soon as it is asked.
   let jobs = 0;
   model = await startServer((r, res) => {
@@ -407,6 +409,8 @@ describe("troupe CLI against the studio's HTTP API", () => {
       { name: "account gateway", status: "skip", detail: "Vercel AI Gateway: no key (optional)." },
       { name: "account xai", status: "skip", detail: "xAI: no key (optional)." },
       { name: "account replicate", status: "skip", detail: "Replicate: no key (optional)." },
+      { name: "account openai", status: "skip", detail: "OpenAI: no key (optional)." },
+      { name: "account elevenlabs", status: "skip", detail: "ElevenLabs: no key (optional)." },
     ]);
 
     // The plan and its cost, and nothing launched: exit 2.

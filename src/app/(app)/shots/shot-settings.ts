@@ -148,6 +148,70 @@ export function parseMemory(raw: string | null): ComposerMemory {
   }
 }
 
+// What the composer renders: a video clip, a photo or a voice clip.
+export type ShotMedium = "video" | "image" | "speech";
+
+// The Photo and Voice composers' own draft, kept apart from the video one.
+export interface MediaMemory {
+  medium: ShotMedium;
+  photoKeys: string[];
+  aspectRatio: string | null;
+  voiceKey: string | null;
+  // The voice chosen for each voice model.
+  voices: Record<string, string>;
+  instructions: string;
+}
+
+export const MEDIA_MEMORY_KEY = "troupe.shots.media";
+
+export const EMPTY_MEDIA_MEMORY: MediaMemory = {
+  medium: "video",
+  photoKeys: [],
+  aspectRatio: null,
+  voiceKey: null,
+  voices: {},
+  instructions: "",
+};
+
+export function parseMediaMemory(raw: string | null): MediaMemory {
+  if (!raw) return EMPTY_MEDIA_MEMORY;
+  try {
+    const v = JSON.parse(raw) as Partial<MediaMemory>;
+    const voices =
+      v.voices && typeof v.voices === "object"
+        ? Object.fromEntries(Object.entries(v.voices).filter((e): e is [string, string] => typeof e[1] === "string"))
+        : {};
+    return {
+      medium: v.medium === "image" || v.medium === "speech" ? v.medium : "video",
+      photoKeys: Array.isArray(v.photoKeys)
+        ? [...new Set(v.photoKeys.filter((k): k is string => typeof k === "string"))].slice(0, MAX_MODELS)
+        : [],
+      aspectRatio: typeof v.aspectRatio === "string" ? v.aspectRatio : null,
+      voiceKey: typeof v.voiceKey === "string" ? v.voiceKey : null,
+      voices,
+      instructions: typeof v.instructions === "string" ? v.instructions.slice(0, 500) : "",
+    };
+  } catch {
+    return EMPTY_MEDIA_MEMORY;
+  }
+}
+
+// The formats every chosen photo model takes, in the first one's order.
+export function sharedRatios(models: { aspectRatios: string[] }[]): string[] {
+  const [first, ...rest] = models;
+  if (!first) return [];
+  return first.aspectRatios.filter((r) => rest.every((m) => m.aspectRatios.includes(r)));
+}
+
+// "$0.040/image est.", "$15/M chars est.", or null without a price.
+export function mediaPriceLabel(
+  price: { usd: number; per: "image" | "million-characters" } | null | undefined,
+): string | null {
+  if (!price) return null;
+  if (price.per === "image") return `$${price.usd.toFixed(price.usd < 0.1 ? 3 : 2)}/image est.`;
+  return `$${Number(price.usd.toFixed(2))}/M chars est.`;
+}
+
 // Models whose name, vendor or key holds every word of the query.
 export function matchModels<T extends { key: string; label: string; vendor: string }>(models: T[], query: string): T[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);

@@ -48,7 +48,7 @@ export async function listShots(
   opts: { favorites?: boolean; before?: Date; limit?: number } = {},
 ) {
   const rows = await db
-    .select({ generation: generations, meta: mediaAssets.meta })
+    .select({ generation: generations, meta: mediaAssets.meta, mimeType: mediaAssets.mimeType })
     .from(generations)
     .leftJoin(mediaAssets, eq(mediaAssets.id, generations.outputAssetId))
     .where(
@@ -60,8 +60,9 @@ export async function listShots(
     )
     .orderBy(desc(generations.createdAt))
     .limit(opts.limit ?? SHOTS_PAGE_SIZE);
-  return rows.map(({ generation, meta }) => ({
+  return rows.map(({ generation, meta, mimeType }) => ({
     ...generation,
+    mimeType,
     width: typeof meta?.width === "number" ? meta.width : null,
     height: typeof meta?.height === "number" ? meta.height : null,
     videoDurationS: typeof meta?.durationS === "number" ? meta.durationS : null,

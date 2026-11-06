@@ -41,8 +41,11 @@ vi.mock("~/trpc/react", () => ({
     benchmark: { start: { useMutation: () => ({}) } },
     shots: {
       models: { useQuery: () => ({ isPending: true }) },
+      mediaModels: { useQuery: () => ({ isPending: true }) },
       list: { useQuery: () => ({ isPending: true }) },
       launch: { useMutation: () => ({}) },
+      launchPhoto: { useMutation: () => ({}) },
+      launchVoice: { useMutation: () => ({}) },
       relaunch: { useMutation: () => ({}) },
       favorite: { useMutation: () => ({}) },
     },

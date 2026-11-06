@@ -133,7 +133,9 @@ export async function archiveLocalModel(db: Db, modelKey: string, archived = tru
   const updated = await db
     .update(modelConfigs)
     .set({ archived, updatedAt: new Date() })
-    .where(sql`${modelConfigs.id} = ${modelKey} and ${modelConfigs.family} in ('comfyui', 'http', 'fal', 'catalog')`)
+    .where(
+      sql`${modelConfigs.id} = ${modelKey} and ${modelConfigs.family} in ('comfyui', 'http', 'fal', 'catalog', 'image', 'speech')`,
+    )
     .returning({ id: modelConfigs.id });
   if (updated.length === 0) throw new Error(`local model ${modelKey} not found`);
 }

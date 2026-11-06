@@ -176,6 +176,13 @@
       "when": 1793954770879,
       "tag": "0024_shots",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793965509040,
+      "tag": "0025_shot-media",
+      "breakpoints": true
     }
   ]
 }

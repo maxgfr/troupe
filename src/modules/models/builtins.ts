@@ -2,7 +2,16 @@ import type { ModelCapabilities } from "~/modules/generation";
 
 // The accounts that pay for video renders: the built-ins' two, and the ones
 // the models added from a provider's catalog render on.
-export type CredentialId = "google" | "fal" | "openrouter" | "gateway" | "xai" | "replicate";
+export type CredentialId =
+  | "google"
+  | "fal"
+  | "openrouter"
+  | "gateway"
+  | "xai"
+  | "replicate"
+  // Photos and voices only (the Shots page).
+  | "openai"
+  | "elevenlabs";
 
 export interface BuiltinModel {
   key: string;

@@ -88,7 +88,11 @@ The full list:
   ([docs/CLI.md](docs/CLI.md#shots)). The lists come from
   [llm-models](https://github.com/maxgfr/llm-models) and the renders go
   through [llm-connect](https://github.com/maxgfr/llm-models/tree/main/packages/llm-connect),
-  as jobs the studio follows across restarts.
+  as jobs the studio follows across restarts. The same page draws photos
+  (Flux, Seedream, GPT Image, Gemini Image, Recraft, Grok Imagine…) on up to
+  four models side by side, and says a line with a voice model (ElevenLabs,
+  OpenAI, Gemini TTS, Fish Audio, MAI Voice…), an actor's delivery included;
+  photos and voice clips land in the same gallery.
 - Videos are checked with ffprobe before they are kept. Downloads stream with
   range requests.
 - Export presets per platform, each with the AI-disclosure rule that

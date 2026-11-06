@@ -39,6 +39,16 @@ function actorLook(actor: { gender: string; ageRange: string; style: string }): 
   return `adult, ${actor.gender}, ${actor.ageRange}, ${actor.style} style`;
 }
 
+// An actor a photo or voice shot may use: active, and the studio's or this
+// workspace's. Their look for a photo, their delivery for a voice.
+export async function shotActor(db: Db, actorId: string, workspaceId: string) {
+  const [actor] = await db.select().from(actors).where(eq(actors.id, actorId)).limit(1);
+  const visible = actor && (actor.workspaceId === null || actor.workspaceId === workspaceId);
+  if (!visible || actor!.status !== "active")
+    throw new AdapterError("ACTOR_UNAVAILABLE", "This actor is no longer available. Choose another one.");
+  return { look: `${actor!.name}, ${actorLook(actor!)}`, voiceProfile: actor!.voiceProfile };
+}
+
 // Validate everything and compile the prompt; nothing is written or sent yet.
 export async function prepareGeneration(db: Db, input: LaunchInput) {
   const [project] = await db.select().from(projects).where(eq(projects.id, input.projectId)).limit(1);

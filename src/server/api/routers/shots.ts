@@ -3,8 +3,11 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, workspaceProcedure } from "~/server/api/trpc";
-import { AdapterError, generations, launchShot, prepareShot, reconcileDueJobs } from "~/modules/generation";
-import { estimateCostUsd, type ResolvedModel } from "~/modules/models";
+import { AdapterError, generations, launchShot, prepareShot, reconcileDueJobs, shotActor } from "~/modules/generation";
+import { estimateCostUsd, estimateMediaUsd, type Medium, type ResolvedModel } from "~/modules/models";
+import type { Db } from "~/server/db/types";
+import { loadMediaModels, mediaApiKey } from "~/server/media-catalog";
+import { renderMediaShot } from "~/server/shot-media";
 import { modelOptionsFor } from "~/modules/studio";
 import { deleteShots, ensureShotsProject, favoriteShot, listShots, ShotBusyError } from "~/server/shots";
 import { pickLaunchAdapter } from "./_adapters";
@@ -24,6 +27,36 @@ export const SHOT_MAX_RENDERS = 8;
 // Only the in-browser renderer voices a script line by line; every other
 // model renders a description.
 const needsScript = (m: Pick<ResolvedModel, "family">) => m.family === "browser";
+
+// The photo or voice models chosen, each with the key it renders on; refused
+// as a whole when one cannot render.
+async function pickMedia(db: Db, keys: string[], medium: Medium) {
+  const all = await loadMediaModels(db);
+  return Promise.all(
+    keys.map(async (key) => {
+      const model = all.find((m) => m.key === key && m.medium === medium && !m.archived);
+      if (!model)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Unknown ${medium === "image" ? "photo" : "voice"} model "${key}".`,
+        });
+      const apiKey = model.status === "ready" ? await mediaApiKey(db, model.credential) : null;
+      if (!apiKey)
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `${model.label} cannot render yet: ${model.statusDetail ?? "add its key in Settings"}.`,
+        });
+      return { model, apiKey };
+    }),
+  );
+}
+
+// A photo of an actor: their look follows the description, as for videos.
+async function withActor(db: Db, text: string, actorId: string | null | undefined, workspaceId: string) {
+  if (!actorId) return text;
+  const actor = await shotActor(db, actorId, workspaceId);
+  return `${text}\n\nOn screen: ${actor.look}.`;
+}
 
 const ALREADY_RELAUNCHED = "This shot was already relaunched. Follow the newer one in the gallery.";
 
@@ -87,10 +120,14 @@ export const shotsRouter = createTRPCRouter({
       if (ctx.ingest) await reconcileDueJobs(ctx.db, { adapters: ctx.catalog.adapters, ingest: ctx.ingest, limit: 1 });
       const projectId = await ensureShotsProject(ctx.db, input.workspaceId);
       const rows = await listShots(ctx.db, projectId, { favorites: input.favorites, before: input.before });
-      const labels = new Map(ctx.catalog.models.map((m) => [m.key, m.label]));
+      const media = await loadMediaModels(ctx.db);
+      const labels = new Map([...ctx.catalog.models, ...media].map((m) => [m.key, m.label]));
       const relaunched = new Set(rows.map((r) => r.parentGenerationId).filter(Boolean));
       return rows.map((row) => ({
         id: row.id,
+        medium: row.medium,
+        options: row.options,
+        mimeType: row.mimeType,
         modelKey: row.modelKey,
         modelLabel: labels.get(row.modelKey) ?? row.modelId,
         prompt: row.prompt,
@@ -178,6 +215,86 @@ export const shotsRouter = createTRPCRouter({
       return launched;
     }),
 
+  // The photo and voice models the page can offer, with why one cannot
+  // render yet.
+  mediaModels: workspaceProcedure.query(async ({ ctx }) =>
+    (await loadMediaModels(ctx.db)).filter((m) => !m.archived).map((m) => ({ ...m, available: m.status === "ready" })),
+  ),
+
+  // Draw the description as photos: `count` on each chosen model, each its
+  // own shot, rendered while the launch waits.
+  launchPhoto: workspaceProcedure
+    .input(
+      z.object({
+        modelKeys: z.array(MODEL_KEY).min(1).max(SHOT_MAX_MODELS),
+        text: z.string().trim().min(1, "Describe the photo before launching it.").max(SHOT_MAX_CHARS),
+        aspectRatio: z.string().min(1).max(10),
+        count: z.number().int().min(1).max(SHOT_MAX_COUNT).default(1),
+        actorId: z.string().uuid().nullish(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.modelKeys.length * input.count > SHOT_MAX_RENDERS)
+        throw new TRPCError({ code: "BAD_REQUEST", message: `At most ${SHOT_MAX_RENDERS} photos per launch.` });
+      const chosen = await pickMedia(ctx.db, input.modelKeys, "image");
+      const text = await withActor(ctx.db, input.text, input.actorId, input.workspaceId).catch(asBadRequest);
+      const projectId = await ensureShotsProject(ctx.db, input.workspaceId);
+      const runs = chosen.flatMap((c) =>
+        Array.from({ length: input.count }, () =>
+          renderMediaShot(ctx.db, {
+            projectId,
+            model: c.model,
+            apiKey: c.apiKey,
+            text,
+            image: { aspectRatio: input.aspectRatio },
+            estimatedCostUsd: estimateMediaUsd(c.model, { images: 1 }),
+            actorId: input.actorId,
+          }),
+        ),
+      );
+      const done = await Promise.all(runs);
+      return done.map((g) => ({ id: g.id, modelKey: g.modelKey, status: g.status, errorDetail: g.errorDetail }));
+    }),
+
+  // Say the text with a voice, on one model.
+  launchVoice: workspaceProcedure
+    .input(
+      z.object({
+        modelKey: MODEL_KEY,
+        text: z.string().trim().min(1, "Write what the voice says before launching it.").max(SHOT_MAX_CHARS),
+        voice: z.string().max(200).nullish(),
+        language: z.string().max(20).nullish(),
+        instructions: z.string().max(500).nullish(),
+        actorId: z.string().uuid().nullish(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [chosen] = await pickMedia(ctx.db, [input.modelKey], "speech");
+      const model = chosen!.model;
+      if (input.voice && model.voices && !model.voices.some((v) => v.id === input.voice))
+        throw new TRPCError({ code: "BAD_REQUEST", message: `${model.label} has no voice ${input.voice}.` });
+      // An actor's delivery becomes the instructions of a model that takes some.
+      const actor = input.actorId
+        ? await shotActor(ctx.db, input.actorId, input.workspaceId).catch(asBadRequest)
+        : null;
+      const instructions = [input.instructions, actor?.voiceProfile].filter(Boolean).join(" ") || undefined;
+      const projectId = await ensureShotsProject(ctx.db, input.workspaceId);
+      const gen = await renderMediaShot(ctx.db, {
+        projectId,
+        model,
+        apiKey: chosen!.apiKey,
+        text: input.text,
+        speech: {
+          ...(input.voice ? { voice: input.voice } : {}),
+          ...(input.language ? { language: input.language } : {}),
+          ...(instructions ? { instructions } : {}),
+        },
+        estimatedCostUsd: estimateMediaUsd(model, { characters: input.text.length }),
+        actorId: input.actorId,
+      });
+      return [{ id: gen.id, modelKey: gen.modelKey, status: gen.status, errorDetail: gen.errorDetail }];
+    }),
+
   // Try a failed shot again with the same text, model and settings, once.
   relaunch: workspaceProcedure.input(z.object({ generationId: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     const projectId = await ensureShotsProject(ctx.db, input.workspaceId);
@@ -195,6 +312,27 @@ export const shotsRouter = createTRPCRouter({
       .where(eq(generations.parentGenerationId, failed.id))
       .limit(1);
     if (retry) throw new TRPCError({ code: "BAD_REQUEST", message: ALREADY_RELAUNCHED });
+    if (failed.medium !== "video") {
+      const [chosen] = await pickMedia(ctx.db, [failed.modelKey], failed.medium);
+      const options = (failed.options ?? {}) as Record<string, string | undefined>;
+      const gen = await renderMediaShot(ctx.db, {
+        projectId,
+        model: chosen!.model,
+        apiKey: chosen!.apiKey,
+        text: failed.prompt,
+        ...(failed.medium === "image"
+          ? { image: { aspectRatio: failed.aspectRatio, ...(options.size ? { size: options.size } : {}) } }
+          : { speech: { voice: options.voice, language: options.language, instructions: options.instructions } }),
+        estimatedCostUsd: estimateMediaUsd(chosen!.model, { images: 1, characters: failed.prompt.length }),
+        actorId: failed.actorId,
+        parentGenerationId: failed.id,
+      }).catch((error: unknown) => {
+        if (violates(error, "generation_one_relaunch_idx"))
+          throw new TRPCError({ code: "BAD_REQUEST", message: ALREADY_RELAUNCHED });
+        throw error;
+      });
+      return { id: gen.id, status: gen.status };
+    }
     const { adapter, model } = pickLaunchAdapter(ctx.catalog, failed.modelKey);
     // The stored prompt already carries the actor's description.
     const gen = await launchShot(ctx.db, {

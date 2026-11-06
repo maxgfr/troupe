@@ -184,6 +184,8 @@ const ACCOUNTS = [
   { id: "gateway", name: "Vercel AI Gateway" },
   { id: "xai", name: "xAI" },
   { id: "replicate", name: "Replicate" },
+  { id: "openai", name: "OpenAI" },
+  { id: "elevenlabs", name: "ElevenLabs" },
 ] as const;
 
 const doctor: Command = {

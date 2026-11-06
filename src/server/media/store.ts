@@ -50,6 +50,32 @@ export function mediaDisposition(download: string | null, ext: "mp4" | "webm" = 
   return name === null ? `inline; filename="${DEFAULT_DOWNLOAD_NAME}.${ext}"` : `attachment; filename="${name}"`;
 }
 
+// A photo or voice clip from the Shots page: shown or played inline, or
+// saved as troupe-shot.<ext>. Only the types renderMediaShot stores.
+const SHOT_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/flac": "flac",
+  "audio/mp4": "m4a",
+};
+
+export function shotMediaHeaders(
+  mimeType: string,
+  download: string | null,
+): { contentType: string; disposition: string } | null {
+  const ext = SHOT_TYPES[mimeType];
+  if (!ext) return null;
+  return {
+    contentType: mimeType,
+    disposition:
+      download === null ? `inline; filename="troupe-shot.${ext}"` : `attachment; filename="troupe-shot.${ext}"`,
+  };
+}
+
 // The library's files (src/modules/library), served as themselves only when
 // a browser shows them safely inline; anything else is a download.
 const INLINE_LIBRARY_TYPES = new Set([

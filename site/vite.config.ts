@@ -87,7 +87,10 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     plugins: [
       // Saving secrets needs a key kept on a server: the browser edition has
       // none.
-      shimModules({ "src/server/settings/secrets.ts": "site/src/shims/secrets.ts" }),
+      shimModules({
+        "src/server/settings/secrets.ts": "site/src/shims/secrets.ts",
+        "src/server/shot-media.ts": "site/src/shims/shot-media.ts",
+      }),
       guard(),
       react(),
       headScript(THEME_SCRIPT),

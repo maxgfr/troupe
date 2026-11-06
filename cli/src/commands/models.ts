@@ -19,10 +19,21 @@ const RESOLUTIONS = [
   "1080p",
 ] as const satisfies readonly Capabilities["resolutions"][number][];
 const AUDIO = ["always", "optional", "none"] as const satisfies readonly Capabilities["audio"][];
-const PROVIDERS = ["google", "fal", "anthropic", "openrouter", "gateway", "xai", "replicate"] as const;
+const PROVIDERS = [
+  "google",
+  "fal",
+  "anthropic",
+  "openrouter",
+  "gateway",
+  "xai",
+  "replicate",
+  "openai",
+  "elevenlabs",
+] as const;
 const KEY_ARGS = `<${PROVIDERS.join("|")}>`;
 // The providers whose video models the catalog lists (fal.ai's: models fal).
 const CATALOG_PROVIDERS = ["openrouter", "gateway", "google", "xai", "replicate"] as const;
+const MEDIA = ["video", "image", "speech"] as const;
 
 export function modelState(m: Model): string {
   if (m.archived) return "archived";
@@ -479,15 +490,49 @@ const modelsCatalog: Command = {
   args: "[search...]",
   positionals: { min: 0, max: 20 },
   summary:
-    "List the video models of OpenRouter, the Vercel AI Gateway, xAI, Google and Replicate, live, with their lengths, formats and price; add one with models catalog-add.",
+    "List the video, photo or voice models every provider offers, live, with their settings and price; add one with models catalog-add.",
   options: {
-    provider: { type: "string", description: `One provider only: ${CATALOG_PROVIDERS.join(", ")}.` },
+    medium: { type: "string", value: "<video|image|speech>", description: "What the models render (default video)." },
+    provider: {
+      type: "string",
+      description: "One provider only (openrouter, gateway, fal, google, xai, replicate, openai, elevenlabs).",
+    },
   },
-  examples: ["troupe models catalog kling", "troupe models catalog --provider openrouter seedance"],
+  examples: [
+    "troupe models catalog kling",
+    "troupe models catalog --provider openrouter seedance",
+    "troupe models catalog --medium image flux",
+    "troupe models catalog --medium speech --provider elevenlabs",
+  ],
   async run(ctx, { positionals, options }) {
-    const provider =
-      typeof options.provider === "string" ? oneOf(options.provider, CATALOG_PROVIDERS, "provider") : null;
+    const medium = typeof options.medium === "string" ? oneOf(options.medium, MEDIA, "medium") : "video";
     const words = positionals.join(" ").toLowerCase().split(/\s+/).filter(Boolean);
+    const provider = typeof options.provider === "string" ? options.provider : null;
+    if (medium !== "video") {
+      const all = await ctx.api.settings.models.mediaCatalog.query({ medium });
+      const shown = all.filter(
+        (m) =>
+          (!provider || m.provider === provider) &&
+          words.every((w) => `${m.name} ${m.id} ${m.owner}`.toLowerCase().includes(w)),
+      );
+      return {
+        data: shown,
+        text: shown.length
+          ? table(
+              ["PROVIDER", "ID", "NAME", "SETTINGS", "PRICE", "IN STUDIO"],
+              shown.map((m) => [
+                m.provider,
+                m.id,
+                m.name,
+                m.summary ?? "-",
+                m.price ? `$${m.price.usd.toFixed(3)}/${m.price.per === "image" ? "image" : "M chars"}` : "-",
+                m.modelKey ?? (m.unavailable ? "cannot add" : ""),
+              ]),
+            )
+          : `No ${medium === "image" ? "photo" : "voice"} model matches.`,
+      };
+    }
+    if (provider) oneOf(provider, CATALOG_PROVIDERS, "provider");
     const all = await ctx.api.settings.models.videoCatalog.query();
     const shown = all.filter(
       (m) =>
@@ -517,14 +562,33 @@ const modelsCatalog: Command = {
 
 const modelsCatalogAdd: Command = {
   path: ["models", "catalog-add"],
-  args: `<${CATALOG_PROVIDERS.join("|")}> <model-id>`,
+  args: "<provider> <model-id>",
   positionals: { min: 2, max: 2 },
-  summary: "Add a video model from a provider's list; its lengths, formats, resolutions and sound come from the list.",
+  summary:
+    "Add a video, photo or voice model from a provider's list; its settings come from the list. Video providers: openrouter, gateway, google, xai, replicate (fal.ai: models fal-add).",
+  options: {
+    medium: { type: "string", value: "<video|image|speech>", description: "What the model renders (default video)." },
+  },
   examples: [
     "troupe models catalog-add openrouter kwaivgi/kling-v3.0-pro",
     "troupe models catalog-add xai grok-imagine-video-1.5",
+    "troupe models catalog-add --medium image gateway bfl/flux-2-pro",
+    "troupe models catalog-add --medium speech openai gpt-4o-mini-tts",
   ],
-  async run(ctx, { positionals }) {
+  async run(ctx, { positionals, options }) {
+    const medium = typeof options.medium === "string" ? oneOf(options.medium, MEDIA, "medium") : "video";
+    if (medium !== "video") {
+      const added = await ctx.api.settings.models.addMedia.mutate({
+        medium,
+        provider: positionals[0]!,
+        id: positionals[1]!,
+      });
+      const how = medium === "image" ? "troupe shots photo" : "troupe shots voice";
+      return {
+        data: added,
+        text: `Added ${added.label} as ${added.modelKey}. Use it: ${how} --model ${added.modelKey} <text>`,
+      };
+    }
     const provider = oneOf(positionals[0]!, CATALOG_PROVIDERS, "provider");
     const added = await ctx.api.settings.models.addVideo.mutate({ provider, id: positionals[1]! });
     return {

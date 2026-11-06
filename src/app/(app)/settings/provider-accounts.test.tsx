@@ -37,7 +37,7 @@ vi.mock("~/trpc/react", () => ({
         chat: { get: { invalidate: async () => {} } },
       },
       studio: { modelOptions: { invalidate: async () => {} } },
-      shots: { models: { invalidate: async () => {} } },
+      shots: { models: { invalidate: async () => {} }, mediaModels: { invalidate: async () => {} } },
     }),
     settings: {
       credentials: {

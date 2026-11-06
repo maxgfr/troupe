@@ -10,11 +10,19 @@ import { useWorkspace } from "~/app/_components/workspace-context";
 import { api } from "~/trpc/react";
 import type { ProviderAccountId } from "../settings/provider-accounts";
 import { Composer } from "./composer";
+import { MediaComposer } from "./media-composer";
 import { CATALOG_TABS, KeyDialog, KeysDialog, ModelCatalogDialog, ShotViewer, type CatalogTab } from "./dialogs";
 import { Gallery, ScopeTabs, type GalleryScope } from "./gallery";
 import {
+  EMPTY_MEDIA_MEMORY,
   EMPTY_MEMORY,
   MAX_MODELS,
+  MEDIA_MEMORY_KEY,
+  mediaPriceLabel,
+  parseMediaMemory,
+  sharedRatios,
+  type MediaMemory,
+  type ShotMedium,
   MAX_RENDERS,
   MEMORY_KEY,
   parseMemory,
@@ -24,18 +32,55 @@ import {
   type ComposerMemory,
   type ShotSettings,
 } from "./shot-settings";
-import type { Shot, ShotModel } from "./types";
+import type { MediaShotModel, Shot, ShotModel } from "./types";
 
 // How long a deleted shot can be brought back before it is really deleted.
 const UNDO_MS = 6000;
 // How often the gallery asks again while a shot renders.
 const POLL_MS = 4000;
 
-const STARTERS = [
-  "A slow dolly toward a steaming cup of coffee on a windowsill at dawn, soft warm light.",
-  "Handheld close-up of hands unboxing a pair of white sneakers, studio light, shallow depth of field.",
-  "A drone shot rising over a quiet beach at golden hour, gentle waves, no people.",
+const STARTERS: Record<ShotMedium, string[]> = {
+  video: [
+    "A slow dolly toward a steaming cup of coffee on a windowsill at dawn, soft warm light.",
+    "Handheld close-up of hands unboxing a pair of white sneakers, studio light, shallow depth of field.",
+    "A drone shot rising over a quiet beach at golden hour, gentle waves, no people.",
+  ],
+  image: [
+    "A ceramic mug of black coffee on a linen tablecloth, morning window light, 50 mm, shallow depth of field.",
+    "A pair of white sneakers on a pastel blue backdrop, soft studio light, product photo.",
+    "A quiet beach at golden hour seen from the dunes, long shadows, film grain.",
+  ],
+  speech: [
+    "Hi! I tried this for a week, and honestly, it changed my mornings.",
+    "Three things nobody tells you before you start running. Number one: the shoes matter less than you think.",
+    "Link in my bio if you want to try it yourself. See you tomorrow!",
+  ],
+};
+
+const MEDIA_TABS: { id: ShotMedium; label: string }[] = [
+  { id: "video", label: "Video" },
+  { id: "image", label: "Photo" },
+  { id: "speech", label: "Voice" },
 ];
+
+function useMediaMemory(): [MediaMemory, (patch: Partial<MediaMemory>) => void] {
+  const [memory, setMemory] = useState<MediaMemory>(EMPTY_MEDIA_MEMORY);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    setMemory(parseMediaMemory(window.localStorage.getItem(MEDIA_MEMORY_KEY)));
+    setLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      window.localStorage.setItem(MEDIA_MEMORY_KEY, JSON.stringify(memory));
+    } catch {
+      // A full or blocked storage only loses the draft.
+    }
+  }, [memory, loaded]);
+  const update = useCallback((patch: Partial<MediaMemory>) => setMemory((m) => ({ ...m, ...patch })), []);
+  return [memory, update];
+}
 
 // The account whose key a cloud model renders on.
 const credentialOf = (model: ShotModel | null): ProviderAccountId | null => model?.credential ?? null;
@@ -71,7 +116,7 @@ export default function ShotsPage() {
     <>
       <PageHeader
         title="Shots"
-        lede="Describe a shot and render it on one model or several side by side, without a project or a script. Try another model or setting, keep the ones you like."
+        lede="Describe a shot, a photo or a line to say, and render it on one model or several side by side, without a project or a script. Try another model or setting, keep the ones you like."
       />
       {edition.kind === "browser" ? (
         <NeedsSelfHosted>
@@ -90,9 +135,12 @@ export default function ShotsPage() {
 function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   const utils = api.useUtils();
   const [memory, remember] = useComposerMemory();
+  const [media, rememberMedia] = useMediaMemory();
+  const medium = media.medium;
   const [scope, setScope] = useState<GalleryScope>("all");
   const [viewing, setViewing] = useState<Shot | null>(null);
   const [askKey, setAskKey] = useState<ShotModel | null>(null);
+  const [askMediaKey, setAskMediaKey] = useState<MediaShotModel | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
   const [falOpen, setFalOpen] = useState(false);
   // A catalog tab's provider, whose key the catalog asked for.
@@ -105,6 +153,7 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   pendingRef.current = pending;
 
   const models = api.shots.models.useQuery({ workspaceId });
+  const mediaModels = api.shots.mediaModels.useQuery({ workspaceId });
   const actors = api.actors.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   const list = api.shots.list.useQuery(
     { workspaceId, favorites: scope === "favorites" },
@@ -131,6 +180,37 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   // The launch stays within MAX_RENDERS renders in all.
   const count = Math.max(1, Math.min(memory.count, Math.floor(MAX_RENDERS / Math.max(chosen.length, 1))));
 
+  // The photo and voice models, as the picker shows them.
+  const mediaOf = (kind: "image" | "speech"): MediaShotModel[] =>
+    (mediaModels.data ?? [])
+      .filter((m) => m.medium === kind)
+      .map((m) => ({ ...m, priceLabel: mediaPriceLabel(m.price), unavailableReason: m.statusDetail }));
+  const photoModels = mediaOf("image");
+  const voiceModels = mediaOf("speech");
+  const pickedPhotos = media.photoKeys
+    .map((key) => photoModels.find((m) => m.key === key))
+    .filter((m): m is MediaShotModel => Boolean(m));
+  const chosenPhotos = pickedPhotos.length
+    ? pickedPhotos
+    : photoModels.find((m) => m.available)
+      ? [photoModels.find((m) => m.available)!]
+      : photoModels.slice(0, 1);
+  const photoRatios = sharedRatios(chosenPhotos);
+  const photoRatio =
+    media.aspectRatio && photoRatios.includes(media.aspectRatio) ? media.aspectRatio : (photoRatios[0] ?? null);
+  const chosenVoice =
+    voiceModels.find((m) => m.key === media.voiceKey) ?? voiceModels.find((m) => m.available) ?? voiceModels[0];
+  const voice = chosenVoice ? (media.voices[chosenVoice.key] ?? null) : null;
+  const photoCount = Math.max(1, Math.min(memory.count, Math.floor(MAX_RENDERS / Math.max(chosenPhotos.length, 1))));
+  const mediaCost =
+    medium === "image"
+      ? chosenPhotos.length && chosenPhotos.every((m) => m.price)
+        ? chosenPhotos.reduce((sum, m) => sum + (m.price?.usd ?? 0) * photoCount, 0)
+        : null
+      : chosenVoice?.price
+        ? (chosenVoice.price.usd * memory.text.length) / 1_000_000
+        : null;
+
   const refresh = () => Promise.all([utils.shots.list.invalidate()]);
 
   const launch = api.shots.launch.useMutation({
@@ -142,6 +222,61 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
     },
     onError: (e) => setError(errorText(e)),
   });
+  const afterMedia = {
+    onSuccess: async (launched: { status: string; errorDetail: string | null }[]) => {
+      const refused = launched.find((l) => l.status === "failed");
+      setError(refused ? (refused.errorDetail ?? "The model did not render it.") : null);
+      setScope("all");
+      await refresh();
+    },
+    onError: (e: unknown) => setError(errorText(e as Error)),
+  };
+  const launchPhoto = api.shots.launchPhoto.useMutation(afterMedia);
+  const launchVoice = api.shots.launchVoice.useMutation(afterMedia);
+
+  const toggleMedia = (model: MediaShotModel) => {
+    if (model.medium === "speech") {
+      rememberMedia({ voiceKey: model.key });
+    } else {
+      const keys = chosenPhotos.map((m) => m.key);
+      if (keys.includes(model.key)) {
+        if (keys.length > 1) rememberMedia({ photoKeys: keys.filter((k) => k !== model.key) });
+        return;
+      }
+      if (keys.length >= MAX_MODELS) return;
+      rememberMedia({ photoKeys: [...keys, model.key] });
+    }
+    if (model.status === "missing-credentials") setAskMediaKey(model);
+  };
+
+  const onLaunchMedia = () => {
+    const pending = medium === "image" ? chosenPhotos : chosenVoice ? [chosenVoice] : [];
+    const keyless = pending.find((m) => m.status === "missing-credentials");
+    if (keyless) {
+      setAskMediaKey(keyless);
+      return;
+    }
+    setError(null);
+    if (medium === "image" && photoRatio)
+      launchPhoto.mutate({
+        workspaceId,
+        text: memory.text,
+        modelKeys: chosenPhotos.map((m) => m.key),
+        aspectRatio: photoRatio,
+        count: photoCount,
+        actorId: memory.actorId,
+      });
+    else if (medium === "speech" && chosenVoice)
+      launchVoice.mutate({
+        workspaceId,
+        text: memory.text,
+        modelKey: chosenVoice.key,
+        voice,
+        instructions: media.instructions || null,
+        actorId: memory.actorId,
+      });
+  };
+
   const relaunch = api.shots.relaunch.useMutation({ onSettled: refresh, onError: (e) => setError(errorText(e)) });
   const favorite = api.shots.favorite.useMutation({ onSettled: refresh, onError: (e) => setError(errorText(e)) });
 
@@ -225,6 +360,23 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
   };
 
   const reuse = (shot: Shot) => {
+    if (shot.medium !== "video") {
+      const options = (shot.options ?? {}) as { voice?: string };
+      remember({ text: shot.prompt, actorId: null });
+      rememberMedia(
+        shot.medium === "image"
+          ? { medium: "image", photoKeys: [shot.modelKey], aspectRatio: shot.aspectRatio || null }
+          : {
+              medium: "speech",
+              voiceKey: shot.modelKey,
+              voices: options.voice ? { ...media.voices, [shot.modelKey]: options.voice } : media.voices,
+            },
+      );
+      setViewing(null);
+      setFocusNonce((n) => n + 1);
+      return;
+    }
+    rememberMedia({ medium: "video" });
     const target = offered.find((m) => m.key === shot.modelKey);
     remember({
       text: shot.prompt,
@@ -292,11 +444,23 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
           />
         ) : (
           <EmptyState
-            title="Your first shot"
-            body="Describe what the camera sees, pick a model and launch. Each render lands here, ready to compare, reuse or download."
+            title={
+              medium === "image"
+                ? "Your first photo"
+                : medium === "speech"
+                  ? "Your first voice clip"
+                  : "Your first shot"
+            }
+            body={
+              medium === "image"
+                ? "Describe the photo, pick one model or several and launch. Each photo lands here, ready to compare, reuse or download."
+                : medium === "speech"
+                  ? "Write the line, pick a voice and launch. Each clip lands here, ready to play, reuse or download."
+                  : "Describe what the camera sees, pick a model and launch. Each render lands here, ready to compare, reuse or download."
+            }
           >
             <ul className="mx-auto mt-6 flex max-w-xl flex-col gap-2 text-left">
-              {STARTERS.map((starter) => (
+              {STARTERS[medium].map((starter) => (
                 <li key={starter}>
                   <button
                     type="button"
@@ -326,7 +490,81 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
       )}
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 sm:bottom-6">
-        {models.isPending ? (
+        <div
+          role="tablist"
+          aria-label="What to render"
+          className="mb-2 inline-flex items-center gap-0.5 rounded-full bg-raised p-1 shadow-card"
+        >
+          {MEDIA_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={medium === tab.id}
+              onClick={() => {
+                rememberMedia({ medium: tab.id });
+                setError(null);
+              }}
+              className={`min-h-8 rounded-full px-3.5 text-sm font-medium transition-colors duration-150 ${
+                medium === tab.id ? "bg-primary text-on-primary" : "text-muted hover:bg-fg/[0.06] hover:text-fg"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {medium !== "video" ? (
+          mediaModels.isPending ? (
+            <Skeleton className="h-32 w-full rounded-2xl" />
+          ) : (
+            <>
+              {(medium === "image" ? photoModels : voiceModels).length === 0 ? (
+                <div className="mb-3 rounded-2xl bg-raised p-4 text-sm shadow-card">
+                  {medium === "image" ? "No photo model yet." : "No voice model yet."}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setFalOpen(true)}
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Add one from the providers' lists
+                  </button>
+                </div>
+              ) : null}
+              <MediaComposer
+                medium={medium}
+                text={memory.text}
+                onText={(text) => remember({ text })}
+                models={medium === "image" ? photoModels : voiceModels}
+                chosen={medium === "image" ? chosenPhotos : chosenVoice ? [chosenVoice] : []}
+                onToggleModel={toggleMedia}
+                onBrowseModels={() => setFalOpen(true)}
+                aspectRatios={photoRatios}
+                aspectRatio={photoRatio}
+                onAspectRatio={(aspectRatio) => rememberMedia({ aspectRatio })}
+                voice={voice}
+                onVoice={(v) => {
+                  if (!chosenVoice) return;
+                  const voices = { ...media.voices };
+                  if (v) voices[chosenVoice.key] = v;
+                  else delete voices[chosenVoice.key];
+                  rememberMedia({ voices });
+                }}
+                instructions={media.instructions}
+                onInstructions={(instructions) => rememberMedia({ instructions })}
+                actors={(actors.data ?? []).map((a) => ({ id: a.id, name: a.name }))}
+                actorId={memory.actorId}
+                onActor={(actorId) => remember({ actorId })}
+                count={photoCount}
+                onCount={(count) => remember({ count })}
+                cost={mediaCost}
+                launching={launchPhoto.isPending || launchVoice.isPending}
+                error={error}
+                onLaunch={onLaunchMedia}
+                focusNonce={focusNonce}
+              />
+            </>
+          )
+        ) : models.isPending ? (
           <Skeleton className="h-32 w-full rounded-2xl" />
         ) : offered.length === 0 ? (
           <ErrorNote>No model can render a shot yet. Add a cloud key or a local model in Settings.</ErrorNote>
@@ -367,17 +605,39 @@ function ShotsStudio({ workspaceId }: { workspaceId: string }) {
       {keysOpen ? <KeysDialog onClose={() => setKeysOpen(false)} /> : null}
       {falOpen ? (
         <ModelCatalogDialog
+          medium={medium}
           onClose={() => setFalOpen(false)}
           onAskKey={(provider) => {
             setFalOpen(false);
             setAskProvider(provider);
           }}
           onAdded={(modelKey) => {
+            if (medium === "image") {
+              const keys = chosenPhotos.map((m) => m.key);
+              if (!keys.includes(modelKey))
+                rememberMedia({
+                  photoKeys: keys.length >= MAX_MODELS ? [...keys.slice(1), modelKey] : [...keys, modelKey],
+                });
+              setFalOpen(false);
+              return;
+            }
+            if (medium === "speech") {
+              rememberMedia({ voiceKey: modelKey });
+              setFalOpen(false);
+              return;
+            }
             const keys = chosen.map((m) => m.key);
             if (!keys.includes(modelKey))
               remember({ modelKeys: keys.length >= MAX_MODELS ? [...keys.slice(1), modelKey] : [...keys, modelKey] });
             setFalOpen(false);
           }}
+        />
+      ) : null}
+      {askMediaKey ? (
+        <KeyDialog
+          provider={askMediaKey.credential as ProviderAccountId}
+          modelLabel={askMediaKey.label}
+          onClose={() => setAskMediaKey(null)}
         />
       ) : null}
       {askKey && credentialOf(askKey) ? (

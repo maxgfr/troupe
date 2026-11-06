@@ -8,7 +8,7 @@ import type { ModelDefaults } from "./resolve";
 export const modelConfigs = createTable("model_config", (d) => ({
   // The modelKey.
   id: d.text().primaryKey(),
-  family: d.text({ enum: ["veo", "fal", "comfyui", "http", "browser", "catalog"] }).notNull(),
+  family: d.text({ enum: ["veo", "fal", "comfyui", "http", "browser", "catalog", "image", "speech"] }).notNull(),
   label: d.text(),
   enabled: d.boolean().notNull().default(true),
   archived: d.boolean().notNull().default(false),

@@ -40,6 +40,8 @@ describe("private provider settings", () => {
       vi.stubEnv("AI_GATEWAY_API_KEY", "");
       vi.stubEnv("XAI_API_KEY", "xai-environment");
       vi.stubEnv("REPLICATE_API_TOKEN", "");
+      vi.stubEnv("OPENAI_API_KEY", "");
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
       await saveProviderKey({ provider: "fal", key: "fal-fixture" }, t.db);
       const raw = (
         await t.pg.query<{ apiKey: string | null; apiKeyCiphertext: string }>("select * from troupe_provider_settings")
@@ -54,6 +56,8 @@ describe("private provider settings", () => {
         gateway: { configured: false, source: "none" },
         xai: { configured: true, source: "environment" },
         replicate: { configured: false, source: "none" },
+        openai: { configured: false, source: "none" },
+        elevenlabs: { configured: false, source: "none" },
       });
       await clearProviderKey({ provider: "xai", mode: "disable" }, t.db);
       await clearProviderKey({ provider: "google", mode: "disable" }, t.db);

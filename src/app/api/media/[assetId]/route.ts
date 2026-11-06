@@ -6,7 +6,7 @@ import { LOCAL_WORKSPACE_ID } from "~/modules/identity";
 import { mediaAssets } from "~/modules/generation";
 import { supabaseDownloadUrl } from "~/server/media/supabase";
 import { serveMediaFile } from "~/server/media/serve";
-import { libraryMediaHeaders } from "~/server/media/store";
+import { libraryMediaHeaders, shotMediaHeaders } from "~/server/media/store";
 
 export async function GET(req: Request, { params }: { params: Promise<{ assetId: string }> }) {
   try {
@@ -38,6 +38,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ assetId:
       );
     if (asset.meta.storage === "supabase")
       return Response.redirect(await supabaseDownloadUrl(asset.storagePath, download));
+    // A photo or voice clip of the Shots page: served as what it is.
+    if (asset.mimeType !== "video/mp4") {
+      const as = shotMediaHeaders(asset.mimeType, download);
+      if (!as) return new Response("Not found", { status: 404 });
+      return await serveMediaFile(asset.storagePath, req.headers.get("range"), download, as);
+    }
     return await serveMediaFile(asset.storagePath, req.headers.get("range"), download);
   } catch (error) {
     if (error instanceof TRPCError) return new Response(error.message, { status: 403 });

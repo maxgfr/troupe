@@ -118,6 +118,8 @@ export const CREDENTIAL_NAME: Record<CredentialId, string> = {
   gateway: "Vercel AI Gateway",
   xai: "xAI",
   replicate: "Replicate",
+  openai: "OpenAI",
+  elevenlabs: "ElevenLabs",
 };
 const CREDENTIAL_ARTICLE: Record<CredentialId, "a" | "an"> = {
   google: "a",
@@ -126,6 +128,8 @@ const CREDENTIAL_ARTICLE: Record<CredentialId, "a" | "an"> = {
   gateway: "a",
   xai: "an",
   replicate: "a",
+  openai: "an",
+  elevenlabs: "an",
 };
 
 // What a catalog model's row holds besides its settings: which provider
@@ -210,7 +214,8 @@ export function resolveCatalog(input: {
   });
   const builtinKeys = new Set(BUILTIN_MODELS.map((b) => b.key));
   const locals = input.rows
-    .filter((r) => !builtinKeys.has(r.id))
+    // Photo and voice models are the Shots page's own (media.ts).
+    .filter((r) => !builtinKeys.has(r.id) && r.family !== "image" && r.family !== "speech")
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .map((r): ResolvedModel => {
       const caps = r.capabilities;

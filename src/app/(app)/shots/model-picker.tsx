@@ -5,24 +5,40 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "~/app/_components/icons";
 import { chipClass, fieldClass } from "~/app/_components/ui";
 import { MAX_MODELS, matchModels } from "./shot-settings";
-import type { ShotModel } from "./types";
+
+// What the picker shows of a model: video, photo or voice.
+export interface PickerModel {
+  key: string;
+  label: string;
+  vendor: string;
+  status: string;
+  available: boolean;
+  unavailableReason?: string | null;
+  needsScript?: boolean;
+  // "$0.04/image est.", "$0.13/s est."
+  priceLabel?: string | null;
+  pricePerSecondUsd?: number | null;
+}
 
 // The composer's models: a chip that opens a searchable list above it, where
 // each model is ticked on or off. The shot renders on every ticked model,
 // side by side in the gallery, up to MAX_MODELS. A model without its key
 // stays choosable: ticking it asks for the key. The arrow keys move between
 // the search and the models, Escape closes.
-export function ModelPicker({
+export function ModelPicker<T extends PickerModel>({
   models,
   value,
   onToggle,
   onBrowse,
+  max = MAX_MODELS,
 }: {
-  models: ShotModel[];
-  value: ShotModel[];
-  onToggle: (model: ShotModel) => void;
-  // Opens fal.ai's catalog, to add a model the studio does not have yet.
+  models: T[];
+  value: T[];
+  onToggle: (model: T) => void;
+  // Opens the providers' catalog, to add a model the studio does not have yet.
   onBrowse?: () => void;
+  // How many can be ticked at once (1: a plain choice).
+  max?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -32,7 +48,7 @@ export function ModelPicker({
   const items = useRef<(HTMLButtonElement | null)[]>([]);
   const shown = matchModels(models, query);
   const chosen = new Set(value.map((m) => m.key));
-  const full = chosen.size >= MAX_MODELS;
+  const full = chosen.size >= max;
 
   useEffect(() => {
     if (!open) return;
@@ -51,13 +67,16 @@ export function ModelPicker({
   };
 
   // A model that needs its key opens the key dialog: the list makes way.
-  const pick = (model: ShotModel) => {
+  const pick = (model: T) => {
     onToggle(model);
+    if (max === 1) close();
     if (!chosen.has(model.key) && model.status === "missing-credentials") close();
   };
 
-  const blocked = (model: ShotModel) =>
-    model.needsScript || (!chosen.has(model.key) && full) || (chosen.has(model.key) && chosen.size === 1);
+  const blocked = (model: T) =>
+    Boolean(model.needsScript) ||
+    (max > 1 && !chosen.has(model.key) && full) ||
+    (chosen.has(model.key) && chosen.size === 1);
 
   // From the search (index -1) or a model, to the next or previous one.
   const move = (event: React.KeyboardEvent, from: number) => {
@@ -111,7 +130,7 @@ export function ModelPicker({
             />
           </label>
           <p className="px-3 pt-2 text-xs text-muted">
-            Tick up to {MAX_MODELS} models: the shot renders on each, side by side.
+            {max > 1 ? `Tick up to ${max} models: the shot renders on each, side by side.` : "Choose the model."}
           </p>
           <ul aria-label="Models" className="mt-1 max-h-72 overflow-y-auto">
             {shown.length === 0 ? <li className="px-3 py-2 text-sm text-muted">No model matches.</li> : null}
@@ -146,7 +165,9 @@ export function ModelPicker({
                       </span>
                       <span className="block text-xs text-muted">
                         {model.vendor}
-                        {model.pricePerSecondUsd != null ? (
+                        {model.priceLabel ? (
+                          <span className="font-mono"> · {model.priceLabel}</span>
+                        ) : model.pricePerSecondUsd != null ? (
                           <span className="font-mono"> · ${model.pricePerSecondUsd.toFixed(2)}/s est.</span>
                         ) : null}
                       </span>

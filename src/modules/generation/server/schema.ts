@@ -54,6 +54,15 @@ export const generations = createTable(
     parentGenerationId: d.uuid(),
     // Kept on purpose from the Shots page; null when not a favorite.
     favoritedAt: d.timestamp({ withTimezone: true }),
+    // What the render is: a video clip, a still image or a spoken clip (the
+    // last two only from the Shots page, rendered at once, no job).
+    medium: d
+      .text({ enum: ["video", "image", "speech"] })
+      .notNull()
+      .default("video"),
+    // A photo's or a voice clip's own settings ({ size }, { voice,
+    // instructions }); null for videos, whose settings have columns.
+    options: d.jsonb().$type<Record<string, unknown>>(),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
     completedAt: d.timestamp({ withTimezone: true }),
   }),

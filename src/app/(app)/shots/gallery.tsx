@@ -16,6 +16,25 @@ const SCOPES: { id: GalleryScope; label: string }[] = [
 ];
 
 // All shots or the favorites: a tab rail the arrow keys move along.
+// What a shot is, in a few words: a clip's format and length, a photo's
+// format, a voice clip's voice and length.
+export function ShotFacts({ shot }: { shot: Shot }) {
+  const options = (shot.options ?? {}) as { voice?: string };
+  if (shot.medium === "image") return <span className="font-mono">{shot.aspectRatio || "photo"}</span>;
+  if (shot.medium === "speech")
+    return (
+      <>
+        {options.voice ? <span>{options.voice}</span> : "voice"}
+        {shot.videoDurationS ? <span className="font-mono"> · {shot.videoDurationS.toFixed(1)} s</span> : null}
+      </>
+    );
+  return (
+    <>
+      <span className="font-mono">{shot.aspectRatio}</span> · <span className="font-mono">{shot.durationS} s</span>
+    </>
+  );
+}
+
 export function ScopeTabs({ scope, onScope }: { scope: GalleryScope; onScope: (scope: GalleryScope) => void }) {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
@@ -114,12 +133,29 @@ function ShotTile({
 }) {
   const [hover, setHover] = useState(false);
   const running = shot.status === "queued" || shot.status === "in_progress";
-  const ratio = shot.width && shot.height ? `${shot.width} / ${shot.height}` : cssRatio(shot.aspectRatio);
+  const ratio =
+    shot.medium === "speech"
+      ? "16 / 9"
+      : shot.width && shot.height
+        ? `${shot.width} / ${shot.height}`
+        : cssRatio(shot.aspectRatio || "1:1");
 
   return (
     <article className="group rounded-2xl bg-surface/70 p-2" aria-label={shot.prompt.slice(0, 80)}>
       <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: ratio }}>
-        {shot.status === "completed" && shot.videoUrl ? (
+        {shot.status === "completed" && shot.videoUrl && shot.medium === "image" ? (
+          <button type="button" onClick={onOpen} className="block size-full" aria-label="Open the photo">
+            {/* biome-ignore lint/performance/noImgElement: a stored render, served by the studio itself */}
+            <img src={shot.videoUrl} alt="" loading="lazy" className="size-full object-cover" />
+          </button>
+        ) : shot.status === "completed" && shot.videoUrl && shot.medium === "speech" ? (
+          <div className="flex size-full flex-col justify-between gap-3 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--troupe-color-primary)_12%,transparent),transparent)] p-4">
+            <button type="button" onClick={onOpen} className="text-left" aria-label="Open the voice clip">
+              <p className="line-clamp-4 font-display text-base text-pretty">“{shot.prompt}”</p>
+            </button>
+            <audio src={shot.videoUrl} controls preload="none" className="w-full" />
+          </div>
+        ) : shot.status === "completed" && shot.videoUrl ? (
           <button
             type="button"
             onClick={onOpen}
@@ -172,11 +208,10 @@ function ShotTile({
       </div>
 
       <div className="px-1 pt-2">
-        <p className="line-clamp-2 text-sm text-pretty">{shot.prompt}</p>
+        {shot.medium === "speech" ? null : <p className="line-clamp-2 text-sm text-pretty">{shot.prompt}</p>}
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-muted">
-            {shot.modelLabel} · <span className="font-mono">{shot.aspectRatio}</span> ·{" "}
-            <span className="font-mono">{shot.durationS} s</span>
+            {shot.modelLabel} · <ShotFacts shot={shot} />
           </p>
           <div className="-mr-1 flex shrink-0 items-center">
             <button type="button" onClick={onReuse} aria-label="Reuse this shot" title="Reuse" className={iconButton}>

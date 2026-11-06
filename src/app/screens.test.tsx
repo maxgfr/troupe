@@ -446,6 +446,9 @@ describe("Shots composer", () => {
 
 const SHOT: Shot = {
   id: "s1",
+  medium: "video",
+  options: null,
+  mimeType: null,
   modelKey: "kling-3.0",
   modelLabel: "Kling 3.0",
   prompt: "A dolly toward a cup of coffee.",

@@ -15,7 +15,7 @@ import {
 } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 import { ProviderAccounts, type ProviderAccountId } from "../settings/provider-accounts";
-import { matchModels } from "./shot-settings";
+import { matchModels, mediaPriceLabel, type ShotMedium } from "./shot-settings";
 import type { Shot } from "./types";
 
 // A native modal dialog, the way the shortcuts list opens one: Escape and a
@@ -123,8 +123,21 @@ export const CATALOG_TABS = [
   { id: "xai", name: "xAI" },
   { id: "google", name: "Google" },
   { id: "replicate", name: "Replicate" },
+  { id: "openai", name: "OpenAI" },
+  { id: "elevenlabs", name: "ElevenLabs" },
 ] as const satisfies readonly { id: ProviderAccountId; name: string }[];
 export type CatalogTab = (typeof CATALOG_TABS)[number]["id"];
+
+// The tabs of each medium, in order.
+const TABS_FOR: Record<ShotMedium, readonly CatalogTab[]> = {
+  video: ["openrouter", "gateway", "fal", "xai", "google", "replicate"],
+  image: ["openrouter", "gateway", "fal", "openai", "google", "xai", "replicate"],
+  speech: ["gateway", "elevenlabs", "openai", "google", "fal"],
+};
+
+const TITLE: Record<ShotMedium, string> = { video: "Video models", image: "Photo models", speech: "Voice models" };
+
+type CatalogVideoTab = "openrouter" | "gateway" | "google" | "xai" | "replicate";
 
 const KEY_NAME: Record<CatalogTab, string> = {
   openrouter: "an OpenRouter",
@@ -133,6 +146,8 @@ const KEY_NAME: Record<CatalogTab, string> = {
   xai: "an xAI",
   google: "a Google AI",
   replicate: "a Replicate",
+  openai: "an OpenAI",
+  elevenlabs: "an ElevenLabs",
 };
 
 interface CatalogRow {
@@ -141,7 +156,8 @@ interface CatalogRow {
   owner: string;
   // "3–15 s · 16:9 9:16 · 720p · sound", when the list says.
   summary: string | null;
-  pricePerSecondUsd: number | null;
+  // "$0.168/s", "$0.040/image", when the list says.
+  price: string | null;
   unavailable: string | null;
   modelKey: string | null;
 }
@@ -152,53 +168,75 @@ const span = (values: number[]) =>
 // Every video model the providers offer today, one tab each: search a list
 // and add a model to the studio in one click, with the settings it takes.
 export function ModelCatalogDialog({
+  medium = "video",
   onClose,
   onAdded,
   onAskKey,
 }: {
+  medium?: ShotMedium;
   onClose: () => void;
   // The model added (or already there), to tick it in the composer.
   onAdded: (modelKey: string) => void;
   onAskKey: (provider: CatalogTab) => void;
 }) {
   const utils = api.useUtils();
-  const [tab, setTab] = useState<CatalogTab>("openrouter");
+  const tabs = TABS_FOR[medium];
+  const [tab, setTab] = useState<CatalogTab>(tabs[0]!);
+  const forVideo = medium === "video";
   const [query, setQuery] = useState("");
   const status = api.settings.credentials.status.useQuery();
   const fal = api.settings.models.falCatalog.useQuery(undefined, {
     staleTime: 10 * 60_000,
     retry: false,
-    enabled: tab === "fal",
+    enabled: forVideo && tab === "fal",
   });
   const video = api.settings.models.videoCatalog.useQuery(undefined, {
     staleTime: 10 * 60_000,
     retry: false,
-    enabled: tab !== "fal",
+    enabled: forVideo && tab !== "fal",
   });
+  const mediaList = api.settings.models.mediaCatalog.useQuery(
+    { medium: medium === "speech" ? "speech" : "image" },
+    { staleTime: 10 * 60_000, retry: false, enabled: !forVideo },
+  );
   const added = async ({ modelKey }: { modelKey: string }) => {
     await Promise.all([
       utils.shots.models.invalidate(),
       utils.settings.models.list.invalidate(),
       utils.settings.models.falCatalog.invalidate(),
       utils.settings.models.videoCatalog.invalidate(),
+      utils.settings.models.mediaCatalog.invalidate(),
+      utils.shots.mediaModels.invalidate(),
       utils.studio.modelOptions.invalidate(),
     ]);
     onAdded(modelKey);
   };
   const addFal = api.settings.models.addFal.useMutation({ onSuccess: added });
   const addVideo = api.settings.models.addVideo.useMutation({ onSuccess: added });
-  const list = tab === "fal" ? fal : video;
-  const adding = addFal.isPending || addVideo.isPending;
-  const addError = addFal.error ?? addVideo.error;
+  const addMedia = api.settings.models.addMedia.useMutation({ onSuccess: added });
+  const list = !forVideo ? mediaList : tab === "fal" ? fal : video;
+  const adding = addFal.isPending || addVideo.isPending || addMedia.isPending;
+  const addError = addFal.error ?? addVideo.error ?? addMedia.error;
 
-  const rows: CatalogRow[] =
-    tab === "fal"
+  const rows: CatalogRow[] = !forVideo
+    ? (mediaList.data ?? [])
+        .filter((m) => m.provider === tab)
+        .map((m) => ({
+          id: m.id,
+          name: m.name,
+          owner: m.owner,
+          summary: m.summary,
+          price: mediaPriceLabel(m.price)?.replace(" est.", "") ?? null,
+          unavailable: m.unavailable,
+          modelKey: m.modelKey,
+        }))
+    : tab === "fal"
       ? (fal.data ?? []).map((m) => ({
           id: m.endpoint,
           name: m.label,
           owner: m.owner,
           summary: null,
-          pricePerSecondUsd: null,
+          price: null,
           unavailable: null,
           modelKey: m.modelKey,
         }))
@@ -217,7 +255,7 @@ export function ModelCatalogDialog({
               ]
                 .filter(Boolean)
                 .join(" · ") || null,
-            pricePerSecondUsd: m.pricePerSecondUsd,
+            price: m.pricePerSecondUsd == null ? null : `$${m.pricePerSecondUsd.toFixed(3)}/s`,
             unavailable: m.unavailable,
             modelKey: m.modelKey,
           }));
@@ -234,7 +272,7 @@ export function ModelCatalogDialog({
         <div className="mb-3 flex items-start justify-between gap-4">
           <div>
             <h2 id="catalog-title" className="font-display text-xl font-semibold tracking-[-0.01em]">
-              Video models
+              {TITLE[medium]}
             </h2>
             <p className="mt-1 text-sm text-pretty text-muted">
               What each provider offers today. An added model renders on that provider's key, with the settings it
@@ -244,7 +282,7 @@ export function ModelCatalogDialog({
           <CloseButton onClose={onClose} />
         </div>
         <div role="tablist" aria-label="Providers" className="mb-3 flex flex-wrap gap-1">
-          {CATALOG_TABS.map((t) => (
+          {CATALOG_TABS.filter((t) => tabs.includes(t.id)).map((t) => (
             <button
               key={t.id}
               type="button"
@@ -278,7 +316,13 @@ export function ModelCatalogDialog({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Kling, Seedance, Wan, Veo…"
+            placeholder={
+              medium === "image"
+                ? "Flux, Seedream, GPT Image, Nano Banana…"
+                : medium === "speech"
+                  ? "Eleven v3, Gemini TTS, Fish Audio…"
+                  : "Kling, Seedance, Wan, Veo…"
+            }
             className={`${fieldClass} pl-9`}
           />
         </label>
@@ -309,7 +353,8 @@ export function ModelCatalogDialog({
             shown.map((m) => {
               const busy =
                 (addFal.isPending && addFal.variables?.endpoint === m.id) ||
-                (addVideo.isPending && addVideo.variables?.id === m.id);
+                (addVideo.isPending && addVideo.variables?.id === m.id) ||
+                (addMedia.isPending && addMedia.variables?.id === m.id);
               return (
                 <li key={m.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0">
                   <div className="min-w-0 flex-1">
@@ -320,10 +365,8 @@ export function ModelCatalogDialog({
                     </p>
                     {m.unavailable ? <p className="mt-0.5 text-xs text-warning">{m.unavailable}</p> : null}
                   </div>
-                  {m.pricePerSecondUsd != null ? (
-                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
-                      ${m.pricePerSecondUsd.toFixed(3)}/s
-                    </span>
+                  {m.price ? (
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted">{m.price}</span>
                   ) : null}
                   {m.modelKey ? (
                     <Button size="sm" variant="quiet-primary" onClick={() => onAdded(m.modelKey!)}>
@@ -336,7 +379,15 @@ export function ModelCatalogDialog({
                       variant="outline"
                       disabled={adding || Boolean(m.unavailable)}
                       onClick={() =>
-                        tab === "fal" ? addFal.mutate({ endpoint: m.id }) : addVideo.mutate({ provider: tab, id: m.id })
+                        !forVideo
+                          ? addMedia.mutate({
+                              medium: medium === "speech" ? "speech" : "image",
+                              provider: tab,
+                              id: m.id,
+                            })
+                          : tab === "fal"
+                            ? addFal.mutate({ endpoint: m.id })
+                            : addVideo.mutate({ provider: tab as CatalogVideoTab, id: m.id })
                       }
                     >
                       {busy ? "Adding…" : "Add"}
@@ -370,7 +421,14 @@ export function ShotViewer({
     <Modal labelledBy="viewer-title" onClose={onClose} className="w-[min(64rem,calc(100vw-2rem))]">
       <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="flex items-center justify-center bg-black md:rounded-l-2xl">
-          {shot.videoUrl ? (
+          {!shot.videoUrl ? null : shot.medium === "image" ? (
+            // biome-ignore lint/performance/noImgElement: a stored render, served by the studio itself
+            <img src={shot.videoUrl} alt={shot.prompt.slice(0, 120)} className="max-h-[80dvh] w-full object-contain" />
+          ) : shot.medium === "speech" ? (
+            <div className="w-full p-6">
+              <audio src={shot.videoUrl} controls autoPlay className="w-full" />
+            </div>
+          ) : (
             <video
               src={shot.videoUrl}
               controls
@@ -379,7 +437,7 @@ export function ShotViewer({
               loop
               className="max-h-[80dvh] w-full object-contain"
             />
-          ) : null}
+          )}
         </div>
         <div className="flex flex-col gap-4 p-5">
           <div className="flex items-start justify-between gap-3">
@@ -403,19 +461,38 @@ export function ShotViewer({
             </button>
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-            <dt className="text-muted">Format</dt>
-            <dd className="font-mono">{shot.aspectRatio}</dd>
-            <dt className="text-muted">Length</dt>
-            <dd className="font-mono">
-              {shot.videoDurationS ? `${shot.videoDurationS.toFixed(1)} s` : `${shot.durationS} s`}
-            </dd>
-            <dt className="text-muted">Resolution</dt>
-            <dd className="font-mono">{shot.resolution}</dd>
+            {shot.medium === "speech" ? (
+              <>
+                <dt className="text-muted">Voice</dt>
+                <dd>{(shot.options as { voice?: string } | null)?.voice ?? "The model's own"}</dd>
+              </>
+            ) : (
+              <>
+                <dt className="text-muted">Format</dt>
+                <dd className="font-mono">{shot.aspectRatio}</dd>
+              </>
+            )}
+            {shot.medium !== "image" && (shot.videoDurationS || shot.durationS) ? (
+              <>
+                <dt className="text-muted">Length</dt>
+                <dd className="font-mono">
+                  {shot.videoDurationS ? `${shot.videoDurationS.toFixed(1)} s` : `${shot.durationS} s`}
+                </dd>
+              </>
+            ) : null}
+            {shot.medium === "speech" ? null : (
+              <>
+                <dt className="text-muted">{shot.medium === "image" ? "Size" : "Resolution"}</dt>
+                <dd className="font-mono">
+                  {shot.width && shot.height ? `${shot.width}×${shot.height}` : shot.resolution}
+                </dd>
+              </>
+            )}
             {shot.costUsd != null ? (
               <>
                 <dt className="text-muted">Cost</dt>
                 <dd className="font-mono">
-                  ${Number(shot.costUsd).toFixed(2)}
+                  ${Number(shot.costUsd).toFixed(Number(shot.costUsd) < 0.1 ? 3 : 2)}
                   {shot.costSource === "estimate" ? " est." : ""}
                 </dd>
               </>

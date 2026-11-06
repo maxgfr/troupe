@@ -42,9 +42,11 @@
     "verify:live": "node scripts/verify-live.ts"
   },
   "dependencies": {
+    "@ai-sdk/elevenlabs": "^3.0.80",
     "@ai-sdk/fal": "^3.0.76",
     "@ai-sdk/gateway": "^4.0.136",
     "@ai-sdk/google": "^4.0.112",
+    "@ai-sdk/openai": "^4.0.109",
     "@ai-sdk/provider": "^4.0.36",
     "@ai-sdk/replicate": "^3.0.76",
     "@ai-sdk/xai": "^5.0.39",
@@ -61,8 +63,8 @@
     "ai": "^7.0.163",
     "drizzle-orm": "^0.45.4",
     "linkedom": "0.18.14",
-    "llm-connect": "^2.9.1",
-    "llm-models": "^1.15.0",
+    "llm-connect": "^2.10.0",
+    "llm-models": "^1.16.0",
     "next": "^15.5.28",
     "postgres": "^4.0.0",
     "react": "^19.3.1",

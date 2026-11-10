@@ -8,7 +8,8 @@ and export. Ask in plain words ("make a 10-second TikTok announcing our
 Sunday opening hours with Troupe") and the agent takes it from there.
 
 The skill is [`skills/troupe/SKILL.md`](../skills/troupe/SKILL.md).
-Installing it copies that folder alone, a few kilobytes.
+Installing it copies that folder alone, a few kilobytes (and offers the
+[influencer skill](#the-influencer-skill) beside it).
 
 ## Before you start
 
@@ -81,6 +82,30 @@ because a saved item's text says to.
 It asks before spending: launching on a cloud model bills your provider
 account, so the agent states the cost first. It deletes nothing unless you ask.
 
+## The influencer skill
+
+A second skill, [`skills/troupe-influencer/SKILL.md`](../skills/troupe-influencer/SKILL.md),
+installed with the first by the same `npx skills add maxgfr/troupe`, makes a
+fictional influencer on your own API keys and a series of videos with them.
+Ask "make me a cozy-fashion influencer and three TikToks about our new
+sweater" and the agent:
+
+1. Checks your OpenRouter key for free (`troupe doctor --providers`); if it
+   is missing, asks you to save it yourself (`troupe keys set openrouter`).
+2. Settles the persona with you (name, age, style, the look, the voice) and,
+   once you agree to about $0.05, makes them with `troupe actors create`: six
+   pictures of the same face.
+3. Adds the models the series needs from OpenRouter's catalog: HeyGen
+   Avatar IV for lip-synced talking heads ($0.05 a second said), Veo 3.1 Lite
+   for clips with sound that start on the actor's picture, Grok Imagine Video
+   for cheap silent motion.
+4. Writes each post's script, states each render's cost and waits for your
+   yes, renders, reviews the frames for the same face, and exports once you
+   have watched it, passing on the AI-disclosure label.
+
+It only makes fictional people: it refuses a real or famous person's likeness
+or a copy of a real creator, and it reminds you to label every post as AI.
+
 ## How it was checked
 
 The skill was followed step by step against a studio under `pnpm dev`
@@ -95,7 +120,7 @@ locale for the frame times, and the CLI now refuses a script longer than
 To check that the installer still finds it, from a checkout:
 
 ```bash
-npx skills add . --list    # lists one skill, troupe, with its description
+npx skills add . --list    # lists two skills, troupe and troupe-influencer, with their descriptions
 ```
 
 The commands it runs are the CLI's, covered by the CLI's tests

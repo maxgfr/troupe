@@ -71,7 +71,32 @@ models.
 
 Neither runs in CI, which has no keys.
 
+## The browser edition on OpenRouter
+
+```bash
+pnpm site:build
+OPENROUTER_KEY_FILE=~/openrouter.key pnpm site:test:openrouter
+```
+
+`site/tests/openrouter.spec.ts` drives the built site in Chrome with your
+key, read from the file and typed into Settings: it saves and tests the key,
+makes an actor (six pictures on FLUX 3 Image Klein), asks the assistant to add
+Grok Imagine Video and to render a 1 s shot of that actor (confirmed in the
+page), waits for the video in the Shots gallery, has the assistant create a
+project and its script, then asks the script chat for a change. About $0.15.
+
 ## What has been run
+
+On 2026-11-10, with one OpenRouter key, about $2 in all: actors made with FLUX
+3 Image Klein ($0.054 each, about 20 s); HeyGen Avatar IV saying a script in
+English and in French from an actor's picture ($0.23 for 4.7 s, $0.26 for
+5.3 s); Veo 3.1 Lite starting a 6 s 9:16 clip from an actor's portrait, voice
+included ($0.30); a photo of an actor in a scene from their portrait
+($0.009); the script chat and the assistant on `google/gemini-3.5-flash-lite`
+(a fraction of a cent an answer); and `pnpm site:test:openrouter`, passed. Each
+video was probed with `ffprobe`, looked at frame by frame and its speech
+transcribed back word for word. The three videos are on
+[the landing page](https://maxgfr.github.io/troupe/#examples).
 
 On 2026-10-05, on an Apple M5 with 16 GB, with no Google, fal.ai or Anthropic
 key available: the free checks returned the expected refusals for invalid

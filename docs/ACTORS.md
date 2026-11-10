@@ -40,13 +40,53 @@ They are released under Troupe's MIT license (see
   emotion.
 - **Video models** receive the pictures' paths with each job
   (`script.actor.portraits`, [LOCAL-MODELS.md](LOCAL-MODELS.md#post-jobs)), so
-  a server that animates a picture can start from the actor's own.
+  a server that animates a picture can start from the actor's own. A cloud
+  model added from a provider's list that pins a first frame (Veo, Kling,
+  Seedance, Grok Imagine… on OpenRouter) gets the front picture as that frame,
+  cropped to the video's format (keeping the face) and capped at 1280 px; a
+  talking photo (HeyGen Avatar IV on OpenRouter) animates it and says the
+  script's lines, in a stock voice of the actor's gender and the project's
+  language (English, French or Spanish; other languages use the English
+  voice). A model that only reads text gets the description, as before.
+- **Photo models** on the Shots page draw from the front picture when the
+  provider takes a reference picture (OpenRouter's Image API).
 
 The database lists each actor's set (`troupe_actor_asset`); an actor whose set
 has fewer than six pictures is shown as unavailable. A test
 (`src/modules/actors/actors.test.ts`) fails when a picture or voice sample the
 catalog declares is missing from `public/actors`, or when a sample no longer
 matches the voice the renderers would cast.
+
+## Make your own
+
+Actors → **Create an actor** (or `troupe actors create`, or ask the
+[assistant](ASSISTANT.md)) makes a synthetic person from a description: name,
+gender, age range, style, what they look like and how they speak. A photo
+model draws the front portrait from the description, then the five other
+pictures from that portrait (`input_references` on OpenRouter's Image API), so
+the face, hair and clothes stay the same:
+
+| Picture | Asked as |
+|---|---|
+| front | the description, looking at the camera, neutral, plain light grey background |
+| profile-left, profile-right | the same person, three-quarter profile |
+| happy, calm, excited | the same person, facing the camera, with that expression |
+
+It needs a photo model on OpenRouter, the only provider here that takes a
+reference picture; with an OpenRouter key and no photo model yet, FLUX 3 Image
+Klein is added on the spot (about $0.009 a picture, so $0.054 an actor, in
+about 20 seconds). The pictures live in the studio's media storage
+(`custom-actors/<actor id>/v1/`, served by `/api/actor-pictures/…` to members
+of the workspace) or, in the browser edition, with the renders in this
+browser. Nothing is kept when a picture fails. An actor made this way belongs
+to its workspace: it is listed and castable there only, marked "Made here", and
+can be deleted once no project casts it (renders already made stay). The local
+renderer, a separate server, does not see these pictures and shows the
+actor's initials on its card.
+
+Describe fictional people only: never a real or famous person's likeness, and
+label the videos as AI where you publish them (the export page says how each
+platform wants it).
 
 ## Replacing the cast
 

@@ -32,7 +32,7 @@ speaking rate (2.5 words a second by default, the same rate as the script's
 duration estimate). The model must answer with a JSON object that follows a
 schema (`summary`, every `lines` entry with its `role`, `text` and
 `emotion`, and an `actor` or null), enforced by the provider where it can
-(Ollama's `format`, Claude's structured outputs, WebLLM's `response_format`),
+(Ollama's `format`, Claude's and OpenRouter's structured outputs, WebLLM's `response_format`),
 then checked again with zod. An answer that is not valid, or is over the word
 budget, gets one more try with the problem spelled out. If that fails too, the
 chat shows what the model wrote, and an over-budget script is kept with its
@@ -47,14 +47,24 @@ The conversation is stored in `troupe_chat_message` (migration
 |---|---|---|---|
 | Self-hosted | [Ollama](https://ollama.com): the Docker stack's own, or one on your computer or network | `qwen3:4b` (2.5 GB) | in Docker, nothing: the `ollama` service downloads it on first start; otherwise `ollama pull qwen3:4b`, then keep `ollama serve` (or the app) running |
 | Self-hosted | Claude, with your Anthropic API key | `claude-opus-5-5` | Settings → Provider accounts, or `ANTHROPIC_API_KEY` |
+| Both editions | Any chat model of [OpenRouter](https://openrouter.ai) with structured outputs, with your OpenRouter key | `google/gemini-3.5-flash-lite` (about $0.002 a proposal) | Settings → Provider accounts, or `OPENROUTER_API_KEY` (self-hosted) |
 | Browser edition | [WebLLM](https://github.com/mlc-ai/web-llm), in the visitor's tab on the GPU | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` (880 MB) | nothing: downloaded once per browser on the first request |
 
 In the self-hosted studio the chat uses Claude when an Anthropic key is saved
-(or set in the environment) and Ollama otherwise; Settings → Script chat can
-pin either. Each message to Claude is billed by Anthropic. The browser edition
-offers only WebLLM: a page on the web can neither keep an API key nor reach an Ollama
-on the visitor's machine. It needs WebGPU (a recent Chrome or Edge on a
-computer with a GPU); elsewhere the chat explains why it is off.
+(or set in the environment), else OpenRouter when an OpenRouter key is, and
+Ollama otherwise; Settings → Script chat can pin any of them. In the browser
+edition it uses OpenRouter once an OpenRouter key is saved in that browser,
+and WebLLM otherwise; Settings can pin either. OpenRouter is called from the
+page itself, with the key the visitor saved there. Each message to Claude or
+OpenRouter is billed by that provider. Ollama and Claude stay with the
+self-hosted studio: a page on the web cannot reach an Ollama on the visitor's
+machine. WebLLM needs WebGPU (a recent Chrome or Edge on a computer with a
+GPU); elsewhere, without an OpenRouter key, the chat explains why it is off.
+
+OpenRouter's answers are held to the schema with `response_format`
+(`json_schema`, strict) and `provider.require_parameters`, so only providers
+that honour it answer. A model without structured outputs is refused with a
+message that says to choose another one.
 
 ### Ollama from Docker
 
@@ -90,12 +100,13 @@ use the defaults below.
 
 | Self-hosted (`.env`) | Default | |
 |---|---|---|
-| `TROUPE_CHAT_PROVIDER` | `auto` | `auto`, `ollama` or `anthropic` |
+| `TROUPE_CHAT_PROVIDER` | `auto` | `auto`, `ollama`, `anthropic` or `openrouter` |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` (Compose: `http://ollama:11434`) | private and loopback addresses are fine; cloud metadata and link-local ones are refused |
 | `OLLAMA_MODEL` | `qwen3:4b` | |
 | `ANTHROPIC_API_KEY` | — | a key saved in Settings takes precedence |
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | what each model is sent comes from a table of its capabilities (`src/server/chat/claude-models.ts`, below) |
 | `ANTHROPIC_BASE_URL` | Anthropic's API | another address that speaks Anthropic's API, such as a gateway or proxy |
+| `OPENROUTER_API_KEY` | — | a key saved in Settings takes precedence; the OpenRouter model (default `google/gemini-3.5-flash-lite`, any model whose `supported_parameters` include `structured_outputs`) is set in Settings → Script chat |
 | `TROUPE_CHAT_INSTRUCTIONS` | — | the house style, added to every request |
 | `TROUPE_CHAT_WORDS_PER_SECOND` | `2.5` | the word budget's rate, 1 to 5 |
 | `TROUPE_CHAT_TIMEOUT_S` | `180` | how long one answer may take |
@@ -122,6 +133,7 @@ too: 331 tokens for 8 s, 515 for 20 s, 1,120 for 60 s.
   answer could pass it, which the script chat's rarely do.
 - **Claude** keeps at least 8,000 tokens, which its adaptive thinking needs;
   structured output and `effort: low` keep its answers short.
+- **OpenRouter** sends it as `max_tokens` (4,000 when no cap is asked).
 - **The browser edition's WebLLM** uses `VITE_WEBLLM_MAX_TOKENS` (1,024 by
   default), raised for the library's longer answers up to 3,072.
 
@@ -152,8 +164,17 @@ more. `claude-opus-4-1` is not listed: Anthropic retired it on 2026-08-05.
 
 `pnpm test` covers the prompt, the checks and the repair, applying (origin
 `chat`, roles and emotions kept, row-level security), the router against a
-fake Ollama over HTTP and the Anthropic SDK against a fake API server: no real
-key or paid call. `pnpm site:test:chat` (after `pnpm site:build`) runs the
+fake Ollama over HTTP, the Anthropic SDK against a fake API server and the
+OpenRouter chat against a fake fetch: no real key or paid call. One real
+proposal on OpenRouter's default model (`google/gemini-3.5-flash-lite`) was
+checked on 2026-11-10: a valid three-line script in 1.2 s. `pnpm site:test:chat` (after `pnpm site:build`) runs the
 browser edition's chat for real in headed Chrome: a request, Apply, then Apply &
 relaunch rendered in the tab. It needs WebGPU and downloads the chat model
 into the render test's browser profile once, so it runs locally, not in CI.
+
+## The studio assistant
+
+The script chat proposes scripts for one project. The **Assistant** page does
+more: it makes actors, adds models, creates projects, writes scripts and
+launches renders with tools, on your OpenRouter key, each paid step confirmed
+first. See [ASSISTANT.md](ASSISTANT.md).

@@ -63,6 +63,7 @@
               <li>The whole studio, its database and your renders live in this tab.</li>
               <li>Kokoro voices and captions, rendered in the tab: on your GPU when the browser has WebGPU, on the CPU otherwise.</li>
               <li>A script chat that runs on your GPU too: no key, no server.</li>
+              <li>Or bring an OpenRouter key: make actors, render on cloud video models, chat with the assistant, straight from this page.</li>
             </ul>
             <a class="button" href="app/">Open Troupe in your browser</a>
             <p class="note">Chrome or Edge. The voices download once, on your first render: 326&nbsp;MB with WebGPU, 92&nbsp;MB on the CPU.</p>
@@ -84,7 +85,7 @@
           <section class="stage stage--server rise" aria-labelledby="server-title">
             <h2 id="server-title">On your server</h2>
             <ul class="facts">
-              <li>Cloud video models with your own keys: Veo, Kling, Seedance.</li>
+              <li>Cloud video models with your own keys: OpenRouter, Google, fal.ai, xAI, Replicate.</li>
               <li>Your own GPU through ComfyUI, or the local renderer.</li>
               <li>Keys stay on your server, encrypted at rest.</li>
             </ul>
@@ -184,10 +185,62 @@
         </ol>
       </section>
 
+      <section class="examples wrap" id="examples" aria-labelledby="examples-title">
+        <h2 id="examples-title" class="section-title">Made with one OpenRouter key</h2>
+        <p class="section-lede">Three people who do not exist, three short ads, rendered by Troupe on 10 November 2026 with one OpenRouter key and the cheapest models that do the job. Each actor was made in the studio from a description: a photo model drew a front portrait, then five more pictures from it, so the face stays the same. The videos start from that portrait. Nothing was edited; the costs are what OpenRouter billed.</p>
+        <ul class="examples__grid">
+          <li class="example">
+            <video controls preload="none" playsinline poster="/examples/maya-serum.jpg" width="540" height="960" aria-describedby="example-maya">
+              <source src="/examples/maya-serum.mp4" type="video/mp4" />
+            </video>
+            <div class="example__body" id="example-maya">
+              <h3>A skincare creator on TikTok</h3>
+              <img class="example__set" src="/examples/maya-set.jpg" width="1080" height="240" alt="Maya's six pictures: front, two side views, happy, calm and excited" loading="lazy" />
+              <blockquote>“Three drops a night, and my skin finally stopped fighting me. Link in bio if you want to try it.”</blockquote>
+              <ul class="example__facts mono">
+                <li>Actor: FLUX 3 Image Klein, 6 pictures, $0.054</li>
+                <li>Video: HeyGen Avatar IV, lip-synced, 4.7&nbsp;s, $0.23</li>
+              </ul>
+            </div>
+          </li>
+          <li class="example">
+            <video controls preload="none" playsinline poster="/examples/theo-earbuds.jpg" width="540" height="960" aria-describedby="example-theo">
+              <source src="/examples/theo-earbuds.mp4" type="video/mp4" />
+            </video>
+            <div class="example__body" id="example-theo">
+              <h3>A tech reviewer on YouTube Shorts</h3>
+              <img class="example__set" src="/examples/theo-set.jpg" width="1080" height="240" alt="Theo's six pictures: front, two side views, happy, calm and excited" loading="lazy" />
+              <blockquote>“These earbuds cost forty bucks and beat my two-hundred-dollar pair.”</blockquote>
+              <ul class="example__facts mono">
+                <li>Actor: FLUX 3 Image Klein, 6 pictures, $0.054</li>
+                <li>Video: Veo 3.1 Lite from his portrait, voice included, 6&nbsp;s at 720p, $0.30</li>
+              </ul>
+            </div>
+          </li>
+          <li class="example">
+            <video controls preload="none" playsinline poster="/examples/helene-croissants.jpg" width="540" height="960" aria-describedby="example-helene">
+              <source src="/examples/helene-croissants.mp4" type="video/mp4" />
+            </video>
+            <div class="example__body" id="example-helene">
+              <h3>A bakery on Instagram, in French</h3>
+              <img class="example__set" src="/examples/helene-set.jpg" width="1080" height="240" alt="Hélène's six pictures: front, two side views, happy, calm and excited" loading="lazy" />
+              <blockquote lang="fr">« Tous les vendredis, croissants tout chauds dès sept heures. Venez tôt, ils partent vite. »</blockquote>
+              <ul class="example__facts mono">
+                <li>Actor: FLUX 3 Image Klein, 6 pictures, $0.054</li>
+                <li>Video: HeyGen Avatar IV, French voice, 5.3&nbsp;s, $0.26</li>
+                <li>Photo below: FLUX 3 Image Klein from her portrait, $0.009</li>
+              </ul>
+              <img class="example__photo" src="/examples/helene-bakery.jpg" width="540" height="956" alt="Hélène behind the counter of her bakery, holding a tray of croissants, drawn from her portrait" loading="lazy" />
+            </div>
+          </li>
+        </ul>
+        <p class="examples__how">The same in your browser or on your server: add an OpenRouter key in Settings, then <strong>Actors → Create an actor</strong>, or ask the <strong>Assistant</strong> in your own words (“make a skincare creator and have her say this line on Avatar IV”); it asks before anything costs money. From a terminal, <code>troupe actors create</code>; for a coding agent, <code>npx skills add maxgfr/troupe</code> and its <a href="%REPO_URL%/blob/main/skills/troupe-influencer/SKILL.md">influencer skill</a>. AI-made people and voices: label them as AI where you publish.</p>
+      </section>
+
       <section class="cast wrap" id="cast" aria-labelledby="cast-title">
         <div class="cast__intro">
           <h2 id="cast-title" class="section-title">Thirty actors, six pictures each</h2>
-          <p>Synthetic people, generated for Troupe with FLUX.2 [klein]: nobody was photographed. Each has a voice and six pictures: a front view, two profiles and three expressions. A render’s actor card shows the front picture, or the happy, calm or excited one on lines with that emotion; the AI video mode draws no card. With a cloud video model the actor guides the prompt, and the face changes from one render to the next.</p>
+          <p>Synthetic people, generated for Troupe with FLUX.2 [klein]: nobody was photographed. Each has a voice and six pictures: a front view, two profiles and three expressions. A render’s actor card shows the front picture, or the happy, calm or excited one on lines with that emotion; the AI video mode draws no card. Cloud video models that take a picture start from the actor’s front picture, and talking-photo models make it speak, so the face stays the same. Make your own actors with a photo model, <a href="#examples">as above</a>.</p>
         </div>
         <ul class="cast__grid"><!--troupe:cast--></ul>
       </section>
@@ -222,18 +275,18 @@
               </tr>
               <tr>
                 <th scope="row">Video models</th>
-                <td data-edition="In your browser">Kokoro voice + captions, rendered in the tab.</td>
+                <td data-edition="In your browser">Kokoro voice + captions, rendered in the tab; OpenRouter’s video models with your key.</td>
                 <td data-edition="On your server">Veo, Kling and Seedance with your keys; LTX-2 and Wan through ComfyUI; the local renderer, with an opt-in AI video mode; any HTTP model server.</td>
               </tr>
               <tr>
                 <th scope="row">Cloud models</th>
-                <td data-edition="In your browser" class="unlit">Not here: an API key needs a server to keep it.</td>
-                <td data-edition="On your server">Billed by the provider to your own account.</td>
+                <td data-edition="In your browser">OpenRouter: one key for video, photo, actors and the chat, encrypted in this browser and sent to OpenRouter only. Billed to your account.</td>
+                <td data-edition="On your server">OpenRouter, Google, fal.ai, xAI, Replicate and more. Billed by the provider to your own account.</td>
               </tr>
               <tr>
                 <th scope="row">Script chat</th>
-                <td data-edition="In your browser">Qwen2.5 1.5B through WebLLM, on your GPU (880&nbsp;MB, once).</td>
-                <td data-edition="On your server">Ollama, running in the Docker stack, or Claude with an Anthropic key.</td>
+                <td data-edition="In your browser">Qwen2.5 1.5B through WebLLM, on your GPU (880&nbsp;MB, once), or any OpenRouter model with your key. The assistant drives the studio by chat.</td>
+                <td data-edition="On your server">Ollama, running in the Docker stack, Claude with an Anthropic key, or OpenRouter. The assistant too.</td>
               </tr>
               <tr>
                 <th scope="row">Model servers on your machine</th>
@@ -301,9 +354,14 @@
             <p class="ticket__status ticket__status--todo">Workflows validated by ComfyUI 0.38.0, not yet rendered end to end. They target 24&nbsp;GB NVIDIA cards.</p>
           </li>
           <li class="ticket">
-            <div class="ticket__name"><h3>Veo 3.1 Fast · Kling 3.0 · Seedance 1.5 Pro</h3><span>self-hosted, your keys</span></div>
+            <div class="ticket__name"><h3>OpenRouter: Avatar IV · Veo 3.1 Lite · Grok Imagine</h3><span>both editions, your key</span></div>
+            <ul class="ticket__stubs mono"><li>OpenRouter</li><li>voice / lip sync</li><li>from the actor’s picture</li></ul>
+            <p class="ticket__status ticket__status--ok">Rendered end to end with a real key, in the studio and in Chrome: <a href="#examples">the examples above</a>. Any other OpenRouter video model can be added from its live list.</p>
+          </li>
+          <li class="ticket">
+            <div class="ticket__name"><h3>Veo 3.1 Fast · Kling 3.0 · Seedance 1.5 Pro</h3><span>self-hosted, Google and fal.ai keys</span></div>
             <ul class="ticket__stubs mono"><li>Google AI · fal.ai</li><li>audio</li><li>3–15 s</li></ul>
-            <p class="ticket__status ticket__status--todo">Tested against recorded API responses. Not yet run with paid keys for this release.</p>
+            <p class="ticket__status ticket__status--todo">On their own providers’ keys: tested against recorded API responses, not yet run with paid keys. Through OpenRouter, Veo renders (above).</p>
           </li>
           <li class="ticket">
             <div class="ticket__name"><h3>Your own model</h3><span>self-hosted</span></div>
@@ -320,7 +378,8 @@
           <li><strong>Downloads, once per browser.</strong> The voices are 326&nbsp;MB on WebGPU (92&nbsp;MB on the CPU, several times slower). The chat model is 880&nbsp;MB and needs WebGPU.</li>
           <li><strong>English voices.</strong> Kokoro speaks English; other languages are read with English pronunciation.</li>
           <li><strong>Your projects live in one browser.</strong> Export a backup to keep them or move them; clearing the site’s data deletes them.</li>
-          <li><strong>No fixed face.</strong> Actors guide the voice and the prompt. Troupe does not promise the same face from a video model, dubbing or lip sync.</li>
+          <li><strong>The same face, from a picture.</strong> Video models that take the actor’s picture kept the face in our renders; models that only read text still change it. Lips follow the voice on talking-photo models (HeyGen Avatar IV) and on models that voice the lines themselves (Veo).</li>
+          <li><strong>Cloud models cost money.</strong> Your key, your bill: the studio shows a price before each render, and the assistant asks before anything paid.</li>
           <li><strong>Small chat model.</strong> In the browser, a 1.5B model rewrites short scripts well and long ones less so; you read every proposal before applying it.</li>
         </ul>
       </section>

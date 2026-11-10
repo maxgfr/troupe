@@ -1,9 +1,11 @@
 # Troupe
 
-Write a short script, cast one of 30 actors and render it as an MP4 with the
-models you choose: cloud video models with your own API keys, your own GPU
-through ComfyUI, or a renderer that voices and captions it on the CPU. No
-account, subscription or credits. MIT licensed.
+Write a short script, cast one of 30 actors (or make your own synthetic
+influencer from a description) and render it as an MP4 with the models you
+choose: cloud video models with your own API keys, your own GPU through
+ComfyUI, or a renderer that voices and captions it on the CPU. One OpenRouter
+key is enough for actors, talking videos, photos and the chat, in your browser
+or on your server. No account, subscription or credits. MIT licensed.
 
 **[Open Troupe in your browser](https://maxgfr.github.io/troupe/)** ·
 [Watch the tour](site/public/tour/troupe-tour.mp4) ·
@@ -66,9 +68,20 @@ The full list:
   expressions) and a voice
   ([docs/ACTORS.md](docs/ACTORS.md) explains how they were made and how to
   replace them).
+- Your own actors and influencer personas, made from a description with a
+  photo model on your key: a front portrait, then the five other pictures drawn
+  from it so the face stays the same (about $0.05 on OpenRouter). Video models
+  that take a picture start from the actor's portrait, framed to the video's
+  format, and talking-photo models (HeyGen Avatar IV on OpenRouter) make it say
+  the script with lip sync ([docs/ACTORS.md](docs/ACTORS.md#make-your-own)).
+- The assistant: drive the whole studio by chat on your OpenRouter key (make
+  an actor, add a model, write the script, render, draw a photo); anything that
+  costs money waits for your Confirm, with its price
+  ([docs/ASSISTANT.md](docs/ASSISTANT.md)).
 - Versioned scripts with an emotion per line; restore any earlier version.
 - The script chat: Ollama by default (the Docker stack runs its own), Claude
-  with an Anthropic key, WebLLM in the browser edition
+  with an Anthropic key, any OpenRouter model with an OpenRouter key, WebLLM in
+  the browser edition
   ([docs/SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md)).
 - An inspiration library: save videos, posts, articles, sound, pictures and
   PDFs (files, pasted text or links). Your own models transcribe them, look
@@ -190,8 +203,9 @@ covers the tests and each part.
 |---|---|---|
 | Where it runs | the visitor's browser, from a static site | Docker, a server, or Vercel + Supabase |
 | Where your data lives | that browser, with a backup file to export | your database and your disk |
-| Video models | Kokoro voice + captions, rendered in the tab | every model in the table below |
-| Script chat | WebLLM on the GPU | Ollama or Claude |
+| Video models | Kokoro voice + captions, rendered in the tab; OpenRouter's video models with your key | every model in the table below |
+| Photos, voices, actors you make | on OpenRouter, with your key (sealed in this browser) | every provider with a key |
+| Script chat and assistant | WebLLM on the GPU, or OpenRouter with your key | Ollama, Claude or OpenRouter |
 | CLI and agent skill | no | yes |
 
 | Model | Where it runs | Audio | Formats | Lengths |
@@ -259,6 +273,29 @@ suite checks that page against the code, so it stays complete.
 
 ## Honest status
 
+What was run for real on 2026-11-10, with one OpenRouter key (about $2 in
+all, every test included):
+
+- **Actors made with a photo model:** three actors drawn by FLUX 3 Image
+  Klein in the self-hosted studio (21 s and $0.054 each) and one in Chrome in
+  the browser edition; the six pictures of each keep the same face.
+- **Talking videos from the actor's picture:** HeyGen Avatar IV said a script
+  in English and in French with the actor's face and lip sync (4.7 s for $0.23,
+  5.3 s for $0.26); Veo 3.1 Lite started a 6 s 9:16 clip from the actor's
+  portrait and voiced the line ($0.30); Grok Imagine rendered a 1 s shot of an
+  actor in the browser edition. Each video was probed, looked at, and its
+  speech transcribed back word for word. They are on
+  [the landing page](https://maxgfr.github.io/troupe/#examples).
+- **A photo of an actor in a scene**, drawn from their portrait ($0.009).
+- **The script chat and the assistant on OpenRouter**, in both editions:
+  `site/tests/openrouter.spec.ts` saves the key in Chrome, makes an actor,
+  has the assistant add a model and render a confirmed shot, write a project's
+  script, then gets a chat proposal (`pnpm site:test:openrouter`, about
+  $0.15).
+- **Not run:** voice clips on OpenRouter (its speech models are not on the
+  Shots page's voice providers), and the other OpenRouter video models
+  (they go through the same adapter).
+
 What was checked, and how (2026-10-05):
 
 - **Cloud video models (Veo, Kling, Seedance) and Claude:** the adapters
@@ -315,8 +352,9 @@ Reports are welcome.
 | [VERCEL-SUPABASE.md](docs/VERCEL-SUPABASE.md) | Serverless hosting |
 | [LOCAL-MODELS.md](docs/LOCAL-MODELS.md) | The local renderer, its AI video mode, ComfyUI, the HTTP contract |
 | [SCRIPT-CHAT.md](docs/SCRIPT-CHAT.md) | The script chat and its models |
+| [ASSISTANT.md](docs/ASSISTANT.md) | The studio assistant: actors, models, projects, scripts and renders by chat, on your OpenRouter key |
 | [LIBRARY.md](docs/LIBRARY.md) | The inspiration library |
-| [ACTORS.md](docs/ACTORS.md) | The 30 actors: how they were made, how to replace them |
+| [ACTORS.md](docs/ACTORS.md) | The 30 actors, how they were made, and making your own |
 | [CLI.md](docs/CLI.md) · [AGENT-SKILL.md](docs/AGENT-SKILL.md) | The `troupe` CLI and the agent skill |
 | [CUSTOMIZING.md](docs/CUSTOMIZING.md) | Every setting, with its default |
 | [LIVE-CHECKS.md](docs/LIVE-CHECKS.md) | Checking real providers with your keys |

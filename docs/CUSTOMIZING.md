@@ -99,9 +99,11 @@ one with measurements; the weights' licenses are in
 
 ### The script chat
 
-- **Provider**: Ollama by default, Claude once an Anthropic key is set
-  (`TROUPE_CHAT_PROVIDER` forces one), WebLLM in the browser edition.
-- **Model**: `OLLAMA_MODEL`, `ANTHROPIC_MODEL`, `VITE_WEBLLM_MODEL`.
+- **Provider**: Ollama by default, Claude once an Anthropic key is set,
+  OpenRouter once an OpenRouter key is set (`TROUPE_CHAT_PROVIDER` forces
+  one); OpenRouter or WebLLM in the browser edition.
+- **Model**: `OLLAMA_MODEL`, `ANTHROPIC_MODEL`, `VITE_WEBLLM_MODEL`; the
+  OpenRouter model in Settings → Script chat.
 - **Address**: `OLLAMA_URL`, and `ANTHROPIC_BASE_URL` for a gateway or proxy
   in front of Anthropic's API.
 - **House style** (what every request is told about tone, words to avoid and
@@ -157,7 +159,7 @@ in `.env`: `docker-compose.yml` passes each one on to the `app` service.
 | `TROUPE_RENDERER_LABEL` | `Local renderer` | Its name in the studio. |
 | `TROUPE_RENDERER_DURATIONS` | `4,6,8,10,15` | The clip lengths it offers, in seconds (1 to 60). |
 | `TROUPE_RENDERER_TOKEN` | none | A token the renderer requires; saved, encrypted, with the model. The stack's renderer reads it too. |
-| `TROUPE_CHAT_PROVIDER` | `auto` | `auto`, `ollama` or `anthropic`. |
+| `TROUPE_CHAT_PROVIDER` | `auto` | `auto`, `ollama`, `anthropic` or `openrouter`. |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` (Compose: `http://ollama:11434`) | The Ollama the chat (and the library) talk to. |
 | `OLLAMA_MODEL` | `qwen3:4b` | The chat's Ollama model; the stack's `ollama` service downloads it. |
 | `ANTHROPIC_API_KEY` | none | Claude for the chat; a key saved in Settings wins. |

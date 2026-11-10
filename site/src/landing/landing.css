@@ -1088,3 +1088,72 @@ code {
     min-height: 44px;
   }
 }
+
+/* --- Examples: real renders on an OpenRouter key ---------------------- */
+
+.examples {
+  padding-block: clamp(56px, 8vw, 104px);
+  border-top: 1px solid var(--line);
+}
+.examples__grid {
+  margin-top: 36px;
+  display: grid;
+  gap: 40px 28px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 960px) {
+  .examples__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.example {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.example video,
+.example__photo {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+  outline: 1px solid var(--picture-edge);
+  outline-offset: -1px;
+}
+.example__body {
+  display: grid;
+  gap: 10px;
+}
+.example__body h3 {
+  font: 600 1.15rem / 1.25 var(--font-display);
+}
+.example__set {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.example blockquote {
+  color: var(--fg);
+  font-style: italic;
+  max-width: 44ch;
+}
+.example__facts {
+  display: grid;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.examples__how {
+  margin-top: 36px;
+  max-width: 72ch;
+  color: var(--muted);
+}
+.example blockquote {
+  margin: 0;
+}
+.example .example__photo {
+  max-width: 180px;
+  border-radius: 10px;
+}

@@ -37,11 +37,42 @@ below).
 
 | In the browser edition | Needs the self-hosted studio |
 |---|---|
-| Projects, the wizard, actors, versioned scripts with emotions, the Compare and Export pages, light and dark themes | Cloud models: they need an API key kept on a server. Settings and the wizard say so, with a link to [SELF-HOSTING.md](SELF-HOSTING.md). |
+| Projects, the wizard, actors, versioned scripts with emotions, the Compare and Export pages, light and dark themes | Cloud models of other providers than OpenRouter (Google, fal.ai, xAI, Replicate…): their APIs are called from a server. Settings and the wizard say so, with a link to [SELF-HOSTING.md](SELF-HOSTING.md). |
+| **OpenRouter, on your own key** (see [Cloud models on OpenRouter](#cloud-models-on-openrouter)): its video models (talking photos such as HeyGen Avatar IV, Veo, Grok Imagine…), photos on the Shots page, **actors you make** from a description, the script chat and the [assistant](ASSISTANT.md) | |
 | Rendering in the browser with **Kokoro voice + captions**: the same voices and picture as the local renderer, played, seeked and downloaded as MP4 | ComfyUI and other model servers: a web page cannot reach servers on your machine |
-| Data that survives reloads and new deploys, a backup to export and import, and **Delete all local data** (see [Your data](#your-data)) | Provider accounts (Settings says why instead of the form) |
-| The **script chat**, with a small model run by [WebLLM](https://github.com/mlc-ai/web-llm) on the GPU (880 MB, once per browser; needs WebGPU), then Apply & relaunch in the tab ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)) | Ollama and Claude for the chat: no server to keep a key or reach your machine |
+| Data that survives reloads and new deploys, a backup to export and import, and **Delete all local data** (see [Your data](#your-data)) | Keys of other providers (Settings offers OpenRouter's only) |
+| The **script chat**: OpenRouter with your own key, called from the page, or a small model run by [WebLLM](https://github.com/mlc-ai/web-llm) on the GPU (880 MB, once per browser; needs WebGPU), then Apply & relaunch in the tab ([SCRIPT-CHAT.md](SCRIPT-CHAT.md)) | Ollama and Claude for the chat: a page cannot reach an Ollama on your machine |
 | | Background render checks: a render runs in the tab that launched it |
+
+## Cloud models on OpenRouter
+
+Add an OpenRouter key in Settings → Provider accounts. From then on the page
+calls OpenRouter itself (its API answers web pages: CORS), with nothing in
+between:
+
+- **The key** is sealed with AES-GCM through WebCrypto, under a key this
+  browser generates once and keeps in its own IndexedDB database
+  (`troupe-keys`) as a non-extractable `CryptoKey`. Only OpenRouter receives
+  it. A backup holds the sealed key only, which no other browser can open:
+  after an import, enter the key again. **Delete all local data** forgets both.
+- **Video models** are added from OpenRouter's live list (the Shots page's
+  model catalog, or the assistant). A render runs at OpenRouter; the page
+  checks on it while a studio page is open (the project page, the Shots
+  gallery) and downloads the finished MP4 into this browser, where it plays
+  like any other render. A render left running with every tab closed is
+  picked up when you come back.
+- **Actors you make** (Actors → Create an actor): six pictures drawn on a
+  photo model (FLUX 3 Image Klein by default, about a cent each), kept with
+  your renders in this browser. Video models that take a picture start from
+  the actor's portrait, cropped to the video's format on a canvas.
+- **Photos** on the Shots page, on OpenRouter's photo models, drawn from the
+  actor's portrait when one is chosen. Voice clips need another provider and
+  so the self-hosted studio.
+- **The script chat and the assistant** on any OpenRouter model.
+
+The site's Content-Security-Policy lets the page reach `https://openrouter.ai`
+and nothing else of the kind. `pnpm site:test:openrouter` runs all of it in
+Chrome with your key (about $0.15, [LIVE-CHECKS.md](LIVE-CHECKS.md)).
 
 ## Your data
 

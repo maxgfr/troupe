@@ -222,8 +222,10 @@ differs from your terminal's view when the studio runs in Docker
 
 | Command | Does |
 |---|---|
-| `actors list [--gender] [--age] [--style]` | The actor presets: name, gender, age, style, voice, status. |
+| `actors list [--gender] [--age] [--style]` | The library's actors and the ones you made (`MADE`: `library` or `yours`): name, gender, age, style, voice, status. |
 | `actors show <actor>` | One actor, with the address of their front picture. |
+| `actors create --name --gender --age --style --look --voice [--model <model>]` | Make a fictional actor from a description. A photo model on your own key draws their six pictures: the front from `--look`, then the two side views and three expressions from that front, so the face stays the same. It must take a reference picture (OpenRouter's photo models do); without `--model` the first one added is used, else FLUX.3 [klein] on your OpenRouter key, added on the spot (about $0.01 a picture, $0.05 the set). The command says which model draws them and what it should cost before it starts, waits (about a minute), and prints the cost the provider reported. `--gender` is `female`, `male` or `nonbinary`; `--voice` is how they speak ("warm and upbeat, mid-tempo"), which models that voice them get. Without an OpenRouter key: `NO_KEY`, nothing drawn. |
+| `actors delete <actor> --yes` | Delete an actor you made, with their pictures. A library actor is refused (`NOT_DELETABLE`), and so is an actor a project still casts; renders already made keep their video. |
 | `projects list` | Projects, newest first, with their stage (`*` marks the current one). |
 | `projects create --title --actor [--platform] [--format] [--language] [--model] [--no-use]` | What the wizard does; makes it the current project. Platform `tiktok` by default, format the platform's preferred one, language `en`. |
 | `projects show [<project>]` | Actor, model, newest script version, renders. |
@@ -367,6 +369,31 @@ troupe export create --caption "Folds into its own pocket" --hashtag raincoat --
 troupe download <export-id>
 ```
 
+## A synthetic influencer, on API keys
+
+One OpenRouter key does all of it: the actor's pictures, a lip-synced
+talking head, and clips that start on the actor's picture. Prices are
+OpenRouter's list prices; each paid command bills your account.
+
+```bash
+troupe keys set openrouter              # prompts without echoing
+troupe doctor --providers               # "account openrouter: ok", for free
+troupe actors create --name Jade --gender female --age 25-34 --style casual \
+  --look "Curly auburn hair, freckles, green eyes, mustard knit sweater" \
+  --voice "warm and upbeat, mid-tempo"  # 6 pictures, about $0.05
+troupe models catalog-add openrouter heygen/avatar-iv       # talking head, $0.05/s
+troupe models catalog-add openrouter google/veo-3.1-lite    # image-to-video with sound, $0.05/s at 720p
+troupe projects create --title "Autumn sweater" --actor Jade
+troupe script set script.txt
+troupe render launch --model openrouter-heygen-avatar-iv --duration 10 --watch
+```
+
+HeyGen Avatar IV animates the actor's front picture and says the script's
+lines in a stock HeyGen voice of their gender and language; the clip lasts
+as long as the lines and is billed per second said. Models that take a first
+frame (Veo 3.1 Lite, Grok Imagine Video, Kling…) start on the actor's
+picture, cropped to the video's format, so the face stays the actor's.
+
 ## JSON shapes
 
 `--json` prints what the studio's API returns, with these additions:
@@ -391,7 +418,10 @@ troupe download <export-id>
 - `models edit`: `{ modelKey, label, baseUrl, templateId, hasToken }`, as
   saved.
 - `actors list` / `actors show`: `{ id, name, gender, ageRange, style,
-  voiceProfile, status, portraitUrl }` (absolute URL).
+  voiceProfile, status, custom, portraitUrl }` (absolute URL; `custom`: made
+  in this studio). `actors create`: the same, with `costUsd` (what the
+  provider reported, else the list price; null when neither is known),
+  `modelKey` and `modelLabel`. `actors delete`: `{ deleted, actor: { id, name } }`.
 - `projects create` / `projects list`: project rows `{ id, title, platform,
   format, language, actorId, modelKey, status, createdAt }` (`list` has the
   computed stage in `status`). `projects show` and `projects edit`:

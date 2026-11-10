@@ -9,6 +9,7 @@ describe("chatEnvironment", () => {
       ollamaUrl: "http://127.0.0.1:11434",
       ollamaModel: "qwen3:4b",
       anthropicModel: "claude-opus-5-5",
+      openrouterModel: "google/gemini-3.5-flash-lite",
       instructions: "",
       wordsPerSecond: 2.5,
       timeoutMs: 180_000,

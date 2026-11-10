@@ -1,6 +1,6 @@
-// The seam between the chat and whatever model answers it: Ollama or Claude
-// in the self-hosted studio (src/server/chat), WebLLM in the browser edition
-// (site/src/chat). The router only ever sees ctx.chat.
+// The seam between the chat and whatever model answers it: Ollama, Claude or
+// OpenRouter in the self-hosted studio (src/server/chat), OpenRouter or
+// WebLLM in the browser edition (site/src/chat). The router only ever sees ctx.chat.
 
 export interface ChatTurn {
   role: "system" | "user" | "assistant";
@@ -30,7 +30,7 @@ export interface ChatModel {
   ): Promise<ChatAnswer>;
 }
 
-export const CHAT_PROVIDERS = ["ollama", "anthropic", "webllm"] as const;
+export const CHAT_PROVIDERS = ["ollama", "anthropic", "openrouter", "webllm"] as const;
 export type ChatProviderId = (typeof CHAT_PROVIDERS)[number];
 
 // A failure the user can act on, said in a sentence (model not pulled,
@@ -71,10 +71,14 @@ export interface ChatConnectionReport {
 // Studio-wide chat preferences saved in Settings. Unset fields fall back to
 // the environment (self-hosted) or the build's settings (browser edition).
 export interface ChatSettings {
-  provider?: "auto" | "ollama" | "anthropic";
+  // "webllm" is the browser edition's own choice; the self-hosted studio
+  // reads it as "auto".
+  provider?: "auto" | "ollama" | "anthropic" | "openrouter" | "webllm";
   ollamaUrl?: string;
   ollamaModel?: string;
   anthropicModel?: string;
+  // Any chat model of OpenRouter that keeps to a JSON schema.
+  openrouterModel?: string;
   instructions?: string;
   wordsPerSecond?: number;
 }

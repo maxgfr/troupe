@@ -2,6 +2,8 @@
 
 import { errorText } from "~/app/_components/errors";
 import { ActorGrid, type LibraryActor } from "./actor-grid";
+import { CreateActor } from "./create-actor";
+import { useWorkspace } from "~/app/_components/workspace-context";
 import { useState } from "react";
 
 import { api } from "~/trpc/react";
@@ -14,13 +16,22 @@ export default function ActorsPage() {
   usePageTitle("Actors");
   const [gender, setGender] = useState<string | undefined>();
   const actors = api.actors.list.useQuery(gender ? { gender } : undefined, { retry: false });
+  const workspace = useWorkspace();
+  const utils = api.useUtils();
+  const remove = api.actors.delete.useMutation({ onSuccess: () => utils.actors.list.invalidate() });
 
   return (
     <>
       <PageHeader
         title="Actors"
-        lede="Each actor is a look and a voice. The local renderers show these pictures; video models get a description of the look, so a face can vary from one render to the next."
+        lede="Each actor is a look and a voice. The local renderers show these pictures; video models that take a picture start from the actor's portrait, and talking-photo models make it speak, so the face stays the same. Make your own with a photo model on your key."
       />
+
+      {workspace.status === "ready" ? (
+        <div className="mb-8">
+          <CreateActor workspaceId={workspace.workspaceId} />
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by gender">
         <button
@@ -65,7 +76,22 @@ export default function ActorsPage() {
             <ErrorNote>The library failed to load: {errorText(actors.error)}</ErrorNote>
           )
         ) : (
-          <ActorGrid actors={(actors.data ?? []) as LibraryActor[]} filtered={gender !== undefined} />
+          <>
+            <ActorGrid
+              actors={(actors.data ?? []) as LibraryActor[]}
+              filtered={gender !== undefined}
+              deleting={remove.isPending ? remove.variables?.actorId : undefined}
+              onDelete={
+                workspace.status === "ready"
+                  ? (actor) => {
+                      if (window.confirm(`Delete ${actor.name} and their pictures? Renders already made stay.`))
+                        remove.mutate({ workspaceId: workspace.workspaceId, actorId: actor.id });
+                    }
+                  : undefined
+              }
+            />
+            {remove.error ? <ErrorNote>{errorText(remove.error)}</ErrorNote> : null}
+          </>
         )}
       </Section>
     </>

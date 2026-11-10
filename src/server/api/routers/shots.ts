@@ -8,6 +8,7 @@ import { estimateCostUsd, estimateMediaUsd, type Medium, type ResolvedModel } fr
 import type { Db } from "~/server/db/types";
 import { loadMediaModels, mediaApiKey } from "~/server/media-catalog";
 import { renderMediaShot } from "~/server/shot-media";
+import { loadActorPicture } from "~/server/actor-pictures";
 import { modelOptionsFor } from "~/modules/studio";
 import { deleteShots, ensureShotsProject, favoriteShot, listShots, ShotBusyError } from "~/server/shots";
 import { pickLaunchAdapter } from "./_adapters";
@@ -51,11 +52,27 @@ async function pickMedia(db: Db, keys: string[], medium: Medium) {
   );
 }
 
-// A photo of an actor: their look follows the description, as for videos.
+// A photo of an actor: their look follows the description, and a model that
+// draws from a reference picture gets their front picture too.
 async function withActor(db: Db, text: string, actorId: string | null | undefined, workspaceId: string) {
-  if (!actorId) return text;
+  if (!actorId) return { text, referencePicture: null };
   const actor = await shotActor(db, actorId, workspaceId);
-  return `${text}\n\nOn screen: ${actor.look}.`;
+  return {
+    text: `${text}\n\n${ACTOR_NOTE}${actor.look}.`,
+    referencePicture: actor.frontPicture ? await loadActorPicture(actor.frontPicture) : null,
+  };
+}
+
+// How a shot's stored prompt names its actor, after the user's text.
+const ACTOR_NOTE = "On screen: ";
+
+// The user's own text of a stored shot prompt, without the actor's note.
+export const shotTextOf = (prompt: string) => prompt.split(`\n\n${ACTOR_NOTE}`)[0]!;
+
+// The front picture of a shot's actor, when they are still there.
+async function actorReference(db: Db, actorId: string, workspaceId: string) {
+  const actor = await shotActor(db, actorId, workspaceId).catch(() => null);
+  return actor?.frontPicture ? loadActorPicture(actor.frontPicture) : null;
 }
 
 const ALREADY_RELAUNCHED = "This shot was already relaunched. Follow the newer one in the gallery.";
@@ -237,7 +254,9 @@ export const shotsRouter = createTRPCRouter({
       if (input.modelKeys.length * input.count > SHOT_MAX_RENDERS)
         throw new TRPCError({ code: "BAD_REQUEST", message: `At most ${SHOT_MAX_RENDERS} photos per launch.` });
       const chosen = await pickMedia(ctx.db, input.modelKeys, "image");
-      const text = await withActor(ctx.db, input.text, input.actorId, input.workspaceId).catch(asBadRequest);
+      const { text, referencePicture } = await withActor(ctx.db, input.text, input.actorId, input.workspaceId).catch(
+        asBadRequest,
+      );
       const projectId = await ensureShotsProject(ctx.db, input.workspaceId);
       const runs = chosen.flatMap((c) =>
         Array.from({ length: input.count }, () =>
@@ -249,6 +268,7 @@ export const shotsRouter = createTRPCRouter({
             image: { aspectRatio: input.aspectRatio },
             estimatedCostUsd: estimateMediaUsd(c.model, { images: 1 }),
             actorId: input.actorId,
+            referencePicture,
           }),
         ),
       );
@@ -320,6 +340,9 @@ export const shotsRouter = createTRPCRouter({
         model: chosen!.model,
         apiKey: chosen!.apiKey,
         text: failed.prompt,
+        ...(failed.medium === "image" && failed.actorId
+          ? { referencePicture: await actorReference(ctx.db, failed.actorId, input.workspaceId) }
+          : {}),
         ...(failed.medium === "image"
           ? { image: { aspectRatio: failed.aspectRatio, ...(options.size ? { size: options.size } : {}) } }
           : { speech: { voice: options.voice, language: options.language, instructions: options.instructions } }),
@@ -334,10 +357,18 @@ export const shotsRouter = createTRPCRouter({
       return { id: gen.id, status: gen.status };
     }
     const { adapter, model } = pickLaunchAdapter(ctx.catalog, failed.modelKey);
-    // The stored prompt already carries the actor's description.
+    // The stored prompt carries the actor's description: with the actor still
+    // there, the launch writes it again (and sends their picture).
+    const actorThere = failed.actorId
+      ? await shotActor(ctx.db, failed.actorId, input.workspaceId).then(
+          () => true,
+          () => false,
+        )
+      : false;
     const gen = await launchShot(ctx.db, {
       projectId,
-      text: failed.prompt,
+      text: actorThere ? shotTextOf(failed.prompt) : failed.prompt,
+      actorId: actorThere ? failed.actorId : null,
       adapter,
       aspectRatio: failed.aspectRatio,
       durationS: failed.durationS,

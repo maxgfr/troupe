@@ -87,7 +87,10 @@ is the reference for options.
    `launchable: true` can render, and `capabilities` lists the formats and
    lengths (`durationsS`) each one offers.
    `troupe projects create --title <t> --actor <name> --platform <p> --json`
-   makes it the current project.
+   makes it the current project. No actor fits, or the user wants their own
+   recurring persona: `troupe actors create` draws a new fictional one on the
+   user's OpenRouter key (about $0.05; ask first). The `troupe-influencer`
+   skill covers making one and a series of videos with them.
 
 4. **Script.** Budget: clip seconds × 2.5 words. Write a file, one spoken
    line each, the hook first and the call to action last, an emotion in

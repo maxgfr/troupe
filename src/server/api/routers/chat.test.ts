@@ -303,7 +303,7 @@ describe("chat settings", () => {
     const caller = asMember();
     const initial = await caller.settings.chat.get();
     expect(initial).toMatchObject({
-      offers: ["ollama", "anthropic"],
+      offers: ["ollama", "anthropic", "openrouter"],
       saved: {},
       active: { provider: "ollama", modelId: "qwen3:4b" },
       defaults: { ollamaUrl: ollama.url, wordsPerSecond: 2.5 },
@@ -336,5 +336,34 @@ describe("chat settings", () => {
       await asMember().settings.chat.save({ provider: null });
     }
     expect((await createServerChat(db, { env: { OLLAMA_URL: ollama.url } }).load()).provider).toBe("ollama");
+  });
+
+  it("chooses OpenRouter with an OpenRouter key and no Anthropic one, with its model saved in Settings", async () => {
+    const withKey = createServerChat(db, { env: { OLLAMA_URL: ollama.url, OPENROUTER_API_KEY: "or-test" } });
+    try {
+      const auto = await withKey.load();
+      expect(auto).toMatchObject({ provider: "openrouter", modelId: "google/gemini-3.5-flash-lite", problem: null });
+      expect(auto.model).not.toBeNull();
+      await asMember().settings.chat.save({ openrouterModel: "openai/gpt-5-nano" });
+      expect((await withKey.load()).modelId).toBe("openai/gpt-5-nano");
+      expect((await asMember().settings.chat.get()).saved.openrouterModel).toBe("openai/gpt-5-nano");
+      await expect(asMember().settings.chat.save({ openrouterModel: "not a model id" })).rejects.toThrow();
+      // Claude first when both keys are there.
+      const both = createServerChat(db, {
+        env: { OLLAMA_URL: ollama.url, OPENROUTER_API_KEY: "or-test", ANTHROPIC_API_KEY: "sk-ant-test" },
+      });
+      expect((await both.load()).provider).toBe("anthropic");
+    } finally {
+      await asMember().settings.chat.save({ provider: null, openrouterModel: null });
+    }
+    // Chosen without a key: it says what to add.
+    await asMember().settings.chat.save({ provider: "openrouter" });
+    try {
+      const keyless = await createServerChat(db, { env: { OLLAMA_URL: ollama.url } }).load();
+      expect(keyless).toMatchObject({ provider: "openrouter", model: null });
+      expect(keyless.problem).toMatch(/no OpenRouter API key/);
+    } finally {
+      await asMember().settings.chat.save({ provider: null });
+    }
   });
 });

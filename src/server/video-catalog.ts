@@ -57,10 +57,35 @@ export function forgetVideoCatalog() {
 
 const RATIO = /^\d+:\d+$/;
 
+// Talking photos: they animate one picture and say a text with a voice of
+// their own, as long as the text lasts. Troupe gives them the actor's front
+// picture and the lines.
+export function isTalkingPhoto(model: Pick<VideoModel, "provider" | "id">): boolean {
+  return model.provider === "openrouter" && /^heygen\/avatar-/.test(model.id);
+}
+
+// The longest a talking photo's clip may be, by step: the lines decide its
+// real length, and the price is per second said.
+export const TALKING_DURATIONS_S = [5, 10, 15, 20, 30, 45, 60];
+
 // The settings Troupe drives a model with, or why it cannot.
 export function capabilitiesOf(
   model: VideoModel,
 ): { ok: true; caps: ModelCapabilities } | { ok: false; reason: string } {
+  if (isTalkingPhoto(model)) {
+    const aspectRatios = (model.aspectRatios ?? []).filter((r) => RATIO.test(r));
+    if (!aspectRatios.length) return { ok: false, reason: "Its provider does not list the formats it renders." };
+    return {
+      ok: true,
+      caps: {
+        aspectRatios,
+        resolutions: model.resolutions?.length ? model.resolutions : ["720p"],
+        durationsS: TALKING_DURATIONS_S,
+        audio: "always",
+        dialogueLanguages: null,
+      },
+    };
+  }
   if (!rendersFromText(model)) return { ok: false, reason: "This model does not render from a text prompt." };
   const aspectRatios = (model.aspectRatios ?? []).filter((r) => RATIO.test(r));
   const durationsS = (model.durations ?? []).filter((d) => Number.isInteger(d) && d > 0);
@@ -127,7 +152,13 @@ export async function addCatalogVideoModel(
     family: "catalog" as const,
     label: model.name,
     capabilities: caps,
-    connection: { provider: input.provider, model: model.id, owner: model.owner },
+    connection: {
+      provider: input.provider,
+      model: model.id,
+      owner: model.owner,
+      frameImages: model.frameImages ?? [],
+      ...(isTalkingPhoto(model) ? { talking: true } : {}),
+    },
     defaults,
     pricePerSecondUsd: price === null ? null : String(price),
     archived: false,

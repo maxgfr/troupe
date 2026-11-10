@@ -26,14 +26,15 @@ export const env = createEnv({
       )
       .optional(),
     // The script chat (src/server/chat): Ollama by default, Claude when an
-    // Anthropic key is set. Values saved in Settings take precedence.
+    // Anthropic key is set, else OpenRouter when an OpenRouter key is set.
+    // Values saved in Settings take precedence.
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_MODEL: z.string().optional(),
     // Another address for Anthropic's API (a gateway or proxy); the SDK reads it.
     ANTHROPIC_BASE_URL: z.string().url().optional(),
     OLLAMA_URL: z.string().url().optional(),
     OLLAMA_MODEL: z.string().optional(),
-    TROUPE_CHAT_PROVIDER: z.enum(["auto", "ollama", "anthropic"]).optional(),
+    TROUPE_CHAT_PROVIDER: z.enum(["auto", "ollama", "anthropic", "openrouter"]).optional(),
     TROUPE_CHAT_INSTRUCTIONS: z.string().max(2000).optional(),
     TROUPE_CHAT_WORDS_PER_SECOND: z.coerce.number().min(1).max(5).optional(),
     TROUPE_CHAT_TIMEOUT_S: z.coerce.number().int().min(10).max(1800).optional(),

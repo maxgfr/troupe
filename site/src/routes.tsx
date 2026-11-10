@@ -7,6 +7,7 @@ import { BrowserLayout, NotFound } from "./layout";
 // Each page loads with its first visit, as Next splits the self-hosted studio
 // by route; Projects, where the studio opens, comes with the shell.
 const ActorsPage = lazy(() => import("~/app/(app)/actors/page"));
+const AssistantPage = lazy(() => import("~/app/(app)/assistant/page"));
 const BenchmarkPage = lazy(() => import("~/app/(app)/benchmark/page"));
 const LibraryItemPage = lazy(() => import("~/app/(app)/library/[itemId]/page"));
 const LibraryPage = lazy(() => import("~/app/(app)/library/page"));
@@ -62,6 +63,7 @@ export const router = createBrowserRouter(
         { path: "library/:itemId", element: <LibraryItemRoute /> },
         { path: "actors", element: <ActorsPage /> },
         { path: "benchmark", element: <BenchmarkPage /> },
+        { path: "assistant", element: <AssistantPage /> },
         { path: "settings", element: <SettingsPage /> },
         { path: "projects/new", element: <NewProjectPage /> },
         { path: "projects/:projectId", element: <ProjectMonitor /> },

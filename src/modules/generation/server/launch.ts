@@ -10,6 +10,7 @@ import {
   compilePrompt,
   validateRequest,
   type CreateJobRequest,
+  type JobActor,
   type JobScript,
   type VideoProviderAdapter,
 } from "./adapter";
@@ -40,13 +41,41 @@ function actorLook(actor: { gender: string; ageRange: string; style: string }): 
 }
 
 // An actor a photo or voice shot may use: active, and the studio's or this
-// workspace's. Their look for a photo, their delivery for a voice.
+// workspace's. Their look for a photo (and their front picture, for a model
+// that draws from one), their delivery for a voice.
 export async function shotActor(db: Db, actorId: string, workspaceId: string) {
   const [actor] = await db.select().from(actors).where(eq(actors.id, actorId)).limit(1);
   const visible = actor && (actor.workspaceId === null || actor.workspaceId === workspaceId);
   if (!visible || actor!.status !== "active")
     throw new AdapterError("ACTOR_UNAVAILABLE", "This actor is no longer available. Choose another one.");
-  return { look: `${actor!.name}, ${actorLook(actor!)}`, voiceProfile: actor!.voiceProfile };
+  const job = await jobActorFor(db, actor!);
+  return {
+    look: `${actor!.name}, ${actorLook(actor!)}`,
+    voiceProfile: actor!.voiceProfile,
+    frontPicture: job.portraits?.front ?? null,
+  };
+}
+
+// The actor as a job carries them: their voice, and the pictures of their
+// current set keyed by shot (the file's name without its extension).
+async function jobActorFor(db: Db, actor: typeof actors.$inferSelect): Promise<JobActor> {
+  const pictures = await db
+    .select({ storagePath: actorAssets.storagePath })
+    .from(actorAssets)
+    .where(and(eq(actorAssets.actorId, actor.id), eq(actorAssets.version, actor.assetVersion)));
+  const portraits = Object.fromEntries(
+    pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]),
+  );
+  const voice = actor.workspaceId === null && actor.kind === "library" ? libraryVoice(actor) : undefined;
+  return {
+    id: actor.id,
+    name: actor.name,
+    gender: actor.gender,
+    ageRange: actor.ageRange,
+    voiceProfile: actor.voiceProfile,
+    ...(voice ? { voice } : {}),
+    ...(pictures.length > 0 ? { portraits } : {}),
+  };
 }
 
 // Validate everything and compile the prompt; nothing is written or sent yet.
@@ -77,26 +106,9 @@ export async function prepareGeneration(db: Db, input: LaunchInput) {
     voiceProfile: `${actor.voiceProfile}. Appearance: ${actorLook(actor)}`,
     language,
   });
-  // The pictures of the actor's current set, keyed by shot (the file's name).
-  const pictures = await db
-    .select({ storagePath: actorAssets.storagePath })
-    .from(actorAssets)
-    .where(and(eq(actorAssets.actorId, actor.id), eq(actorAssets.version, actor.assetVersion)));
-  const portraits = Object.fromEntries(
-    pictures.map((p) => [p.storagePath.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), p.storagePath]),
-  );
-  const voice = actor.workspaceId === null && actor.kind === "library" ? libraryVoice(actor) : undefined;
   const jobScript: JobScript = {
     lines: script.lines.map(({ role, text, emotion }) => ({ role, text, emotion })),
-    actor: {
-      id: actor.id,
-      name: actor.name,
-      gender: actor.gender,
-      ageRange: actor.ageRange,
-      voiceProfile: actor.voiceProfile,
-      ...(voice ? { voice } : {}),
-      ...(pictures.length > 0 ? { portraits } : {}),
-    },
+    actor: await jobActorFor(db, actor),
     language,
   };
 
@@ -238,9 +250,12 @@ export async function prepareShot(db: Db, input: ShotInput) {
     if (!visible || actor!.status !== "active")
       throw new AdapterError("ACTOR_UNAVAILABLE", "This actor is no longer available. Choose another one.");
   }
+  if (!actor && input.adapter.needsActor)
+    throw new AdapterError("ACTOR_REQUIRED", "This model animates an actor's picture. Choose an actor for the shot.");
   const prompt = actor
     ? `${text}\n\nOn screen: ${actor.name}, ${actorLook(actor)}. Voice: ${actor.voiceProfile}.`
     : text;
+  const jobActor = actor ? await jobActorFor(db, actor) : undefined;
 
   return {
     adapter: input.adapter,
@@ -269,7 +284,9 @@ export async function prepareShot(db: Db, input: ShotInput) {
       durationS: input.durationS,
       resolution: input.resolution,
       audio,
-    },
+      shotText: text,
+      ...(jobActor ? { actor: jobActor } : {}),
+    } satisfies CreateJobRequest,
   };
 }
 

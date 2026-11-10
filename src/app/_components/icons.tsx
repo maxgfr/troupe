@@ -161,6 +161,14 @@ export const ChatIcon = (p: IconProps) => (
   </Icon>
 );
 
+// Assistant: a speech bubble with a spark, for the chat that does things.
+export const AssistantIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 13.5a2.5 2.5 0 0 1-2.5-2.5V5.5A2.5 2.5 0 0 1 6 3h8a2.5 2.5 0 0 1 2.5 2.5V11a2.5 2.5 0 0 1-2.5 2.5H9.5L6 16.5z" />
+    <path d="M10 5.5 10.8 7.4 12.5 8.2l-1.7.8L10 11l-.8-2-1.7-.8 1.7-.8z" />
+  </Icon>
+);
+
 export const FilmIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="3.5" width="14" height="13" rx="2" />

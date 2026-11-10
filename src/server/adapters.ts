@@ -23,6 +23,7 @@ import type { Db } from "~/server/db/types";
 import { readCredentials } from "~/server/settings/providers";
 import { localAdapterFromRow } from "~/server/local-models";
 import { createCatalogAdapter } from "~/server/catalog-adapter";
+import { loadActorReference } from "~/server/actor-pictures";
 
 export const httpFetch: HttpLike = async (url, init) => {
   const res = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
@@ -106,8 +107,11 @@ export async function loadModelCatalog(db: Db = runtimeDb): Promise<ModelCatalog
               provider: connection.provider,
               modelId: connection.model,
               capabilities: row.capabilities,
+              ...(connection.frameImages ? { frameImages: connection.frameImages } : {}),
+              ...(connection.talking ? { talking: true } : {}),
             },
             apiKey: credential.key,
+            loadReference: loadActorReference,
           }),
         );
       continue;

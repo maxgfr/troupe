@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { actorPictureUrl, actorVoiceSamples, DEFAULT_PICTURES_BASE } from "./pictures";
+import {
+  actorPictureUrl,
+  actorVoiceSamples,
+  anyActorPictureUrl,
+  customPicturePath,
+  DEFAULT_PICTURES_BASE,
+  isCustomPicture,
+} from "./pictures";
+
+describe("anyActorPictureUrl", () => {
+  it("serves a made actor's pictures from the studio's route, the cast from its folder", () => {
+    const path = customPicturePath("0b6f6c3e-2d0f-4a4e-9a51-5b1b2b8c9d10", 1, "front.jpg");
+    expect(path).toBe("custom-actors/0b6f6c3e-2d0f-4a4e-9a51-5b1b2b8c9d10/v1/front.jpg");
+    expect(isCustomPicture(path)).toBe(true);
+    expect(anyActorPictureUrl("/actors", path)).toBe(
+      "/api/actor-pictures/0b6f6c3e-2d0f-4a4e-9a51-5b1b2b8c9d10/v1/front.jpg",
+    );
+    expect(anyActorPictureUrl("/actors", "actors/lea-01/v1/front.webp")).toBe("/actors/lea-01/v1/front.webp");
+  });
+});
 
 describe("actorPictureUrl", () => {
   it("serves the checked-in cast from the app's public folder by default", () => {

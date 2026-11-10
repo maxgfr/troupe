@@ -93,6 +93,19 @@ export function loadSecretBox(): SecretBox {
   return cached;
 }
 
+// The box provider keys are sealed with. The self-hosted studio's is the box
+// above; the browser edition's seals with WebCrypto (site/src/shims/secrets.ts),
+// which only answers asynchronously, so callers await both.
+export interface ProviderSecretBox {
+  fingerprint: string;
+  seal(plaintext: string, aad: string): string | Promise<string>;
+  open(sealed: string, aad: string): string | Promise<string>;
+}
+
+export function loadProviderSecretBox(): ProviderSecretBox {
+  return loadSecretBox();
+}
+
 export function resetSecretBoxCache() {
   cached = undefined;
 }

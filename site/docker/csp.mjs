@@ -8,7 +8,9 @@
 // What the site loads from elsewhere, all fetched (connect-src): the Kokoro
 // voices and the chat model's weights from Hugging Face (huggingface.co, which
 // redirects to its CDNs under hf.co and huggingface.co), and WebLLM's compiled
-// model library from raw.githubusercontent.com. WebAssembly (PGlite, ONNX
+// model library from raw.githubusercontent.com; and, with the visitor's own
+// key, OpenRouter's API (openrouter.ai: the script chat, the model lists,
+// photos, voice and videos, whose files it serves itself). WebAssembly (PGlite, ONNX
 // Runtime, WebLLM) needs 'wasm-unsafe-eval'; workers start from the site or
 // from blob: URLs.
 
@@ -39,7 +41,7 @@ export function contentSecurityPolicy(hashes, { frameAncestors = true } = {}) {
     "img-src 'self' data: blob:",
     "media-src 'self' blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com",
+    "connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com https://openrouter.ai",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",

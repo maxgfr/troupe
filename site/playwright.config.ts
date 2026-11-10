@@ -22,11 +22,14 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /(render|chat)\.spec\.ts/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /(render|chat|openrouter)\.spec\.ts/ },
     // A real render (tests/render.spec.ts): `pnpm site:test:render`.
     { name: "render", testMatch: /render\.spec\.ts/ },
     // The chat with WebLLM on the GPU (tests/chat.spec.ts), local only: `pnpm site:test:chat`.
     { name: "chat", testMatch: /chat\.spec\.ts/ },
+    // Cloud models, the assistant and the chat on your OpenRouter key (tests/openrouter.spec.ts), local only:
+    // OPENROUTER_KEY_FILE=… pnpm site:test:openrouter. Spends about $0.15.
+    { name: "openrouter", use: { ...devices["Desktop Chrome"] }, testMatch: /openrouter\.spec\.ts/ },
   ],
   webServer: {
     command: `pnpm site:preview --port ${PORT}`,

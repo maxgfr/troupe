@@ -9,6 +9,7 @@ import {
   type MediaFile,
 } from "../media";
 import { clearJobs } from "../render/jobs";
+import { forgetBrowserSecretKey } from "../shims/secrets";
 import { checkMigrations, packBackup, summarize, unpackBackup, type Backup } from "./backup";
 import { storage } from "./storage";
 
@@ -47,6 +48,8 @@ async function deleteAll(): Promise<void> {
     await (await database()).resetDatabase();
     await clearMediaFiles();
     await clearJobs();
+    // The saved API keys go with everything else.
+    await forgetBrowserSecretKey();
   });
   reopen();
 }

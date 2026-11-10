@@ -5,7 +5,16 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { useEdition } from "./edition";
-import { ActorsIcon, CompareIcon, LibraryIcon, PlusIcon, ProjectsIcon, SettingsIcon, ShotsIcon } from "./icons";
+import {
+  ActorsIcon,
+  AssistantIcon,
+  CompareIcon,
+  LibraryIcon,
+  PlusIcon,
+  ProjectsIcon,
+  SettingsIcon,
+  ShotsIcon,
+} from "./icons";
 import { DeleteLocalData } from "./local-data";
 import { Shortcuts } from "./shortcuts";
 import { StageProvider } from "./stage";
@@ -23,6 +32,7 @@ const NAV = [
   { href: "/library", label: "Library", Icon: LibraryIcon, also: [] },
   { href: "/actors", label: "Actors", Icon: ActorsIcon, also: [] },
   { href: "/benchmark", label: "Compare", Icon: CompareIcon, also: [] },
+  { href: "/assistant", label: "Assistant", Icon: AssistantIcon, also: [] },
 ] as const;
 
 function isActive(pathname: string, item: (typeof NAV)[number]): boolean {

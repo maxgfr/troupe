@@ -90,6 +90,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       shimModules({
         "src/server/settings/secrets.ts": "site/src/shims/secrets.ts",
         "src/server/shot-media.ts": "site/src/shims/shot-media.ts",
+        "src/server/actor-pictures.ts": "site/src/shims/actor-pictures.ts",
       }),
       guard(),
       react(),

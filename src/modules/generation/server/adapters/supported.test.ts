@@ -146,7 +146,7 @@ describe("supported video contracts", () => {
     const adapter = createVeoTextAdapter({ model: veoModel(), http: vi.fn(), apiKey: "test-key" });
     expect(
       await adapter.downloadResult!("https://generativelanguage.googleapis.com/v1beta/files/test:download"),
-    ).toEqual(bytes);
+    ).toEqual(new Uint8Array(bytes));
     expect(fetcher.mock.calls[0]![1].headers).toEqual({ "x-goog-api-key": "test-key" });
     expect(fetcher.mock.calls[1]![1].headers).toBeUndefined();
     await expect(downloadFalVideo("https://localhost/test.mp4")).rejects.toThrow();

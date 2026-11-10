@@ -83,10 +83,10 @@ async function latestScript(db: Db, projectId: string): Promise<ScriptWithLines 
 }
 
 // The actors the model may name: available ones, one per name.
-async function actorChoices(db: Db): Promise<ActorChoice[]> {
+async function actorChoices(db: Db, workspaceId: string): Promise<ActorChoice[]> {
   const seen = new Set<string>();
   const out: ActorChoice[] = [];
-  for (const actor of await listActors(db, {})) {
+  for (const actor of await listActors(db, {}, { workspaceId })) {
     const key = actor.name.toLowerCase();
     if (actor.status !== "active" || seen.has(key)) continue;
     seen.add(key);
@@ -123,7 +123,7 @@ export async function sendChatMessage(
   const [actor] = project.actorId ? await db.select().from(actors).where(eq(actors.id, project.actorId)).limit(1) : [];
   const [script, choices, history] = await Promise.all([
     latestScript(db, input.projectId),
-    actorChoices(db),
+    actorChoices(db, project.workspaceId),
     listChatMessages(db, input.projectId),
   ]);
   const budget = wordBudget(input.durationS, setup.wordsPerSecond);
@@ -282,7 +282,7 @@ const OllamaUrl = z
   });
 
 const SETTING_FIELDS = {
-  provider: z.enum(["auto", "ollama", "anthropic"]),
+  provider: z.enum(["auto", "ollama", "anthropic", "openrouter", "webllm"]),
   ollamaUrl: OllamaUrl,
   ollamaModel: z.string().trim().min(1).max(200),
   anthropicModel: z
@@ -291,6 +291,12 @@ const SETTING_FIELDS = {
     .min(1)
     .max(200)
     .regex(/^[\w.:@/-]+$/, "Use a model id such as claude-opus-5-5."),
+  openrouterModel: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[\w.:@/-]+$/, "Use an OpenRouter model id such as google/gemini-3.5-flash-lite."),
   instructions: z.string().trim().max(2000),
   wordsPerSecond: z.number().min(1).max(5),
 } satisfies { [K in keyof ChatSettings]-?: z.ZodType };
@@ -306,6 +312,7 @@ export const ChatSettingsPatch = z.object({
   ollamaUrl: optional(SETTING_FIELDS.ollamaUrl),
   ollamaModel: optional(SETTING_FIELDS.ollamaModel),
   anthropicModel: optional(SETTING_FIELDS.anthropicModel),
+  openrouterModel: optional(SETTING_FIELDS.openrouterModel),
   instructions: optional(SETTING_FIELDS.instructions),
   wordsPerSecond: optional(SETTING_FIELDS.wordsPerSecond),
 });

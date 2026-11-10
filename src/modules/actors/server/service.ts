@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/server/db/types";
 import { projects } from "~/modules/studio/server/schema";
@@ -118,14 +118,21 @@ export interface ListedActor {
   status: "active" | "unavailable";
 }
 
+// The library's actors, and those made in the given workspaces (none when
+// `scope` is left out, as before actors could be made).
 export async function listActors(
   db: Db,
   filter: { gender?: string; ageRange?: string; style?: string },
+  scope: { workspaceId?: string; workspaceIds?: string[] } = {},
 ): Promise<ListedActor[]> {
+  const workspaces = [...(scope.workspaceIds ?? []), ...(scope.workspaceId ? [scope.workspaceId] : [])];
   const conds = [
     filter.gender ? eq(actors.gender, filter.gender as "female") : undefined,
     filter.ageRange ? eq(actors.ageRange, filter.ageRange) : undefined,
     filter.style ? eq(actors.style, filter.style) : undefined,
+    workspaces.length
+      ? or(isNull(actors.workspaceId), inArray(actors.workspaceId, workspaces))
+      : isNull(actors.workspaceId),
   ].filter((c): c is NonNullable<typeof c> => c !== undefined);
   const rows = await db
     .select({
@@ -185,9 +192,15 @@ export class ActorUnavailableError extends Error {
   }
 }
 
-// Unavailable actors cannot be attached to a project.
+// Unavailable actors cannot be attached to a project, nor another
+// workspace's.
 export async function attachActorToProject(db: Db, input: { projectId: string; actorId: string }): Promise<void> {
-  const listed = await listActors(db, {});
+  const [project] = await db
+    .select({ workspaceId: projects.workspaceId })
+    .from(projects)
+    .where(eq(projects.id, input.projectId))
+    .limit(1);
+  const listed = await listActors(db, {}, project ? { workspaceId: project.workspaceId } : {});
   const actor = listed.find((a) => a.id === input.actorId);
   if (!actor) throw new ActorUnavailableError(`actor ${input.actorId} not found`);
   if (actor.status === "unavailable") {

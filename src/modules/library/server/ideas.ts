@@ -141,7 +141,7 @@ export async function generateIdeas(
 
   let actor: Awaited<ReturnType<typeof listActors>>[number] | null = null;
   if (input.actorId) {
-    actor = (await listActors(db, {})).find((a) => a.id === input.actorId) ?? null;
+    actor = (await listActors(db, {}, { workspaceId: input.workspaceId })).find((a) => a.id === input.actorId) ?? null;
     if (!actor) throw new LibraryError("That actor does not exist.", "NOT_FOUND");
   }
   const count = input.kind === "script" ? 1 : Math.min(Math.max(input.count, 1), 10);
@@ -274,7 +274,7 @@ export async function createProjectFromIdea(
     .limit(1);
   if (!idea) throw new LibraryError("This idea is not in your library.", "NOT_FOUND");
   if (idea.projectId) return { projectId: idea.projectId, created: false };
-  const actors = (await listActors(db, {})).filter((a) => a.status === "active");
+  const actors = (await listActors(db, {}, { workspaceId: input.workspaceId })).filter((a) => a.status === "active");
   const actorId = input.actorId ?? idea.actorId ?? actors[0]?.id;
   if (!actorId) throw new LibraryError("No actor is available for the project.", "PRECONDITION_FAILED");
   const platform = input.platform ?? "tiktok";

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorText } from "~/app/_components/errors";
-import { NeedsSelfHosted, useEdition } from "~/app/_components/edition";
+import { useEdition } from "~/app/_components/edition";
 import { usePageTitle } from "~/app/_components/page-title";
 import { Button, EmptyState, ErrorNote, PageHeader, SignedOutNotice, Skeleton } from "~/app/_components/ui";
 import { useWorkspace } from "~/app/_components/workspace-context";
@@ -119,11 +119,12 @@ export default function ShotsPage() {
         lede="Describe a shot, a photo or a line to say, and render it on one model or several side by side, without a project or a script. Try another model or setting, keep the ones you like."
       />
       {edition.kind === "browser" ? (
-        <NeedsSelfHosted>
-          Shots render on cloud models with your own API keys, which only the self-hosted studio can keep. The renderer
-          in this browser voices a script: use it from a project.
-        </NeedsSelfHosted>
-      ) : workspace.status === "ready" ? (
+        <p className="mb-4 max-w-[72ch] text-sm text-muted">
+          In your browser, shots render on OpenRouter&apos;s models with your own key, called straight from this page.
+          The renderer in this browser voices a script: use it from a project.
+        </p>
+      ) : null}
+      {workspace.status === "ready" ? (
         <ShotsStudio workspaceId={workspace.workspaceId} />
       ) : (
         <Skeleton className="h-40 w-full" />

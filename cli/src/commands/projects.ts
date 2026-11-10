@@ -1,6 +1,6 @@
 import type { Outputs } from "../client.ts";
 import { type Command, type Context, flag, oneOf, type Project, type Result, str } from "../command.ts";
-import { usageError } from "../errors.ts";
+import { CliError, usageError } from "../errors.ts";
 import { fields, shortId, table, when } from "../output.ts";
 import { pick } from "../resolve.ts";
 import { findModel } from "./models.ts";
@@ -24,7 +24,7 @@ export async function findActor(ctx: Context, ref: string): Promise<Actor> {
 
 const actorsList: Command = {
   path: ["actors", "list"],
-  summary: "List the actor presets: who they are and how they sound.",
+  summary: "List the actors, the library's and the ones you made: who they are and how they sound.",
   options: {
     gender: { type: "string", value: "<gender>", description: "Only this gender (female, male)." },
     age: { type: "string", value: "<range>", description: "Only this age range, e.g. 25-34." },
@@ -39,8 +39,17 @@ const actorsList: Command = {
     return {
       data: actors,
       text: table(
-        ["ID", "NAME", "GENDER", "AGE", "STYLE", "VOICE", "STATUS"],
-        actors.map((a) => [shortId(a.id), a.name, a.gender, a.ageRange, a.style, a.voiceProfile, a.status]),
+        ["ID", "NAME", "GENDER", "AGE", "STYLE", "VOICE", "MADE", "STATUS"],
+        actors.map((a) => [
+          shortId(a.id),
+          a.name,
+          a.gender,
+          a.ageRange,
+          a.style,
+          a.voiceProfile,
+          a.custom ? "yours" : "library",
+          a.status,
+        ]),
       ),
     };
   },
@@ -64,9 +73,117 @@ const actorsShow: Command = {
         ["Style", actor.style],
         ["Voice", actor.voiceProfile],
         ["Status", actor.status],
+        ["Made", actor.custom ? "by you, in this studio" : "the studio's library"],
         ["Pictures", `${actor.portraitCount} (set v${actor.assetVersion})`],
         ["Front picture", data.portraitUrl],
       ]),
+    };
+  },
+};
+
+const GENDERS = ["female", "male", "nonbinary"] as const;
+const usd = (value: number | null | undefined) => (value == null ? "unknown" : `$${value.toFixed(3)}`);
+
+const actorsCreate: Command = {
+  path: ["actors", "create"],
+  summary:
+    "Make a new fictional actor from a description: a photo model on your own key draws their six pictures (front, two side views, three expressions).",
+  options: {
+    name: { type: "string", value: "<name>", description: "Their name (required)." },
+    gender: { type: "string", value: "<gender>", description: "female, male or nonbinary (required)." },
+    age: { type: "string", value: "<range>", description: "Their age range, e.g. 25-34 (required)." },
+    style: { type: "string", value: "<style>", description: "Their style, e.g. casual or streetwear (required)." },
+    look: {
+      type: "string",
+      value: "<description>",
+      description: "What they look like: face, hair, skin, build, clothes (required).",
+    },
+    voice: {
+      type: "string",
+      value: "<delivery>",
+      description: "How they speak, e.g. 'warm and upbeat, mid-tempo' (required).",
+    },
+    model: {
+      type: "string",
+      value: "<model>",
+      description:
+        "The photo model (key or name) that draws them; it must take a reference picture (OpenRouter's do). Default: the first one added, else FLUX.3 [klein] on your OpenRouter key.",
+    },
+  },
+  examples: [
+    'troupe actors create --name Jade --gender female --age 25-34 --style casual --look "Curly auburn hair, freckles, green eyes, mustard knit sweater" --voice "warm and upbeat, mid-tempo"',
+  ],
+  validate({ options }) {
+    for (const name of ["name", "gender", "age", "style", "look", "voice"])
+      if (!str(options, name)?.trim()) throw usageError(`--${name} is required.`);
+    oneOf(str(options, "gender")!, GENDERS, "gender");
+  },
+  async run(ctx, { options }) {
+    const workspaceId = await ctx.workspaceId();
+    const offer = await ctx.api.actors.createOptions.query({ workspaceId });
+    const ref = str(options, "model");
+    const chosen = ref
+      ? pick(offer.models, ref, {
+          kind: "photo model",
+          listCommand: "troupe models list",
+          id: (m) => m.key,
+          names: (m) => [m.label],
+        })
+      : (offer.models.find((m) => m.available) ?? null);
+    if (!chosen && !offer.openrouterKey)
+      throw new CliError(
+        "Making an actor needs an OpenRouter key. Save it with troupe keys set openrouter (it prompts without echoing), then try again.",
+        { code: "NO_KEY" },
+      );
+    ctx.note(
+      chosen
+        ? `Drawing ${offer.pictureCount} pictures with ${chosen.label} on your key (about ${usd(chosen.estimatedCostUsd)}). This takes about a minute.`
+        : `Drawing ${offer.pictureCount} pictures with ${offer.defaultModel.id} on your OpenRouter key (added to your photo models). This takes about a minute.`,
+    );
+    const actor = await ctx.api.actors.create.mutate({
+      workspaceId,
+      name: str(options, "name")!.trim(),
+      gender: oneOf(str(options, "gender")!, GENDERS, "gender"),
+      ageRange: str(options, "age")!.trim(),
+      style: str(options, "style")!.trim(),
+      look: str(options, "look")!.trim(),
+      voiceProfile: str(options, "voice")!.trim(),
+      ...(chosen ? { modelKey: chosen.key } : {}),
+    });
+    const data = { ...actor, portraitUrl: absolute(ctx, actor.portraitUrl) };
+    return {
+      data,
+      text: fields([
+        ["Made", `${actor.name} (${shortId(actor.id)})`],
+        ["Status", actor.status],
+        ["Pictures", String(actor.portraitCount)],
+        ["Photo model", actor.modelLabel],
+        ["Cost", usd(actor.costUsd)],
+        ["Front picture", data.portraitUrl],
+        ["Next", `troupe projects create --title <title> --actor "${actor.name}"`],
+      ]),
+    };
+  },
+};
+
+const actorsDelete: Command = {
+  path: ["actors", "delete"],
+  args: "<actor>",
+  positionals: { min: 1, max: 1 },
+  summary: "Delete an actor you made, with their pictures. Needs --yes; the library's actors stay.",
+  options: { yes: { type: "boolean", description: "Confirm the deletion; it cannot be undone." } },
+  async run(ctx, { positionals, options }) {
+    const actor = await findActor(ctx, positionals[0]!);
+    if (!actor.custom)
+      throw new CliError(`${actor.name} is one of the studio's library actors. Only actors you made can be deleted.`, {
+        code: "NOT_DELETABLE",
+      });
+    if (!flag(options, "yes"))
+      throw usageError(`Deleting ${actor.name} removes their pictures for good. Run again with --yes to confirm.`);
+    await ctx.api.actors.delete.mutate({ workspaceId: await ctx.workspaceId(), actorId: actor.id });
+    return {
+      data: { deleted: true, actor: { id: actor.id, name: actor.name } },
+      text: `Deleted ${actor.name}.`,
     };
   },
 };
@@ -320,6 +437,8 @@ const projectsDelete: Command = {
 export const projectCommands: Command[] = [
   actorsList,
   actorsShow,
+  actorsCreate,
+  actorsDelete,
   projectsList,
   projectsCreate,
   projectsShow,

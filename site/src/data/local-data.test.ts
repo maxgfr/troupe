@@ -21,6 +21,8 @@ vi.mock("../db/client", () => ({
 }));
 const jobs = vi.hoisted(() => ({ clearJobs: vi.fn(async () => {}) }));
 vi.mock("../render/jobs", () => jobs);
+const secrets = vi.hoisted(() => ({ forgetBrowserSecretKey: vi.fn(async () => {}) }));
+vi.mock("../shims/secrets", () => secrets);
 
 const assign = vi.fn();
 vi.stubGlobal("window", { location: { assign, reload: vi.fn() } });
@@ -72,6 +74,8 @@ describe("importing a backup", () => {
     await restoreBackup(backup([file("shared", "backup bytes"), file("new", "new bytes")]));
     expect(await contents()).toEqual({ shared: "backup bytes", new: "new bytes" });
     expect(jobs.clearJobs).toHaveBeenCalledOnce();
+    // This browser's key stays: the backup's sealed keys simply cannot be opened here.
+    expect(secrets.forgetBrowserSecretKey).not.toHaveBeenCalled();
     expect(assign).toHaveBeenCalledWith("/app/dashboard");
   });
 
@@ -98,6 +102,8 @@ describe("deleting everything", () => {
     expect(db.resetDatabase).toHaveBeenCalledOnce();
     expect(await mediaFileIds()).toEqual([]);
     expect(jobs.clearJobs).toHaveBeenCalledOnce();
+    // The saved API keys go too.
+    expect(secrets.forgetBrowserSecretKey).toHaveBeenCalledOnce();
     expect(assign).toHaveBeenCalledWith("/app/dashboard");
   });
 });

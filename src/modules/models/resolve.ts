@@ -139,13 +139,25 @@ export interface CatalogConnection {
   model: string;
   // Who makes it ("kwaivgi"), as the catalog names them.
   owner?: string;
+  // The frames a picture can pin ("first_frame"): the actor's picture starts
+  // the video. Unknown on models added before it was read; add them again.
+  frameImages?: string[];
+  // It animates the actor's picture and says the lines (a talking photo).
+  talking?: boolean;
 }
 
 export function parseCatalogConnection(connection: unknown): CatalogConnection | null {
   const c = connection as Partial<CatalogConnection> | null;
   if (!c || typeof c.model !== "string" || !c.model) return null;
   if (!CATALOG_PROVIDERS.includes(c.provider as CatalogProviderId)) return null;
-  return { provider: c.provider as CatalogProviderId, model: c.model, ...(c.owner ? { owner: c.owner } : {}) };
+  const frames = Array.isArray(c.frameImages) ? c.frameImages.filter((f) => typeof f === "string") : null;
+  return {
+    provider: c.provider as CatalogProviderId,
+    model: c.model,
+    ...(c.owner ? { owner: c.owner } : {}),
+    ...(frames ? { frameImages: frames } : {}),
+    ...(c.talking === true ? { talking: true } : {}),
+  };
 }
 
 // A saved row of a cloud model: which key it renders on, its upstream id and

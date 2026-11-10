@@ -14,11 +14,23 @@ export interface LibraryActor {
   status: "active" | "unavailable";
   // The front portrait; null shows the initials.
   portraitUrl?: string | null;
+  // Made in this workspace (with a photo model), not one of the library's.
+  custom?: boolean;
 }
 
 // Pure view — the 30-actor grid: each actor as a portrait card, the name on
 // the picture and a button that plays their voice, the voice and style below.
-export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]; filtered?: boolean }) {
+export function ActorGrid({
+  actors,
+  filtered = false,
+  onDelete,
+  deleting,
+}: {
+  actors: LibraryActor[];
+  filtered?: boolean;
+  onDelete?: (actor: LibraryActor) => void;
+  deleting?: string;
+}) {
   if (actors.length === 0) {
     return filtered ? (
       <EmptyState title="No actor matches this filter" body="Choose All or another filter to see more actor presets." />
@@ -54,6 +66,11 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
               {actor.name}
             </span>
             <VoiceSampleButton name={actor.name} portraitUrl={actor.portraitUrl} className="absolute top-3 left-3" />
+            {actor.custom ? (
+              <span className="absolute top-3 right-3 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+                Made here
+              </span>
+            ) : null}
           </div>
           <p className="mt-2.5 text-pretty text-xs text-muted">
             <span className="sr-only">{actor.name}: </span>
@@ -61,6 +78,16 @@ export function ActorGrid({ actors, filtered = false }: { actors: LibraryActor[]
             <span className="font-mono tabular-nums">{actor.ageRange}</span> · {actor.style}
             <span className="block text-fg/80">Voice {actor.voiceProfile}</span>
           </p>
+          {actor.custom && onDelete ? (
+            <button
+              type="button"
+              className="mt-1 text-xs text-danger underline disabled:opacity-50"
+              disabled={deleting === actor.id}
+              onClick={() => onDelete(actor)}
+            >
+              {deleting === actor.id ? "Deleting…" : `Delete ${actor.name}`}
+            </button>
+          ) : null}
         </li>
       ))}
     </ul>

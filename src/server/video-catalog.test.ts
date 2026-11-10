@@ -93,6 +93,45 @@ describe("the video catalog", () => {
     });
   });
 
+  it("keeps the frames a picture can pin, and adds a talking photo with lengths its lines decide", async () => {
+    const avatar = model({
+      id: "heygen/avatar-iv",
+      name: "HeyGen Avatar IV",
+      owner: "heygen",
+      operations: [],
+      inputs: ["text"],
+      durations: null,
+      aspectRatios: ["16:9", "9:16", "1:1"],
+      resolutions: ["720p", "1080p"],
+      audio: false,
+      frameImages: [],
+      prices: [{ usdPerSecond: 0.05 }],
+    });
+    expect(capabilitiesOf(avatar)).toMatchObject({
+      ok: true,
+      caps: { aspectRatios: ["16:9", "9:16", "1:1"], audio: "always", durationsS: [5, 10, 15, 20, 30, 45, 60] },
+    });
+    expect(toCatalogEntry(avatar)).toMatchObject({ unavailable: null, pricePerSecondUsd: 0.05 });
+    // Only OpenRouter's HeyGen avatars: another provider's id is driven as any model.
+    expect(capabilitiesOf({ ...avatar, provider: "replicate" }).ok).toBe(false);
+
+    const models = [model(), avatar];
+    await addCatalogVideoModel(db, { provider: "openrouter", id: "heygen/avatar-iv", models });
+    await addCatalogVideoModel(db, { provider: "openrouter", id: "kwaivgi/kling-v3.0-pro", models });
+    const rows = await listModelConfigs(db);
+    expect(rows.find((r) => r.id === "openrouter-heygen-avatar-iv")?.connection).toMatchObject({
+      model: "heygen/avatar-iv",
+      frameImages: [],
+      talking: true,
+    });
+    expect(rows.find((r) => r.id === "openrouter-kwaivgi-kling-v3-0-pro")?.connection).toEqual({
+      provider: "openrouter",
+      model: "kwaivgi/kling-v3.0-pro",
+      owner: "kwaivgi",
+      frameImages: ["first_frame"],
+    });
+  });
+
   it("refuses a model its provider does not list, and one it cannot drive", async () => {
     await expect(addCatalogVideoModel(db, { provider: "gateway", id: "nope/none", models: [model()] })).rejects.toThrow(
       "gateway lists no video model nope/none.",

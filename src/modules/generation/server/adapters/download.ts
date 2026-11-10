@@ -9,8 +9,14 @@ export async function videoBytes(response: Response, maxBytes = CLOUD_DOWNLOAD_L
     if (size > maxBytes) throw new Error(`Video exceeds the ${Math.round(maxBytes / 1024 / 1024)} MB download limit.`);
     chunks.push(chunk);
   }
-  const bytes = Buffer.concat(chunks);
-  if (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp")
+  // Plain Uint8Arrays, no Buffer: the browser edition downloads with it too.
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  if (bytes.length < 12 || String.fromCharCode(...bytes.subarray(4, 8)) !== "ftyp")
     throw new Error("Provider returned an invalid MP4 file.");
   return bytes;
 }

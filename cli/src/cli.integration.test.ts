@@ -7,12 +7,50 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("~/server/media/supabase", () => ({ uploadToSupabase: vi.fn(async () => false) }));
+vi.mock("~/server/media/supabase", () => ({
+  uploadToSupabase: vi.fn(async () => false),
+  removeFromSupabase: vi.fn(async () => undefined),
+  supabaseStorage: vi.fn(() => null),
+}));
 // The studio's real route handlers, on an in-memory Postgres.
 vi.mock("~/server/db", async () => {
   const { createTestDb } = await import("~/test/db");
   return { db: (await createTestDb()).db };
 });
+
+// A photo model that draws a tiny PNG for $0.009, and OpenRouter's list of
+// photo models, without the network.
+const { imageCalls, FLUX } = vi.hoisted(() => ({
+  imageCalls: [] as Record<string, unknown>[],
+  FLUX: {
+    provider: "openrouter",
+    id: "black-forest-labs/flux-3-image-klein",
+    name: "FLUX.3 [klein]",
+    owner: "black-forest-labs",
+    operations: ["text-to-image", "image-to-image"],
+    inputs: ["text", "image"],
+    aspectRatios: ["1:1", "3:4", "9:16"],
+    sizes: null,
+    maxImagesPerCall: 1,
+    seed: true,
+    prices: [{ usd: 0.009, per: "image" }],
+  },
+}));
+vi.mock("llm-connect/image", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("llm-connect/image")>()),
+  generateImages: vi.fn(async (_settings: unknown, request: Record<string, unknown>) => {
+    imageCalls.push(request);
+    const png = Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 3, 0, 0, 0, 4, 8, 6,
+      0, 0, 0,
+    ]);
+    return { images: [{ data: png, mediaType: "image/png" }], warnings: [], costUsd: 0.009 };
+  }),
+}));
+vi.mock("~/server/media-catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/server/media-catalog")>()),
+  listMediaModels: vi.fn(async () => [FLUX]),
+}));
 
 import type { NextRequest } from "next/server";
 import { POST as accessPost } from "~/app/api/access/route";
@@ -672,5 +710,89 @@ describe("troupe CLI against the studio's HTTP API", () => {
       winnerModelKey: first.key,
       winnerLabel: "Test renderer",
     });
+  });
+
+  it("makes an actor on the OpenRouter key, lists and shows them, and deletes only them", async () => {
+    const signed = { env: { TROUPE_ACCESS_CODE: CODE } };
+    const describe = [
+      "actors",
+      "create",
+      "--name",
+      "Zelda Test",
+      "--gender",
+      "female",
+      "--age",
+      "25-34",
+      "--style",
+      "casual",
+      "--look",
+      "Curly auburn hair, freckles, green eyes, mustard knit sweater",
+      "--voice",
+      "warm and upbeat, mid-tempo",
+      "--json",
+    ];
+
+    // Every field is needed, and the gender is one of three.
+    const missing = await troupe(
+      describe.filter((a) => a !== "--look" && !a.startsWith("Curly")),
+      signed,
+    );
+    expect(missing.code).toBe(2);
+    expect(JSON.parse(missing.stderr).error.message).toBe("--look is required.");
+    const gender = await troupe(
+      describe.map((a) => (a === "female" ? "robot" : a)),
+      signed,
+    );
+    expect(gender.code).toBe(2);
+
+    // No key: refused before anything is drawn.
+    const noKey = await troupe(describe, signed);
+    expect(noKey.code).toBe(1);
+    expect(JSON.parse(noKey.stderr).error).toMatchObject({ code: "NO_KEY" });
+    expect(imageCalls).toHaveLength(0);
+
+    expect(
+      (await troupe(["keys", "set", "openrouter", "--key-stdin"], { ...signed, stdin: "sk-or-test\n" })).code,
+    ).toBe(0);
+    const made = await troupe(describe, signed);
+    expect({ code: made.code, stderr: made.stderr }).toEqual({ code: 0, stderr: "" });
+    const actor = made.data();
+    expect(actor).toMatchObject({
+      name: "Zelda Test",
+      custom: true,
+      status: "active",
+      portraitCount: 6,
+      costUsd: 0.054,
+      modelLabel: "FLUX.3 [klein]",
+    });
+    expect(actor.portraitUrl).toBe(`${studio.url}/api/actor-pictures/${actor.id}/v1/front.png`);
+    // The front from the description, then the five others drawn from it.
+    expect(imageCalls).toHaveLength(6);
+    expect(imageCalls[0]).not.toHaveProperty("providerOptions");
+    for (const call of imageCalls.slice(1))
+      expect(call).toMatchObject({
+        providerOptions: { openrouter: { input_references: [{ type: "image_url" }] } },
+      });
+
+    // Listed and shown as made here.
+    const people = await troupe(["actors", "list"], signed);
+    expect(people.stdout).toMatch(/Zelda Test .* yours\s+active/);
+    expect((await troupe(["actors", "show", "zelda test"], signed)).stdout).toContain("by you, in this studio");
+
+    // Only an actor made here can go, and only with --yes.
+    const library = (await troupe(["actors", "list", "--json"], signed))
+      .data()
+      .find((a: { custom: boolean }) => !a.custom);
+    const kept = await troupe(["actors", "delete", library.id, "--yes", "--json"], signed);
+    expect(kept.code).toBe(1);
+    expect(JSON.parse(kept.stderr).error).toMatchObject({ code: "NOT_DELETABLE" });
+    expect((await troupe(["actors", "delete", "Zelda Test"], signed)).code).toBe(2);
+    const gone = await troupe(["actors", "delete", actor.id.slice(0, 8), "--yes", "--json"], signed);
+    expect(gone.code).toBe(0);
+    expect(gone.data()).toEqual({ deleted: true, actor: { id: actor.id, name: "Zelda Test" } });
+    expect(
+      (await troupe(["actors", "list", "--json"], signed)).data().some((a: { id: string }) => a.id === actor.id),
+    ).toBe(false);
+    expect((await troupe(["keys", "clear", "openrouter"], signed)).code).toBe(0);
   });
 });

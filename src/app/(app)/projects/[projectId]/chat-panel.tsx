@@ -255,11 +255,9 @@ export function ChatPanel({
           <div className="mb-3">
             <ProviderWarning>
               {unavailable}{" "}
-              {edition.kind === "self-hosted" ? (
-                <Link href="/settings#script-chat" className="underline underline-offset-4">
-                  Chat settings
-                </Link>
-              ) : null}
+              <Link href="/settings#script-chat" className="underline underline-offset-4">
+                Chat settings
+              </Link>
             </ProviderWarning>
           </div>
         ) : null}

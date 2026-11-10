@@ -32,6 +32,7 @@
     "site:test": "playwright test --config site/playwright.config.ts --project chromium",
     "site:test:render": "playwright test --config site/playwright.config.ts --project render",
     "site:test:chat": "playwright test --config site/playwright.config.ts --project chat",
+    "site:test:openrouter": "playwright test --config site/playwright.config.ts --project openrouter",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "~/server/db/types";
 import { providerSettings } from "./schema";
-import { SecretUnavailableError, loadSecretBox, type SecretBox } from "./secrets";
+import { SecretUnavailableError, loadProviderSecretBox, type ProviderSecretBox } from "./secrets";
 
 // "anthropic" is the script chat's key (src/server/chat/anthropic.ts). The
 // last four render the video models added from their catalog (llm-connect).
@@ -53,9 +53,9 @@ export type CredentialState =
 
 const aad = (provider: CredentialId) => `provider_settings:${provider}`;
 
-function tryBox(): SecretBox | null {
+function tryBox(): ProviderSecretBox | null {
   try {
-    return loadSecretBox();
+    return loadProviderSecretBox();
   } catch {
     return null;
   }
@@ -83,7 +83,7 @@ export async function readCredentials(
         continue;
       }
       try {
-        out[id] = { source: "saved", key: box.open(row.apiKeyCiphertext, aad(id)) };
+        out[id] = { source: "saved", key: await box.open(row.apiKeyCiphertext, aad(id)) };
       } catch (error) {
         if (!(error instanceof SecretUnavailableError)) throw error;
         out[id] = { source: "undecryptable" };
@@ -95,7 +95,11 @@ export async function readCredentials(
       if (box) {
         await db
           .update(providerSettings)
-          .set({ apiKey: null, apiKeyCiphertext: box.seal(row.apiKey, aad(id)), keyFingerprint: box.fingerprint })
+          .set({
+            apiKey: null,
+            apiKeyCiphertext: await box.seal(row.apiKey, aad(id)),
+            keyFingerprint: box.fingerprint,
+          })
           .where(eq(providerSettings.provider, id));
       }
       out[id] = { source: "saved", key: row.apiKey };
@@ -127,10 +131,10 @@ export const ApiKey = z
 
 export async function saveProviderKey(input: { provider: CredentialId; key: string }, db: Db) {
   const key = ApiKey.parse(input.key);
-  const box = loadSecretBox();
+  const box = loadProviderSecretBox();
   const values = {
     apiKey: null,
-    apiKeyCiphertext: box.seal(key, aad(input.provider)),
+    apiKeyCiphertext: await box.seal(key, aad(input.provider)),
     keyFingerprint: box.fingerprint,
   };
   await db

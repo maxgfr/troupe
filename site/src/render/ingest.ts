@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import { generations, ingestRender, mediaAssets, type RenderIngestor } from "~/modules/generation";
 import type { Db } from "~/server/db/types";
+import { sha256Hex } from "~/server/shot-media-core";
 import { saveMediaFile } from "../media";
 import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 
@@ -24,8 +25,9 @@ import { knownJob, pruneJobs, type JobSettlement } from "./jobs";
 // tab's commit and that tab storing the file, they can list a render whose
 // file the media service worker does not have yet (it answers 404 until then).
 
-export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
+export const ingestBrowserRender: RenderIngestor = async (db, gen, status, adapter) => {
   if (gen.outputAssetId) return;
+  if (adapter.family === "catalog") return ingestCloudRender(db, gen, status, adapter);
   const job = knownJob(status.providerJobId);
   // getJob read the job just before, in this tab; without it, the next poll retries.
   if (!job?.probe || !job.checksum || !job.video)
@@ -37,6 +39,49 @@ export const ingestBrowserRender: RenderIngestor = async (db, gen, status) => {
     probe: async () => ({ ...job.probe, storage: "indexeddb" }),
   });
 };
+
+// A cloud model's render (OpenRouter, on the visitor's key): the video is
+// downloaded from the provider and kept under the asset the database records,
+// before the transaction commits. A rolled-back commit leaves an orphan file
+// in IndexedDB and the job unrecorded: the next poll downloads it again.
+const ingestCloudRender: RenderIngestor = async (db, gen, status, adapter) => {
+  if (!status.outputUrl || !adapter.downloadResult) throw new Error("The provider returned no downloadable video.");
+  const bytes = await adapter.downloadResult(status.outputUrl);
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "video/mp4" });
+  const meta = await probeVideo(blob);
+  const asset = await ingestRender(db, {
+    generationId: gen.id,
+    bytes: bytes.length,
+    checksum: await sha256Hex(bytes),
+    probe: async () => ({ ...meta, storage: "indexeddb" }),
+  });
+  await saveMediaFile({ id: asset.id, storagePath: asset.storagePath, blob });
+};
+
+// What a <video> reads from the file: its size and length, as ffprobe gives
+// them on a server.
+function probeVideo(blob: Blob): Promise<Record<string, unknown>> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const video = document.createElement("video");
+    const done = (meta: Record<string, unknown>) => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      resolve(meta);
+    };
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadedmetadata = () =>
+      done({
+        width: video.videoWidth,
+        height: video.videoHeight,
+        durationS: Number.isFinite(video.duration) ? video.duration : undefined,
+      });
+    video.onerror = () => done({});
+    setTimeout(() => done({}), 10_000);
+    video.src = url;
+  });
+}
 
 // Whether the studio is done with each job: settled once its render is
 // recorded (with the file to keep) or failed; jobs it has no record of are

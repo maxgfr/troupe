@@ -1,5 +1,5 @@
 import type { MediaStore, StoredFile } from "~/server/media/store";
-import { actorPictureUrl } from "~/modules/actors/pictures";
+import { actorPictureUrl, isCustomPicture } from "~/modules/actors/pictures";
 
 // Renders made in the browser edition, and the library's files, live in
 // IndexedDB, one record per media asset: { id: asset id, storagePath, blob }. The service worker
@@ -123,8 +123,13 @@ function removeByStoragePath(files: StoredFile[]): Promise<void> {
 export const browserMedia: MediaStore = {
   urlFor: (assetId, opts) =>
     `${import.meta.env.BASE_URL}app/media/${encodeURIComponent(assetId)}${opts?.download ? "?download=1" : ""}`,
-  // The build copies the cast to <base>actors/ (site/vite-plugins.ts).
-  pictureUrl: (storagePath) => actorPictureUrl(`${import.meta.env.BASE_URL}actors`, storagePath),
+  // The build copies the cast to <base>actors/ (site/vite-plugins.ts); an
+  // actor made in this browser keeps its pictures with the renders, under
+  // their storage path (site/src/shims/actor-pictures.ts).
+  pictureUrl: (storagePath) =>
+    isCustomPicture(storagePath)
+      ? `${import.meta.env.BASE_URL}app/media/${encodeURIComponent(storagePath)}`
+      : actorPictureUrl(`${import.meta.env.BASE_URL}actors`, storagePath),
   remove: (files) => removeByStoragePath(files),
 };
 

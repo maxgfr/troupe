@@ -26,7 +26,7 @@ export const chatMessages = createTable(
     baseScriptId: d.uuid().references(() => scripts.id, { onDelete: "set null" }),
     // The version created by applying the proposal.
     appliedScriptId: d.uuid().references(() => scripts.id, { onDelete: "set null" }),
-    // Who answered: "ollama", "anthropic" or "webllm", and the model id.
+    // Who answered: "ollama", "anthropic", "openrouter" or "webllm", and the model id.
     provider: d.text(),
     model: d.text(),
     createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),

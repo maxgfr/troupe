@@ -122,7 +122,7 @@ export const settingsRouter = createTRPCRouter({
     }),
 
     test: protectedProcedure
-      .input(z.object({ provider: z.enum(["ollama", "anthropic", "webllm"]) }))
+      .input(z.object({ provider: z.enum(["ollama", "anthropic", "openrouter", "webllm"]) }))
       .mutation(({ ctx, input }) => chatBackend(ctx.chat).test(input.provider)),
   }),
 

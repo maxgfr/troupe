@@ -28,6 +28,10 @@ export interface CreateJobRequest {
   // The script behind the prompt, for models that voice and stage it
   // themselves. Always set by launches; prompt-only models ignore it.
   script?: JobScript;
+  // A shot's actor (a project's is script.actor), for the models that take
+  // their picture, and the shot's text as the user wrote it.
+  actor?: JobActor;
+  shotText?: string;
 }
 
 export interface JobScript {
@@ -134,6 +138,9 @@ export interface VideoProviderAdapter {
   // finish in seconds (clamped to 1–60). Unset: 20 s, then doubling up to
   // 5 minutes.
   pollEveryS?: number;
+  // A model that animates the actor's picture: a shot without an actor is
+  // refused before any call.
+  needsActor?: boolean;
   createJob(req: CreateJobRequest): Promise<{ providerJobId: string }>;
   // Optional: a provider without it still gets the reconciler's timeout guard.
   getJob?(providerJobId: string): Promise<ProviderJobStatus>;

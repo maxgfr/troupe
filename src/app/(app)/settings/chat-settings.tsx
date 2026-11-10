@@ -7,22 +7,31 @@ import { api } from "~/trpc/react";
 import { ErrorNote, ProviderWarning, Skeleton, buttonClass, fieldClass } from "~/app/_components/ui";
 import { ConnectionResult, type Report } from "./connection-result";
 
-type Provider = "auto" | "ollama" | "anthropic";
+type Provider = "auto" | "ollama" | "anthropic" | "openrouter" | "webllm";
 
 interface Draft {
   provider: Provider;
   ollamaUrl: string;
   ollamaModel: string;
   anthropicModel: string;
+  openrouterModel: string;
   instructions: string;
   wordsPerSecond: string;
 }
 
-const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: "auto", label: "Automatic: Claude when an Anthropic key is saved, else Ollama" },
-  { id: "ollama", label: "Ollama, on this machine or your network" },
-  { id: "anthropic", label: "Claude, with your Anthropic key" },
-];
+const PROVIDER_LABELS: Record<Exclude<Provider, "auto">, string> = {
+  ollama: "Ollama, on this machine or your network",
+  anthropic: "Claude, with your Anthropic key",
+  openrouter: "OpenRouter, with your OpenRouter key",
+  webllm: "This browser's model, on your GPU",
+};
+
+// "Automatic" says what it picks in this edition.
+function autoLabel(offers: string[]): string {
+  return offers.includes("ollama")
+    ? "Automatic: Claude with an Anthropic key, else OpenRouter with an OpenRouter key, else Ollama"
+    : "Automatic: OpenRouter when its key is saved, else this browser's model";
+}
 
 const field = fieldClass;
 
@@ -51,6 +60,7 @@ export function ChatSettings() {
       ollamaUrl: s.ollamaUrl ?? "",
       ollamaModel: s.ollamaModel ?? "",
       anthropicModel: s.anthropicModel ?? "",
+      openrouterModel: s.openrouterModel ?? "",
       instructions: s.instructions ?? "",
       wordsPerSecond: s.wordsPerSecond?.toString() ?? "",
     });
@@ -62,6 +72,7 @@ export function ChatSettings() {
 
   const { offers, defaults, active } = view.data;
   const self = offers.includes("ollama");
+  const choices: Provider[] = ["auto", ...offers];
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const rate = draft.wordsPerSecond.trim() ? Number(draft.wordsPerSecond) : null;
   const rateProblem = rate !== null && !(rate >= 1 && rate <= 5) ? "Use a number from 1 to 5." : null;
@@ -74,14 +85,15 @@ export function ChatSettings() {
         event.preventDefault();
         if (rateProblem) return;
         save.mutate({
+          provider: draft.provider === "auto" ? null : draft.provider,
           ...(self
             ? {
-                provider: draft.provider === "auto" ? null : draft.provider,
                 ollamaUrl: draft.ollamaUrl,
                 ollamaModel: draft.ollamaModel,
                 anthropicModel: draft.anthropicModel,
               }
             : {}),
+          ...(offers.includes("openrouter") ? { openrouterModel: draft.openrouterModel } : {}),
           instructions: draft.instructions,
           wordsPerSecond: rate,
         });
@@ -106,23 +118,41 @@ export function ChatSettings() {
         <ConnectionResult report={report} />
       </div>
 
+      <label className="block text-sm">
+        <span className="mb-1.5 block font-medium">Model provider</span>
+        <select
+          data-field
+          value={choices.includes(draft.provider) ? draft.provider : "auto"}
+          onChange={(e) => set({ provider: e.target.value as Provider })}
+          className={field}
+        >
+          {choices.map((id) => (
+            <option key={id} value={id}>
+              {id === "auto" ? autoLabel(offers) : PROVIDER_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {offers.includes("openrouter") ? (
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium">OpenRouter model</span>
+          <input
+            value={draft.openrouterModel}
+            onChange={(e) => set({ openrouterModel: e.target.value })}
+            placeholder={defaults.openrouterModel}
+            spellCheck={false}
+            className={`${field} font-mono sm:max-w-sm`}
+          />
+          <span className="mt-1 block text-xs text-muted">
+            Any OpenRouter model with structured outputs. The key goes under Provider accounts; OpenRouter bills each
+            message (a few tenths of a cent with the default).
+          </span>
+        </label>
+      ) : null}
+
       {self ? (
         <>
-          <label className="block text-sm">
-            <span className="mb-1.5 block font-medium">Model provider</span>
-            <select
-              data-field
-              value={draft.provider}
-              onChange={(e) => set({ provider: e.target.value as Provider })}
-              className={field}
-            >
-              {PROVIDERS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium">Ollama address</span>
@@ -166,8 +196,9 @@ export function ChatSettings() {
         </>
       ) : (
         <p className="max-w-[72ch] text-sm text-muted">
-          In your browser the chat runs <span className="font-mono text-xs text-fg">{defaults.webllmModel}</span> in
-          this tab, on your GPU through WebGPU. Ollama and Claude need the self-hosted studio.
+          In your browser the chat answers through OpenRouter with your key, called from this page, or runs{" "}
+          <span className="font-mono text-xs text-fg">{defaults.webllmModel}</span> in this tab, on your GPU through
+          WebGPU. Ollama and Claude need the self-hosted studio.
         </p>
       )}
 

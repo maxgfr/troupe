@@ -12,9 +12,11 @@ import { readCredentials } from "~/server/settings/providers";
 import { checkLocalUrl } from "~/server/settings/urls";
 import { createAnthropicChat, DEFAULT_ANTHROPIC_MODEL, testAnthropic } from "./anthropic";
 import { createOllamaChat, testOllama } from "./ollama";
+import { createOpenRouterChat, DEFAULT_OPENROUTER_CHAT_MODEL, testOpenRouter } from "./openrouter";
 
-// The self-hosted studio's chat: Ollama unless an Anthropic key is set, both
-// configurable in Settings, with defaults from the environment (.env.example).
+// The self-hosted studio's chat: Claude with an Anthropic key, else OpenRouter
+// with an OpenRouter key, else Ollama; configurable in Settings, with
+// defaults from the environment (.env.example).
 
 type Env = Record<string, string | undefined>;
 
@@ -23,10 +25,11 @@ export const DEFAULT_OLLAMA_MODEL = "qwen3:4b";
 export const DEFAULT_WORDS_PER_SECOND = 2.5;
 
 export interface ChatEnvironment {
-  provider: "auto" | "ollama" | "anthropic";
+  provider: "auto" | "ollama" | "anthropic" | "openrouter";
   ollamaUrl: string;
   ollamaModel: string;
   anthropicModel: string;
+  openrouterModel: string;
   instructions: string;
   wordsPerSecond: number;
   timeoutMs: number;
@@ -49,11 +52,13 @@ const number = (raw: string | undefined, fallback: number, min: number, max: num
 export function chatEnvironment(env: Env = process.env): ChatEnvironment {
   const provider = env.TROUPE_CHAT_PROVIDER?.trim();
   return {
-    provider: provider === "ollama" || provider === "anthropic" ? provider : "auto",
+    provider: provider === "ollama" || provider === "anthropic" || provider === "openrouter" ? provider : "auto",
     // docker-compose.yml points this at the host (host.docker.internal).
     ollamaUrl: env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434",
     ollamaModel: env.OLLAMA_MODEL?.trim() || DEFAULT_OLLAMA_MODEL,
     anthropicModel: env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL,
+    // Set in Settings; no variable of its own.
+    openrouterModel: DEFAULT_OPENROUTER_CHAT_MODEL,
     instructions: env.TROUPE_CHAT_INSTRUCTIONS?.trim() ?? "",
     wordsPerSecond: number(env.TROUPE_CHAT_WORDS_PER_SECOND, DEFAULT_WORDS_PER_SECOND, 1, 5),
     timeoutMs: number(env.TROUPE_CHAT_TIMEOUT_S, 180, 10, 1800) * 1000,
@@ -81,7 +86,12 @@ export function anthropicFallbackAllowed(
   }
 }
 
-const LABELS: Record<ChatProviderId, string> = { ollama: "Ollama", anthropic: "Claude", webllm: "This browser" };
+const LABELS: Record<ChatProviderId, string> = {
+  ollama: "Ollama",
+  anthropic: "Claude",
+  openrouter: "OpenRouter",
+  webllm: "This browser",
+};
 
 export interface ServerChatOptions {
   env?: Env;
@@ -96,19 +106,28 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
 
   async function resolve() {
     const [saved, credentials] = await Promise.all([getChatSettings(db), readCredentials(db, source)]);
-    const anthropic = credentials.anthropic;
-    const anthropicKey = anthropic.source === "saved" || anthropic.source === "environment" ? anthropic.key : null;
+    const usable = (c: (typeof credentials)[keyof typeof credentials]) =>
+      c.source === "saved" || c.source === "environment" ? c.key : null;
+    const anthropicKey = usable(credentials.anthropic);
+    const openrouterKey = usable(credentials.openrouter);
     const settings: Required<Omit<ChatSettings, "provider">> & { provider: ChatSettings["provider"] } = {
       provider: saved.provider ?? env.provider,
       ollamaUrl: saved.ollamaUrl ?? env.ollamaUrl,
       ollamaModel: saved.ollamaModel ?? env.ollamaModel,
       anthropicModel: saved.anthropicModel ?? env.anthropicModel,
+      openrouterModel: saved.openrouterModel ?? env.openrouterModel,
       instructions: saved.instructions ?? env.instructions,
       wordsPerSecond: saved.wordsPerSecond ?? env.wordsPerSecond,
     };
-    const provider: "ollama" | "anthropic" =
-      settings.provider === "auto" || !settings.provider ? (anthropicKey ? "anthropic" : "ollama") : settings.provider;
-    return { saved, settings, provider, anthropicKey };
+    const provider: "ollama" | "anthropic" | "openrouter" =
+      settings.provider === "auto" || settings.provider === "webllm" || !settings.provider
+        ? anthropicKey
+          ? "anthropic"
+          : openrouterKey
+            ? "openrouter"
+            : "ollama"
+        : settings.provider;
+    return { saved, settings, provider, anthropicKey, openrouterKey };
   }
 
   function setupFor(r: Awaited<ReturnType<typeof resolve>>): ChatSetup {
@@ -150,6 +169,27 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
         problem: null,
       };
     }
+    if (r.provider === "openrouter") {
+      const modelId = r.settings.openrouterModel;
+      return {
+        ...common,
+        provider: "openrouter",
+        label: LABELS.openrouter,
+        modelId,
+        model: r.openrouterKey
+          ? createOpenRouterChat({
+              apiKey: r.openrouterKey,
+              model: modelId,
+              timeoutMs: env.timeoutMs,
+              temperature: env.temperature,
+              fetch: options.fetch,
+            })
+          : null,
+        problem: r.openrouterKey
+          ? null
+          : "The chat is set to OpenRouter but no OpenRouter API key is saved. Add one under Provider accounts, or switch the chat to Ollama.",
+      };
+    }
     const modelId = r.settings.ollamaModel;
     const url = checkLocalUrl(r.settings.ollamaUrl);
     if (!url.ok)
@@ -178,7 +218,7 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
   }
 
   return {
-    offers: ["ollama", "anthropic"],
+    offers: ["ollama", "anthropic", "openrouter"],
     async load() {
       return setupFor(await resolve());
     },
@@ -186,13 +226,14 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
       const r = await resolve();
       const setup = setupFor(r);
       return {
-        offers: ["ollama", "anthropic"],
+        offers: ["ollama", "anthropic", "openrouter"],
         saved: r.saved,
         defaults: {
           provider: env.provider,
           ollamaUrl: env.ollamaUrl,
           ollamaModel: env.ollamaModel,
           anthropicModel: env.anthropicModel,
+          openrouterModel: env.openrouterModel,
           instructions: env.instructions,
           wordsPerSecond: env.wordsPerSecond,
         },
@@ -209,6 +250,16 @@ export function createServerChat(db: Db, options: ServerChatOptions = {}): ChatB
           model: r.settings.anthropicModel,
           timeoutMs: env.timeoutMs,
           baseURL: options.anthropicBaseURL,
+        });
+      }
+      if (provider === "openrouter") {
+        if (!r.openrouterKey)
+          return { ok: false, message: "No OpenRouter API key is saved. Add one under Provider accounts." };
+        return testOpenRouter({
+          apiKey: r.openrouterKey,
+          model: r.settings.openrouterModel,
+          timeoutMs: env.timeoutMs,
+          fetch: options.fetch,
         });
       }
       if (provider === "ollama")

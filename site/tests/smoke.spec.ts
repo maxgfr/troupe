@@ -31,8 +31,8 @@ test("landing → dashboard → new project → script, kept across reloads and 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Project title").fill("Smoke project");
   await page.getByRole("button", { name: "Continue" }).click();
-  // Cloud models need the self-hosted studio: each one says why.
-  await expect(page.getByText(/Needs the self-hosted studio, which keeps your API key/).first()).toBeVisible();
+  // In the browser, cloud models run on OpenRouter; the others say they need the self-hosted studio.
+  await expect(page.getByText(/In your browser, cloud models run on OpenRouter/).first()).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   const actor = page.locator('label:has(input[name="actor"]:not([disabled]))').first();
@@ -197,7 +197,9 @@ test("settings says what needs the self-hosted studio, and deleting all local da
   test.slow();
   const errors = watchConsole(page);
   await page.goto(`${APP}/settings`);
-  await expect(page.getByText(/Cloud providers need the self-hosted studio/)).toBeVisible(MIGRATING);
+  await expect(page.getByText(/In your browser, cloud models run on OpenRouter: one key/)).toBeVisible(MIGRATING);
+  await expect(page.locator("#key-openrouter")).toBeVisible();
+  await expect(page.locator("#key-fal")).toHaveCount(0);
   await expect(page.getByText(/A page served from the web cannot connect to them/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Background checks" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Set up the self-hosted studio", exact: true }).first()).toHaveAttribute(
@@ -274,15 +276,15 @@ test("exports all local data, deletes it, and imports it back", async ({ page })
   expect(errors).toEqual([]);
 });
 
-test("Shots opens from the bar and a deep link, and says it needs the self-hosted studio", async ({ page }) => {
+test("Shots opens from the bar and a deep link, and says its models run on OpenRouter", async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto(`${APP}/dashboard`);
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Shots" }).click();
   await expect(page).toHaveURL(/\/troupe\/app\/shots$/);
   await expect(page.getByRole("heading", { name: "Shots" })).toBeVisible(MIGRATING);
-  await expect(page.getByText(/only the self-hosted studio can keep/)).toBeVisible();
+  await expect(page.getByText(/shots render on OpenRouter's models with your own key/)).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("link", { name: "Set up the self-hosted studio" })).toBeVisible(MIGRATING);
+  await expect(page.getByRole("heading", { name: "Shots" })).toBeVisible(MIGRATING);
   expect(errors).toEqual([]);
 });
 

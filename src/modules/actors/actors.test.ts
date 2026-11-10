@@ -83,8 +83,15 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
         status: "active",
       })
       .returning();
-    const listed = await listActors(t.db, {});
+    const listed = await listActors(t.db, {}, { workspaceId: ws });
     expect(listed.find((a) => a.id === broken!.id)?.status).toBe("unavailable");
+    // Made in a workspace: listed there only.
+    expect((await listActors(t.db, {})).some((a) => a.id === broken!.id)).toBe(false);
+    expect(
+      (await listActors(t.db, {}, { workspaceIds: ["00000000-0000-4000-8000-000000000999"] })).some(
+        (a) => a.id === broken!.id,
+      ),
+    ).toBe(false);
 
     const [p] = await t.db
       .insert(projects)
@@ -108,7 +115,9 @@ describe("AI actor library of 30 consistent synthetic actors", () => {
     expect(library.find((a) => a.name === lea.name && a.ageRange === lea.ageRange)?.portraitPath).toBe(
       storagePathFor(lea.slug, 1, "front.webp"),
     );
-    expect(library.find((a) => a.name === "Ghost")?.portraitPath).toBeNull();
+    const ghost = (await t.db.select().from(actors).where(eq(actors.name, "Ghost")))[0]!;
+    const scoped = await listActors(t.db, {}, { workspaceId: ghost.workspaceId! });
+    expect(scoped.find((a) => a.name === "Ghost")?.portraitPath).toBeNull();
   });
 
   it("keeps the library's pictures in step with the catalog when an older set was seeded", async () => {

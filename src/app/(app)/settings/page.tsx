@@ -86,10 +86,14 @@ export default function SettingsPage() {
       <div id="provider-accounts" className="scroll-mt-24">
         <Section title="Provider accounts">
           {browser ? (
-            <NeedsSelfHosted>
-              Cloud providers need the self-hosted studio, which keeps your API keys encrypted on your own server and
-              calls the provider from there. In your browser, Troupe never asks for a key.
-            </NeedsSelfHosted>
+            <>
+              <p className="mb-4 max-w-[72ch] text-sm text-muted">
+                In your browser, cloud models run on OpenRouter: one key for video, photo and voice models and the
+                script chat. It is encrypted in this browser and sent to OpenRouter only, straight from this page; a
+                backup never holds it. Other providers need the self-hosted studio.
+              </p>
+              <ProviderAccounts only="openrouter" />
+            </>
           ) : (
             <ProviderAccounts />
           )}

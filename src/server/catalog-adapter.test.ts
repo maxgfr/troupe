@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AdapterError } from "~/modules/generation";
-import { createCatalogAdapter, downloadCatalogVideo } from "./catalog-adapter";
+import { createCatalogAdapter, downloadCatalogVideo, spokenText, talkingVoice } from "./catalog-adapter";
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
@@ -114,6 +114,176 @@ describe("a catalog model's renders", () => {
       errorCode: "PROVIDER_FAILED",
       detail: "Blocked by the content policy.",
     });
+  });
+});
+
+const actor = {
+  id: "a1",
+  name: "Fatou",
+  gender: "female" as const,
+  ageRange: "25-34",
+  voiceProfile: "warm",
+  portraits: { front: "custom-actors/a1/v1/front.jpg", happy: "custom-actors/a1/v1/happy.jpg" },
+};
+const REFERENCE = "data:image/jpeg;base64,AAAA";
+
+describe("the actor's picture", () => {
+  const withFrames = (fetch: ReturnType<typeof fakeProvider>["fetch"], frameImages: string[], loaded: string[]) =>
+    createCatalogAdapter({
+      model: {
+        modelKey: "openrouter-google-veo-3-1-lite",
+        provider: "openrouter",
+        modelId: "google/veo-3.1-lite",
+        capabilities: caps,
+        frameImages,
+      },
+      apiKey: "or-secret",
+      fetch,
+      loadReference: async (path, ratio) => {
+        loaded.push(`${path} ${ratio}`);
+        return REFERENCE;
+      },
+    });
+
+  it("starts the video of a model that takes a first frame, framed like the video", async () => {
+    const or = fakeProvider(() => ({ body: { id: "job-1" } }));
+    const loaded: string[] = [];
+    await withFrames(or.fetch, ["first_frame", "last_frame"], loaded).createJob({
+      prompt: "She waves.",
+      aspectRatio: "9:16",
+      resolution: "720p",
+      durationS: 5,
+      audio: true,
+      actor,
+    });
+    expect(loaded).toEqual(["custom-actors/a1/v1/front.jpg 9:16"]);
+    const body = or.calls[0]!.body as { frame_images: unknown; prompt: string };
+    expect(body.frame_images).toEqual([
+      { type: "image_url", image_url: { url: REFERENCE }, frame_type: "first_frame" },
+    ]);
+    expect(body.prompt).toMatch(/^She waves\.\n\nThe first frame shows the actor/);
+  });
+
+  it("goes by the description on a model that takes no picture, or without an actor", async () => {
+    const or = fakeProvider(() => ({ body: { id: "job-2" } }));
+    const loaded: string[] = [];
+    const base = { prompt: "A beach.", aspectRatio: "9:16", resolution: "720p", durationS: 5, audio: false };
+    await withFrames(or.fetch, [], loaded).createJob({ ...base, actor });
+    await withFrames(or.fetch, ["first_frame"], loaded).createJob(base);
+    expect(loaded).toEqual([]);
+    for (const call of or.calls) {
+      expect(call.body).not.toHaveProperty("frame_images");
+      expect((call.body as { prompt: string }).prompt).toBe("A beach.");
+    }
+  });
+
+  it("goes on without it when it cannot be read", async () => {
+    const or = fakeProvider(() => ({ body: { id: "job-3" } }));
+    const adapter = createCatalogAdapter({
+      model: {
+        modelKey: "k",
+        provider: "openrouter",
+        modelId: "x/y",
+        capabilities: caps,
+        frameImages: ["first_frame"],
+      },
+      apiKey: "or-secret",
+      fetch: or.fetch,
+      loadReference: async () => null,
+    });
+    await adapter.createJob({
+      prompt: "P",
+      aspectRatio: "9:16",
+      resolution: "720p",
+      durationS: 5,
+      audio: false,
+      actor,
+    });
+    expect(or.calls[0]!.body).not.toHaveProperty("frame_images");
+  });
+});
+
+describe("a talking photo", () => {
+  const avatar = (fetch: ReturnType<typeof fakeProvider>["fetch"], reference: string | null = REFERENCE) =>
+    createCatalogAdapter({
+      model: {
+        modelKey: "openrouter-heygen-avatar-iv",
+        provider: "openrouter",
+        modelId: "heygen/avatar-iv",
+        capabilities: { ...caps, audio: "always", durationsS: [5, 10, 15] },
+        frameImages: [],
+        talking: true,
+      },
+      apiKey: "or-secret",
+      fetch,
+      loadReference: async () => reference,
+    });
+
+  it("animates the actor's picture and says the script's lines, in a voice of their gender and language", async () => {
+    const or = fakeProvider(() => ({ body: { id: "job-4" } }));
+    const adapter = avatar(or.fetch);
+    expect(adapter.needsActor).toBe(true);
+    await adapter.createJob({
+      prompt: "UGC-style ad…",
+      aspectRatio: "9:16",
+      resolution: "720p",
+      durationS: 10,
+      audio: true,
+      script: {
+        lines: [
+          { role: "hook", text: "Ce pull a changé mon automne.", emotion: "excited" },
+          { role: "cta", text: "Le lien est en bio.", emotion: "calm" },
+        ],
+        actor,
+        language: "fr",
+      },
+    });
+    const body = or.calls[0]!.body as Record<string, unknown>;
+    expect(body).toMatchObject({
+      model: "heygen/avatar-iv",
+      prompt: "Ce pull a changé mon automne. Le lien est en bio.",
+      aspect_ratio: "9:16",
+      input_references: [{ type: "image_url", image_url: { url: REFERENCE } }],
+      provider: { options: { heygen: { voice_id: talkingVoice("fr", "female") } } },
+    });
+    // Its length is the lines': no duration is asked.
+    expect(body).not.toHaveProperty("duration");
+    expect(body).not.toHaveProperty("frame_images");
+  });
+
+  it("says a shot's own text, not the actor's description", () => {
+    expect(
+      spokenText({
+        prompt: "Hello there.\n\nOn screen: Fatou, adult, female.",
+        shotText: "Hello there.",
+        aspectRatio: "9:16",
+        resolution: "720p",
+        durationS: 5,
+        audio: true,
+      }),
+    ).toBe("Hello there.");
+  });
+
+  it("is refused before any call without the actor's picture", async () => {
+    const or = fakeProvider(() => ({ body: { id: "job-5" } }));
+    await expect(
+      avatar(or.fetch, null).createJob({
+        prompt: "Hi",
+        aspectRatio: "9:16",
+        resolution: "720p",
+        durationS: 5,
+        audio: true,
+        actor,
+      }),
+    ).rejects.toMatchObject({ code: "ACTOR_REQUIRED" });
+    expect(or.calls).toEqual([]);
+  });
+
+  it("picks a voice by language and gender, English when HeyGen has none listed for the language", () => {
+    expect(talkingVoice("en", "male")).not.toBe(talkingVoice("en", "female"));
+    expect(talkingVoice("de", "male")).toBe(talkingVoice("en", "male"));
+    expect(talkingVoice("es-MX", "female")).toBe(talkingVoice("es", "female"));
+    expect(talkingVoice(undefined, "nonbinary")).toBe(talkingVoice("en", "female"));
   });
 });
 

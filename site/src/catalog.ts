@@ -3,27 +3,34 @@ import {
   BROWSER_MODEL_KEY,
   BROWSER_MODEL_LABEL,
   createBrowserAdapter,
+  type VideoProviderAdapter,
 } from "~/modules/generation";
 import {
   effectiveDefaultModel,
   getDefaultModelKey,
   listModelConfigs,
   modelConfigs,
+  parseCatalogConnection,
   resolveCatalog,
   type ModelCatalog,
 } from "~/modules/models";
 import type { Db } from "~/server/db/types";
+import { createCatalogAdapter } from "~/server/catalog-adapter";
+import { readCredentials } from "~/server/settings/providers";
+import { loadActorReference } from "./shims/actor-pictures";
 import { RENDER_CONFIG } from "./render/env";
 import { browserRenderer } from "./render/runner";
 import { renderSupport } from "./render/support";
 
-// The browser edition's model catalog. Cloud models need API keys kept on a
-// server and local model servers a studio that can reach them, so neither
-// runs here and each says why. The one model that does is the browser
-// edition's own: Kokoro voices and the shared scene, rendered in this browser
-// (site/src/render).
+// The browser edition's model catalog: its own model (Kokoro voices and the
+// shared scene, rendered in this browser, site/src/render) and the cloud
+// models added from OpenRouter's catalog, which render on the visitor's own
+// OpenRouter key, called straight from this page (OpenRouter answers web
+// pages: CORS). Other cloud providers and local model servers need the
+// self-hosted studio, and each says why.
 
-export const CLOUD_NEEDS_SELF_HOSTED = "Needs the self-hosted studio, which keeps your API key on your own server.";
+export const CLOUD_NEEDS_SELF_HOSTED =
+  "In your browser, cloud models run on OpenRouter. This one needs the self-hosted studio, which calls its provider from your own server.";
 export const LOCAL_NEEDS_SELF_HOSTED =
   "Needs the self-hosted studio, which reaches model servers on your machine or network.";
 
@@ -46,27 +53,54 @@ export async function ensureBrowserModel(db: Db): Promise<void> {
 }
 
 async function buildCatalog(db: Db): Promise<ModelCatalog> {
-  const [rows, savedDefault, support] = await Promise.all([
+  const [rows, savedDefault, support, credentials] = await Promise.all([
     listModelConfigs(db),
     getDefaultModelKey(db),
     renderSupport(),
+    readCredentials(db, {}),
   ]);
+  const openrouter = credentials.openrouter;
+  const onOpenRouter = (row: (typeof rows)[number]) =>
+    row.family === "catalog" && parseCatalogConnection(row.connection)?.provider === "openrouter";
   const models = resolveCatalog({
     rows,
-    credentials: { google: "none", fal: "none" },
+    credentials: { google: "none", fal: "none", openrouter: openrouter.source },
     checkLocal: (row) => {
+      // OpenRouter's models go by their key, like any cloud model.
+      if (onOpenRouter(row)) return null;
       if (row.family !== "browser") return { status: "unsupported-host", detail: LOCAL_NEEDS_SELF_HOSTED };
       return support.ok ? null : { status: "unsupported-host", detail: support.detail };
     },
-  }).map((model) =>
-    model.kind === "cloud"
+  }).map((model) => {
+    const row = rows.find((r) => r.id === model.key);
+    return model.kind === "cloud" && !(row && onOpenRouter(row))
       ? { ...model, status: "unsupported-host" as const, statusDetail: CLOUD_NEEDS_SELF_HOSTED }
-      : model,
-  );
+      : model;
+  });
   // The adapter stays even when the model is off, so renders in flight finish.
-  const adapters = new Map([
+  const adapters = new Map<string, VideoProviderAdapter>([
     [BROWSER_MODEL_KEY, createBrowserAdapter({ renderer: browserRenderer, fps: RENDER_CONFIG.fps })],
   ]);
+  if (openrouter.source === "saved")
+    for (const row of rows) {
+      const connection = onOpenRouter(row) ? parseCatalogConnection(row.connection) : null;
+      if (!connection || !row.capabilities) continue;
+      adapters.set(
+        row.id,
+        createCatalogAdapter({
+          model: {
+            modelKey: row.id,
+            provider: "openrouter",
+            modelId: connection.model,
+            capabilities: row.capabilities,
+            ...(connection.frameImages ? { frameImages: connection.frameImages } : {}),
+            ...(connection.talking ? { talking: true } : {}),
+          },
+          apiKey: openrouter.key,
+          loadReference: loadActorReference,
+        }),
+      );
+    }
   return { models, adapters, defaultModelKey: effectiveDefaultModel(models, savedDefault) };
 }
 
